@@ -18,6 +18,17 @@ Work on feature branches only; never commit directly to main. All work flows thr
 - Always push with upstream tracking: `git push -u origin <branch-name>`
 - Delete branches after merge: `git branch -d <branch-name>` (locally)
 
+**If you catch yourself on main**:
+- Once task is identified, immediately create and switch to feature branch
+- Move any uncommitted work to the feature branch
+- Do NOT commit directly to main, even by accident
+- ```bash
+  # If you've already made changes on main:
+  git stash  # Save your work
+  git checkout -b feature/task-name origin/main
+  git stash pop  # Restore your work on the feature branch
+  ```
+
 ### Branch Naming Convention
 
 **Format**: `{type}/{feature-name}`
