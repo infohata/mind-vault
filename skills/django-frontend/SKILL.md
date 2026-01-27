@@ -13,6 +13,8 @@ Production-ready frontend architecture for Django applications using **HTMX** fo
 
 **Philosophy:** Server renders HTML, HTMX handles interactions, Alpine.js manages component state, Bulma provides styling.
 
+**Integration:** Works seamlessly with [Django skill backend patterns](../django/SKILL.md) for views, forms, and multi-tenancy.
+
 ---
 
 ## When to Use
@@ -1036,6 +1038,11 @@ window.getCsrfToken = getCsrfToken;
 - [Alpine.js Documentation](https://alpinejs.dev/)
 - [Bulma CSS Documentation](https://bulma.io/documentation/)
 - [Django Crispy Forms](https://django-crispy-forms.readthedocs.io/)
+
+**Related Skills:**
+- [Django Skill](../django/SKILL.md) - Backend patterns for views, forms, and multi-tenancy integration
+- [Django Multi-Tenant Skill](../django/references/MULTI_TENANT.md) - Schema isolation for multi-tenant frontend apps
+- [Django Async WebSocket Skill](../django/references/ASYNC_WEBSOCKET.md) - Real-time features complementing HTMX
 
 **Key Patterns:**
 - **Partial templates**: Different templates for HTMX vs full page requests
