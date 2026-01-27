@@ -47,7 +47,19 @@ git commit -m "Describe what was added/changed and why"
 
 **Directory Structure**
 ```
-skills/          # SKILL.md files - reusable patterns
+skills/                          # Reusable agent skills
+  ├── django-architecture/       # Core Django patterns
+  │   └── SKILL.md
+  ├── django-celery/             # Background tasks (single-tenant)
+  │   └── SKILL.md
+  ├── django-async-websocket/    # WebSocket patterns (single-tenant)
+  │   └── SKILL.md
+  ├── django-multi-tenant/       # Multi-tenant architecture
+  │   └── SKILL.md
+  ├── django-celery-multitenant/ # Background tasks (multi-tenant)
+  │   └── SKILL.md
+  └── django-async-websocket-multitenant/ # WebSocket (multi-tenant)
+      └── SKILL.md
 agents/          # AGENT.md files - agent specializations
 rules/           # RULE.md files - behavioral guidelines
 docs/            # Documentation, analysis, patterns
@@ -56,8 +68,8 @@ docs/            # Documentation, analysis, patterns
 ### Naming Conventions
 
 **Skills** (in `skills/`)
-- Format: `SKILL_{NAME}.md`
-- Example: `SKILL_django-async-patterns.md`
+- Format: `skills/{skill-name}/SKILL.md`
+- Example: `skills/django-architecture/SKILL.md`
 - Names: kebab-case, descriptive (what problem does it solve?)
 
 **Rules** (in `rules/`)
@@ -97,7 +109,7 @@ docs/            # Documentation, analysis, patterns
 - Use checkboxes (- [ ], - [x]) for status tracking
 
 **Links & References**
-- Internal: Use relative paths `[link text](../skills/SKILL_name.md)`
+- Internal: Use relative paths `[link text](../skills/django-architecture/SKILL.md)`
 - External: Full URLs only
 - Reference line numbers when helpful: `file.py:45`
 
@@ -268,7 +280,7 @@ Include metadata at top:
 
 Before finishing work on skills/rules/documentation:
 
-- [ ] File follows naming convention (SKILL_, RULE_, AGENT_, or proper doc format)
+- [ ] File follows naming convention (subdirs with SKILL.md, RULE_, AGENT_, or proper doc format)
 - [ ] Content is placed in correct directory
 - [ ] Metadata/header is present (for docs)
 - [ ] Content is generic and reusable (not project-specific)
@@ -276,19 +288,19 @@ Before finishing work on skills/rules/documentation:
 - [ ] Links are relative paths or full URLs
 - [ ] No credentials, API keys, or secrets included
 - [ ] Clear explanation of why this pattern matters
-- [ ] All sections follow template structure
+- [ ] **Rule Enforcement**: Run `/load-rules` command at session start and after compaction to enforce active rules
 
 ## Agent Roles
 
 Agent roles define specialization and focus areas when working in mind-vault. See individual role files in `agents/` directory:
 
-- [`AGENT_researcher.md`](agents/AGENT_researcher.md) - Pattern extraction and analysis
-- [`AGENT_architect.md`](agents/AGENT_architect.md) - Backend/technical design and validation
-- [`AGENT_frontend.md`](agents/AGENT_frontend.md) - Frontend/UX patterns and components
-- [`AGENT_documentation.md`](agents/AGENT_documentation.md) - Documentation quality (shared responsibility)
-- [`AGENT_test-engineer.md`](agents/AGENT_test-engineer.md) - Edge case and completeness validation
-- [`AGENT_curator.md`](agents/AGENT_curator.md) - Quality gates and consistency
-- [`AGENT_devops.md`](agents/AGENT_devops.md) - Deployment and operations patterns
+- [`researcher.md`](agents/researcher.md) - Pattern extraction and analysis
+- [`architect.md`](agents/architect.md) - Backend/technical design and validation
+- [`frontend.md`](agents/frontend.md) - Frontend/UX patterns and components
+- [`documentation.md`](agents/documentation.md) - Documentation quality (shared responsibility)
+- [`test-engineer.md`](agents/test-engineer.md) - Edge case and completeness validation
+- [`curator.md`](agents/curator.md) - Quality gates and consistency
+- [`devops.md`](agents/devops.md) - Deployment and operations patterns
 
 ## Next Steps
 
@@ -303,4 +315,4 @@ For agents extending this repository:
 
 **Last Updated**: 2026-01-26  
 **Repository**: https://github.com/infohata/mind-vault  
-**Symlinks**: `~/.claude/skills`, `~/.config/opencode/skills`
+**Symlinks**: `~/.claude/skills`, `~/.config/opencode/skills`, `~/.config/opencode/commands`

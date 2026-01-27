@@ -1,0 +1,1 @@
+../../by-agent/test-engineer/validations/DJANGO_ARCHITECTURE_VALIDATION_REPORT.md

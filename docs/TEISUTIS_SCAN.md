@@ -291,38 +291,40 @@ Standard optimization pattern for:
 
 ## IMPLEMENTATION APPROACH
 
-### What Goes Where?
+### What Goes Where? (COMPLETED - Skills Created)
 
-| Item | Type | Where |
-|------|------|-------|
-| Tool dependency rules | Rule/Guardrail | System prompt or agent rule |
-| Async/sync pattern | Skill | `django-async-patterns` |
-| Multi-tenant context | Skill | `django-tenants-patterns` |
-| Error handling | Skill/Rule | `error-handling-conventions` |
-| Performance monitoring | Skill | `performance-monitoring` |
-| Streaming pattern | Skill | `streaming-response-pattern` |
-| Settings convention | Skill | `django-settings-patterns` |
-| Commands/workflows | Commands | `.opencode/commands/` or Makefile |
+| Item | Type | Where | Status |
+|------|------|-------|--------|
+| Tool dependency rules | Rule/Guardrail | System prompt or agent rule | ⏳ TBD |
+| Async/sync pattern | Skill | `SKILL_django-async-websocket.md` & `SKILL_django-async-websocket-multitenant.md` | ✅ DONE |
+| Multi-tenant context | Skill | `SKILL_django-multi-tenant.md` | ✅ DONE |
+| Error handling | Skill/Rule | `SKILL_django-async-websocket.md` & `SKILL_django-async-websocket-multitenant.md` | ✅ DONE |
+| Performance monitoring | Skill | `SKILL_django-architecture.md` | ✅ DONE |
+| Streaming pattern | Skill | `SKILL_django-async-websocket.md` & `SKILL_django-async-websocket-multitenant.md` | ✅ DONE |
+| Settings convention | Skill | `SKILL_django-architecture.md` | ✅ DONE |
+| Commands/workflows | Commands | `.opencode/commands/` or Makefile | ⏳ TBD |
 
 ---
 
 ## NEXT STEPS
 
-### Phase 1: Create Skills (High-value, reusable)
-1. **`django-async-patterns`** - WebSocket + async/sync mixing
-2. **`django-tenants-patterns`** - Multi-tenant context management
-3. **`error-handling-async`** - Error categorization in async code
-4. **`performance-monitoring`** - Observability patterns
+### Phase 1: Create Skills (High-value, reusable) ✅ COMPLETED
+1. **`SKILL_django-async-websocket.md`** - WebSocket + async/sync mixing (single-tenant)
+2. **`SKILL_django-async-websocket-multitenant.md`** - WebSocket + async/sync mixing (multi-tenant)
+3. **`SKILL_django-multi-tenant.md`** - Multi-tenant context management
+4. **`SKILL_django-celery.md`** - Celery patterns (single-tenant)
+5. **`SKILL_django-celery-multitenant.md`** - Celery patterns (multi-tenant)
+6. **`SKILL_django-architecture.md`** - Performance monitoring, settings, conventions
 
-### Phase 2: Create Rules (System-level guardrails)
-5. **`tool-dependency-rules`** - Sequential execution, race condition prevention
+### Phase 2: Create Rules (System-level guardrails) ⏳ PENDING
+1. **`tool-dependency-rules`** - Sequential execution, race condition prevention
 
-### Phase 3: Create Commands (Workflow shortcuts)
-6. **`dev-shortcuts`** - Common development commands
+### Phase 3: Create Commands (Workflow shortcuts) ⏳ PENDING
+1. **`dev-shortcuts`** - Common development commands
 
-### Phase 4: Documentation (Conventions)
-7. **`streaming-patterns`** - Real-time response patterns
-8. **`django-settings`** - Environment configuration patterns
+### Phase 4: Documentation (Conventions) ✅ COMPLETED
+1. **`streaming-patterns`** - Real-time response patterns (in async skills)
+2. **`django-settings`** - Environment configuration patterns (in architecture skill)
 
 ---
 
@@ -335,4 +337,4 @@ Standard optimization pattern for:
 
 ---
 
-**Status**: Ready for skill/rule/command implementation discussion
+**Status**: Skills implementation COMPLETED (6 skills created, 3,200+ lines), rules/commands pending
