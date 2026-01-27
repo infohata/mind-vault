@@ -306,7 +306,8 @@ async def connect(self):
         await self.close(code=4003)
         return
     
-    if not self.scope.get('user') or not self.user.is_authenticated:
+    self.user = self.scope.get('user')
+    if not self.user or not self.user.is_authenticated:
         await self.close(code=4001)
         return
     
