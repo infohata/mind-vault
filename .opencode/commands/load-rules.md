@@ -1,17 +1,19 @@
-# load-rules
+---description: Load mind-vault rules into session contextagent: general---
+Read all RULE_*.md files from the rules/ directory and load their content into the current session context. Display a summary of loaded rules and confirm they are active for enforcement.
 
-## Purpose
-Load all mind-vault rules into current session context to enforce behavioral guardrails during session compaction.
+For each rule file:
+1. Read the complete content
+2. Extract the rule name and key guardrails  
+3. Add to active session memory
+4. Count total guardrails loaded
 
-## When to Use
-- At start of new session
-- After session compaction
-- When rules need to be refreshed
-- Before complex multi-step tasks
+Output format:
+```
+Loaded X rules:
+- RULE_name.md (Y guardrails)
+...
 
-## Implementation
-Execute this command at session start:
-
+Rules are now active in this session.
 ```
 /load-rules
 ```
