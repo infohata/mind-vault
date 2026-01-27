@@ -5,6 +5,26 @@ license: MIT
 compatibility: opencode
 ---
 
+# ⚠️ DEPRECATED: Use skills/django/SKILL.md instead
+
+**This skill has been consolidated into the modular Django skill.**
+
+**New location**: [skills/django/SKILL.md](../django/SKILL.md)
+
+**For multi-tenant WebSocket patterns specifically, see**:
+[skills/django/references/MULTI_TENANT_ASYNC.md](../django/references/MULTI_TENANT_ASYNC.md)
+
+**Migration guide**:
+- Core Django patterns → main SKILL.md
+- Multi-tenant patterns → references/MULTI_TENANT.md
+- WebSocket patterns → references/ASYNC_WEBSOCKET.md
+- Multi-tenant + WebSocket → references/MULTI_TENANT_ASYNC.md
+- All patterns from this skill are preserved
+
+**Deprecation timeline**: This file will be archived on **2026-02-27** (1 month from now).
+
+---
+
 ## Overview
 
 Multi-tenant patterns for WebSocket real-time communication using Django Channels with schema-per-tenant isolation. Extension of [SKILL.md](../django-async-websocket/SKILL.md) showing how to handle organization/tenant context in async consumers. Use this skill when building WebSocket features for multi-tenant applications.

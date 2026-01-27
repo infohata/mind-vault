@@ -5,6 +5,24 @@ license: MIT
 compatibility: opencode
 ---
 
+# ⚠️ DEPRECATED: Use skills/django/SKILL.md instead
+
+**This skill has been consolidated into the modular Django skill.**
+
+**New location**: [skills/django/SKILL.md](../django/SKILL.md)
+
+**For WebSocket patterns specifically, see**:
+[skills/django/references/ASYNC_WEBSOCKET.md](../django/references/ASYNC_WEBSOCKET.md)
+
+**Migration guide**:
+- Core Django patterns → main SKILL.md
+- WebSocket-specific patterns → references/ASYNC_WEBSOCKET.md
+- All patterns from this skill are preserved
+
+**Deprecation timeline**: This file will be archived on **2026-02-27** (1 month from now).
+
+---
+
 ## Overview
 
 Real-time communication patterns using Django Channels for WebSocket connections. Complete guide to implementing async consumers with database access via `@database_sync_to_async`, error handling, and integration with Celery for task updates. Single-tenant projects only.

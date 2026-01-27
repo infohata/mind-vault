@@ -5,6 +5,26 @@ license: MIT
 compatibility: opencode
 ---
 
+# ⚠️ DEPRECATED: Use skills/django/SKILL.md instead
+
+**This skill has been consolidated into the modular Django skill.**
+
+**New location**: [skills/django/SKILL.md](../django/SKILL.md)
+
+**For multi-tenant Celery patterns specifically, see**:
+[skills/django/references/MULTI_TENANT_CELERY.md](../django/references/MULTI_TENANT_CELERY.md)
+
+**Migration guide**:
+- Core Django patterns → main SKILL.md
+- Multi-tenant patterns → references/MULTI_TENANT.md
+- Celery patterns → references/CELERY.md
+- Multi-tenant + Celery → references/MULTI_TENANT_CELERY.md
+- All patterns from this skill are preserved
+
+**Deprecation timeline**: This file will be archived on **2026-02-27** (1 month from now).
+
+---
+
 ## Overview
 
 Multi-tenant patterns for background tasks using Celery with schema-per-tenant isolation. Extension of [SKILL.md](../django-celery/SKILL.md) showing how to propagate organization/tenant context to background workers. Use this skill when building Celery tasks for multi-tenant applications.

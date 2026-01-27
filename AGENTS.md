@@ -48,18 +48,23 @@ git commit -m "Describe what was added/changed and why"
 **Directory Structure**
 ```
 skills/                          # Reusable agent skills
-  ├── django-architecture/       # Core Django patterns
-  │   └── SKILL.md
-  ├── django-celery/             # Background tasks (single-tenant)
-  │   └── SKILL.md
-  ├── django-async-websocket/    # WebSocket patterns (single-tenant)
-  │   └── SKILL.md
-  ├── django-multi-tenant/       # Multi-tenant architecture
-  │   └── SKILL.md
-  ├── django-celery-multitenant/ # Background tasks (multi-tenant)
-  │   └── SKILL.md
-  └── django-async-websocket-multitenant/ # WebSocket (multi-tenant)
-      └── SKILL.md
+  ├── django/                    # Modular Django skill (NEW)
+  │   ├── SKILL.md               # Core architecture patterns
+  │   ├── references/            # Specialized patterns (load on-demand)
+  │   │   ├── MULTI_TENANT.md
+  │   │   ├── ASYNC_WEBSOCKET.md
+  │   │   ├── CELERY.md
+  │   │   ├── MULTI_TENANT_ASYNC.md
+  │   │   └── MULTI_TENANT_CELERY.md
+  │   ├── scripts/               # Automation helpers
+  │   └── assets/                # Templates and diagrams
+  ├── _archived/                 # Archived skills (old versions)
+  │   ├── django-architecture/
+  │   ├── django-async-websocket/
+  │   ├── django-celery/
+  │   ├── django-multi-tenant/
+  │   ├── django-celery-multitenant/
+  │   └── django-async-websocket-multitenant/
 agents/          # AGENT.md files - agent specializations
 rules/           # RULE.md files - behavioral guidelines
 docs/            # Documentation, analysis, patterns
@@ -69,7 +74,7 @@ docs/            # Documentation, analysis, patterns
 
 **Skills** (in `skills/`)
 - Format: `skills/{skill-name}/SKILL.md`
-- Example: `skills/django-architecture/SKILL.md`
+- Example: `skills/django/SKILL.md`
 - Names: kebab-case, descriptive (what problem does it solve?)
 
 **Rules** (in `rules/`)
@@ -109,7 +114,7 @@ docs/            # Documentation, analysis, patterns
 - Use checkboxes (- [ ], - [x]) for status tracking
 
 **Links & References**
-- Internal: Use relative paths `[link text](../skills/django-architecture/SKILL.md)`
+- Internal: Use relative paths `[link text](../skills/django/SKILL.md)`
 - External: Full URLs only
 - Reference line numbers when helpful: `file.py:45`
 
