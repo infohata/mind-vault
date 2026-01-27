@@ -1,4 +1,9 @@
-# SKILL_django-architecture
+---
+name: django-architecture
+description: Core Django project architecture patterns including BaseModel abstractions, DRF conventions, ASGI setup, and common DRY patterns for organizing models, views, and middleware.
+license: MIT
+compatibility: opencode
+---
 
 ## Overview
 
@@ -398,8 +403,6 @@ class IsResourceOwner(BasePermission):
 
 class HasRequiredRole(BasePermission):
     """Check if user has required role."""
-    required_role = None
-
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
@@ -563,19 +566,16 @@ async def application(scope, receive, send):
 ```yaml
 version: '3.8'
 services:
+  # HTTP + WebSocket on same server (Daphne)
   web:
     build: .
     command: daphne -b 0.0.0.0 -p 8000 project.asgi:application
-    # where 'project' matches your actual project directory name
     ports:
       - "8000:8000"
-    environment:
-      - DEBUG=false
-      - ALLOWED_HOSTS=localhost,0.0.0.0
     depends_on:
-      - db
+      - postgres
 
-  db:
+  postgres:
     image: postgres:15-alpine
     environment:
       - POSTGRES_DB=project_db
@@ -734,9 +734,9 @@ These patterns **don't require multi-tenancy, Celery, or async** - they're core 
 
 ## Related Skills
 
-- [`SKILL_django-multi-tenant.md`](../skills/SKILL_django-multi-tenant.md) - If using multi-tenancy, extends BaseModel
-- [`SKILL_django-celery.md`](../skills/SKILL_django-celery.md) - If using background tasks
-- [`SKILL_django-async-websocket.md`](../skills/SKILL_django-async-websocket.md) - If using real-time features
+- [`SKILL_django-multi-tenant.md`](../django-multi-tenant/SKILL.md) - If using multi-tenancy, extends BaseModel
+- [`SKILL_django-celery.md`](../django-celery/SKILL.md) - If using background tasks
+- [`SKILL_django-async-websocket.md`](../django-async-websocket/SKILL.md) - If using real-time features
 
 ## References
 

@@ -1,12 +1,17 @@
-# SKILL_django-celery-multitenant
+---
+name: django-celery-multitenant
+description: Multi-tenant background task patterns extending Celery with schema-per-tenant isolation, focusing on propagating tenant context to background workers.
+license: MIT
+compatibility: opencode
+---
 
 ## Overview
 
-Multi-tenant patterns for background tasks using Celery with schema-per-tenant isolation. Extension of [SKILL_django-celery.md](./SKILL_django-celery.md) showing how to propagate organization/tenant context to background workers. Use this skill when building Celery tasks for multi-tenant applications.
+Multi-tenant patterns for background tasks using Celery with schema-per-tenant isolation. Extension of [SKILL.md](../django-celery/SKILL.md) showing how to propagate organization/tenant context to background workers. Use this skill when building Celery tasks for multi-tenant applications.
 
-**Prerequisites**: Read [SKILL_django-celery.md](./SKILL_django-celery.md) first (core patterns).
+**Prerequisites**: Read [SKILL.md](../django-celery/SKILL.md) first (core patterns).
 
-**Related**: [SKILL_django-multi-tenant.md](./SKILL_django-multi-tenant.md) (tenant architecture), [SKILL_django-async-websocket-multitenant.md](./SKILL_django-async-websocket-multitenant.md) (WebSocket with tenants)
+**Related**: [SKILL.md](../django-multi-tenant/SKILL.md) (tenant architecture), [SKILL.md](../django-async-websocket-multitenant/SKILL.md) (WebSocket with tenants)
 
 ## When to Use
 
@@ -206,7 +211,6 @@ def sync_external_data(self, org_id):
         # Permanent - bad data
         return {'error': 'Invalid data from API'}
 
-
 def save_data_to_org(data):
     """Save data (assumes tenant_context is already set)."""
     # Implementation depends on your models
@@ -308,12 +312,8 @@ def bulk_operation(self, data, org_id):
 
 ## Related Skills
 
-- [`SKILL_django-multi-tenant.md`](./SKILL_django-multi-tenant.md) - `tenant_context()` reference implementation
-- [`SKILL_django-async-websocket-multitenant.md`](./SKILL_django-async-websocket-multitenant.md) - Similar patterns for WebSocket
-
-## Related Rules
-
-- [`RULE_celery-multitenant-safety.md`](../rules/RULE_celery-multitenant-safety.md) - Critical guardrails for tenant context in tasks
+- [`SKILL_django-multi-tenant.md`](../django-multi-tenant/SKILL.md) - `tenant_context()` reference implementation
+- [`SKILL_django-async-websocket-multitenant.md`](../django-async-websocket-multitenant/SKILL.md) - Similar patterns for WebSocket
 
 ## References
 

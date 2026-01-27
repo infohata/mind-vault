@@ -1,12 +1,17 @@
-# SKILL_django-async-websocket
+---
+name: django-async-websocket
+description: Real-time WebSocket communication patterns using Django Channels, including async consumers, database access, error handling, and Celery integration for single-tenant projects.
+license: MIT
+compatibility: opencode
+---
 
 ## Overview
 
 Real-time communication patterns using Django Channels for WebSocket connections. Complete guide to implementing async consumers with database access via `@database_sync_to_async`, error handling, and integration with Celery for task updates. Single-tenant projects only.
 
-**For multi-tenant projects**: See [SKILL_django-async-websocket-multitenant.md](./SKILL_django-async-websocket-multitenant.md)
+**For multi-tenant projects**: See [SKILL.md](../django-async-websocket-multitenant/SKILL.md)
 
-Build on [SKILL_django-architecture.md](./SKILL_django-architecture.md) for core patterns.
+Build on [SKILL.md](../django-architecture/SKILL.md) for core patterns.
 
 ## When to Use
 
@@ -108,7 +113,6 @@ services:
   # HTTP + WebSocket on same server (Daphne)
   web:
     build: .
-    # Daphne runs both HTTP and WebSocket
     command: daphne -b 0.0.0.0 -p 8000 project.asgi:application
     ports:
       - "8000:8000"
@@ -350,17 +354,12 @@ class ChatConsumerTestCase(TestCase):
 - **Collaboration apps**: Live document editing, real-time notifications
 - **Dashboards**: Live charts, real-time metric updates
 - **Status tracking**: Order progress, deployment status, task progress
-- **Presence tracking**: Who's online, typing indicators, agent status
 - **Notifications**: Push notifications via WebSocket (vs. polling)
 
 ## Related Skills
 
-- [`SKILL_django-architecture.md`](./SKILL_django-architecture.md) - Core Django patterns (required foundation)
-- [`SKILL_django-async-websocket-multitenant.md`](./SKILL_django-async-websocket-multitenant.md) - For multi-tenant applications, how to handle organization context in consumers
-
-## Related Rules
-
-- [`RULE_async-safety.md`](../rules/RULE_async-safety.md) - Async context and error handling guardrails
+- [`SKILL_django-architecture.md`](../django-architecture/SKILL.md) - Core Django patterns (required foundation)
+- [`SKILL_django-async-websocket-multitenant.md`](../django-async-websocket-multitenant/SKILL.md) - For multi-tenant applications, how to handle organization context in consumers
 
 ## References
 

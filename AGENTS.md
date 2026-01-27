@@ -47,7 +47,19 @@ git commit -m "Describe what was added/changed and why"
 
 **Directory Structure**
 ```
-skills/          # SKILL.md files - reusable patterns
+skills/                          # Reusable agent skills
+  ├── django-architecture/       # Core Django patterns
+  │   └── SKILL.md
+  ├── django-celery/             # Background tasks (single-tenant)
+  │   └── SKILL.md
+  ├── django-async-websocket/    # WebSocket patterns (single-tenant)
+  │   └── SKILL.md
+  ├── django-multi-tenant/       # Multi-tenant architecture
+  │   └── SKILL.md
+  ├── django-celery-multitenant/ # Background tasks (multi-tenant)
+  │   └── SKILL.md
+  └── django-async-websocket-multitenant/ # WebSocket (multi-tenant)
+      └── SKILL.md
 agents/          # AGENT.md files - agent specializations
 rules/           # RULE.md files - behavioral guidelines
 docs/            # Documentation, analysis, patterns
@@ -56,8 +68,8 @@ docs/            # Documentation, analysis, patterns
 ### Naming Conventions
 
 **Skills** (in `skills/`)
-- Format: `SKILL_{NAME}.md`
-- Example: `SKILL_django-async-patterns.md`
+- Format: `skills/{skill-name}/SKILL.md`
+- Example: `skills/django-architecture/SKILL.md`
 - Names: kebab-case, descriptive (what problem does it solve?)
 
 **Rules** (in `rules/`)
@@ -97,7 +109,7 @@ docs/            # Documentation, analysis, patterns
 - Use checkboxes (- [ ], - [x]) for status tracking
 
 **Links & References**
-- Internal: Use relative paths `[link text](../skills/SKILL_name.md)`
+- Internal: Use relative paths `[link text](../skills/django-architecture/SKILL.md)`
 - External: Full URLs only
 - Reference line numbers when helpful: `file.py:45`
 
@@ -268,7 +280,7 @@ Include metadata at top:
 
 Before finishing work on skills/rules/documentation:
 
-- [ ] File follows naming convention (SKILL_, RULE_, AGENT_, or proper doc format)
+- [ ] File follows naming convention (subdirs with SKILL.md, RULE_, AGENT_, or proper doc format)
 - [ ] Content is placed in correct directory
 - [ ] Metadata/header is present (for docs)
 - [ ] Content is generic and reusable (not project-specific)

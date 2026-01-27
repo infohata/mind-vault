@@ -1,8 +1,13 @@
-# SKILL_django-multi-tenant
+---
+name: django-multi-tenant
+description: Multi-tenant architecture using django-tenants for schema-per-tenant isolation, including tenant resolution, context propagation, and permission layers for data isolation.
+license: MIT
+compatibility: opencode
+---
 
 ## Overview
 
-Multi-tenant architecture patterns using django-tenants for schema-per-tenant isolation. Complete guide to implementing multi-tenancy in Django with separate database schemas per tenant, automatic tenant resolution, context propagation, and permission layers. Use when data isolation at the database level is required. Build on [SKILL_django-architecture.md](./SKILL_django-architecture.md) for core patterns.
+Multi-tenant architecture patterns using django-tenants for schema-per-tenant isolation. Complete guide to implementing multi-tenancy in Django with separate database schemas per tenant, automatic tenant resolution, context propagation, and permission layers. Use when data isolation at the database level is required. Build on [SKILL.md](../django-architecture/SKILL.md) for core patterns.
 
 ## When to Use
 
@@ -21,7 +26,7 @@ Multi-tenant architecture patterns using django-tenants for schema-per-tenant is
 
 **Important terminology**:
 
-In this skill and related skills ([SKILL_django-celery-multitenant.md](./SKILL_django-celery-multitenant.md), [SKILL_django-async-websocket-multitenant.md](./SKILL_django-async-websocket-multitenant.md)):
+In this skill and related skills ([SKILL.md](../django-celery-multitenant/SKILL.md), [SKILL.md](../django-async-websocket-multitenant/SKILL.md)):
 - **Tenant**: The isolated database schema (managed by django-tenants)
 - **Organization**: Business entity model (e.g., `Org` model in your app)
 - Both are the same thing in different contexts
@@ -33,8 +38,8 @@ In this skill and related skills ([SKILL_django-celery-multitenant.md](./SKILL_d
 - Use `tenant_context(org)` to switch schemas for database queries
 
 **In related skills**:
-- [SKILL_django-celery-multitenant.md](./SKILL_django-celery-multitenant.md) shows how to pass org_id to background tasks
-- [SKILL_django-async-websocket-multitenant.md](./SKILL_django-async-websocket-multitenant.md) shows how to handle org context in WebSocket consumers
+- [SKILL.md](../django-celery-multitenant/SKILL.md) shows how to pass org_id to background tasks
+- [SKILL.md](../django-async-websocket-multitenant/SKILL.md) shows how to handle org context in WebSocket consumers
 - Both reference this skill for `tenant_context()` patterns
 
 ## Pattern
@@ -68,7 +73,6 @@ psycopg2-binary>=2.9
 **settings.py** (project root settings):
 
 ```python
-# web/project/settings.py
 # Database backend must use TenantAwareDatabaseRouter
 DATABASES = {
     'default': {
@@ -735,13 +739,9 @@ class TenantIsolationTestCase(TenantTestCase):
 
 ## Related Skills
 
-- [`SKILL_django-architecture.md`](../skills/SKILL_django-architecture.md) - Core Django patterns (required foundation)
-- [`SKILL_django-celery.md`](../skills/SKILL_django-celery.md) - Background tasks with tenant context
-- [`SKILL_django-async-websocket.md`](../skills/SKILL_django-async-websocket.md) - Real-time with tenant context
-
-## Related Rules
-
-- [`RULE_multi-tenant-safety.md`](../rules/RULE_multi-tenant-safety.md) - Tenant context critical guardrails
+- [`SKILL_django-architecture.md`](../django-architecture/SKILL.md) - Core Django patterns (required foundation)
+- [`SKILL_django-celery.md`](../django-celery/SKILL.md) - Background tasks with tenant context
+- [`SKILL_django-async-websocket.md`](../django-async-websocket/SKILL.md) - Real-time with tenant context
 
 ## References
 

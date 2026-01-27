@@ -1,10 +1,15 @@
-# SKILL_django-celery
+---
+name: django-celery
+description: Background task patterns with Celery for reliable asynchronous job processing, including error handling, retry strategies, and Channels integration for single-tenant Django projects.
+license: MIT
+compatibility: opencode
+---
 
 ## Overview
 
 Background task patterns using Celery for asynchronous job processing in Django. Complete guide to implementing reliable async tasks with error handling, retry strategies, and Channels integration for real-time updates. Single-tenant projects only.
 
-**For multi-tenant projects**: See [SKILL_django-celery-multitenant.md](./SKILL_django-celery-multitenant.md)
+**For multi-tenant projects**: See [SKILL.md](../django-celery-multitenant/SKILL.md)
 
 ## When to Use
 
@@ -18,7 +23,7 @@ Background task patterns using Celery for asynchronous job processing in Django.
 - Task is critical path (user must wait for result)
 - Task needs synchronous database lock
 - No task queue infrastructure available
-- Using multi-tenant architecture (use [SKILL_django-celery-multitenant.md](./SKILL_django-celery-multitenant.md))
+- Using multi-tenant architecture (use [SKILL.md](../django-celery-multitenant/SKILL.md))
 
 ## Pattern
 
@@ -150,7 +155,6 @@ def send_welcome_email(self, user_id):
 - ✅ Use exponential backoff for retries
 - ❌ Don't access `request` object (doesn't exist in background worker)
 - ❌ Don't assume current user is set
-- ❌ Don't pass complex objects, only IDs
 
 ### Signal-Based Task Triggering
 
@@ -265,7 +269,6 @@ class FileProcessingConsumer(AsyncWebsocketConsumer):
         self.file_id = self.scope['url_route']['kwargs']['file_id']
         self.group_name = f'file_{self.file_id}'
         
-        # Join group for progress updates
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
     
@@ -326,12 +329,6 @@ def sync_external_data(self):
             'error': 'Invalid data from API',
             'details': str(exc)
         }
-
-
-def save_data(data):
-    """Save synced data to database."""
-    # Implementation depends on your models
-    pass
 ```
 
 **Error categorization**:
@@ -574,6 +571,7 @@ class CeleryTaskTestCase(TestCase):
         
         result = send_welcome_email.delay(user_id=user.id)
         
+        
         # In eager mode, result is available immediately
         self.assertEqual(result.status, 'SUCCESS')
         self.assertIn('test@example.com', result.result)
@@ -586,7 +584,8 @@ class CeleryTaskTestCase(TestCase):
 - **Error handling**: Applies to any external API/service integration
 - **Retry strategies**: Exponential backoff, error categorization work universally
 - **Channels integration** (optional): Real-time progress updates
-- **Single-tenant focus**: Works for any single-tenant Django application
+
+These patterns work for any single-tenant Django application.
 
 ## Example Use Cases
 
@@ -598,13 +597,9 @@ class CeleryTaskTestCase(TestCase):
 
 ## Related Skills
 
-- [`SKILL_django-architecture.md`](../skills/SKILL_django-architecture.md) - Core Django patterns (required foundation)
-- [`SKILL_django-celery-multitenant.md`](./SKILL_django-celery-multitenant.md) - For multi-tenant applications, how to propagate organization context in tasks
-- [`SKILL_django-async-websocket.md`](./SKILL_django-async-websocket.md) - Real-time updates via WebSocket
-
-## Related Rules
-
-- [`RULE_celery-safety.md`](../rules/RULE_celery-safety.md) - Task context and error handling guardrails
+- [`SKILL_django-architecture.md`](../django-architecture/SKILL.md) - Core Django patterns (required foundation)
+- [`SKILL_django-celery-multitenant.md`](../django-celery-multitenant/SKILL.md) - For multi-tenant applications, how to propagate organization context in tasks
+- [`SKILL_django-async-websocket.md`](../django-async-websocket/SKILL.md) - Real-time updates via WebSocket
 
 ## References
 

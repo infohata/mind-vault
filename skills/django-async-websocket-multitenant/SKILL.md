@@ -1,12 +1,17 @@
-# SKILL_django-async-websocket-multitenant
+---
+name: django-async-websocket-multitenant
+description: Multi-tenant WebSocket patterns extending Channels with schema-per-tenant isolation, focusing on tenant context in async consumers.
+license: MIT
+compatibility: opencode
+---
 
 ## Overview
 
-Multi-tenant patterns for WebSocket real-time communication using Django Channels with schema-per-tenant isolation. Extension of [SKILL_django-async-websocket.md](./SKILL_django-async-websocket.md) showing how to handle organization/tenant context in async consumers. Use this skill when building WebSocket features for multi-tenant applications.
+Multi-tenant patterns for WebSocket real-time communication using Django Channels with schema-per-tenant isolation. Extension of [SKILL.md](../django-async-websocket/SKILL.md) showing how to handle organization/tenant context in async consumers. Use this skill when building WebSocket features for multi-tenant applications.
 
-**Prerequisites**: Read [SKILL_django-async-websocket.md](./SKILL_django-async-websocket.md) first (core patterns).
+**Prerequisites**: Read [SKILL.md](../django-async-websocket/SKILL.md) first (core patterns).
 
-**Related**: [SKILL_django-multi-tenant.md](./SKILL_django-multi-tenant.md) (tenant architecture), [SKILL_django-celery-multitenant.md](./SKILL_django-celery-multitenant.md) (background tasks with tenants)
+**Related**: [SKILL.md](../django-multi-tenant/SKILL.md) (tenant architecture), [SKILL.md](../django-celery-multitenant/SKILL.md) (background tasks with tenants)
 
 ## When to Use
 
@@ -16,7 +21,7 @@ Multi-tenant patterns for WebSocket real-time communication using Django Channel
 - Broadcasting messages within a tenant only (cross-tenant isolation)
 
 **DO NOT USE if**:
-- Single-tenant application (use [SKILL_django-async-websocket.md](./SKILL_django-async-websocket.md) instead)
+- Single-tenant application (use [SKILL.md](../django-async-websocket/SKILL.md) instead)
 - Using row-level security instead of schema-per-tenant
 - WebSocket consumers don't need tenant context (stateless)
 
@@ -96,13 +101,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 return room.members.filter(id=user_id).exists()
         except:
             return False
-    
-    async def disconnect(self, close_code):
-        """Clean up on disconnect."""
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
 ```
 
 **Key points**:
@@ -346,14 +344,10 @@ async def connect(self):
 
 ## Related Skills
 
-- [`SKILL_django-async-websocket.md`](./SKILL_django-async-websocket.md) - **Required foundation** - single-tenant WebSocket patterns
-- [`SKILL_django-multi-tenant.md`](./SKILL_django-multi-tenant.md) - **Required reference** - explains `tenant_context()` and schema isolation
-- [`SKILL_django-celery-multitenant.md`](./SKILL_django-celery-multitenant.md) - Background tasks that update WebSocket clients
-- [`SKILL_django-architecture.md`](./SKILL_django-architecture.md) - Core Django patterns
-
-## Related Rules
-
-- [`RULE_async-multitenant-safety.md`](../rules/RULE_async-multitenant-safety.md) - Critical guardrails for tenant context in async
+- [`SKILL_django-async-websocket.md`](../django-async-websocket/SKILL.md) - **Required foundation** - single-tenant WebSocket patterns
+- [`SKILL_django-multi-tenant.md`](../django-multi-tenant/SKILL.md) - **Required reference** - explains `tenant_context()` and schema isolation
+- [`SKILL_django-celery-multitenant.md`](../django-celery-multitenant/SKILL.md) - Background tasks that update WebSocket clients
+- [`SKILL_django-architecture.md`](../django-architecture/SKILL.md) - Core Django patterns
 
 ## References
 
