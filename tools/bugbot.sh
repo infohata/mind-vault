@@ -339,6 +339,18 @@ if [ -z "$PR_NUMBER" ]; then
     echo "✅ Created PR #$PR_NUMBER"
 fi
 
+# Check if there's an active bugbot run (comment with eyes reaction)
+echo "🔍 Checking for active bugbot runs..."
+ACTIVE_BUGBOT=$(gh api repos/$(git config --get remote.origin.url | sed 's/.*github.com[:/]\([^.]*\).*/\1/')/pulls/$PR_NUMBER/comments \
+    --jq '[.[] | select(.body == "bugbot run" and (.reactions.eyes // 0) > 0)] | length')
+
+if [ "$ACTIVE_BUGBOT" -gt 0 ]; then
+    echo "⚠️  Active bugbot run detected (👀 reaction present)"
+    echo "   Please wait for current analysis to complete before running again."
+    echo "   Check PR #$PR_NUMBER for results."
+    exit 0
+fi
+
 echo "🔍 Invoking Bugbot on PR #$PR_NUMBER..."
 gh pr comment "$PR_NUMBER" --body "bugbot run"
 echo "✅ Bugbot invocation sent. Check PR comments for review results."
