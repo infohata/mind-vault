@@ -341,11 +341,14 @@ fi
 
 # Check if there's an active bugbot run (comment with eyes reaction)
 echo "🔍 Checking for active bugbot runs..."
-ACTIVE_BUGBOT=$(gh api repos/$(git config --get remote.origin.url | sed 's/.*github.com[:/]\([^.]*\).*/\1/')/pulls/$PR_NUMBER/comments \
-    --jq '[.[] | select(.body == "bugbot run" and (.reactions.eyes // 0) > 0)] | length')
+REPO_URL=$(git config --get remote.origin.url)
+REPO_NAME=$(echo "$REPO_URL" | sed -E 's/.*github\.com[:/]([^.]+)\.git/\1/' || echo "infohata/mind-vault")
+
+ACTIVE_BUGBOT=$(gh api "repos/$REPO_NAME/issues/$PR_NUMBER/comments" \
+    --jq '[.[] | select(.body == "bugbot run" and (.reactions.eyes // 0) > 0)] | length' 2>/dev/null || echo "0")
 
 if [ "$ACTIVE_BUGBOT" -gt 0 ]; then
-    echo "⚠️  Active bugbot run detected (👀 reaction present)"
+    echo "⚠️  Active bugbot run detected ($ACTIVE_BUGBOT with 👀 reaction)"
     echo "   Please wait for current analysis to complete before running again."
     echo "   Check PR #$PR_NUMBER for results."
     exit 0
