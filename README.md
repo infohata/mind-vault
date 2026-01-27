@@ -22,16 +22,43 @@ AI agent configuration, skills, and rules for Claude Code and OpenCode.
 
 From `~/.claude/` and `~/.config/opencode/`:
 ```bash
+# Skills (both Claude Code and OpenCode)
 ln -s ~/projects/mind-vault/skills ~/.claude/skills
 ln -s ~/projects/mind-vault/skills ~/.config/opencode/skills
+
+# OpenCode-specific integration
+ln -s ~/projects/mind-vault/agents ~/.config/opencode/agents
+ln -s ~/projects/mind-vault/commands ~/.config/opencode/commands
+ln -s ~/projects/mind-vault/rules ~/.config/opencode/rules
 ```
 
-Both Claude Code and OpenCode will discover skills from this vault.
+## OpenCode Configuration
+
+Add to `~/.config/opencode/opencode.jsonc`:
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["rules/RULE_*.md"],
+  "mcp": {
+    "browsermcp": {
+      "type": "local", 
+      "command": ["${HOME}/.local/bin/browsermcp-start"],
+      "enabled": true
+    }
+  }
+}
+```
+
+This enables:
+- **Automatic rule loading** on session start
+- **Agent specialization** via symlinked agents
+- **Custom commands** like `/load-rules` for rule recovery
+- **MCP server integration** for browser automation
 
 ## Usage
 
 In OpenCode or Claude Code, reference skills by name:
-- Ask: "Load the teisutis-django-orm skill"
+- Ask: "Load the django-orm skill"
 - Or implicitly: OpenCode will find relevant skills
 
 ## Version Control
