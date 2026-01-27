@@ -5,6 +5,24 @@ license: MIT
 compatibility: opencode
 ---
 
+# ⚠️ DEPRECATED: Use skills/django/SKILL.md instead
+
+**This skill has been consolidated into the modular Django skill.**
+
+**New location**: [skills/django/SKILL.md](../django/SKILL.md)
+
+**For Celery patterns specifically, see**:
+[skills/django/references/CELERY.md](../django/references/CELERY.md)
+
+**Migration guide**:
+- Core Django patterns → main SKILL.md
+- Celery-specific patterns → references/CELERY.md
+- All patterns from this skill are preserved
+
+**Deprecation timeline**: This file will be archived on **2026-02-27** (1 month from now).
+
+---
+
 ## Overview
 
 Background task patterns using Celery for asynchronous job processing in Django. Complete guide to implementing reliable async tasks with error handling, retry strategies, and Channels integration for real-time updates. Single-tenant projects only.

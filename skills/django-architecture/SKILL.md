@@ -5,6 +5,21 @@ license: MIT
 compatibility: opencode
 ---
 
+# ⚠️ DEPRECATED: Use skills/django/SKILL.md instead
+
+**This skill has been consolidated into the modular Django skill.**
+
+**New location**: [skills/django/SKILL.md](../django/SKILL.md)
+
+**Migration guide**:
+- Core architecture patterns are now in the main SKILL.md
+- All patterns from this skill are preserved in the new modular structure
+- The new skill provides the same functionality with better organization
+
+**Deprecation timeline**: This file will be archived on **2026-02-27** (1 month from now).
+
+---
+
 ## Overview
 
 Core Django project architecture patterns for organizing models, views, serializers, and middleware. Covers BaseModel abstractions, DRF conventions, ASGI setup, and common DRY patterns. This skill covers standard Django architecture without multi-tenancy, Celery, or async/WebSocket specifics - see separate skills for those.

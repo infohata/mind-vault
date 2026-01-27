@@ -5,6 +5,24 @@ license: MIT
 compatibility: opencode
 ---
 
+# ⚠️ DEPRECATED: Use skills/django/SKILL.md instead
+
+**This skill has been consolidated into the modular Django skill.**
+
+**New location**: [skills/django/SKILL.md](../django/SKILL.md)
+
+**For multi-tenant patterns specifically, see**:
+[skills/django/references/MULTI_TENANT.md](../django/references/MULTI_TENANT.md)
+
+**Migration guide**:
+- Core Django patterns → main SKILL.md
+- Multi-tenant-specific patterns → references/MULTI_TENANT.md
+- All patterns from this skill are preserved
+
+**Deprecation timeline**: This file will be archived on **2026-02-27** (1 month from now).
+
+---
+
 ## Overview
 
 Multi-tenant architecture patterns using django-tenants for schema-per-tenant isolation. Complete guide to implementing multi-tenancy in Django with separate database schemas per tenant, automatic tenant resolution, context propagation, and permission layers. Use when data isolation at the database level is required. Build on [SKILL.md](../django-architecture/SKILL.md) for core patterns.
