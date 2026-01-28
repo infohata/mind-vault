@@ -1,3 +1,8 @@
+---
+name: artefact-retrieval
+description: Systematic approach for retrieving and utilizing artefacts from the mind-vault knowledge base, enabling agents and developers to access validated research, analysis, and documentation efficiently across projects.
+---
+
 # SKILL_artefact-retrieval
 
 ## Overview
