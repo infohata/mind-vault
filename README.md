@@ -58,7 +58,7 @@ This enables:
 ## Usage
 
 In OpenCode or Claude Code, reference skills by name:
-- Ask: "Load the django-orm skill" or "Load the django-frontend skill"
+- Ask: "Load the django skill" or "Load the django-frontend skill"
 - Or implicitly: OpenCode will find relevant skills
 
 Skills available include:
