@@ -11,6 +11,8 @@ Production-ready frontend architecture for Django applications using **HTMX** fo
 - **Django Crispy Forms**: Server-side form rendering
 - **FontAwesome**: Icon system
 
+**Compatibility:** Django 4.2+, Crispy Forms 2.x+, PostgreSQL/MySQL/SQLite
+
 **Philosophy:** Server renders HTML, HTMX handles interactions, Alpine.js manages component state, Bulma provides styling.
 
 **Integration:** Works seamlessly with [Django skill backend patterns](../django/SKILL.md) for views, forms, and multi-tenancy.
@@ -52,6 +54,9 @@ Production-ready frontend architecture for Django applications using **HTMX** fo
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}App{% endblock %}</title>
+    
+    <!-- CSRF token for JavaScript access -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
     
     <!-- CSS: Bulma + Custom Theme -->
     <link rel="stylesheet" href="{% static 'core/css/bulma.min.css' %}">
@@ -245,6 +250,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const filterForm = document.getElementById('article-filters');
     
     if (filterForm) {
+        // Prevent default form submission - let HTMX handle it
+        filterForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+        });
+        
         const selects = filterForm.querySelectorAll('select');
         const inputs = filterForm.querySelectorAll('input[type="text"]');
         
@@ -263,14 +273,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-
-function debounce(func, wait) {
-    let timeout;
-    return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
-    };
-}
 ```
 
 ---
@@ -300,6 +302,34 @@ function debounce(func, wait) {
 
 ```javascript
 /**
+ * Get CSRF token from various sources
+ */
+function getCsrfToken() {
+    // Try meta tag first
+    const metaTag = document.querySelector('meta[name="csrf-token"]');
+    if (metaTag) return metaTag.getAttribute('content');
+    
+    // Try Django's standard CSRF input
+    const csrfInput = document.querySelector('[name="csrfmiddlewaretoken"]');
+    if (csrfInput) return csrfInput.value;
+    
+    // Fallback: get from cookie
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue || '';
+}
+
+/**
  * Opens a modal with HTMX-loaded content
  */
 function openModal(url, title, modalId = 'formModal') {
@@ -317,9 +347,17 @@ function openModal(url, title, modalId = 'formModal') {
     modal.classList.add('is-active');
     
     fetch(url, {
-        headers: { 'HX-Request': 'true' }
+        headers: { 
+            'HX-Request': 'true',
+            'X-CSRFToken': getCsrfToken()
+        }
     })
-    .then(response => response.text())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.text();
+    })
     .then(html => {
         modalBody.innerHTML = html;
         // Re-initialize any widgets in loaded content
@@ -328,7 +366,10 @@ function openModal(url, title, modalId = 'formModal') {
     })
     .catch(error => {
         console.error('Failed to load modal content:', error);
-        modalBody.innerHTML = 'Error loading form. Please try again.';
+        modalBody.innerHTML = `<div class="notification is-danger">
+            <p>Error loading form. Please try again.</p>
+            <p class="is-size-7 mt-2">${error.message}</p>
+        </div>`;
     });
 }
 
