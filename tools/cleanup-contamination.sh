@@ -33,6 +33,7 @@ EXCLUDE_PATTERNS=(
     "*.tmp"
     "*.swp"
     "*.bak"
+    "*.backup"  # Exclude backup files to prevent recursive cleanup
     "*~"
 )
 

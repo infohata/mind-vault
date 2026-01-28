@@ -39,6 +39,7 @@ Organizes artefacts by subject matter for domain-specific discovery.
 **Current Topics**:
 - `django-architecture/` - Django framework patterns, architecture validation
 - `ai-models/` - AI model capabilities, performance analysis, selection guidance
+- `deployment/` - Production deployment patterns, Docker Compose configurations, monitoring integration
 
 ## Cross-Referencing System
 

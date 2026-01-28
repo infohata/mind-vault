@@ -201,13 +201,12 @@ docs/artefacts/by-agent/architect/analyses/
 └── MULTI_TENANT_ARCHITECTURE_REVIEW.md
 ```
 
-### 3. Agent Model Optimization
-Access previous model evaluation work:
+### 6. Monitoring Architecture Design
+Review observability patterns for production applications:
 ```
-docs/artefacts/by-agent/researcher/model-analysis/
-├── RESEARCHER_MODEL_ANALYSIS.md
-├── ARCHITECT_MODEL_ANALYSIS.md
-└── CURATOR_MODEL_ANALYSIS.md
+docs/artefacts/by-agent/architect/analyses/
+├── MULTI_TENANT_ARCHITECTURE_REVIEW.md
+└── MONITORING_ARCHITECTURE_DESIGN.md
 ```
 
 ### 4. Production Readiness Validation
@@ -216,12 +215,21 @@ Check existing validation reports before deployment:
 docs/artefacts/by-type/validations/
 ├── DJANGO_PRODUCTION_VALIDATION.md
 ├── WEBSOCKET_SCALING_ASSESSMENT.md
-└── DATABASE_PERFORMANCE_ANALYSIS.md
+├── DATABASE_PERFORMANCE_ANALYSIS.md
+└── DEPLOYMENT_APPROACH_VALIDATION.md
+```
+
+### 5. Deployment Pattern Research
+Access validated deployment patterns before implementation:
+```
+docs/artefacts/by-topic/deployment/
+├── DEPLOYMENT_PATTERN_ANALYSIS.md
+├── DEPLOYMENT_ARCHITECTURE_DESIGN.md
+└── MONITORING_ARCHITECTURE_DESIGN.md
 ```
 
 ## References
 - [Agent Artefacts Knowledge Base](../docs/artefacts/README.md)
 - [Multi-dimensional Taxonomy](../docs/artefacts/taxonomy.md)
 - [Django Architecture Skill](../skills/django-architecture/SKILL.md)
-- [Git Workflow Rule](../rules/RULE_git-workflow.md)</content>
-<parameter name="filePath">skills/artefact-retrieval/SKILL.md
+- [Git Workflow Rule](../rules/RULE_git-workflow.md)

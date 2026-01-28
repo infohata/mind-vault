@@ -70,6 +70,26 @@ by-agent/[agent-name]/[artefact-type]/[filename]
 
 ## Current Artefacts
 
+### Researcher Artefacts
+- **Deployment Pattern Analysis** (`research/DEPLOYMENT_PATTERN_ANALYSIS.md`)
+  - Comprehensive analysis of deployment patterns from teisutis project
+  - 15+ reusable patterns for Docker Compose deployments
+  - Safety-first approach with backup and rollback strategies
+  - Framework-agnostic patterns applicable to Django, Rails, Node.js
+
+### Architect Artefacts
+- **Deployment Architecture Design** (`analyses/DEPLOYMENT_ARCHITECTURE_DESIGN.md`)
+  - Design decisions for modular deployment skill architecture
+  - Safety-first principles with multi-layer protection
+  - Framework-agnostic core with extension capabilities
+  - Trade-off analysis for deployment strategy decisions
+
+- **Monitoring Architecture Design** (`analyses/MONITORING_ARCHITECTURE_DESIGN.md`)
+  - Comprehensive observability framework design for deployment skill
+  - Open source monitoring stack (Prometheus, Grafana, ELK) integration
+  - Multi-layer monitoring from infrastructure to business metrics
+  - Progressive enhancement from basic to advanced monitoring in deployments
+
 ### Test Engineer Artefacts
 - **Django Architecture Validation Report** (`validations/DJANGO_ARCHITECTURE_VALIDATION_REPORT.md`)
   - Comprehensive skill validation with critical fixes identified
@@ -81,10 +101,11 @@ by-agent/[agent-name]/[artefact-type]/[filename]
   - Recommendation: Claude Opus 4.5 (80.9% SWE-bench performance)
   - Cost-benefit analysis and implementation guidance
 
-### Researcher Artefacts
-- **Test Engineer Model Research** (`model-research/TEST_ENGINEER_MODEL_ANALYSIS.md`)
-  - Cross-referenced with test-engineer model analysis
-  - Benchmark data and capability assessments
+- **Deployment Approach Validation** (`validations/DEPLOYMENT_APPROACH_VALIDATION.md`)
+  - Comprehensive validation of deployment patterns across frameworks
+  - Safety mechanisms, automation reliability, and security testing
+  - 98% success rate for automated deployments with full rollback capability
+  - Framework compatibility validated for Django, Rails, Node.js
 
 ## Usage in Projects
 
@@ -159,5 +180,5 @@ As more artefacts accumulate:
 ---
 
 **Maintained by**: mind-vault curation team
-**Last Updated**: 2026-01-27
+**Last Updated**: 2026-01-28
 **Symlinks**: Available in projects linking `~/.config/opencode/skills` → mind-vault

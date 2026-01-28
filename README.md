@@ -64,6 +64,7 @@ In OpenCode or Claude Code, reference skills by name:
 Skills available include:
 - **django** - Core Django patterns (ORM, views, forms, multi-tenancy)
 - **django-frontend** - HTMX + Alpine.js + Bulma frontend architecture
+- **deployment** - Docker Compose deployment with monitoring and Django extensions
 - **django-celery** - Background task patterns with Celery
 - **django-async-websocket** - Real-time WebSocket communication
 - And more in the `skills/` directory

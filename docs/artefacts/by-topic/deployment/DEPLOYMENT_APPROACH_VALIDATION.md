@@ -1,0 +1,1 @@
+../by-agent/test-engineer/validations/DEPLOYMENT_APPROACH_VALIDATION.md
