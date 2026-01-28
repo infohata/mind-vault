@@ -77,25 +77,32 @@ validate_skill() {
 
     # Check description exists
     if ! grep -q "^description: " "$SKILL_FILE"; then
-      echo -e "${RED}❌ Missing 'description' in frontmatter${NC}"
-      HAS_ERRORS=1
+        echo -e "${RED}❌ Missing 'description' in frontmatter${NC}"
+        HAS_ERRORS=1
     else
-      # Check description length
-      DESCRIPTION=$(grep "^description: " "$SKILL_FILE" | sed 's/^description: //')
-      DESC_LENGTH=${#DESCRIPTION}
-      if [ $DESC_LENGTH -lt 1 ]; then
-        echo -e "${RED}❌ Description is empty${NC}"
-        HAS_ERRORS=1
-      elif [ $DESC_LENGTH -gt 1024 ]; then
-        echo -e "${RED}❌ Description too long: $DESC_LENGTH characters (max 1024)${NC}"
-        HAS_ERRORS=1
-      elif [ $DESC_LENGTH -lt 20 ]; then
-        echo -e "${YELLOW}⚠️  Description very short: $DESC_LENGTH characters (recommend 100-200)${NC}"
-        HAS_WARNINGS=1
-      elif [ $DESC_LENGTH -gt 300 ]; then
-        echo -e "${YELLOW}⚠️  Description long: $DESC_LENGTH characters (recommend 100-200)${NC}"
-        HAS_WARNINGS=1
-      fi
+        # Check description length - handle multiline descriptions
+        local desc_line=$(grep -n "^description:" "$SKILL_FILE" | head -n1 | cut -d: -f1)
+        local next_separator=$(grep -n "^---$" "$SKILL_FILE" | sed -n '2p' | cut -d: -f1)
+        
+        if [ -n "$desc_line" ] && [ -n "$next_separator" ]; then
+            # Extract description content (from description line to next ---)
+            DESCRIPTION=$(sed -n "${desc_line},${next_separator}p" "$SKILL_FILE" | sed '1d; $d' | sed '/^$/d')
+            DESC_LENGTH=$(echo -n "$DESCRIPTION" | wc -c)
+            
+            if [ $DESC_LENGTH -lt 1 ]; then
+                echo -e "${RED}❌ Description is empty${NC}"
+                HAS_ERRORS=1
+            elif [ $DESC_LENGTH -gt 1024 ]; then
+                echo -e "${RED}❌ Description too long: $DESC_LENGTH characters (max 1024)${NC}"
+                HAS_ERRORS=1
+            elif [ $DESC_LENGTH -lt 20 ]; then
+                echo -e "${YELLOW}⚠️  Description very short: $DESC_LENGTH characters (recommend 100-200)${NC}"
+                HAS_WARNINGS=1
+            elif [ $DESC_LENGTH -gt 300 ]; then
+                echo -e "${YELLOW}⚠️  Description long: $DESC_LENGTH characters (recommend 100-200)${NC}"
+                HAS_WARNINGS=1
+            fi
+        fi
     fi
   fi
 
