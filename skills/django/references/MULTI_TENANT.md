@@ -181,6 +181,350 @@ def process_tenant_data(tenant_id, data):
         Article.objects.create(title=data['title'])
 ```
 
+**get_current_tenant() vs connection.tenant**:
+
+**✅ GOOD**: Use helper function for thread-safe tenant access
+```python
+from django_tenants.utils import get_current_tenant
+
+def get_queryset(self):
+    current_tenant = get_current_tenant()  # ✅ Handles all cases, thread-safe
+    if not current_tenant:
+        return Article.objects.none()
+    return Article.objects.filter(org=current_tenant)
+```
+
+**❌ BAD**: Direct access to connection.tenant
+```python
+from django.db import connection
+
+def get_queryset(self):
+    current_tenant = connection.tenant  # ❌ Not thread-safe, doesn't handle FakeTenant
+    return Article.objects.filter(org=current_tenant)
+```
+
+**Why**: `get_current_tenant()` properly handles `FakeTenant` instances used internally by django-tenants and ensures consistent behavior across all execution contexts.
+
+## Schema Context Management
+
+**Accessing public schema models** (shared across tenants):
+
+```python
+from django_tenants.utils import schema_context
+
+with schema_context('public'):
+    orgs = Org.objects.all()  # Query public schema
+    domains = Domain.objects.filter(tenant=org)
+```
+
+**Tenant schema access**:
+
+```python
+from django_tenants.utils import tenant_context
+
+tenant = Tenant.objects.get(id=tenant_id)
+with tenant_context(tenant):
+    articles = Article.objects.all()  # Query tenant schema
+```
+
+## WebSocket Consumers and Async Database Operations
+
+**CRITICAL**: When using `@database_sync_to_async` in WebSocket consumers, tenant context from middleware does NOT automatically transfer to sync threads because Django's connection object is thread-local.
+
+**✅ GOOD**: Explicit tenant context in async consumers
+```python
+from channels.db import database_sync_to_async
+from django_tenants.utils import tenant_context
+
+class ChatConsumer(AsyncJsonWebsocketConsumer):
+    async def connect(self):
+        # Tenant is set in scope by TenantChannelsMiddleware
+        self.tenant = self.scope.get('tenant')
+    
+    @database_sync_to_async
+    def get_conversation(self, conversation_id: str, tenant):
+        """Get conversation with tenant context."""
+        # CRITICAL: Set tenant context for this sync thread
+        with tenant_context(tenant):
+            return Conversation.objects.get(
+                id=conversation_id,
+                org=tenant
+            )
+```
+
+**❌ BAD**: Assuming tenant context transfers automatically
+```python
+@database_sync_to_async
+def get_conversation(self, conversation_id: str, tenant):
+    # ❌ BAD: Tenant context from middleware doesn't transfer to sync threads
+    # This will fail or query wrong schema!
+    return Conversation.objects.get(id=conversation_id, org=tenant)
+```
+
+**Why**: `TenantChannelsMiddleware` sets tenant in one thread (via `@sync_to_async`), but `@database_sync_to_async` runs in different threads. Django's connection object is thread-local, so context doesn't transfer automatically. Always wrap database operations with `tenant_context(tenant)`.
+
+## Authentication Pattern
+
+**Token identifies USER only, not org access**:
+
+```python
+# Login returns global token
+class LoginView(APIView):
+    def post(self, request):
+        # Authenticate user
+        user = User.objects.get(email=request.data['email'])
+        if user.check_password(request.data['password']):
+            token, _ = Token.objects.get_or_create(user=user)
+            return Response({'token': token.key})
+
+# API access requires both token AND org membership
+class ArticleViewSet(viewsets.ModelViewSet):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsOrgMember]
+
+    def get_queryset(self):
+        return Article.objects.all()  # Scoped to current org
+```
+
+**Org membership verification**:
+
+```python
+class IsOrgMember(BasePermission):
+    """User must belong to current org."""
+    def has_permission(self, request, view):
+        return UserScope.objects.filter(
+            user=request.user,
+            scope__org=request.tenant
+        ).exists()
+```
+
+**Complete API authentication flow example**:
+
+```python
+# core/views.py - Authentication
+from rest_framework.authtoken.models import Token
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+class LoginView(APIView):
+    """
+    Login returns token that's GLOBAL (all orgs).
+    Org access is verified separately via UserScope.
+    """
+    def post(self, request):
+        email = request.data['email']
+        password = request.data['password']
+        
+        try:
+            user = User.objects.get(email=email)
+            if user.check_password(password):
+                # Token lives in public schema, identifies user only
+                token, created = Token.objects.get_or_create(user=user)
+                return Response({'token': token.key})
+        except User.DoesNotExist:
+            pass
+        
+        return Response({'error': 'Invalid credentials'}, status=401)
+```
+
+**API Flow with UserScope**:
+```python
+# User logs in once
+POST /api/auth/login/
+→ {"token": "abc123..."}
+
+# List all accessible orgs
+GET /api/user/orgs/
+Authorization: Token abc123...
+→ [
+    {
+        "id": 1,
+        "name": "Fancy Hotels",
+        "scopes": [
+            {"name": "Hotel", "permission": "admin"},
+            {"name": "Restaurant", "permission": "write"}
+        ]
+    },
+    {
+        "id": 2,
+        "name": "Pizza Place",
+        "scopes": [{"name": "Kitchen", "permission": "admin"}]
+    }
+  ]
+
+# Set current org (context for subsequent requests)
+POST /api/user/set-org/
+Authorization: Token abc123...
+{"org_id": 1}
+→ Sets session/header for requests
+
+# Access org-specific data
+GET /api/articles/
+Authorization: Token abc123...
+X-Org-ID: 1  # Or from session
+→ Checks:
+   Layer 1: Token valid? → User john ✓
+   Layer 2: john in Org 1? (has UserScope with scope.org=1) ✓
+   Layer 3: john has write+ in any scope? ✓
+→ Returns articles from Org 1
+
+# Switch org (same token!)
+POST /api/user/set-org/
+Authorization: Token abc123...
+{"org_id": 2}
+
+# Access different org
+GET /api/articles/
+Authorization: Token abc123...
+X-Org-ID: 2
+→ Same token, different org data
+```
+
+**Why Token ≠ Access**:
+- Token proves "I am john@company.com"
+- UserScope proves "john is in this org with this permission"
+- Token is global; UserScope is per-org
+- If token auth fails, reject immediately
+- If UserScope fails, user doesn't belong to that org
+
+## UserScope Pattern (Multi-Org Access)
+
+**Junction table for granular permissions**:
+
+```python
+class Scope(models.Model):
+    """Permission group within org (e.g., 'Admin', 'Editor')."""
+    org = models.ForeignKey(Org, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+
+class UserScope(models.Model):
+    """User's permissions in specific scope."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    scope = models.ForeignKey(Scope, on_delete=models.CASCADE)
+    permission = models.CharField(
+        max_length=20,
+        choices=[('read', 'Read'), ('write', 'Write'), ('admin', 'Admin')]
+    )
+
+    class Meta:
+        unique_together = ('user', 'scope')
+```
+
+**Example**: john@company.com can be admin in "Hotel" scope but only write in "Restaurant" scope, both within the same organization.
+
+## Serializer Validation and Scope Permissions
+
+**Automatic tenant filtering in serializers**:
+
+```python
+class ArticleSerializer(serializers.ModelSerializer):
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.none()  # Will be filtered by tenant
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        current_tenant = get_current_tenant()
+        if current_tenant:
+            self.fields['category'].queryset = Category.objects.filter(org=current_tenant)
+```
+
+**ManyToMany scope validation** (CRITICAL for security):
+
+**✅ GOOD**: Validate scope matching BEFORE database operations
+```python
+class ArticleSerializer(serializers.ModelSerializer):
+    tag_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False,
+        allow_empty=True
+    )
+    
+    def validate(self, attrs):
+        """Validate tag scope matching before database operations."""
+        tag_ids = attrs.get('tag_ids')
+        
+        if tag_ids is not None:
+            current_tenant = get_current_tenant()
+            if not current_tenant:
+                return attrs
+            
+            # Get article scope (from instance for update, from attrs for create)
+            article_scope = None
+            if self.instance:
+                # Update: use new scope if being updated, otherwise existing scope
+                article_scope = attrs.get('scope', self.instance.scope)
+            else:
+                # Create: get scope from attrs
+                article_scope = attrs.get('scope')
+            
+            if not article_scope:
+                return attrs
+            
+            # Validate tags belong to current tenant AND match article scope
+            tags = Tag.objects.filter(id__in=tag_ids, org=current_tenant, scope=article_scope)
+            found_tag_ids = set(tags.values_list('id', flat=True))
+            requested_tag_ids = set(tag_ids)
+            
+            invalid_ids = requested_tag_ids - found_tag_ids
+            if invalid_ids:
+                raise serializers.ValidationError({
+                    'tag_ids': [f'Invalid tag IDs or tags from different scope: {sorted(invalid_ids)}']
+                })
+        
+        return attrs
+```
+
+**Scope change permission validation** (CRITICAL for security):
+
+**✅ GOOD**: Validate scope change permissions before database operations
+```python
+from teisutis_kb.utils import check_scope_change_permissions
+
+if 'scope' in update_data:
+    is_allowed, error_message = check_scope_change_permissions(
+        user=user,
+        current_scope=object.scope,  # Source scope
+        new_scope=update_data['scope'],  # Destination scope
+        org=current_tenant
+    )
+    
+    if not is_allowed:
+        return {'error': error_message}  # or raise ValidationError
+```
+
+**Scope change validation utility**:
+```python
+def check_scope_change_permissions(user, current_scope, new_scope, org):
+    """
+    Users must have write/admin permissions for BOTH source and destination scopes.
+    Prevents privilege escalation by moving content to inaccessible scopes.
+    """
+    # Can user access old scope?
+    can_leave = UserScope.objects.filter(
+        user=user, scope=current_scope,
+        permission__in=['write', 'admin']
+    ).exists()
+    
+    # Can user access new scope?
+    can_enter = UserScope.objects.filter(
+        user=user, scope=new_scope,
+        permission__in=['write', 'admin']
+    ).exists()
+    
+    if not (can_leave and can_enter):
+        return False, "No permission to move content between these scopes"
+    
+    return True, None
+```
+
+**Why scope validation matters**:
+- Prevents cross-scope data access (security vulnerability)
+- Validates permissions BEFORE database operations
+- Defense in depth: multiple validation layers
+- Prevents privilege escalation attacks
+
 ## Authentication Pattern
 
 **Token identifies USER only, not org access**:

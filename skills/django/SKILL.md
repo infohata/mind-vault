@@ -2,43 +2,54 @@
 name: django
 description: |
   Core Django architecture patterns including BaseModel abstractions,
-  DRF conventions, ASGI setup, multi-tenancy, async WebSocket, and
-  Celery background tasks. Use for Django projects requiring production-ready
-  patterns with optional multi-tenant support.
+  DRF conventions, ASGI setup, multi-tenancy, async WebSocket, Celery background tasks,
+  testing strategies, and development workflows. Use for Django projects requiring 
+  production-ready patterns with optional multi-tenant support.
 license: MIT
 compatibility: opencode
 metadata:
   author: mind-vault
-  version: "2.0"
+  version: "4.0"
   replaces:
-    - django-architecture
-    - django-async-websocket
-    - django-celery
-    - django-multi-tenant
-    - django-celery-multitenant
-    - django-async-websocket-multitenant
+     - django-architecture
+     - django-async-websocket
+     - django-celery
+     - django-multi-tenant
+     - django-celery-multitenant
+     - django-async-websocket-multitenant
 ---
 
 ## Overview
 
 Core Django project architecture patterns for organizing models, views,
 serializers, and middleware. Covers BaseModel abstractions, DRF conventions,
-ASGI setup, and common DRY patterns.
+ASGI setup, database optimization, testing strategies, and development workflows.
 
 **This skill covers**:
-- Project structure and organization
-- BaseModel abstractions (soft deletes, timestamps)
-- Settings & environment configuration
-- DRF ViewSets, permissions, serializers
-- Middleware patterns
-- ASGI configuration (basic)
-- Database optimization (N+1 prevention, batch operations)
-- Performance monitoring
+ - Project structure and organization
+ - BaseModel abstractions (soft deletes, timestamps, BigAutoField)
+ - Settings & environment configuration
+ - DRF ViewSets, permissions, serializers
+ - Mixins for reusable view functionality
+ - Middleware patterns
+ - ASGI configuration (basic)
+ - Database optimization (N+1 prevention, batch operations, queryset patterns)
+ - Performance monitoring
+ - Logging configuration and audit trails
+ - Translation workflows and locale handling
+ - Testing patterns and best practices
+ - Development workflow and environment management
 
 **Optional Extensions** (load on-demand):
-- [Multi-Tenant Architecture](references/MULTI_TENANT.md) - Schema-per-tenant isolation
-- [Async WebSocket](references/ASYNC_WEBSOCKET.md) - Real-time communication
-- [Celery Background Tasks](references/CELERY.md) - Async job processing
+ - [Multi-Tenant Architecture](references/MULTI_TENANT.md) - Schema-per-tenant isolation
+ - [Async WebSocket](references/ASYNC_WEBSOCKET.md) - Real-time communication
+ - [Celery Background Tasks](references/CELERY.md) - Async job processing
+ - [Logging Patterns](references/LOGGING.md) - Structured logging and monitoring
+ - [Internationalization](references/I18N.md) - Translation workflows and locale handling
+ - [Testing Patterns](references/TESTING.md) - Comprehensive testing strategies
+ - [Development Workflow](references/DEVELOPMENT_WORKFLOW.md) - Environment config and processes
+
+**Combined Patterns**:
 - [Multi-Tenant + Async](references/MULTI_TENANT_ASYNC.md) - WebSocket with tenants
 - [Multi-Tenant + Celery](references/MULTI_TENANT_CELERY.md) - Tasks with tenants
 
@@ -141,6 +152,14 @@ class Article(BaseModel):
         ordering = ['-created_at']
 ```
 
+**Primary key conventions**:
+```python
+class Article(BaseModel):
+    # Use BigAutoField for primary keys (handles large datasets)
+    id = models.BigAutoField(primary_key=True)
+    title = models.CharField(max_length=255)
+```
+
 **Critical**: Always filter soft-deleted records:
 
 ```python
@@ -179,10 +198,9 @@ DATABASES = {
         'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '600')),
     }
 }
-
-# Feature gates
-FEATURE_ENABLE_CACHING = os.getenv('FEATURE_ENABLE_CACHING', 'true').lower() == 'true'
 ```
+
+**For comprehensive environment configuration patterns**: See [DEVELOPMENT_WORKFLOW.md](references/DEVELOPMENT_WORKFLOW.md)
 
 ### DRF Patterns
 
@@ -222,6 +240,45 @@ class ArticleViewSet(BaseViewSet):
     queryset = Article.objects.filter(is_deleted=False)
     serializer_class = ArticleSerializer
     permission_classes = [IsAuthenticated, IsResourceOwner]
+```
+
+### Mixins and Reusable Patterns
+
+**Create mixins for common view functionality**:
+
+```python
+# core/mixins.py
+
+class SoftDeleteMixin:
+    """Handle soft delete operations."""
+    def perform_destroy(self, instance):
+        instance.soft_delete()
+
+class AuditMixin:
+    """Track who created/updated objects."""
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+    
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
+class HTMXMixin:
+    """Handle HTMX requests and responses."""
+    def get_template_names(self):
+        if self.request.htmx:
+            return [f"{self.model._meta.app_label}/partials/{self.model._meta.model_name}_form.html"]
+        return super().get_template_names()
+```
+
+**Use mixins in views**:
+
+```python
+class ArticleViewSet(
+    AuditMixin, SoftDeleteMixin,  # Reusable functionality
+    viewsets.ModelViewSet
+):
+    queryset = Article.objects.filter(is_deleted=False)
+    serializer_class = ArticleSerializer
 ```
 
 ### Middleware Patterns
@@ -315,6 +372,39 @@ for article in articles:
 Article.objects.filter(status='draft').update(status='published')  # ✅ One query!
 ```
 
+**Queryset optimization patterns**:
+
+```python
+# List views - optimize for display
+def get_queryset(self):
+    return Article.objects.select_related(
+        'category', 'author', 'scope'
+    ).prefetch_related('tags').order_by('-created_at')
+
+# Detail views - optimize for single object access
+def get_queryset(self):
+    return Article.objects.select_related(
+        'category', 'category__parent', 'author', 'scope'
+    ).prefetch_related('tags', 'events', 'events__attachments')
+```
+
+**When NOT to optimize**:
+- Query used once with small result sets (< 10 items)
+- Related objects not accessed in templates/views
+- Performance impact negligible
+
+**Test query optimization**:
+```python
+from django.test import TestCase
+
+class ArticleTest(TestCase):
+    def test_queryset_optimization(self):
+        with self.assertNumQueries(2):  # Articles + prefetched tags
+            articles = Article.objects.prefetch_related('tags')
+            for article in articles:
+                list(article.tags.all())
+```
+
 ### Performance Monitoring
 
 **Decorator-based timing and alerting**:
@@ -374,9 +464,13 @@ class ArticleViewSet(BaseViewSet):
 ## Related References
 
 **Core Extensions**:
-- [Multi-Tenant Architecture](references/MULTI_TENANT.md) - Schema-per-tenant isolation
-- [Async WebSocket](references/ASYNC_WEBSOCKET.md) - Real-time communication
-- [Celery Background Tasks](references/CELERY.md) - Async job processing
+ - [Multi-Tenant Architecture](references/MULTI_TENANT.md) - Schema-per-tenant isolation
+ - [Async WebSocket](references/ASYNC_WEBSOCKET.md) - Real-time communication
+ - [Celery Background Tasks](references/CELERY.md) - Async job processing
+ - [Logging Patterns](references/LOGGING.md) - Structured logging and monitoring
+ - [Internationalization](references/I18N.md) - Translation workflows and locale handling
+ - [Testing Patterns](references/TESTING.md) - Comprehensive testing strategies
+ - [Development Workflow](references/DEVELOPMENT_WORKFLOW.md) - Environment config and processes
 
 **Combined Patterns**:
 - [Multi-Tenant + Async](references/MULTI_TENANT_ASYNC.md) - WebSocket with tenants
@@ -392,11 +486,13 @@ class ArticleViewSet(BaseViewSet):
 - `create_consumer.py` - Generate WebSocket consumer boilerplate
 - `create_task.py` - Generate Celery task boilerplate
 - `test_celery.py` - Verify Celery configuration
+- `run_tests.sh` - Comprehensive test execution script
 
 **Templates** (in `assets/templates/`):
 - `consumer_template.py` - WebSocket consumer template
 - `task_template.py` - Celery task template
 - `viewset_template.py` - DRF ViewSet template
+- `test_template.py` - Test case template
 
 ## External References
 
@@ -408,6 +504,6 @@ class ArticleViewSet(BaseViewSet):
 
 ---
 
-**Last Updated**: 2026-01-27
-**Version**: 2.0
+**Last Updated**: 2026-01-28
+**Version**: 4.0
 **Replaces**: django-architecture, django-async-websocket, django-celery, django-multi-tenant, django-celery-multitenant, django-async-websocket-multitenant

@@ -58,8 +58,15 @@ This enables:
 ## Usage
 
 In OpenCode or Claude Code, reference skills by name:
-- Ask: "Load the django-orm skill"
+- Ask: "Load the django skill" or "Load the django-frontend skill"
 - Or implicitly: OpenCode will find relevant skills
+
+Skills available include:
+- **django** - Core Django patterns (ORM, views, forms, multi-tenancy)
+- **django-frontend** - HTMX + Alpine.js + Bulma frontend architecture
+- **django-celery** - Background task patterns with Celery
+- **django-async-websocket** - Real-time WebSocket communication
+- And more in the `skills/` directory
 
 ## Version Control
 
