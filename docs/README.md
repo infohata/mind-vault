@@ -4,82 +4,30 @@ This directory contains analysis, specifications, and guides for the mind-vault 
 
 ---
 
-## OpenCode Skills Analysis (2026-01-28)
+## Skill Specifications
 
-Comprehensive analysis of OpenCode's skill system for cross-platform compatibility.
+### [SKILL_SPECIFICATION.md](SKILL_SPECIFICATION.md)
+**Comprehensive guide** for creating OpenCode-compatible skills
 
-### Documents
+- File structure and discovery requirements
+- Naming rules and validation
+- Frontmatter specifications
+- On-demand loading patterns
+- Cross-platform compatibility (OpenCode + Claude Code)
+- Creation workflow and best practices
+- Integration patterns and troubleshooting
 
-#### 1. [OPENCODE_ANALYSIS_SUMMARY.md](OPENCODE_ANALYSIS_SUMMARY.md)
-**Executive summary** - Start here for overview
-
-- Key findings and recommendations
-- Implementation roadmap
-- Quick reference guide
-- Validation checklist
-
-**Use for**: Strategic planning, quick reference, communicating findings
-
----
-
-#### 2. [OPENCODE_SKILL_SPECIFICATIONS.md](OPENCODE_SKILL_SPECIFICATIONS.md)
-**Technical specifications** - Comprehensive reference
-
-- File structure and discovery
-- Frontmatter specification (required/optional fields)
-- Name validation rules (regex, constraints)
-- On-demand loading mechanism
-- Permission system (allow/deny/ask)
-- Integration with OpenCode ecosystem
-- Troubleshooting guide
-- Comparison with Claude Code
-
-**Use for**: Understanding OpenCode skill system in depth, validating skills against specifications
+**Use for**: Creating skills, validation reference, migration guide
 
 ---
 
-#### 3. [OPENCODE_VS_CLAUDE_SKILLS.md](OPENCODE_VS_CLAUDE_SKILLS.md)
-**Cross-platform comparison** - Compatibility guide
+## Archived Research
 
-- Core architecture differences (on-demand vs preloading)
-- Naming and validation comparison
-- Frontmatter differences
-- Permission systems
-- Content structure
-- Loading and invocation
-- Migration strategies (Claude Code ↔ OpenCode)
-- Dual compatibility best practices
+Research documents have been consolidated and archived for reference:
 
-**Use for**: Maintaining compatibility with both platforms, migration planning
-
----
-
-#### 4. [OPENCODE_SKILL_IMPLEMENTATION_GUIDE.md](OPENCODE_SKILL_IMPLEMENTATION_GUIDE.md)
-**Practical guide** - Day-to-day reference
-
-- Quick start (5 steps to create a skill)
-- Naming guidelines and examples
-- Directory structure requirements
-- Frontmatter templates
-- Content structure templates
-- Code example standards
-- Validation and testing procedures
-- Common patterns (Django, async, testing)
-- Troubleshooting
-
-**Use for**: Creating new skills, reference during development, onboarding contributors
-
----
-
-### Quick Navigation
-
-**I want to...**
-
-- **Understand OpenCode skills** → Start with [OPENCODE_ANALYSIS_SUMMARY.md](OPENCODE_ANALYSIS_SUMMARY.md)
-- **Create a new skill** → Use [OPENCODE_SKILL_IMPLEMENTATION_GUIDE.md](OPENCODE_SKILL_IMPLEMENTATION_GUIDE.md)
-- **Validate a skill** → Check [OPENCODE_SKILL_SPECIFICATIONS.md](OPENCODE_SKILL_SPECIFICATIONS.md)
-- **Ensure compatibility** → Read [OPENCODE_VS_CLAUDE_SKILLS.md](OPENCODE_VS_CLAUDE_SKILLS.md)
-- **Migrate from Claude Code** → See migration section in [OPENCODE_VS_CLAUDE_SKILLS.md](OPENCODE_VS_CLAUDE_SKILLS.md)
+- **OpenCode Analysis**: `docs/archive/opencode-research/` (4 consolidated into SKILL_SPECIFICATION.md)
+- **Teisutis Patterns**: `docs/archive/teisutis-analysis/` (completed pattern extraction)
+- **Session Notes**: `docs/archive/session-notes/` (historical development records)
 
 ---
 
@@ -337,17 +285,6 @@ When adding new documentation:
 3. **Update this README**: Add entry in appropriate section
 4. **Cross-reference**: Link to related documents
 5. **Keep focused**: One topic per document
-
----
-
-## Document Status
-
-| Document | Status | Last Updated |
-|----------|--------|--------------|
-| OPENCODE_ANALYSIS_SUMMARY.md | ✅ Ready | 2026-01-28 |
-| OPENCODE_SKILL_SPECIFICATIONS.md | ✅ Ready | 2026-01-28 |
-| OPENCODE_VS_CLAUDE_SKILLS.md | ✅ Ready | 2026-01-28 |
-| OPENCODE_SKILL_IMPLEMENTATION_GUIDE.md | ✅ Ready | 2026-01-28 |
 
 ---
 

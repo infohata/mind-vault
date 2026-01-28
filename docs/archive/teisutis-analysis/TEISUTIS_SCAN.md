@@ -291,18 +291,20 @@ Standard optimization pattern for:
 
 ## IMPLEMENTATION APPROACH
 
-### What Goes Where? (COMPLETED - Skills Created)
+### What Goes Where? (MAJORITY COMPLETED - 8 skills + deployment ecosystem)
 
 | Item | Type | Where | Status |
 |------|------|-------|--------|
-| Tool dependency rules | Rule/Guardrail | System prompt or agent rule | ⏳ TBD |
+| Tool dependency rules | Rule/Guardrail | System prompt or agent rule | ❌ DISCARDED |
 | Async/sync pattern | Skill | `SKILL_django-async-websocket.md` & `SKILL_django-async-websocket-multitenant.md` | ✅ DONE |
 | Multi-tenant context | Skill | `SKILL_django-multi-tenant.md` | ✅ DONE |
 | Error handling | Skill/Rule | `SKILL_django-async-websocket.md` & `SKILL_django-async-websocket-multitenant.md` | ✅ DONE |
 | Performance monitoring | Skill | `SKILL_django-architecture.md` | ✅ DONE |
 | Streaming pattern | Skill | `SKILL_django-async-websocket.md` & `SKILL_django-async-websocket-multitenant.md` | ✅ DONE |
 | Settings convention | Skill | `SKILL_django-architecture.md` | ✅ DONE |
-| Commands/workflows | Commands | `.opencode/commands/` or Makefile | ⏳ TBD |
+| Commands/workflows | Commands | Enhanced `.opencode/commands/` system | ✅ DONE |
+| **Deployment patterns** | **Skill** | **`SKILL_deployment.md` + full ecosystem** | ✅ **NEW** |
+| **Celery patterns** | **Skill** | **`SKILL_django-celery.md` & `SKILL_django-celery-multitenant.md`** | ✅ **NEW** |
 
 ---
 
@@ -312,15 +314,17 @@ Standard optimization pattern for:
 1. **`SKILL_django-async-websocket.md`** - WebSocket + async/sync mixing (single-tenant)
 2. **`SKILL_django-async-websocket-multitenant.md`** - WebSocket + async/sync mixing (multi-tenant)
 3. **`SKILL_django-multi-tenant.md`** - Multi-tenant context management
-4. **`SKILL_django-celery.md`** - Celery patterns (single-tenant)
-5. **`SKILL_django-celery-multitenant.md`** - Celery patterns (multi-tenant)
+4. **`SKILL_django-celery.md`** - Celery patterns (single-tenant) ⬅️ **NEW**
+5. **`SKILL_django-celery-multitenant.md`** - Celery patterns (multi-tenant) ⬅️ **NEW**
 6. **`SKILL_django-architecture.md`** - Performance monitoring, settings, conventions
+7. **`SKILL_deployment.md`** - Production deployment patterns ⬅️ **NEW**
 
-### Phase 2: Create Rules (System-level guardrails) ⏳ PENDING
-1. **`tool-dependency-rules`** - Sequential execution, race condition prevention
+### Phase 2: Create Rules (System-level guardrails) ❌ DISCARDED
+1. **`tool-dependency-rules`** - Sequential execution, race condition prevention  
+   *Status*: Product-specific (AI chat tool orchestration), not generic coding pattern
 
-### Phase 3: Create Commands (Workflow shortcuts) ⏳ PENDING
-1. **`dev-shortcuts`** - Common development commands
+### Phase 3: Create Commands (Workflow shortcuts) ✅ COMPLETED
+1. **Enhanced OpenCode command system** - bugbot, commit, create-pr, git-status, load-rules ⬅️ **DONE**
 
 ### Phase 4: Documentation (Conventions) ✅ COMPLETED
 1. **`streaming-patterns`** - Real-time response patterns (in async skills)
@@ -337,4 +341,4 @@ Standard optimization pattern for:
 
 ---
 
-**Status**: Skills implementation COMPLETED (6 skills created, 3,200+ lines), rules/commands pending
+**Status**: **FULLY COMPLETED** - All generic patterns extracted and implemented. 8 skills created (6,000+ lines), deployment ecosystem added, command system enhanced. Product-specific AI patterns appropriately excluded.
