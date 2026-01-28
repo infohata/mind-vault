@@ -255,7 +255,7 @@ function toggleFavorite(articleId) {
         // Revert on failure
         button.classList.toggle('favorited');
         if (countEl) {
-            countEl.textContent = wasFavorited ? currentCount : currentCount - 1;
+            countEl.textContent = currentCount;
         }
         showError('Failed to update favorite status');
     });

@@ -253,11 +253,13 @@ function attachmentUpload() {
                     if (!response.ok) {
                         throw new Error('Upload failed');
                     }
-                } catch (error) {
-                    this.uploading = false;
-                    this.errorMessage = `Error uploading ${file.name}: ${error.message}`;
-                    return;
-                }
+                 } catch (error) {
+                     this.uploading = false;
+                     this.errorMessage = `Error uploading ${file.name}: ${error.message}`;
+                     // Clear all files on any failure to prevent partial duplicates on retry
+                     this.selectedFiles = [];
+                     return;
+                 }
             }
             
             // All files uploaded successfully

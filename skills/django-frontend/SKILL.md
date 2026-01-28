@@ -301,33 +301,7 @@ document.addEventListener('DOMContentLoaded', function() {
 **Modal JavaScript** (`modal.js`):
 
 ```javascript
-/**
- * Get CSRF token from various sources
- */
-function getCsrfToken() {
-    // Try meta tag first
-    const metaTag = document.querySelector('meta[name="csrf-token"]');
-    if (metaTag) return metaTag.getAttribute('content');
-    
-    // Try Django's standard CSRF input
-    const csrfInput = document.querySelector('[name="csrfmiddlewaretoken"]');
-    if (csrfInput) return csrfInput.value;
-    
-    // Fallback: get from cookie
-    const name = 'csrftoken';
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue || '';
-}
+// Assumes getCsrfToken() is available (see ADVANCED_COMPONENTS.md utilities)
 
 /**
  * Opens a modal with HTMX-loaded content

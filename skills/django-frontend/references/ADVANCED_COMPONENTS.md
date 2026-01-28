@@ -55,7 +55,7 @@ function themeStore() {
 // Listen for system theme changes when in auto mode
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
     const theme = localStorage.getItem('theme');
-    if (theme === 'auto') {
+    if (theme === 'auto' || theme === null) {
         const effectiveTheme = e.matches ? 'dark' : 'light';
         if (effectiveTheme === 'dark') {
             document.documentElement.classList.add('dark');
