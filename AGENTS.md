@@ -310,18 +310,6 @@ Before finishing work on skills/rules/documentation:
 - [ ] Clear explanation of why this pattern matters
 - [ ] **Rule Enforcement**: Run `/load-rules` command at session start and after compaction to enforce active rules
 
-## Agent Roles
-
-Agent roles define specialization and focus areas when working in mind-vault. See individual role files in `agents/` directory:
-
-- [`researcher.md`](agents/researcher.md) - Pattern extraction and analysis
-- [`architect.md`](agents/architect.md) - Backend/technical design and validation
-- [`frontend.md`](agents/frontend.md) - Frontend/UX patterns and components
-- [`documentation.md`](agents/documentation.md) - Documentation quality (shared responsibility)
-- [`test-engineer.md`](agents/test-engineer.md) - Edge case and completeness validation
-- [`curator.md`](agents/curator.md) - Quality gates and consistency
-- [`devops.md`](agents/devops.md) - Deployment and operations patterns
-
 ## Next Steps
 
 For agents extending this repository:
