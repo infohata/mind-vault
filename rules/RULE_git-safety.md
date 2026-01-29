@@ -24,12 +24,42 @@
 
 **ONLY exception:** User says "yes, commit" or "go ahead" in the CURRENT response.
 
-### 3. NEVER MERGE
-- Agent NEVER runs `git merge`
-- Agent NEVER merges PRs on GitHub
-- Agent creates branches, commits, pushes, creates PRs
-- User reviews and merges on GitHub
-- After merge: agent can clean up local branches
+### 3. NEVER MERGE TO MAIN
+**Agent NEVER merges to main branch:**
+- ❌ NEVER run `git merge` (any branch)
+- ❌ NEVER run `gh pr merge` (any PR to main)
+- ❌ NEVER use GitHub API to merge PRs
+- ❌ NEVER click merge buttons (if browser automation available)
+- ❌ Even if user says "merge" or "click the green button" - DON'T DO IT
+
+**What agents DO:**
+- ✅ Create feature branches
+- ✅ Commit changes (with approval)
+- ✅ Push branches
+- ✅ Create PRs with `gh pr create`
+- ✅ Provide PR URL for user to review and merge
+
+**After user merges on GitHub:**
+- ✅ Agent can clean up local branches (`git branch -d`)
+- ✅ Agent can pull latest main (`git pull`)
+
+**How to respond when asked to merge:**
+```
+"I've created/updated PR #X at [URL].
+
+To merge this PR:
+1. Review the changes on GitHub
+2. Click the green 'Merge pull request' button
+3. Confirm the merge
+
+Let me know when you've merged it and I can help with cleanup."
+```
+
+**Why this rule exists:**
+- Merging to main is a critical operation
+- User should review PR on GitHub before merging
+- Prevents accidental merges of untested code
+- Maintains clear human decision point for production changes
 
 ## Branch Workflow
 
@@ -99,4 +129,4 @@ Optional explanation of why.
 
 ---
 
-**Last Updated**: 2026-01-28
+**Last Updated**: 2026-01-29
