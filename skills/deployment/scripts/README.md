@@ -21,17 +21,39 @@ PROJECT_ROOT=/path/to/my/project ./scripts/deploy.sh
 
 ## Remote Deployment
 
-All scripts support remote deployment via SSH with explicit user confirmation:
+**⚠️ CRITICAL: All remote deployments MUST use screen sessions**
 
+Remote deployments require screen sessions to protect against connection loss from SSH timeouts, network interruptions, or client disconnections. See the [Screen Sessions section](../SKILL.md#screen-sessions-for-remote-deployments) in the main SKILL.md for complete documentation.
+
+**Standard remote deployment pattern:**
 ```bash
-# Deploy to remote server with confirmation prompts
-./scripts/deploy.sh --remote user@production-server.com --dir /opt/myapp
+# Always use screen for remote deployments
+ssh user@production.com << 'EOF'
+cd /opt/myapp
+SESSION="myapp-deploy-$(date +%Y%m%d-%H%M%S)"
+LOG="deploy-$(date +%Y%m%d-%H%M%S).log"
+screen -dmS "$SESSION" bash -c "./tools/deploy.sh 2>&1 | tee $LOG"
+echo "Session: $SESSION | Log: $LOG"
+sleep 3 && tail -n 50 "$LOG"
+EOF
 
-# Use environment variables
-REMOTE_HOST=user@staging.example.com REMOTE_DIR=/var/www/app ./scripts/deploy.sh
+# Monitor from local machine
+ssh user@production.com 'tail -f /opt/myapp/deploy-*.log'
 
-# Direct script execution on remote
-./scripts/deploy_update.sh --remote user@host --dir /path
+# Or attach to screen session
+ssh -t user@production.com 'screen -r myapp-deploy'
+```
+
+**Legacy direct execution (NOT RECOMMENDED):**
+```bash
+# These patterns are unsafe for remote deployments:
+./scripts/deploy.sh --remote user@production.com --dir /opt/myapp  # No screen protection
+./scripts/deploy_update.sh --remote user@host --dir /path          # No screen protection
+
+# Only use direct execution for:
+# - Local deployments
+# - Testing/development
+# - Very quick operations (<1 minute)
 ```
 
 **Repository Safety**: Deployment scripts are executed from `/tmp` and automatically cleaned up, ensuring they never contaminate your project git repository or interfere with git operations.
@@ -58,17 +80,25 @@ REMOTE_HOST=user@staging.example.com REMOTE_DIR=/var/www/app ./scripts/deploy.sh
 
 ### Remote Deployment Examples
 ```bash
-# Deploy to remote server (auto-detects deployment type)
-./scripts/deploy.sh --remote user@production.com --dir /opt/myapp
+# RECOMMENDED: Deploy to remote with screen session
+ssh user@production.com << 'EOF'
+cd /opt/myapp
+SESSION="myapp-deploy-$(date +%Y%m%d-%H%M%S)"
+LOG="deploy-$(date +%Y%m%d-%H%M%S).log"
+screen -dmS "$SESSION" bash -c "./tools/deploy.sh 2>&1 | tee $LOG"
+echo "✅ Session: $SESSION"
+echo "📋 Log: $LOG"
+sleep 3 && tail -n 50 "$LOG"
+EOF
 
-# Update remote deployment
-./scripts/deploy_update.sh --remote user@staging.com --dir /var/www/app
+# Monitor deployment progress
+ssh user@production.com 'tail -f /opt/myapp/deploy-*.log'
 
-# Use environment variables
-REMOTE_HOST=deploy@server.com REMOTE_DIR=/opt/project ./scripts/deploy.sh
+# Attach to screen session
+ssh -t user@production.com 'screen -r $(screen -ls | grep deploy | head -1 | cut -d. -f1)'
 
-# Default directory (auto-detected from git repo name)
-/opt/your-project-name/
+# Cleanup after successful deployment
+ssh user@production.com 'screen -X -S myapp-deploy-20260130-012343 quit'
 ```
 
 ### `deploy.sh`
