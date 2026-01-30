@@ -195,6 +195,29 @@ ssh user@production.com 'screen -X -S myapp-deploy-20260130-012343 quit'
 - Endpoint URLs: Update for your application's URLs
 - API health check path: Change `/api/health` to your health endpoint
 
+### `setup_server.sh`
+**Purpose**: Initial server setup with development tools
+
+**Usage**:
+```bash
+./scripts/setup_server.sh
+```
+
+**What it does**:
+- Installs pyenv and latest Python 3.13.x
+- Installs Docker Engine with Compose plugin
+- Installs Node.js 25.x from NodeSource
+- Configures user for docker group access
+
+**Requirements**:
+- Ubuntu 24.04 LTS (tested)
+- sudo access
+- Internet connection
+
+**Post-installation**:
+- Log out and back in for docker group to take effect
+- Python available via `pyenv global`
+
 ## Setup Instructions
 
 1. **Copy scripts to your project**:
