@@ -21,6 +21,17 @@ This directory contains analysis, specifications, and guides for the mind-vault 
 
 ---
 
+### [CURSOR_SETUP.md](CURSOR_SETUP.md)
+**Cursor 2.4+ integration** with mind-vault at user level
+
+- Cursor loads skills from `~/.claude/skills/` (Claude compatibility)—one symlink serves Claude Code and Cursor
+- Subagents: `~/.cursor/agents` → mind-vault
+- Known symlink caveat and per-skill workaround
+
+**Use for**: Setting up Cursor to use mind-vault skills and subagents
+
+---
+
 ## Archived Research
 
 Research documents have been consolidated and archived for reference:
