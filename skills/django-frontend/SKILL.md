@@ -398,8 +398,6 @@ window.closeModal = closeModal;
 {% include "core/partials/generic_form_modal.html" %}
 ```
 
-**Confirm-then-submit modal:** For actions that need user confirmation before submitting (e.g. "Mark as broken", "Revoke access"), use a shared Bulma modal instead of native `confirm()` or `alert()` for consistency and accessibility. Pattern: shared modal partial with configurable title, message, and confirm button; a `confirmAction(url, options)` in `modal.js` configures the form's `hx-post` and shows the modal; the form uses HTMX to POST; on success, reload or trigger a custom event. **Critical:** After setting `hx-post` (or other `hx-*`) dynamically, call `htmx.process(form)` so HTMX binds to the new URL (see Dynamic hx-* below). Options: `{ title, message, confirmText, confirmClass, onSuccess }`.
-
 **Modal script loading:** Load `modal.js` in the base template when modals are used project-wide, rather than per-page in `{% block extra_head %}`, to avoid "confirmAction is not defined" when a page includes the modal but forgets the script.
 
 ### Confirm-Then-Submit Modal
