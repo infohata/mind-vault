@@ -218,6 +218,30 @@ ssh user@production.com 'screen -X -S myapp-deploy-20260130-012343 quit'
 - Log out and back in for docker group to take effect
 - Python available via `pyenv global`
 
+### `harden_server.sh`
+**Purpose**: Server hardening (SSH key-only, UFW, fail2ban, automatic security updates)
+
+**Usage**:
+```bash
+# On remote server: pass hostname so script shows correct ssh/test hints
+sudo ./scripts/harden_server.sh your-server.com
+
+# On same machine (e.g. local VM): hostname defaults to localhost
+sudo ./scripts/harden_server.sh
+```
+
+**What it does**:
+- Disables root login and password authentication (SSH keys only)
+- Hardens SSH (strong ciphers, limited auth attempts)
+- Installs and enables fail2ban
+- Enables UFW firewall (SSH, HTTP, HTTPS)
+- Configures unattended security updates
+- Backs up SSH config before changes; prompts before restart
+
+**Pre-requisites**: SSH key authentication must be working before running. Script checks for `~/.ssh/authorized_keys` and warns if missing.
+
+**Full guide**: See [references/HARDENING.md](../references/HARDENING.md) for verification, rollback, troubleshooting, and optional hardening steps.
+
 ## Setup Instructions
 
 1. **Copy scripts to your project**:

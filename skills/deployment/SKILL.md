@@ -33,6 +33,7 @@ Core deployment patterns for production web applications using Docker Compose, f
 **Optional Extensions** (load on-demand):
  - [Monitoring Integration](references/MONITORING.md) - Production monitoring with Prometheus, Grafana, ELK
  - [Django Deployment](references/DJANGO_DEPLOYMENT.md) - Django-specific deployment patterns and optimizations
+ - [Server Hardening](references/HARDENING.md) - SSH, firewall, fail2ban, and automatic security updates before deployment
 
 ## When to Use
 Any web application deployed using Docker Compose that requires:
