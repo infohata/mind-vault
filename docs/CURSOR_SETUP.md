@@ -33,12 +33,14 @@ ln -sf "$MV/skills" ~/.cursor/skills
 
 Restart Cursor (or reload window) so it rescans. Skills appear under **Cursor Settings → Rules** in the “Agent Decides” section; subagents are available to Agent when delegating.
 
-## Paths Cursor uses (user-level)
+## Paths Cursor uses
 
-| Content   | Path(s)                | Notes |
-|----------|------------------------|--------|
-| Skills   | `~/.claude/skills/` or `~/.cursor/skills/` | Cursor reads both; same symlink as Claude Code is enough. |
-| Subagents| `~/.cursor/agents/`   | Cursor-only; symlink to mind-vault/agents. |
+| Content   | Project-level         | User-level            | Notes |
+|----------|------------------------|------------------------|--------|
+| Skills   | `.cursor/skills/` or `.claude/skills/` | `~/.claude/skills/` or `~/.cursor/skills/` | Skills: same symlink as Claude Code is enough at user level. |
+| Subagents| `.cursor/agents/`     | `~/.cursor/agents/`   | **Project**: mind-vault has `.cursor/agents` → `agents/` so opening the repo discovers subagents. **User**: symlink `~/.cursor/agents` → mind-vault for other projects. |
+
+**Why subagents didn’t show from project:** Cursor discovers subagents from **project** `.cursor/agents/` first. mind-vault now includes `.cursor/agents` (symlink to `agents/`), so when you open mind-vault, Cursor finds architect, backend, curator, etc. User-level `~/.cursor/agents` is for when you’re in a different project and still want mind-vault subagents.
 
 ## If skills are not discovered (symlink caveat)
 
@@ -65,7 +67,7 @@ Cursor’s **User Rules** are configured in the app (Cursor Settings → Rules),
 ## Verify
 
 1. **Skills**: Cursor Settings → Rules → Agent Decides. You should see mind-vault skills (e.g. django, deployment).  
-2. **Subagents**: In Agent chat, when the agent delegates, custom subagents from `~/.cursor/agents` (e.g. architect, backend) should be available.  
+2. **Subagents**: In Agent chat, when the agent delegates, custom subagents should be available. In mind-vault they come from project `.cursor/agents/` (symlink to `agents/`); in other projects they come from user `~/.cursor/agents` if symlinked.  
 3. **Single source**: Edit a skill or agent in `~/projects/mind-vault`; after Cursor rescans, the change is reflected without copying.
 
 ## References
