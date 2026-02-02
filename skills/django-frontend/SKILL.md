@@ -398,6 +398,45 @@ window.closeModal = closeModal;
 {% include "core/partials/generic_form_modal.html" %}
 ```
 
+**Confirm-then-submit modal:** For actions that need user confirmation before submitting (e.g. "Mark as broken", "Revoke access"), use a shared Bulma modal instead of native `confirm()` or `alert()` for consistency and accessibility. Pattern: shared modal partial with configurable title, message, and confirm button; a `confirmAction(url, options)` in `modal.js` configures the form's `hx-post` and shows the modal; the form uses HTMX to POST; on success, reload or trigger a custom event. **Critical:** After setting `hx-post` (or other `hx-*`) dynamically, call `htmx.process(form)` so HTMX binds to the new URL (see Dynamic hx-* below). Options: `{ title, message, confirmText, confirmClass, onSuccess }`.
+
+**Modal script loading:** Load `modal.js` in the base template when modals are used project-wide, rather than per-page in `{% block extra_head %}`, to avoid "confirmAction is not defined" when a page includes the modal but forgets the script.
+
+### Confirm-Then-Submit Modal
+
+For actions that need user confirmation before submitting (e.g. "Mark as broken", "Revoke access"), use a shared modal instead of native `confirm()` or `alert()`.
+
+**Pattern:**
+- Shared modal partial with configurable title, message, confirm button text
+- `confirmAction(url, options)` in `modal.js` — configures form and shows modal
+- Form uses HTMX to POST; on success, reload or trigger custom event
+- **Critical:** After setting `hx-post` dynamically, call `htmx.process(form)` so HTMX binds to the new URL
+
+**Options:** `{ title, message, confirmText, confirmClass, onSuccess }`
+
+### Dynamic hx-* Attributes
+
+HTMX binds event listeners at page load. When you change `hx-post`, `hx-get`, etc. via `setAttribute()`, HTMX does **not** automatically pick up the new values. The form may submit to the wrong URL (e.g. current page) → 405 Method Not Allowed.
+
+**Fix:** Call `htmx.process(element)` after modifying attributes:
+
+```javascript
+form.setAttribute('hx-post', url);
+if (typeof htmx !== 'undefined') htmx.process(form);
+```
+
+### HTMX Headers: Hyphenated Keys in JSON
+
+When building headers for HTMX (e.g. CSRF), use **quoted keys** for hyphenated header names in object literals:
+
+```javascript
+// ❌ BAD - X-CSRFToken parsed as X minus CSRFToken (SyntaxError)
+JSON.stringify({ X-CSRFToken: value })
+
+// ✅ GOOD
+JSON.stringify({ 'X-CSRFToken': value })
+```
+
 ---
 
 ## Why It's Generic
