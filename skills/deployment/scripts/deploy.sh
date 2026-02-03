@@ -3,7 +3,11 @@
 # Generic Deployment Wrapper Script
 # Auto-detects whether this is first-time deployment or update
 # Supports both local and remote deployment
-# Usage: ./scripts/deploy.sh [--remote user@host] [--dir /path]
+# Usage: ./scripts/deploy.sh [--remote user@host] [--dir /path] [--yes|-y]
+#
+# Non-interactive mode (skips prompts when updating):
+#   DEPLOY_NON_INTERACTIVE=1 ./scripts/deploy.sh
+#   ./scripts/deploy.sh --yes
 
 # Store script directory before changing directories
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -11,6 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Parse command line arguments
 REMOTE_HOST=""
 REMOTE_DIR="/opt/$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")"
+DEPLOY_EXTRA_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -22,9 +27,14 @@ while [[ $# -gt 0 ]]; do
             REMOTE_DIR="$2"
             shift 2
             ;;
+        --yes|-y)
+            export DEPLOY_NON_INTERACTIVE=1
+            DEPLOY_EXTRA_ARGS+=(--yes)
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: $0 [--remote user@host] [--dir /remote/path]"
+            echo "Usage: $0 [--remote user@host] [--dir /remote/path] [--yes|-y]"
             exit 1
             ;;
     esac
@@ -106,12 +116,12 @@ if [ "$SERVICES_RUNNING" = "true" ]; then
         
         # Copy script to temporary location and execute with project directory
         scp "$SCRIPT_DIR/deploy_update.sh" "$REMOTE_HOST:$REMOTE_SCRIPT_PATH"
-        execute_command "chmod +x '$REMOTE_SCRIPT_PATH' && PROJECT_ROOT='$REMOTE_DIR' '$REMOTE_SCRIPT_PATH'" "Executing remote deployment update"
+        execute_command "chmod +x '$REMOTE_SCRIPT_PATH' && PROJECT_ROOT='$REMOTE_DIR' DEPLOY_NON_INTERACTIVE=${DEPLOY_NON_INTERACTIVE:-0} '$REMOTE_SCRIPT_PATH' ${DEPLOY_EXTRA_ARGS[*]}" "Executing remote deployment update"
         
         # Clean up remote temporary script
         ssh "$REMOTE_HOST" "rm -f '$REMOTE_SCRIPT_PATH'" 2>/dev/null || true
     else
-        exec "$SCRIPT_DIR/deploy_update.sh"
+        exec "$SCRIPT_DIR/deploy_update.sh" "${DEPLOY_EXTRA_ARGS[@]}"
     fi
 else
     echo "📋 Detected: First-time deployment (no services running)"
@@ -124,11 +134,11 @@ else
         
         # Copy script to temporary location and execute with project directory
         scp "$SCRIPT_DIR/deploy_first_time.sh" "$REMOTE_HOST:$REMOTE_SCRIPT_PATH"
-        execute_command "chmod +x '$REMOTE_SCRIPT_PATH' && PROJECT_ROOT='$REMOTE_DIR' '$REMOTE_SCRIPT_PATH'" "Executing remote first-time deployment"
+        execute_command "chmod +x '$REMOTE_SCRIPT_PATH' && PROJECT_ROOT='$REMOTE_DIR' DEPLOY_NON_INTERACTIVE=${DEPLOY_NON_INTERACTIVE:-0} '$REMOTE_SCRIPT_PATH' ${DEPLOY_EXTRA_ARGS[*]}" "Executing remote first-time deployment"
         
         # Clean up remote temporary script
         ssh "$REMOTE_HOST" "rm -f '$REMOTE_SCRIPT_PATH'" 2>/dev/null || true
     else
-        exec "$SCRIPT_DIR/deploy_first_time.sh"
+        exec "$SCRIPT_DIR/deploy_first_time.sh" "${DEPLOY_EXTRA_ARGS[@]}"
     fi
 fi

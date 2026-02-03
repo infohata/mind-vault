@@ -2,7 +2,11 @@
 
 # Generic Update/Rollout Script
 # Updates existing deployment with latest code changes
-# Usage: ./scripts/deploy_update.sh [--remote user@host] [--dir /path]
+# Usage: ./scripts/deploy_update.sh [--remote user@host] [--dir /path] [--yes|-y]
+#
+# Non-interactive mode (skips all prompts, uses safe defaults):
+#   DEPLOY_NON_INTERACTIVE=1 ./scripts/deploy_update.sh
+#   ./scripts/deploy_update.sh --yes
 
 set -e
 
@@ -12,6 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Parse command line arguments (for direct remote execution)
 REMOTE_HOST=""
 REMOTE_DIR=""
+NON_INTERACTIVE=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         --remote)
@@ -22,11 +27,22 @@ while [[ $# -gt 0 ]]; do
             REMOTE_DIR="$2"
             shift 2
             ;;
+        --yes|-y)
+            NON_INTERACTIVE=true
+            shift
+            ;;
         *)
             break
             ;;
     esac
 done
+if [ "$DEPLOY_NON_INTERACTIVE" = "1" ] || [ "$DEPLOY_NON_INTERACTIVE" = "true" ]; then
+    NON_INTERACTIVE=true
+fi
+IS_INTERACTIVE=false
+if [ "$NON_INTERACTIVE" != "true" ] && [ -t 0 ]; then
+    IS_INTERACTIVE=true
+fi
 
 # Determine project root (supports global skill usage)
 if [ -n "$PROJECT_ROOT" ]; then
@@ -50,7 +66,7 @@ CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 if [ "$CURRENT_BRANCH" != "deployment" ] && [ "$CURRENT_BRANCH" != "production" ] && [ "$CURRENT_BRANCH" != "unknown" ]; then
     echo "⚠️  Warning: You're on branch '${CURRENT_BRANCH}', not 'deployment' or 'production'"
     echo "   Production deployments should use a dedicated branch"
-    if [ -t 0 ]; then
+    if [ "$IS_INTERACTIVE" = "true" ]; then
         read -p "Continue anyway? (yes/no): " confirm
         if [ "$confirm" != "yes" ]; then
             echo "Update cancelled"
@@ -95,7 +111,7 @@ echo ""
 echo "📥 Pulling latest code..."
 git pull origin "${CURRENT_BRANCH:-deployment}" || {
     echo "⚠️  Warning: Failed to pull latest code"
-    if [ -t 0 ]; then
+    if [ "$IS_INTERACTIVE" = "true" ]; then
         read -p "Continue with current code? (yes/no): " confirm
         if [ "$confirm" != "yes" ]; then
             echo "Update cancelled"
@@ -134,7 +150,7 @@ if [ -n "$PREVIOUS_COMMIT" ]; then
     fi
 else
     # If we can't detect changes, ask user or assume minimal changes
-    if [ -t 0 ]; then
+    if [ "$IS_INTERACTIVE" = "true" ]; then
         echo "💡 Unable to auto-detect change types. Please specify:"
         read -p "Does this update include database migrations? (yes/no): " mig_confirm
         if [ "$mig_confirm" = "yes" ]; then
@@ -157,7 +173,7 @@ fi
 
 # Check for .env changes
 env_changed="no"
-if [ -t 0 ]; then
+if [ "$IS_INTERACTIVE" = "true" ]; then
     read -p "Did you modify .env file? (yes/no): " env_changed
 else
     echo "💡 Non-interactive mode: assuming .env was not modified"
