@@ -64,6 +64,13 @@ git pull origin deployment
 ./deploy.sh
 ```
 
+### Deployment documentation tracking
+**Do not skip**: When running or assisting with a deployment, ensure the project tracks it.
+- **Where**: Session logs and state live in the repo under a deployment subdir (e.g. `docs/execution/deployment/`).
+- **Session filename**: `{host}_yyyymmdd-hhmm.md` (e.g. `teisutis_com_20260203-1415.md`). One file per deployment run; include screen session name, log path, checklist, rollback plan.
+- **Template**: Copy from a state template in that directory when preparing a deployment (risk, verification, rollback).
+- **Reference**: If the project has a deployment guide, it should point to this directory and convention so agents and humans don't forget to create/update session files.
+
 ### Service Architecture
 **Multi-service Docker Compose with:**
 - Web application container (Django/Flask/etc.)
