@@ -63,7 +63,7 @@ Production-ready frontend architecture for Django applications using **HTMX** fo
     <!-- CSRF token for JavaScript access -->
     <meta name="csrf-token" content="{{ csrf_token }}">
     
-    <!-- CSS: Bulma + Custom Theme -->
+    <!-- CSS: Bulma + Custom Theme (theme.css may be built from SCSS) -->
     <link rel="stylesheet" href="{% static 'core/css/bulma.min.css' %}">
     <link rel="stylesheet" href="{% static 'core/css/theme.css' %}">
     <link rel="stylesheet" href="{% static 'core/css/fontawesome.min.css' %}">
@@ -120,6 +120,8 @@ Production-ready frontend architecture for Django applications using **HTMX** fo
 - HTMX loaded globally (no initialization needed)
 - CSS variables for theming (light/dark mode)
 - Django messages container for server-side notifications
+
+**Theme CSS / SCSS (optional):** Some projects build `theme.css` from SCSS (variables, mixins, component partials, mobile overrides). Edit the relevant partial in `scss/` (e.g. `scss/components/_buttons.scss`, `scss/mobile/_responsive.scss`); run `make build-scss` or `make static` (build-scss + collectstatic) so the compiled CSS is updated. Never edit `theme.css` by hand when SCSS is the source. See project docs (e.g. Frontend UI guide, CSS_PREPROCESSOR_OPTIONS) for structure.
 
 ---
 
@@ -447,13 +449,15 @@ JSON.stringify({ 'X-CSRFToken': value })
 4. **Accessibility**: Semantic HTML, ARIA attributes, keyboard navigation
 5. **Responsive design**: Bulma's mobile-first approach
 6. **Theme flexibility**: CSS variables allow easy customization
-7. **Minimal dependencies**: No build step, no npm, no bundler required
+7. **Minimal dependencies**: No npm/bundler for core stack; optional SCSS build for theme (`make build-scss`)
 
 **Not project-specific:**
 - No business logic in JavaScript
 - Reusable widget patterns (autocomplete, color picker, file upload)
 - Generic modal/notification systems
 - Standard Django view patterns
+
+**Theme build (when SCSS is used):** One optional build step for theme CSS: compile SCSS → `theme.css` (e.g. `python manage.py compile_scss` or `make build-scss`). Run before `collectstatic` when SCSS changes; `make static` often does both. No npm/bundler required for the core stack.
 
 ---
 
@@ -500,7 +504,8 @@ JSON.stringify({ 'X-CSRFToken': value })
 - **Widget initialization**: Re-initialize after HTMX swaps (`htmx:afterSwap`)
 - **Event-driven architecture**: Custom events for cross-component communication
 - **Progressive enhancement**: Server renders HTML, JavaScript enhances
-- **CSS variables**: Theme customization without Sass/Less
+- **CSS variables**: Theme colors/spacing via `:root` and `.dark` (often defined in SCSS `_variables.scss` and compiled to CSS)
+- **Theme as SCSS (optional)**: Variables, mixins, component partials (`components/`), mobile overrides (`mobile/`); build with `make build-scss` or `make static` before collectstatic
 
 **Performance Considerations:**
 - HTMX reduces JavaScript payload (no SPA framework)
@@ -516,7 +521,7 @@ JSON.stringify({ 'X-CSRFToken': value })
 
 ---
 
-**Last Updated**: 2026-01-28  
-**Validated In**: Teisutis (Django 5.2.9, HTMX 1.9, Alpine.js 3.x, Bulma 0.9)  
+**Last Updated**: 2026-02-08  
+**Validated In**: Teisutis (Django 5.2.9, HTMX 1.9, Alpine.js 3.x, Bulma 0.9; theme from SCSS via libsass, `make static`)  
 **Pattern Type**: Frontend Architecture  
 **Complexity**: Intermediate to Advanced

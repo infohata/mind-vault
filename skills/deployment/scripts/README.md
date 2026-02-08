@@ -152,9 +152,9 @@ ssh user@production.com 'screen -X -S myapp-deploy-20260130-012343 quit'
 - Runs migrations and collects static files as needed
 - Restarts services for code changes
 
-**Change detection patterns** (customize these regex patterns):
+**Change detection patterns** (customize these regex patterns; aligned with Teisutis `tools/deploy_update.sh`):
 - Migrations: `migrations/|db/migrate`
-- Static files: `\.(css|js|png|jpg|jpeg|gif|svg|ico)$`
+- Static files: `\.(css|js|png|jpg|jpeg|gif|svg|ico|scss|sass)$` or paths containing `/scss/` or `/sass/`. When static changed, script runs theme build (host: `make build-scss` if present; container: Django `compile_scss` if present) then collectstatic.
 - Dependencies: `requirements.*\.txt|package\.json|Gemfile|Dockerfile`
 
 ### `backup_db.sh`

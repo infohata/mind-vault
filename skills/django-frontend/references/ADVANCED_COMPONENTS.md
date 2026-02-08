@@ -66,7 +66,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
 });
 ```
 
-**CSS Variables** (`theme.css`):
+**CSS Variables**: Theme colors and spacing are defined as CSS custom properties. In projects that use SCSS, these typically live in `_variables.scss` (e.g. `:root` and `.dark` blocks) and are compiled into `theme.css`; do not edit `theme.css` by hand when SCSS is the source. Example output:
 
 ```css
 :root {

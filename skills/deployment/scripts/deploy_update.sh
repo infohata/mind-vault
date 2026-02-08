@@ -127,6 +127,7 @@ echo "✅ Code updated"
 echo ""
 
 # Detect change type (customize file patterns for your project)
+# Aligns with Teisutis tools/deploy_update.sh: static includes CSS/JS/images and SCSS/Sass source
 HAS_MIGRATIONS=false
 HAS_STATIC=false
 HAS_DEPENDENCIES=false
@@ -139,8 +140,8 @@ if [ -n "$PREVIOUS_COMMIT" ]; then
         HAS_MIGRATIONS=true
     fi
 
-    # Check for static files
-    if git diff "$PREVIOUS_COMMIT" HEAD --name-only | grep -qE "\.(css|js|png|jpg|jpeg|gif|svg|ico)$"; then
+    # Check for static files (CSS, JS, images, and SCSS/Sass source — compile_scss or make build-scss runs when static changed)
+    if git diff "$PREVIOUS_COMMIT" HEAD --name-only | grep -qE "\.(css|js|png|jpg|jpeg|gif|svg|ico|scss|sass)$|/scss/|/sass/"; then
         HAS_STATIC=true
     fi
 
@@ -157,7 +158,7 @@ else
             HAS_MIGRATIONS=true
         fi
 
-        read -p "Does this update include static files? (yes/no): " static_confirm
+        read -p "Does this update include static files (CSS/JS/SCSS)? (yes/no): " static_confirm
         if [ "$static_confirm" = "yes" ]; then
             HAS_STATIC=true
         fi
@@ -224,8 +225,16 @@ if [ "$HAS_MIGRATIONS" = "true" ]; then
     echo ""
 fi
 
-# Collect static files
+# Build theme from SCSS/Sass when static changed (then collectstatic)
+# Try host make build-scss first, then Django compile_scss in container (e.g. Teisutis) — one will typically apply
 if [ "$HAS_STATIC" = "true" ]; then
+    echo "🎨 Building theme (SCSS/Sass if present)..."
+    if [ -f "Makefile" ] && grep -q "build-scss" Makefile 2>/dev/null; then
+        make build-scss || { echo "   (make build-scss skipped or failed)" ; }
+    fi
+    if $DOCKER_COMPOSE exec -T web python manage.py compile_scss --style compressed 2>/dev/null; then
+        echo "   SCSS compiled (Django compile_scss)"
+    fi
     echo "📦 Collecting static files..."
     # Customize for your framework
     # Django example:
