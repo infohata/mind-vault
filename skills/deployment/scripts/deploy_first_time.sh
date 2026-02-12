@@ -143,7 +143,14 @@ $DOCKER_COMPOSE exec -T web python manage.py migrate && {
     echo ""
 }
 
-# Collect static files (customize for your framework)
+# Build theme from SCSS/Sass if present, then collect static files
+echo "🎨 Building theme (SCSS/Sass if present)..."
+if [ -f "Makefile" ] && grep -q "build-scss" Makefile 2>/dev/null; then
+    make build-scss 2>/dev/null || true
+fi
+if $DOCKER_COMPOSE exec -T web python manage.py compile_scss --style compressed 2>/dev/null; then
+    echo "   SCSS compiled (Django compile_scss)"
+fi
 echo "📦 Collecting static files..."
 # Example for Django:
 $DOCKER_COMPOSE exec -T web python manage.py collectstatic --noinput && {

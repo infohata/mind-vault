@@ -126,7 +126,7 @@ ssh user@production.com 'screen -X -S myapp-deploy-20260130-012343 quit'
 - Builds Docker images with `--no-cache`
 - Starts all services
 - Runs initial database migrations
-- Collects static files
+- Compiles SCSS/Sass (if present: `make build-scss` or Django `compile_scss`) then collects static files
 - Initializes external services (customize as needed)
 
 **Customization required**:
@@ -156,6 +156,8 @@ ssh user@production.com 'screen -X -S myapp-deploy-20260130-012343 quit'
 - Migrations: `migrations/|db/migrate`
 - Static files: `\.(css|js|png|jpg|jpeg|gif|svg|ico|scss|sass)$` or paths containing `/scss/` or `/sass/`. When static changed, script runs theme build (host: `make build-scss` if present; container: Django `compile_scss` if present) then collectstatic.
 - Dependencies: `requirements.*\.txt|package\.json|Gemfile|Dockerfile`
+
+**Important**: When dependencies change (rebuild), the script **always** runs SCSS compile + collectstatic. This avoids a common bug: dependency-only changes trigger a full rebuild, but change detection may miss SCSS files (e.g. when git reflog is unavailable). Without this, production can end up with stale or missing compiled CSS.
 
 ### `backup_db.sh`
 **Purpose**: Create compressed database backups
@@ -348,6 +350,11 @@ verify:
 - Check Docker Compose configuration
 - Verify environment variables are loaded
 - Review service logs: `docker compose logs`
+
+### SCSS/CSS not compiled in production
+- **Cause**: Dependency rebuild ran but static block was skipped (e.g. change detection missed SCSS files).
+- **Fix**: Run manually: `docker compose exec -T web python manage.py compile_scss --style compressed && docker compose exec -T web python manage.py collectstatic --noinput`
+- **Prevention**: Ensure your deploy script sets `HAS_STATIC=true` when `HAS_DEPENDENCIES=true` (generic scripts do this).
 
 ## Examples by Framework
 

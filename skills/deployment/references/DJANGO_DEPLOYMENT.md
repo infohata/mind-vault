@@ -322,6 +322,17 @@ except:
 
 ### Django Deployment Scripts
 
+#### SCSS/Sass Compilation Before Collectstatic
+**Critical**: When using SCSS/Sass (e.g. libsass, `compile_scss` management command), always compile before collectstatic:
+
+```bash
+# Compile SCSS first (theme.scss → theme.css)
+python manage.py compile_scss --style compressed
+python manage.py collectstatic --noinput
+```
+
+**Dependency rebuild edge case**: When deployment detects dependency changes (requirements, Dockerfile), it rebuilds containers. The generic `deploy_update.sh` sets `HAS_STATIC=true` whenever `HAS_DEPENDENCIES=true`, ensuring SCSS compile + collectstatic run after every rebuild. Without this, production can end up with stale or missing compiled CSS because change detection may miss SCSS files (e.g. when git reflog is unavailable on the server).
+
 #### Enhanced Deployment Scripts
 **Django-aware deployment script:**
 ```bash
@@ -388,6 +399,10 @@ django_pre_deploy() {
 django_deploy() {
     log "Deploying Django application..."
 
+    # Compile SCSS/Sass before collectstatic (if using libsass/compile_scss)
+    if python manage.py compile_scss --style compressed 2>/dev/null; then
+        log "SCSS compiled"
+    fi
     # Collect static files
     log "Collecting static files..."
     python manage.py collectstatic --noinput --clear

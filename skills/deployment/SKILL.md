@@ -138,6 +138,8 @@ fi
 # ... (rebuilds, restarts, migrations)
 ```
 
+**Dependency rebuild + SCSS**: When dependencies change (requirements, Dockerfile), the script rebuilds containers. Always run SCSS compile + collectstatic after a rebuild — new code may have SCSS changes even if change detection misses them. The generic scripts set `HAS_STATIC=true` when `HAS_DEPENDENCIES=true`.
+
 **Complete generic scripts are available in the `scripts/` directory with:**
 - `deploy.sh` - Auto-detecting wrapper
 - `deploy_first_time.sh` - Initial deployment setup  

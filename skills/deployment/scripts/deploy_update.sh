@@ -149,6 +149,10 @@ if [ -n "$PREVIOUS_COMMIT" ]; then
     if git diff "$PREVIOUS_COMMIT" HEAD --name-only | grep -qE "(requirements.*\.txt|package\.json|Gemfile|Dockerfile)"; then
         HAS_DEPENDENCIES=true
     fi
+    # When rebuilding (deps changed), always run SCSS compile + collectstatic — new code may have SCSS changes
+    if [ "$HAS_DEPENDENCIES" = "true" ]; then
+        HAS_STATIC=true
+    fi
 else
     # If we can't detect changes, ask user or assume minimal changes
     if [ "$IS_INTERACTIVE" = "true" ]; then
@@ -166,6 +170,7 @@ else
         read -p "Does this update include dependency changes? (yes/no): " deps_confirm
         if [ "$deps_confirm" = "yes" ]; then
             HAS_DEPENDENCIES=true
+            HAS_STATIC=true
         fi
     else
         echo "💡 Non-interactive mode: assuming no migrations or dependencies changed"
