@@ -281,6 +281,21 @@ class ArticleViewSet(
     serializer_class = ArticleSerializer
 ```
 
+### String Building with Optional Parts
+
+When building strings from optional parts (append B to A, or use only B when A is empty), prefer `filter(None, [...])` + `join`:
+
+```python
+body = (base_value or "").strip()
+if optional_part:
+    line = "Label: " + optional_part
+    body = "\n".join(filter(None, [body, line]))
+```
+
+- **Non-empty base**: both kept, joined by newline.
+- **Empty base**: `filter(None, [...])` drops empty strings; result is just the new part.
+- Avoids ternaries and explicit if/else for append vs replace logic.
+
 ### Middleware Patterns
 
 **Custom middleware for request context**:
