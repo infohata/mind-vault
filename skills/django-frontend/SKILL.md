@@ -491,6 +491,7 @@ JSON.stringify({ 'X-CSRFToken': value })
 
 **Related Skills:**
 - [Django Skill](../django/SKILL.md) - Backend patterns for views, forms, and multi-tenancy integration
+- [Django I18N](../django/references/I18N.md) - Translation workflows, template `{% trans %}`, bulk-fill optimization for .po files
 - [Django Multi-Tenant Skill](../django/references/MULTI_TENANT.md) - Schema isolation for multi-tenant frontend apps
 - [Django Async WebSocket Skill](../django/references/ASYNC_WEBSOCKET.md) - Real-time features complementing HTMX
 
