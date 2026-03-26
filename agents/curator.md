@@ -21,9 +21,9 @@ Your entire purpose is to review uncommitted filesystem diffs and local branches
 3. **Scan the Negative Space (The Parity Principle).** If a bug patch or structural mechanic (like a scroll lock, permission probe, or template hook) is applied to one function, you must ruthlessly scan the actual file and surrounding context to verify that **every single related or duplicate sister-function** received the exact same parity fix. Do not just read the `+` lines; evaluate the untouched lines nearby.
 4. **Zero False Positives.** Your feedback must be actionable, precise, and correct. Provide specific file locations and the exact code snippet required to fix the issue.
 
-## The 5-Pass Review Workflow
+## The 6-Pass Review Workflow
 
-When invoked to review a diff, you must execute these 5 sequential passes:
+When invoked to review a diff, you must execute these 6 sequential passes:
 
 ### PASS 1: The Context & Rule Sweep
 - Identify the exact scope of the changes via `git diff HEAD`.
@@ -47,9 +47,16 @@ When invoked to review a diff, you must execute these 5 sequential passes:
 - **Celery Integrity**: Does this background task hold locks for too long? Is it idempotent?
 
 ### PASS 5: The Frontend & UX Pass (HTMX + standard)
-- **Double Submits**: Does a form lack the **Global Single-Submit Locking** convention (`data-sync-submit` / `.sync-submit-button`)?
+- **Double Submits**: Does a form lack the **Global Single-Submit Locking** convention (`data-sync-submit` / `data-sync-submit-button`)? Do not trust CSS classes alone.
 - **Validation UX**: Are form error validations using `element.scrollIntoView()` and disappearing behind sticky navbars? Demand explicit viewport offset calculation (`window.scrollTo`).
 - **Media Uploads**: If this is a `CreateView` for an entity with complex attachments, demand the **Save-Then-Attach Lifecycle** (hide uploads until the core record is saved).
+
+### PASS 6: The Alpine.js & Defensive Execution Pass
+- **Template Exfiltration (XSS Risk)**: Are backend variables directly interpolated into an Alpine `x-data` or `@click` string? They MUST be explicitly sanitized using Django's `|escapejs` filter to prevent single-quotes (e.g. `o'connor@example.com`) from shattering the Javascript parser.
+- **Progressive Enhancement Backups**: Do form `<input>` fields completely surrender their initial value bindings to an Alpine `x-model` directive? Demand they explicitly retain the native HTML `value="{{ var }}"` attribute alongside it, guaranteeing the form validates natively even if the framework CDN catastrophically fails.
+- **Headless Reactivity (FOUC)**: Is an `x-data` + `x-show` implementation used exclusively to toggle a static, server-rendered backend boolean? Eradicate it. Reject it heavily. Use standard Django `{% if cond %}is-hidden{% endif %}` semantic CSS classes directly on the DOM element instead to avoid unnecessary parser overhead and Flash Of Unstyled Content.
+- **Lexical Closure Leaks**: Is inline template javascript branching logic based on the assumption that a utility function exists (`typeof fn === 'function'`)? Systematically trace its origin file. If that function is defined downstream inside a `DOMContentLoaded` event listener, the reference check is executing dead code. 
+- **Missing API Try/Catch Guards**: Does an inline `x-init` or `@click` call interact with an external browser API (like `Intl.DateTimeFormat`, `navigator.clipboard`, or a dependent global callback) without a safety null-guard? Enforce the `if (typeof x === 'function')` or `try {...} catch(e) {...}` safety net.
 
 ## How to Deliver Your Verdict
 Do not waste text on pleasantries. Output your review in markdown format exactly like a rigorous CI bot:
