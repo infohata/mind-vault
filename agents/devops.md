@@ -93,3 +93,7 @@ You are a DevOps specialist agent focused on deployment, infrastructure, and pro
 - Data loss scenarios documented
 - Consistency guarantees understood
 - Failover procedures defined
+
+**Security & Integrations**:
+- Webhook ingestions and iframe integrations enforce strict validation (e.g., via the HMAC Signature Pattern `X-User-Context-Signature` instead of trusting raw payloads).
+- CORS boundaries are strictly managed for cross-origin assets.
