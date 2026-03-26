@@ -14,31 +14,29 @@ ln -s ~/projects/mind-vault/skills ~/.claude/skills
 
 for Claude Code, **Cursor discovers the same skills from that symlink**. You do not need `~/.cursor/skills` for skills—one symlink serves both tools. Only subagents require a Cursor-specific symlink (see below).
 
-## Quick setup (subagents only)
+## Quick setup (all-in-one)
 
-If skills are already set up via `~/.claude/skills` → mind-vault, you only need to symlink agents for Cursor subagents:
+Run `./scripts/setup-cursor-symlinks.sh` to create all symlinks (skills, commands, agents, rules). Or manually:
 
 ```bash
 MV=~/projects/mind-vault
 
-# Subagents: Cursor discovers from ~/.cursor/agents/
+mkdir -p ~/.cursor/skills && for d in "$MV"/skills/*/; do ln -sf "$(cd "$d" && pwd)" ~/.cursor/skills/$(basename "$d"); done
+ln -sf "$MV/commands" ~/.cursor/commands
 ln -sf "$MV/agents" ~/.cursor/agents
+ln -sf "$MV/rules" ~/.cursor/rules
 ```
 
-If you prefer Cursor’s own path for skills as well (or don’t use Claude Code), you can also add:
-
-```bash
-ln -sf "$MV/skills" ~/.cursor/skills
-```
-
-Restart Cursor (or reload window) so it rescans. Skills appear under **Cursor Settings → Rules** in the “Agent Decides” section; subagents are available to Agent when delegating.
+Restart Cursor (Cmd+Shift+P → Developer: Reload Window) to rescan.
 
 ## Paths Cursor uses
 
 | Content   | Project-level         | User-level            | Notes |
 |----------|------------------------|------------------------|--------|
-| Skills   | `.cursor/skills/` or `.claude/skills/` | `~/.claude/skills/` or `~/.cursor/skills/` | Skills: same symlink as Claude Code is enough at user level. |
-| Subagents| `.cursor/agents/`     | `~/.cursor/agents/`   | **Project**: mind-vault has `.cursor/agents` → `agents/` so opening the repo discovers subagents. **User**: symlink `~/.cursor/agents` → mind-vault for other projects. |
+| Skills   | `.cursor/skills/` or `.claude/skills/` | `~/.cursor/skills/*` or `~/.claude/skills/` | Use per-skill symlinks in `~/.cursor/skills/` to avoid discovery bug. |
+| Commands | `.cursor/commands/`    | `~/.cursor/commands/` | Slash commands (e.g. `/load-rules`, `/create-pr`). |
+| Subagents| `.cursor/agents/`     | `~/.cursor/agents/`   | **Project**: mind-vault has `.cursor/agents` → `agents/`. **User**: symlink → mind-vault for other projects. |
+| Rules    | `.cursor/rules/`      | Cursor Settings       | User Rules are in app; `~/.cursor/rules` is reference only. |
 
 **Why subagents didn’t show from project:** Cursor discovers subagents from **project** `.cursor/agents/` first. mind-vault now includes `.cursor/agents` (symlink to `agents/`), so when you open mind-vault, Cursor finds architect, backend, curator, etc. User-level `~/.cursor/agents` is for when you’re in a different project and still want mind-vault subagents.
 
@@ -67,8 +65,9 @@ Cursor’s **User Rules** are configured in the app (Cursor Settings → Rules),
 ## Verify
 
 1. **Skills**: Cursor Settings → Rules → Agent Decides. You should see mind-vault skills (e.g. django, deployment).  
-2. **Subagents**: In Agent chat, when the agent delegates, custom subagents should be available. In mind-vault they come from project `.cursor/agents/` (symlink to `agents/`); in other projects they come from user `~/.cursor/agents` if symlinked.  
-3. **Single source**: Edit a skill or agent in `~/projects/mind-vault`; after Cursor rescans, the change is reflected without copying.
+2. **Commands**: Type `/` in Agent chat; you should see load-rules, create-pr, commit, etc.  
+3. **Subagents**: In Agent chat, when the agent delegates, custom subagents should be available. In mind-vault they come from project `.cursor/agents/`; in other projects from user `~/.cursor/agents` if symlinked.  
+4. **Single source**: Edit a skill or agent in `~/projects/mind-vault`; after Cursor rescans, the change is reflected without copying.
 
 ## References
 
