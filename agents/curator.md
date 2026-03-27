@@ -48,6 +48,8 @@ When invoked to review a diff, you must execute these 6 sequential passes:
 
 ### PASS 5: The Frontend & UX Pass (HTMX + standard)
 - **Double Submits**: Does a form lack the **Global Single-Submit Locking** convention (`data-sync-submit` / `data-sync-submit-button`)? Do not trust CSS classes alone.
+- **DOM Flattening Risk (Spinner Destruction)**: Are any global Javascript functions manipulating `.textContent` or `.className` of buttons? If the button utilizes complex spinner markup (e.g., `.sync-submit-button__idle`), a direct `.textContent` overwrite will instantly destroy the guard structure. Demand targeted `.querySelector` inner-span updates.
+- **Lock Scope Escapes**: Is a cancel button (`data-sync-submit-cancel`) visually placed next to the form, but structurally sitting *outside* the `<form>` wrapper? The lock script queries explicitly *inside* the form node; cancel buttons outside this barrier will evade the lock and remain dangerously clickable.
 - **Validation UX**: Are form error validations using `element.scrollIntoView()` and disappearing behind sticky navbars? Demand explicit viewport offset calculation (`window.scrollTo`).
 - **Media Uploads**: If this is a `CreateView` for an entity with complex attachments, demand the **Save-Then-Attach Lifecycle** (hide uploads until the core record is saved).
 
