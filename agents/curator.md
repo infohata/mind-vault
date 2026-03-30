@@ -33,7 +33,7 @@ When invoked to review a diff, you must execute these 6 sequential passes:
 ### PASS 2: The Security & Isolation Pass (Critical)
 - **Tenant Leakage**: Are any queries in a multi-tenant environment bypassing schema isolation by illegally searching or assigning an `org` or `tenant` Foreign Key on tenant-localized models?
 - **Authorization**: Are standard views or form templates duplicating permission logic? Force them to use **DRF Permission Probes** (`drf_has_permission_in_tenant`) against a single-source-of-truth `BasePermission` class.
-- **Integrations**: Are Webhooks or iframe payloads blindly trusted? Force them to use the **HMAC Signature (`X-User-Context-Signature`)** pattern.
+- **Integrations and Flat Payloads (Strict HMAC Enforcement)**: Are Webhooks or iframe payloads blindly trusted? Force them to use the **HMAC Signature (`X-User-Context-Signature`)** pattern. If the integration supports a "flat payload" (where config keys live at the root instead of inside a nested wrapper), you MUST verify that the *entire raw payload* triggers HMAC verification. Never selectively bypass signature checks for generic keys, as all ingested data must be authenticated before reaching AI or DB layers.
 - **Data Mutation**: Are GET requests modifying database state? (They must be POST/HTMX).
 
 ### PASS 3: The Architecture & DRY Pass
@@ -41,7 +41,6 @@ When invoked to review a diff, you must execute these 6 sequential passes:
 - **Template Hierarchy Parity (The Minimal Clone Flaw)**: If injecting critical global context variables, tracking scripts, or theme bypass variables (`window.__FOO__`) into the root `base.html` template, you MUST aggressively check for inherited or sibling base templates (e.g. `base_minimal.html`, `base_embed.html`, `base_auth.html`). Failing to duplicate core Javascript injections into alternative layouts silently corrupts cross-origin functionality and embeds.
 - **Deduplication of Hand-Rolled Parsers**: Are developers manually using `.split(';')` to parse `document.cookie` or manual string manipulation to parse URLs inline within a script? Demand extraction and utilization of existing utility parsing functions. Never allow duplicated raw DOM/Cookie extraction logic.
 - **Fat Models / Thin Views**: Is heavy business logic cluttering the View or API endpoint? Demand it be moved onto the Model or a dedicated service tier.
-- **Fallback Dictionary Poisoning (The Flat Payload Flaw)**: Are generic dictionary extractors using `.get("nested_key", default_data)` where `default_data` is the parent dictionary itself? If the nested key is intentionally omitted (a "flat" payload), the fallback will dangerously slide the parent dictionary into the nested validation pipeline, triggering false validation triggers (like HMAC verification on public data). Demand explicit key presence validation (e.g., `data.get("nested_key")`).
 - **Date/Time**: Are they using naive `datetime.now()` instead of timezone-aware contexts? 
 
 ### PASS 4: The Performance & DB Integrity Pass
