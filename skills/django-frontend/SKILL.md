@@ -1,6 +1,6 @@
 ---
 name: django-frontend
-description: Django frontend patterns for building modern web interfaces with HTMX, Alpine.js, and Bulma CSS for server-driven interactivity and responsive design.
+description: Implement cross-project Django frontend conventions using HTMX, Alpine.js, and Bulma CSS to maintain consistent, server-driven responsive web interfaces.
 ---
 
 # SKILL: Django Frontend Patterns with HTMX, Alpine.js, and Bulma
