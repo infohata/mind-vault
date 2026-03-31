@@ -1,10 +1,6 @@
 ---
 name: django
-description: |
-  Core Django architecture patterns including BaseModel abstractions,
-  DRF conventions, ASGI setup, multi-tenancy, async WebSocket, Celery background tasks,
-  testing strategies, and development workflows. Use for Django projects requiring 
-  production-ready patterns with optional multi-tenant support.
+description: Apply global cross-project Django backend dev conventions for models, views, signals, Channels, DRF, and all backend architecture before hitting templates or JS.
 license: MIT
 compatibility: opencode
 metadata:

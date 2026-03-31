@@ -1,9 +1,6 @@
 ---
 name: deployment
-description: |
-  Comprehensive deployment patterns for production web applications using Docker Compose,
-  focusing on automated deployment scripts, change detection, backup strategies, and zero-downtime updates.
-  Emphasizes safety through automated backups, rollback procedures, and comprehensive verification.
+description: Deploy Docker Compose web applications across any project, managing safe remote SSH releases via screen sessions, automated database backups, and zero-downtime updates.
 license: MIT
 compatibility: opencode
 metadata:
