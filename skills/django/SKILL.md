@@ -178,6 +178,33 @@ When using purely schema-based multi-tenancy (e.g., `django-tenants`), **do not*
 - Use tenant-local BaseModel derivatives without an `org` FK for these tables.
 - Reserve abstract mixins like `OwnedModel` (which contain the `org` FK) **strictly** for tables that live in the `public` schema (e.g. Users, Billing, Subscriptions, Organization directories).
 
+### Generic Foreign Keys and Polymorphism
+
+When an object needs to reference heterogeneous models dynamically (e.g., an AI Context Manager pointing to Articles, Events, or Properties), use Django's `contenttypes` framework (`GenericForeignKey`).
+
+**Critical Performance Convention**: When querying models that contain a Generic Foreign Key, you **must** use `prefetch_related("content_object")` to resolve the related objects, otherwise Django will trigger a massive N+1 database querying storm when serializing or rendering the generic references.
+```python
+# Correct pattern for resolving GFKs
+context_items = ConversationContextItem.objects.filter(
+    conversation_id=conv.id
+).select_related("content_type").prefetch_related("content_object")
+```
+
+### Gettext Translation Safety (Fuzzy matching)
+
+By default, GNU Gettext's `msgmerge` (invoked by Django's `makemessages`) uses aggressive fuzzy-matching heuristics. If a new string is added, gettext will often guess its translation based on similar older strings, appending a `#, fuzzy` marker.
+If your deployment pipeline strips `#, fuzzy` flags or simply ignores them, these wrong guesses will silently burn bad translations into the compiled `.mo` files affecting the production UI.
+
+**Required Safeguard**: Never let fuzzy mappings persist lock-in. Embed a `msgattrib --clear-fuzzy --empty` wipe instantly into your translation extraction workflow.
+```Makefile
+# Makefile
+translate-extract:
+	docker compose exec web python manage.py makemessages -a --no-obsolete
+	@echo "Wiping fuzzy heuristics to prevent silent UI corruption"
+	docker compose exec -T web sh -c 'for po in /app/*/locale/*/LC_MESSAGES/django.po; do [ -f "$$po" ] && msgattrib --clear-fuzzy --empty -o "$$po" "$$po" || true; done'
+```
+This guarantees all incorrect fuzzy guesses instantly become `""`, forcing explicit translation and letting CI tools reliably detect missing strings.
+
 ### Settings & Configuration
 
 **Organize settings with environment variables**:
@@ -260,6 +287,25 @@ When you need to evaluate permission in a non-DRF context, use a "permission pro
 # Create a synthetic DRF request to reuse the DRF BasePermission
 drf_request = build_drf_request(request, data=request.POST) 
 has_perm = CanManageArticles().has_permission(drf_request, None)
+```
+
+### Public API vs Authenticated Parity
+
+When building features that are exposed to both logged-in users and anonymous public users (e.g., chat sessions, context managers), do not branch your API logic completely.
+Instead, use **Session-Scoped Ownership** for the anonymous users.
+1. Assign the object a `session_key` upon creation if `request.user.is_anonymous`.
+2. Allow `AllowAny` permissions on the view but implement strict object-level validation inside `get_queryset()` or the action method by forcing the user to pass their Django `session_key` (via a header or query parameter like `ws_token`) and comparing it against the record's stored `session_key`.
+
+```python
+# API example for anonymous parity
+def get_queryset(self):
+    ws_token = self.request.query_params.get("ws_token")
+    if self.request.user.is_authenticated:
+        return Model.objects.filter(author=self.request.user)
+    elif ws_token:
+        # Prevent any crossover by explicitly tracking anonymous session ownership
+        return Model.objects.filter(author__isnull=True, session_key=ws_token)
+    return Model.objects.none()
 ```
 
 ### Mixins and Reusable Patterns
