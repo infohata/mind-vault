@@ -347,7 +347,7 @@ function openModal(url, title, modalId = 'formModal') {
     })
     .catch(error => {
         console.error('Failed to load modal content:', error);
-        modalBody.innerHTML = `<div class="notification is-danger">
+        modalBody.innerHTML = `<div class="notification is-danger is-light">
             <p>Error loading form. Please try again.</p>
             <p class="is-size-7 mt-2">${error.message}</p>
         </div>`;
@@ -414,6 +414,20 @@ For actions that need user confirmation before submitting (e.g. "Mark as broken"
 
 **Options:** `{ title, message, confirmText, confirmClass, onSuccess }`
 
+### Formset table (shared partial + JS)
+
+For **modelformsets** (e.g. reminders, profile defaults), use a **shared partial** and one JS module so multiple formsets share the same behaviour:
+
+- **Template contract**: Management form (TOTAL_FORMS, INITIAL_FORMS, MIN/MAX_NUM_FORMS), a `<tbody id="…">`, a `<template id="…">` with one row using Django's `__prefix__` in name/id, and an "Add row" button. Each data row has a single CSS class (e.g. `reminder-row`) for the script to reindex and handle DELETE.
+- **JS behaviour**: On "Add", clone template, replace `__prefix__` with current index, append to tbody, increment TOTAL_FORMS. On DELETE for a new row (no pk), remove from DOM and reindex names/ids to 0..n-1; for existing rows leave in DOM (Django will treat as deleted on submit).
+- **Backend**: Pass formset, `empty_form_template_id`, `add_button_id`, `table_body_id`, `thead_partial`, `row_partial`, `row_css_class`; optional caption and add_button_text.
+
+**Why**: One implementation for all formset tables; consistent add/remove/reindex; frontend and backend stay in sync via a fixed contract.
+
+### Date/time/duration layout (responsive row)
+
+When a form has **date**, **time**, and **duration** (or similar) in one row, use a single Crispy `Div` with Bulma `columns` and responsive column classes (e.g. `column is-2-widescreen is-full-mobile`) so the three fields are inline on desktop and stack on mobile. Avoid separate full-width rows when they belong together semantically.
+
 ### Dynamic hx-* Attributes
 
 HTMX binds event listeners at page load. When you change `hx-post`, `hx-get`, etc. via `setAttribute()`, HTMX does **not** automatically pick up the new values. The form may submit to the wrong URL (e.g. current page) → 405 Method Not Allowed.
@@ -436,6 +450,80 @@ JSON.stringify({ X-CSRFToken: value })
 // ✅ GOOD
 JSON.stringify({ 'X-CSRFToken': value })
 ```
+
+---
+
+## Template Standards (Bulma)
+
+When building templates with Bulma, follow these conventions for consistency and dark-theme compatibility:
+
+### Buttons
+| Role | Class | Example |
+|------|-------|---------|
+| Primary action | `button is-primary` | Save, Create, Submit |
+| Secondary action | `button is-info` | View, Manage |
+| Cancel / Back | `button is-light` | Cancel, Go Back |
+| Danger | `button is-danger` | Delete |
+| Edit (header) | `button is-primary` | Edit on detail pages |
+| Edit (table row) | `button is-small is-primary` | Edit in table actions |
+| Ghost / Menu trigger | `button is-ghost is-small` | Ellipsis dropdowns |
+
+**Never use**: `is-outlined`, `is-text` (use `is-light` for cancel/back).
+
+### Button Icon Pattern
+```html
+<button class="button is-primary">
+    <span class="icon">{% fa_icon "save" %}</span>
+    <span>{% trans "Save" %}</span>
+</button>
+```
+
+### Icons
+Always use `{% fa_icon "name" %}` template tag. Exceptions: dynamic Alpine.js `:class` bindings, brand icons (`fab`), dynamic `{{ trigger_icon }}` in navbar submenus.
+
+### Cards
+Use `card-content`, never `card-body` (Bootstrap leak). Structure:
+```html
+<div class="card">
+    <div class="card-header">
+        <div class="card-header-title">Title</div>
+    </div>
+    <div class="card-content">...</div>
+</div>
+```
+
+### Tables in Cards
+- Use `table-scroll-container` wrapper, never `table-responsive`
+- Table classes: `table is-fullwidth is-hoverable is-striped`
+- Always `scope="col"` on `<th>`
+
+### Status Tags
+Use Bulma `tag`, never Bootstrap `badge`:
+```html
+<span class="tag is-success">Active</span>
+<span class="tag is-warning">Pending</span>
+<span class="tag is-danger">Cancelled</span>
+```
+
+### Notifications
+Always include `is-light` for dark-theme compatibility:
+```html
+<div class="notification is-success is-light">...</div>
+<div class="notification is-danger is-light">...</div>
+```
+
+### Empty States
+- Full: `has-text-centered py-6` with icon, heading, subtitle, action button
+- Text only: `<p class="has-text-grey">{% trans "No items found." %}</p>`
+- Never use `text-muted` (use `has-text-grey`)
+
+### Inline Styles
+- `style="display: none;"` is acceptable for JS-toggled elements
+- Dynamic CSS custom properties (`--pill-color`, `--tag-color`) are acceptable
+- All other styles should be in SCSS files
+
+### i18n
+All user-visible text must be wrapped in `{% trans %}` or `{% blocktrans %}`. Template tag arguments (e.g., modal titles passed via `with`) must also be translated.
 
 ---
 
@@ -491,6 +579,7 @@ JSON.stringify({ 'X-CSRFToken': value })
 
 **Related Skills:**
 - [Django Skill](../django/SKILL.md) - Backend patterns for views, forms, and multi-tenancy integration
+- [Django I18N](../django/references/I18N.md) - Translation workflows, template `{% trans %}`, bulk-fill optimization for .po files
 - [Django Multi-Tenant Skill](../django/references/MULTI_TENANT.md) - Schema isolation for multi-tenant frontend apps
 - [Django Async WebSocket Skill](../django/references/ASYNC_WEBSOCKET.md) - Real-time features complementing HTMX
 
@@ -521,7 +610,8 @@ JSON.stringify({ 'X-CSRFToken': value })
 
 ---
 
-**Last Updated**: 2026-02-08  
+**Last Updated**: 2026-02-26  
 **Validated In**: Teisutis (Django 5.2.9, HTMX 1.9, Alpine.js 3.x, Bulma 0.9; theme from SCSS via libsass, `make static`)  
+**Template Standards**: Aligned with Teisutis Template Consistency Audit (docs/artefacts/by-agent/curator/TEMPLATE_CONSISTENCY_AUDIT.md)  
 **Pattern Type**: Frontend Architecture  
 **Complexity**: Intermediate to Advanced
