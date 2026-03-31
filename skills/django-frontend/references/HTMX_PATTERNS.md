@@ -138,6 +138,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ## Loading States & Indicators
 
+**Duplicate Submit Prevention (`data-sync-submit` Pattern):**
+
+Project-wide standard to block duplicate POST requests on sensitive forms (full-page or HTMX modals) via race conditions/double clicks. Hooked to the centralized `sync_form_submit.js` delegation script.
+
+```django
+<form hx-post="{% url 'billing:checkout' %}"
+      hx-target="this"
+      hx-swap="outerHTML"
+      data-sync-submit>
+    {% csrf_token %}
+    
+    <!-- Form fields -->
+    
+    <div class="field mt-4">
+        <div class="control buttons">
+            <button type="submit" class="button is-primary sync-submit-button">
+                <span class="__idle">Pay Now</span>
+                <span class="__in-flight-label">Processing...</span>
+            </button>
+            <!-- Any cancel button inside the form must be protected from triggering the lock -->
+            <button type="button" class="button is-ghost" data-sync-submit-cancel>Cancel</button>
+        </div>
+    </div>
+</form>
+```
+
+**Key Mechanics**:
+- `data-sync-submit` on `<form>`: JS intercepts submit, disables button, swaps label, prevents further events.
+- `.sync-submit-button`: Scoped element containing `.__idle` and `.__in-flight-label` nested spans for animations via `_forms.scss`.
+- `data-sync-submit-cancel`: Allows user cancellation without triggering the submit lock wrapper behavior.
+- Automatic Error Recovery: If an HTMX validation fails (`htmx:responseError` or `htmx:sendError`), the central JS delegation logic automatically **un-locks** the button to allow retries. No custom JS per form needed.
+
 **Automatic loading indicators:**
 
 ```django
