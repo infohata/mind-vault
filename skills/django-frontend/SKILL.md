@@ -451,6 +451,110 @@ JSON.stringify({ X-CSRFToken: value })
 JSON.stringify({ 'X-CSRFToken': value })
 ```
 
+### Global Single-Submit Locking (HTMX + Standard)
+
+To prevent double-submissions, rapid multi-clicks, or missing spinners without polluting forms with ad-hoc `onsubmit` JS:
+**Pattern**: Use a global event listener (e.g. `sync_form_submit.js`) combined with a `.sync-submit-button` CSS class and `data-sync-submit` attributes.
+- On submit, script immediately disables the button and injects an `__in-flight-label` (like a spinner).
+- Listens to HTMX's `htmx:sendError` and `htmx:responseError` to securely reset the button state back to active on failure.
+
+### Sticky-Navbar Aware Scrolling
+
+When validating forms (both standard and HTMX), scrolling to an error summary using native `element.scrollIntoView()` often hides the error behind sticky or fixed top navigation bars.
+**Fix**: Abandon `scrollIntoView()` for validation errors. Calculate the explicit viewport offset and use `window.scrollTo`:
+```javascript
+const y = errorSummary.getBoundingClientRect().top + window.scrollY - navbarHeightOffset;
+window.scrollTo({ top: y, behavior: 'smooth' });
+```
+
+### Save-Then-Attach Lifecycle (Complex Forms)
+
+For entities that require complex attachments (files, images, references) alongside standard fields, do **not** try to process attachments simultaneously during the `CreateView`.
+**UX Convention**:
+- **Create Mode**: Hide attachment dropzones entirely. Display an info notice: "Save this record first to attach files."
+- **Edit Mode**: Display the attachment manager.
+**Why**: Prevents orphaned uploads on failed submits, simplifies DRF serializer edge-cases, and avoids complex multi-part generic creation bugs.
+
+### Shared "Today" ISO Date Context
+
+Instead of having individual views compute and inject the current date into template context (which drifts or misses tz edges):
+**Pattern**: Rely on a globally registered context processor (e.g. `today_iso`) that resolves the exact current date/time based on the user's timezone.
+Expose it to frontend scripts via `<script id="today_iso" type="application/json">{{ today_iso }}</script>` or Alpine's `x-data`. This prevents logical bugs where JS "new Date()" ignores server timezone contexts for validation logic.
+
+---
+
+## Template Standards (Bulma)
+
+When building templates with Bulma, follow these conventions for consistency and dark-theme compatibility:
+
+### Buttons
+| Role | Class | Example |
+|------|-------|---------|
+| Primary action | `button is-primary` | Save, Create, Submit |
+| Secondary action | `button is-info` | View, Manage |
+| Cancel / Back | `button is-light` | Cancel, Go Back |
+| Danger | `button is-danger` | Delete |
+| Edit (header) | `button is-primary` | Edit on detail pages |
+| Edit (table row) | `button is-small is-primary` | Edit in table actions |
+| Ghost / Menu trigger | `button is-ghost is-small` | Ellipsis dropdowns |
+
+**Never use**: `is-outlined`, `is-text` (use `is-light` for cancel/back).
+
+### Button Icon Pattern
+```html
+<button class="button is-primary">
+    <span class="icon">{% fa_icon "save" %}</span>
+    <span>{% trans "Save" %}</span>
+</button>
+```
+
+### Icons
+Always use `{% fa_icon "name" %}` template tag. Exceptions: dynamic Alpine.js `:class` bindings, brand icons (`fab`), dynamic `{{ trigger_icon }}` in navbar submenus.
+
+### Cards
+Use `card-content`, never `card-body` (Bootstrap leak). Structure:
+```html
+<div class="card">
+    <div class="card-header">
+        <div class="card-header-title">Title</div>
+    </div>
+    <div class="card-content">...</div>
+</div>
+```
+
+### Tables in Cards
+- Use `table-scroll-container` wrapper, never `table-responsive`
+- Table classes: `table is-fullwidth is-hoverable is-striped`
+- Always `scope="col"` on `<th>`
+
+### Status Tags
+Use Bulma `tag`, never Bootstrap `badge`:
+```html
+<span class="tag is-success">Active</span>
+<span class="tag is-warning">Pending</span>
+<span class="tag is-danger">Cancelled</span>
+```
+
+### Notifications
+Always include `is-light` for dark-theme compatibility:
+```html
+<div class="notification is-success is-light">...</div>
+<div class="notification is-danger is-light">...</div>
+```
+
+### Empty States
+- Full: `has-text-centered py-6` with icon, heading, subtitle, action button
+- Text only: `<p class="has-text-grey">{% trans "No items found." %}</p>`
+- Never use `text-muted` (use `has-text-grey`)
+
+### Inline Styles
+- `style="display: none;"` is acceptable for JS-toggled elements
+- Dynamic CSS custom properties (`--pill-color`, `--tag-color`) are acceptable
+- All other styles should be in SCSS files
+
+### i18n
+All user-visible text must be wrapped in `{% trans %}` or `{% blocktrans %}`. Template tag arguments (e.g., modal titles passed via `with`) must also be translated.
+
 ---
 
 ## Template Standards (Bulma)
