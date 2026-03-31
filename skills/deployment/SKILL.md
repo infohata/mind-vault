@@ -23,6 +23,7 @@ Core deployment patterns for production web applications using Docker Compose, f
  - Change detection and intelligent deployments
  - Database safety (backups, migrations, rollbacks)
  - Remote deployment with SSH and safety confirmation
+ - Screen sessions for remote deployments (mandatory)
  - SSL certificate management with Let's Encrypt
  - Health checks and deployment verification
  - Environment management and configuration
@@ -32,6 +33,7 @@ Core deployment patterns for production web applications using Docker Compose, f
 **Optional Extensions** (load on-demand):
  - [Monitoring Integration](references/MONITORING.md) - Production monitoring with Prometheus, Grafana, ELK
  - [Django Deployment](references/DJANGO_DEPLOYMENT.md) - Django-specific deployment patterns and optimizations
+ - [Server Hardening](references/HARDENING.md) - SSH, firewall, fail2ban, and automatic security updates before deployment
 
 ## When to Use
 Any web application deployed using Docker Compose that requires:
@@ -62,6 +64,13 @@ git pull origin deployment
 ./deploy.sh
 ```
 
+### Deployment documentation tracking
+**Do not skip**: When running or assisting with a deployment, ensure the project tracks it.
+- **Where**: Session logs and state live in the repo under a deployment subdir (e.g. `docs/execution/deployment/`).
+- **Session filename**: `{host}_yyyymmdd-hhmm.md` (e.g. `teisutis_com_20260203-1415.md`). One file per deployment run; include screen session name, log path, checklist, rollback plan.
+- **Template**: Copy from a state template in that directory when preparing a deployment (risk, verification, rollback).
+- **Reference**: If the project has a deployment guide, it should point to this directory and convention so agents and humans don't forget to create/update session files.
+
 ### Service Architecture
 **Multi-service Docker Compose with:**
 - Web application container (Django/Flask/etc.)
@@ -83,14 +92,34 @@ git pull origin deployment
 ```bash
 #!/bin/bash
 # scripts/deploy.sh - Auto-detect first-time vs update
+# Non-interactive: DEPLOY_NON_INTERACTIVE=1 ./deploy.sh  or  ./deploy.sh --yes
+
 SERVICES_RUNNING=$(docker compose ps | grep -q "Up\|running" && echo "true" || echo "false")
 
 if [ "$SERVICES_RUNNING" = "true" ]; then
-    exec ./scripts/deploy_update.sh
+    exec ./scripts/deploy_update.sh "$@"
 else
-    exec ./scripts/deploy_first_time.sh
+    exec ./scripts/deploy_first_time.sh "$@"
 fi
 ```
+
+**Non-interactive mode** (for screen sessions, CI, automated runs):
+
+Deploy scripts may prompt for `.env` changes and confirmations. Use non-interactive mode to skip all prompts (safe defaults: no .env changes, auto-detect from git):
+
+```bash
+# Option 1: Environment variable
+DEPLOY_NON_INTERACTIVE=1 ./tools/deploy.sh
+
+# Option 2: --yes flag
+./tools/deploy.sh --yes
+
+# Remote in screen (recommended):
+screen -dmS myapp-deploy-$(date -u +%Y%m%d-%H%M%S) bash -c \
+  'cd /opt/myapp && DEPLOY_NON_INTERACTIVE=1 ./tools/deploy.sh 2>&1 | tee deploy-$(date -u +%Y%m%d-%H%M%S).log'
+```
+
+**Why**: Screen allocates a TTY, so `[ -t 0 ]` is true and scripts wait for input. Explicit `DEPLOY_NON_INTERACTIVE=1` or `--yes` forces non-interactive regardless of TTY.
 
 **Update script with smart change detection and backups:**
 ```bash
@@ -108,6 +137,8 @@ fi
 # Apply changes based on detection
 # ... (rebuilds, restarts, migrations)
 ```
+
+**Dependency rebuild + SCSS**: When dependencies change (requirements, Dockerfile), the script rebuilds containers. Always run SCSS compile + collectstatic after a rebuild — new code may have SCSS changes even if change detection misses them. The generic scripts set `HAS_STATIC=true` when `HAS_DEPENDENCIES=true`.
 
 **Complete generic scripts are available in the `scripts/` directory with:**
 - `deploy.sh` - Auto-detecting wrapper
@@ -147,11 +178,20 @@ fi
 # Local development and testing
 ./scripts/deploy.sh  # Test locally first
 
-# Remote staging deployment
-./scripts/deploy.sh --remote deploy@staging.example.com --dir /opt/myapp
+# Remote deployments MUST use screen sessions (see Screen Sessions section below)
+# Never run remote deployments directly - use screen to prevent connection loss
 
-# Remote production deployment (with confirmation)
-./scripts/deploy.sh --remote deploy@production.example.com --dir /opt/myapp
+# Remote staging deployment with screen
+ssh deploy@staging.example.com << 'EOF'
+cd /opt/myapp
+screen -dmS myapp-deploy-$(date +%Y%m%d-%H%M%S) bash -c "DEPLOY_NON_INTERACTIVE=1 ./tools/deploy.sh 2>&1 | tee deploy-$(date +%Y%m%d-%H%M%S).log"
+EOF
+
+# Remote production deployment with screen
+ssh deploy@production.example.com << 'EOF'
+cd /opt/myapp
+screen -dmS myapp-deploy-$(date +%Y%m%d-%H%M%S) bash -c "DEPLOY_NON_INTERACTIVE=1 ./tools/deploy.sh 2>&1 | tee deploy-$(date +%Y%m%d-%H%M%S).log"
+EOF
 ```
 
 **What happens during remote deployment:**
@@ -160,6 +200,172 @@ fi
 3. **Script Transfer**: Copies deployment scripts to remote server
 4. **Execution**: Runs deployment on remote server
 5. **Verification**: Returns results and status
+
+### Screen Sessions for Remote Deployments
+
+**⚠️ CRITICAL: Always use screen for remote deployments**
+
+Remote deployments MUST use screen sessions to prevent data loss from:
+- SSH connection timeouts
+- Network interruptions
+- API errors
+- Client disconnections
+- Terminal closures
+
+**Policy for AI agents:**
+- **Remote deployment** → ALWAYS use screen (mandatory)
+- **Local deployment** → Optional (user convenience only)
+
+**Session naming convention:**
+```bash
+{project}-deploy-{YYYYMMDD-HHMMSS}
+Example: teisutis-deploy-20260130-012343
+```
+
+**Standard remote deployment with screen:**
+```bash
+# SSH and start screen session with timestamped log
+# Use DEPLOY_NON_INTERACTIVE=1 so scripts skip prompts (screen has TTY but no stdin)
+ssh user@production.com << 'EOF'
+cd /opt/myapp
+SESSION_NAME="myapp-deploy-$(date +%Y%m%d-%H%M%S)"
+LOG_FILE="deploy-$(date +%Y%m%d-%H%M%S).log"
+
+screen -dmS "$SESSION_NAME" bash -c "DEPLOY_NON_INTERACTIVE=1 ./tools/deploy.sh 2>&1 | tee $LOG_FILE"
+
+echo "✅ Screen session started: $SESSION_NAME"
+echo "📋 Log file: $LOG_FILE"
+echo ""
+echo "🔍 Monitor deployment:"
+echo "   tail -f $LOG_FILE"
+echo "   screen -r $SESSION_NAME"
+echo ""
+echo "📋 First 30 seconds of output:"
+sleep 3 && tail -n 50 "$LOG_FILE"
+EOF
+```
+
+**Monitoring deployment progress:**
+```bash
+# View log file (recommended - persists after screen exits)
+ssh user@production.com 'tail -f /opt/myapp/deploy-20260130-012343.log'
+
+# Attach to screen session (interactive, see live output)
+ssh -t user@production.com 'screen -r myapp-deploy-20260130-012343'
+
+# Detach from screen (inside session): Ctrl+A, then D
+
+# List all screen sessions
+ssh user@production.com 'screen -ls'
+
+# Attach to most recent deployment session
+ssh -t user@production.com 'screen -r $(screen -ls | grep deploy | head -1 | cut -d. -f1)'
+```
+
+**One-liner for quick remote deployment:**
+```bash
+ssh user@production.com "cd /opt/myapp && screen -dmS myapp-deploy-\$(date +%Y%m%d-%H%M%S) bash -c 'DEPLOY_NON_INTERACTIVE=1 ./tools/deploy.sh 2>&1 | tee deploy-\$(date +%Y%m%d-%H%M%S).log' && sleep 3 && screen -ls | grep deploy && tail -n 50 deploy-*.log"
+```
+
+**Session cleanup after successful deployment:**
+```bash
+# List deployment sessions
+ssh user@production.com 'screen -ls | grep deploy'
+
+# Kill specific session (after verifying deployment success)
+ssh user@production.com 'screen -X -S myapp-deploy-20260130-012343 quit'
+
+# Clean up all detached deployment sessions (use with caution)
+ssh user@production.com 'screen -ls | grep Detached | grep deploy | cut -d. -f1 | xargs -I{} screen -X -S {} quit'
+```
+
+**Best practices:**
+- ✅ **Always use screen for remote** - No exceptions for production deployments
+- ✅ **Timestamped logs** - Screen sessions terminate, logs persist
+- ✅ **Timestamped session names** - Prevents collision with concurrent deployments
+- ✅ **Show initial output** - Confirm deployment started correctly
+- ✅ **Provide monitoring commands** - User needs to know how to check progress
+- ✅ **Keep logs for analysis** - Add `deploy-*.log` to .gitignore
+- ❌ **Never skip screen on remote** - Even "quick" deployments can fail unexpectedly
+- ❌ **Don't reuse session names** - Use timestamps to ensure uniqueness
+
+**Typical remote deployment workflow:**
+```bash
+# 1. Start screen deployment
+ssh user@production.com << 'EOF'
+cd /opt/myapp
+SESSION="myapp-deploy-$(date +%Y%m%d-%H%M%S)"
+LOG="deploy-$(date +%Y%m%d-%H%M%S).log"
+screen -dmS "$SESSION" bash -c "./tools/deploy.sh 2>&1 | tee $LOG"
+echo "Session: $SESSION | Log: $LOG"
+sleep 3 && tail -n 50 "$LOG"
+EOF
+
+# 2. Monitor progress (from local machine)
+ssh user@production.com 'tail -f /opt/myapp/deploy-*.log'
+
+# 3. Or attach to see interactive output
+ssh -t user@production.com 'screen -r $(screen -ls | grep deploy | head -1 | cut -d. -f1)'
+
+# 4. After completion, verify and clean up
+ssh user@production.com 'docker compose ps && screen -ls'
+ssh user@production.com 'screen -X -S myapp-deploy-20260130-012343 quit'
+```
+
+**Handling long rebuilds (20-30+ minutes):**
+```bash
+# Screen protects against timeout - deployment continues even if you disconnect
+# You can safely:
+# - Close terminal
+# - Disconnect VPN
+# - Switch networks
+# - Log out
+
+# Reconnect anytime to check progress
+ssh user@production.com 'tail -f /opt/myapp/deploy-*.log'
+ssh -t user@production.com 'screen -r myapp-deploy'
+```
+
+**Troubleshooting:**
+
+*Screen not installed on server:*
+```bash
+ssh user@production.com 'command -v screen || echo "Not installed"'
+
+# Install (Debian/Ubuntu)
+ssh user@production.com 'sudo apt-get install screen'
+
+# Install (RHEL/CentOS)
+ssh user@production.com 'sudo yum install screen'
+```
+
+*Can't find deployment session:*
+```bash
+# List all sessions
+ssh user@production.com 'screen -ls'
+
+# Check log files
+ssh user@production.com 'ls -lt /opt/myapp/deploy-*.log | head -5'
+
+# Attach to most recent deployment
+ssh -t user@production.com 'screen -r $(screen -ls | grep deploy | head -1 | cut -d. -f1)'
+```
+
+*Deployment finished but screen still active:*
+```bash
+# Normal behavior - screen persists after command completion
+# Safe to kill after verifying deployment success
+ssh user@production.com 'screen -X -S session-name quit'
+```
+
+*Multiple deployments running:*
+```bash
+# List all deployment sessions with timestamps
+ssh user@production.com 'screen -ls | grep deploy'
+
+# Attach to specific session by full name
+ssh -t user@production.com 'screen -r myapp-deploy-20260130-012343'
+```
 
 ### Change Detection
 **Automatic change type detection:**

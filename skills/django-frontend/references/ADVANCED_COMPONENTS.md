@@ -66,7 +66,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
 });
 ```
 
-**CSS Variables** (`theme.css`):
+**CSS Variables**: Theme colors and spacing are defined as CSS custom properties. In projects that use SCSS, these typically live in `_variables.scss` (e.g. `:root` and `.dark` blocks) and are compiled into `theme.css`; do not edit `theme.css` by hand when SCSS is the source. Example output:
 
 ```css
 :root {
@@ -111,6 +111,36 @@ body {
     <span x-show="theme === 'dark'">☀️</span>
     <span x-show="theme === 'auto'">🌓</span>
 </button>
+```
+
+## Cross-Origin Iframe Cookie Fallback Pattern
+
+**The Problem**: When integrating a Django application into an external website via an `<iframe>` and communicating via `fetch()` (POST requests), returning a 303 Redirect with a `Set-Cookie` header (using `SameSite=Lax` or browser-specific tracking preventions) will drop the cookie if the domains or ports differ significantly. The parent frame drops the cookie, leaving the child iframe unauthenticated or out-of-sync with preferences (like theme or language) when it loads the final URL.
+
+**The Solution**: Do not rely exclusively on the `POST` response's headers. Pass the necessary context forward via a URL token, then proactively inject the context into the HTML of the `GET` view and explicitly evaluate it in the browser.
+
+1. **Pass data in token**: Wrap the data (`user_context`) into a signed JWT or session-backed token and append it to the iframe's redirect `GET` URL (`?token=xyz`).
+2. **Hook the GET Request**: The backend view serving the GET request extracts this data and uses it to re-emit `Set-Cookie` headers directly onto the `TemplateResponse`.
+3. **Double Coverage Script (Crucial for Theme)**: Because HTMX or CSS loads *before* Alpine initialization, pass the expected state (e.g. `embed_theme`) in the Django template context.
+4. **Hard-Apply in `<head>`**: Create an inline JS snippet in `{% block extra_head %}` to forcibly write the preference to `localStorage`, `document.cookie` (for JS APIs), and manipulate the `document.documentElement` structure immediately. This bypasses HTTP cookie policies entirely since it executes natively within the iframe's permitted sandbox.
+
+```django
+{% if embed_theme %}
+<script>
+    (function applyEmbedTheme() {
+        var t = "{{ embed_theme|escapejs }}";
+        localStorage.setItem('theme', t);
+        document.cookie = "teisutis_theme=" + t + "; path=/";
+        var isDark = t === 'dark' || (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', isDark);
+        if (t === 'light' || t === 'dark') {
+            document.documentElement.setAttribute('data-theme', t);
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+        }
+    })();
+</script>
+{% endif %}
 ```
 
 ## Notification System

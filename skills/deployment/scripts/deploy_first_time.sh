@@ -2,13 +2,18 @@
 
 # Generic First-Time Deployment Script
 # Initial setup for new deployment
-# Usage: ./scripts/deploy.sh (auto-detects) or ./scripts/deploy_first_time.sh [--remote user@host] [--dir /path]
+# Usage: ./scripts/deploy.sh (auto-detects) or ./scripts/deploy_first_time.sh [--remote user@host] [--dir /path] [--yes|-y]
+#
+# Non-interactive mode (skips prompts):
+#   DEPLOY_NON_INTERACTIVE=1 ./scripts/deploy_first_time.sh
+#   ./scripts/deploy_first_time.sh --yes
 
 set -e
 
 # Parse command line arguments (for direct remote execution)
 REMOTE_HOST=""
 REMOTE_DIR=""
+NON_INTERACTIVE=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         --remote)
@@ -19,11 +24,22 @@ while [[ $# -gt 0 ]]; do
             REMOTE_DIR="$2"
             shift 2
             ;;
+        --yes|-y)
+            NON_INTERACTIVE=true
+            shift
+            ;;
         *)
             break
             ;;
     esac
 done
+if [ "$DEPLOY_NON_INTERACTIVE" = "1" ] || [ "$DEPLOY_NON_INTERACTIVE" = "true" ]; then
+    NON_INTERACTIVE=true
+fi
+IS_INTERACTIVE=false
+if [ "$NON_INTERACTIVE" != "true" ] && [ -t 0 ]; then
+    IS_INTERACTIVE=true
+fi
 
 # Determine project root (supports global skill usage)
 if [ -n "$PROJECT_ROOT" ]; then
@@ -48,7 +64,7 @@ if [ "$CURRENT_BRANCH" != "deployment" ] && [ "$CURRENT_BRANCH" != "production" 
     echo "⚠️  Warning: You're on branch '${CURRENT_BRANCH}', not 'deployment' or 'production'"
     echo "   Production deployments should use a dedicated branch"
     echo "   Switch with: git checkout deployment"
-    if [ -t 0 ]; then
+    if [ "$IS_INTERACTIVE" = "true" ]; then
         read -p "Continue anyway? (yes/no): " confirm
         if [ "$confirm" != "yes" ]; then
             echo "Deployment cancelled"
@@ -127,7 +143,14 @@ $DOCKER_COMPOSE exec -T web python manage.py migrate && {
     echo ""
 }
 
-# Collect static files (customize for your framework)
+# Build theme from SCSS/Sass if present, then collect static files
+echo "🎨 Building theme (SCSS/Sass if present)..."
+if [ -f "Makefile" ] && grep -q "build-scss" Makefile 2>/dev/null; then
+    make build-scss 2>/dev/null || true
+fi
+if $DOCKER_COMPOSE exec -T web python manage.py compile_scss --style compressed 2>/dev/null; then
+    echo "   SCSS compiled (Django compile_scss)"
+fi
 echo "📦 Collecting static files..."
 # Example for Django:
 $DOCKER_COMPOSE exec -T web python manage.py collectstatic --noinput && {

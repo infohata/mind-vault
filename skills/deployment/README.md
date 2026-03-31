@@ -15,10 +15,13 @@ skills/deployment/
 │   ├── deploy_first_time.sh  # Initial setup with data seeding
 │   ├── deploy_update.sh  # Change-aware updates
 │   ├── backup_db.sh      # Multi-database backup utility
-│   └── verify_deployment.sh  # Health checks and verification
+│   ├── verify_deployment.sh  # Health checks and verification
+│   ├── setup_server.sh   # Initial server setup (pyenv, Docker, Node)
+│   └── harden_server.sh  # SSH/firewall/fail2ban hardening (see references/HARDENING.md)
 └── references/           # Optional extensions (load on-demand)
     ├── MONITORING.md     # Production monitoring with Prometheus/Grafana/ELK
-    └── DJANGO_DEPLOYMENT.md  # Django-specific deployment optimizations
+    ├── DJANGO_DEPLOYMENT.md  # Django-specific deployment optimizations
+    └── HARDENING.md      # Server hardening guide for setup_server.sh
 ```
 
 ## Getting Started
@@ -51,6 +54,7 @@ skills/deployment/
 
 - **[Monitoring Integration](references/MONITORING.md)**: Add Prometheus metrics, Grafana dashboards, ELK logging, and alerting
 - **[Django Deployment](references/DJANGO_DEPLOYMENT.md)**: Django-specific optimizations for migrations, static files, and multi-tenant support
+- **[Server Hardening](references/HARDENING.md)**: SSH key-only auth, UFW firewall, fail2ban, automatic security updates (use after setup_server.sh)
 
 ## Framework Support
 

@@ -21,17 +21,39 @@ PROJECT_ROOT=/path/to/my/project ./scripts/deploy.sh
 
 ## Remote Deployment
 
-All scripts support remote deployment via SSH with explicit user confirmation:
+**⚠️ CRITICAL: All remote deployments MUST use screen sessions**
 
+Remote deployments require screen sessions to protect against connection loss from SSH timeouts, network interruptions, or client disconnections. See the [Screen Sessions section](../SKILL.md#screen-sessions-for-remote-deployments) in the main SKILL.md for complete documentation.
+
+**Standard remote deployment pattern:**
 ```bash
-# Deploy to remote server with confirmation prompts
-./scripts/deploy.sh --remote user@production-server.com --dir /opt/myapp
+# Always use screen for remote deployments
+ssh user@production.com << 'EOF'
+cd /opt/myapp
+SESSION="myapp-deploy-$(date +%Y%m%d-%H%M%S)"
+LOG="deploy-$(date +%Y%m%d-%H%M%S).log"
+screen -dmS "$SESSION" bash -c "./tools/deploy.sh 2>&1 | tee $LOG"
+echo "Session: $SESSION | Log: $LOG"
+sleep 3 && tail -n 50 "$LOG"
+EOF
 
-# Use environment variables
-REMOTE_HOST=user@staging.example.com REMOTE_DIR=/var/www/app ./scripts/deploy.sh
+# Monitor from local machine
+ssh user@production.com 'tail -f /opt/myapp/deploy-*.log'
 
-# Direct script execution on remote
-./scripts/deploy_update.sh --remote user@host --dir /path
+# Or attach to screen session
+ssh -t user@production.com 'screen -r myapp-deploy'
+```
+
+**Legacy direct execution (NOT RECOMMENDED):**
+```bash
+# These patterns are unsafe for remote deployments:
+./scripts/deploy.sh --remote user@production.com --dir /opt/myapp  # No screen protection
+./scripts/deploy_update.sh --remote user@host --dir /path          # No screen protection
+
+# Only use direct execution for:
+# - Local deployments
+# - Testing/development
+# - Very quick operations (<1 minute)
 ```
 
 **Repository Safety**: Deployment scripts are executed from `/tmp` and automatically cleaned up, ensuring they never contaminate your project git repository or interfere with git operations.
@@ -58,17 +80,25 @@ REMOTE_HOST=user@staging.example.com REMOTE_DIR=/var/www/app ./scripts/deploy.sh
 
 ### Remote Deployment Examples
 ```bash
-# Deploy to remote server (auto-detects deployment type)
-./scripts/deploy.sh --remote user@production.com --dir /opt/myapp
+# RECOMMENDED: Deploy to remote with screen session
+ssh user@production.com << 'EOF'
+cd /opt/myapp
+SESSION="myapp-deploy-$(date +%Y%m%d-%H%M%S)"
+LOG="deploy-$(date +%Y%m%d-%H%M%S).log"
+screen -dmS "$SESSION" bash -c "./tools/deploy.sh 2>&1 | tee $LOG"
+echo "✅ Session: $SESSION"
+echo "📋 Log: $LOG"
+sleep 3 && tail -n 50 "$LOG"
+EOF
 
-# Update remote deployment
-./scripts/deploy_update.sh --remote user@staging.com --dir /var/www/app
+# Monitor deployment progress
+ssh user@production.com 'tail -f /opt/myapp/deploy-*.log'
 
-# Use environment variables
-REMOTE_HOST=deploy@server.com REMOTE_DIR=/opt/project ./scripts/deploy.sh
+# Attach to screen session
+ssh -t user@production.com 'screen -r $(screen -ls | grep deploy | head -1 | cut -d. -f1)'
 
-# Default directory (auto-detected from git repo name)
-/opt/your-project-name/
+# Cleanup after successful deployment
+ssh user@production.com 'screen -X -S myapp-deploy-20260130-012343 quit'
 ```
 
 ### `deploy.sh`
@@ -96,7 +126,7 @@ REMOTE_HOST=deploy@server.com REMOTE_DIR=/opt/project ./scripts/deploy.sh
 - Builds Docker images with `--no-cache`
 - Starts all services
 - Runs initial database migrations
-- Collects static files
+- Compiles SCSS/Sass (if present: `make build-scss` or Django `compile_scss`) then collects static files
 - Initializes external services (customize as needed)
 
 **Customization required**:
@@ -122,10 +152,12 @@ REMOTE_HOST=deploy@server.com REMOTE_DIR=/opt/project ./scripts/deploy.sh
 - Runs migrations and collects static files as needed
 - Restarts services for code changes
 
-**Change detection patterns** (customize these regex patterns):
+**Change detection patterns** (customize these regex patterns; aligned with Teisutis `tools/deploy_update.sh`):
 - Migrations: `migrations/|db/migrate`
-- Static files: `\.(css|js|png|jpg|jpeg|gif|svg|ico)$`
+- Static files: `\.(css|js|png|jpg|jpeg|gif|svg|ico|scss|sass)$` or paths containing `/scss/` or `/sass/`. When static changed, script runs theme build (host: `make build-scss` if present; container: Django `compile_scss` if present) then collectstatic.
 - Dependencies: `requirements.*\.txt|package\.json|Gemfile|Dockerfile`
+
+**Important**: When dependencies change (rebuild), the script **always** runs SCSS compile + collectstatic. This avoids a common bug: dependency-only changes trigger a full rebuild, but change detection may miss SCSS files (e.g. when git reflog is unavailable). Without this, production can end up with stale or missing compiled CSS.
 
 ### `backup_db.sh`
 **Purpose**: Create compressed database backups
@@ -164,6 +196,53 @@ REMOTE_HOST=deploy@server.com REMOTE_DIR=/opt/project ./scripts/deploy.sh
 - `SERVICES` array: List your Docker Compose services
 - Endpoint URLs: Update for your application's URLs
 - API health check path: Change `/api/health` to your health endpoint
+
+### `setup_server.sh`
+**Purpose**: Initial server setup with development tools
+
+**Usage**:
+```bash
+./scripts/setup_server.sh
+```
+
+**What it does**:
+- Installs pyenv and latest Python 3.13.x
+- Installs Docker Engine with Compose plugin
+- Installs Node.js 25.x from NodeSource
+- Configures user for docker group access
+
+**Requirements**:
+- Ubuntu 24.04 LTS (tested)
+- sudo access
+- Internet connection
+
+**Post-installation**:
+- Log out and back in for docker group to take effect
+- Python available via `pyenv global`
+
+### `harden_server.sh`
+**Purpose**: Server hardening (SSH key-only, UFW, fail2ban, automatic security updates)
+
+**Usage**:
+```bash
+# On remote server: pass hostname so script shows correct ssh/test hints
+sudo ./scripts/harden_server.sh your-server.com
+
+# On same machine (e.g. local VM): hostname defaults to localhost
+sudo ./scripts/harden_server.sh
+```
+
+**What it does**:
+- Disables root login and password authentication (SSH keys only)
+- Hardens SSH (strong ciphers, limited auth attempts)
+- Installs and enables fail2ban
+- Enables UFW firewall (SSH, HTTP, HTTPS)
+- Configures unattended security updates
+- Backs up SSH config before changes; prompts before restart
+
+**Pre-requisites**: SSH key authentication must be working before running. Script checks for `~/.ssh/authorized_keys` and warns if missing.
+
+**Full guide**: See [references/HARDENING.md](../references/HARDENING.md) for verification, rollback, troubleshooting, and optional hardening steps.
 
 ## Setup Instructions
 
@@ -271,6 +350,11 @@ verify:
 - Check Docker Compose configuration
 - Verify environment variables are loaded
 - Review service logs: `docker compose logs`
+
+### SCSS/CSS not compiled in production
+- **Cause**: Dependency rebuild ran but static block was skipped (e.g. change detection missed SCSS files).
+- **Fix**: Run manually: `docker compose exec -T web python manage.py compile_scss --style compressed && docker compose exec -T web python manage.py collectstatic --noinput`
+- **Prevention**: Ensure your deploy script sets `HAS_STATIC=true` when `HAS_DEPENDENCIES=true` (generic scripts do this).
 
 ## Examples by Framework
 

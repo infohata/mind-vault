@@ -15,6 +15,7 @@ Systematic approach for retrieving and utilizing artefacts from the mind-vault k
 - Building on previous agent analysis and validation work
 - Ensuring consistency with established best practices
 - Avoiding re-inventing solutions already documented
+- Checking for Cursor plan mode artefacts that should be saved to the project
 
 ## Pattern
 
@@ -156,7 +157,111 @@ def validate_artefact_relevance(artefact_path, current_context):
     return relevance_score >= 2  # Require 2+ matches
 ```
 
-### 5. Integrate into Development Workflow
+### 5. Retrieve Cursor Plan Mode Artefacts
+
+Cursor's Plan Mode generates structured plans at `~/.cursor/plans/`. These are
+valuable artefacts that often get lost because they live outside the project tree.
+
+**Plan file format** (`*.plan.md` with YAML frontmatter):
+```yaml
+---
+name: IDEA-057 Text File Preview
+overview: Add text/code/CSV/Markdown file upload support...
+todos:
+  - id: vendor-assets
+    content: Download highlight.min.js + CSS...
+    status: completed
+  - id: server-mime
+    content: Add _validate_file_mime() helper...
+    status: completed
+isProject: false
+---
+```
+
+**Discovery — find plans relevant to the current project:**
+```bash
+# List all Cursor plans (newest first)
+ls -lt ~/.cursor/plans/*.plan.md
+
+# Find plans matching a topic (e.g. "dashboard", "auth", "IDEA-047")
+grep -l "dashboard\|IDEA-006" ~/.cursor/plans/*.plan.md
+
+# Show plan names and statuses at a glance
+for f in ~/.cursor/plans/*.plan.md; do
+    name=$(grep "^name:" "$f" | head -1 | sed 's/name: //')
+    echo "$f → $name"
+done
+```
+
+**Save completed plans to the project artefact tree:**
+```bash
+# Copy a completed plan into the project artefacts
+cp ~/.cursor/plans/idea-057_text_file_preview_52778d48.plan.md \
+   docs/artefacts/by-type/plans/IDEA-057-text-file-preview.plan.md
+
+# Symlink into the topic taxonomy
+ln -sf ../../by-type/plans/IDEA-057-text-file-preview.plan.md \
+   docs/artefacts/by-topic/attachments/IDEA-057-text-file-preview.plan.md
+```
+
+**When to save plans:**
+- Plan is completed (all todos `status: completed`)
+- Plan documents a non-trivial architectural decision
+- Plan could inform future similar work (reusable patterns)
+- Plan captures research/exploration that predates implementation
+
+**Batch check for unsaved plans (run periodically):**
+```bash
+#!/bin/bash
+# Find Cursor plans that might belong to this project
+# Match on IDEA numbers, feature names, or module names from AGENTS.md
+PROJECT_KEYWORDS="teisutis|IDEA-|kb|ai_service|dashboard"
+
+echo "=== Cursor plans potentially related to this project ==="
+for f in ~/.cursor/plans/*.plan.md; do
+    if grep -qiE "$PROJECT_KEYWORDS" "$f"; then
+        name=$(grep "^name:" "$f" | head -1 | sed 's/name: //')
+        basename=$(basename "$f")
+        # Check if already saved to project
+        if ! find docs/artefacts/ -name "*${basename%.*}*" -o -name "*$(echo "$name" | tr ' ' '-')*" 2>/dev/null | grep -q .; then
+            echo "  NOT SAVED: $name ($basename)"
+        fi
+    fi
+done
+```
+
+### 6. Retrieve Gemini Agent Artefacts
+
+Gemini (Antigravity) agents generate project-specific artefacts (like implementation plans, analyses, and walkthroughs) stored within isolated conversational brains at `~/.gemini/antigravity/brain/<conversation-id>/artifacts/`.
+
+To ensure permanent retention and cross-session knowledge sharing, valuable Gemini artefacts should be extracted into the project repository.
+
+**Discovery — find recent Gemini artefacts:**
+```bash
+# List all Gemini conversational brains (newest first)
+ls -lt ~/.gemini/antigravity/brain/
+
+# Look for generated artefacts in a specific recent conversation
+ls -lt ~/.gemini/antigravity/brain/<conversation-id>/artifacts/
+```
+
+**Save valuable Gemini artefacts to the project tree:**
+```bash
+# Copy an analysis or implementation plan into the project artefacts
+cp ~/.gemini/antigravity/brain/<conversation-id>/artifacts/devlog_analysis.md \
+   docs/artefacts/by-type/analyses/devlog_analysis.md
+
+# Symlink into the topic taxonomy
+ln -sf ../../by-type/analyses/devlog_analysis.md \
+   docs/artefacts/by-topic/security/devlog_analysis.md
+```
+
+**When to save Gemini artefacts:**
+- The agent summarized complex architectural changes or log discoveries
+- The artefact contains a reusable implementation plan that was successfully executed
+- The artefact acts as a "walkthrough" explaining a new system to developers
+
+### 7. Integrate into Development Workflow
 Make artefact retrieval part of standard processes:
 
 ```bash
@@ -206,7 +311,7 @@ docs/artefacts/by-agent/architect/analyses/
 └── MULTI_TENANT_ARCHITECTURE_REVIEW.md
 ```
 
-### 6. Monitoring Architecture Design
+### 3. Monitoring Architecture Design
 Review observability patterns for production applications:
 ```
 docs/artefacts/by-agent/architect/analyses/
@@ -232,6 +337,27 @@ docs/artefacts/by-topic/deployment/
 ├── DEPLOYMENT_ARCHITECTURE_DESIGN.md
 └── MONITORING_ARCHITECTURE_DESIGN.md
 ```
+
+### 6. Cursor Plan Mode Artefacts
+Completed plans saved from `~/.cursor/plans/` into the project:
+```
+docs/artefacts/by-type/plans/
+├── IDEA-057-text-file-preview.plan.md
+├── IDEA-006-user-dashboard.plan.md
+└── fix-invitation-accept-flow.plan.md
+```
+
+**Artefact sources (complete list):**
+
+| Source | Location | Format |
+|---|---|---|
+| Agent outputs | `docs/artefacts/by-agent/` | Markdown |
+| Research / validations | `docs/artefacts/by-type/` | Markdown |
+| Topic cross-refs | `docs/artefacts/by-topic/` | Symlinks |
+| Cursor plans | `~/.cursor/plans/*.plan.md` | YAML frontmatter + Markdown |
+| Agent transcripts | `~/.cursor/projects/<project>/agent-transcripts/` | JSONL |
+| Gemini artefacts | `~/.gemini/antigravity/brain/<id>/artifacts/` | Markdown |
+| Gemini transcripts | `~/.gemini/antigravity/brain/<id>/.system_generated/logs/overview.txt` | Text |
 
 ## References
 - [Agent Artefacts Knowledge Base](../docs/artefacts/README.md)
