@@ -28,22 +28,29 @@ When invoked to review a diff, you must execute these 6 sequential passes:
 ### PASS 1: The Context & Rule Sweep
 - Identify the exact scope of the changes via `git diff HEAD`.
 - Cross-reference the changes against project rules in `AGENTS.md`.
-- **Verify Testing**: If a feature or logic block was changed, does a test exist? Did they add a test? Do the tests actually cover edge cases or just happy-paths?
+- **Hardcoded Local Paths**: Scan for any config files, shell aliases, or symlinks that hardcode developer machine paths (e.g. `/home/user/...` or `/Users/...`). Force relative paths.
+- **Testing Integrity**: If a feature or logic block was changed, does a test exist? Did they add a test? Do the tests actually cover edge cases or just happy-paths?
 
 ### PASS 2: The Security & Isolation Pass (Critical)
 - **Tenant Leakage**: Are any queries in a multi-tenant environment bypassing schema isolation by illegally searching or assigning an `org` or `tenant` Foreign Key on tenant-localized models?
+- **Async Tenant Context Loss (Channels)**: Are model saves, creations, or cache operations executing inside `database_sync_to_async`? The worker thread DOES NOT inherit the WebSocket's schema context. You MUST demand the operation be wrapped in `with tenant_context(tenant):`, explicitly passing the tenant reference into the thread.
 - **Authorization**: Are standard views or form templates duplicating permission logic? Force them to use **DRF Permission Probes** (`drf_has_permission_in_tenant`) against a single-source-of-truth `BasePermission` class.
 - **Integrations and Flat Payloads (Strict HMAC Enforcement)**: Are Webhooks or iframe payloads blindly trusted? Force them to use the **HMAC Signature (`X-User-Context-Signature`)** pattern. If the integration supports a "flat payload" (where config keys live at the root instead of inside a nested wrapper), you MUST verify that the *entire raw payload* triggers HMAC verification. Never selectively bypass signature checks for generic keys, as all ingested data must be authenticated before reaching AI or DB layers.
+- **Third-Party API Spec Safety**: Are internal Django Object IDs or proprietary metadata keys being blindly injected into strict external SDK payloads (like an OpenAI Chat dictionary)? They must be stripped out before dispatch to prevent vendor schema validation failures.
 - **Data Mutation**: Are GET requests modifying database state? (They must be POST/HTMX).
 
 ### PASS 3: The Architecture & DRY Pass
+- **Eager Translation Migration Drift**: Are developers wrapping translation strings (`_("...")`) inside `format_html()` at the class level (like inside a Django Model field `help_text` or `verbose_name`)? This eagerly evaluates the translation into a string using the server's boot-time language, causing continuous phantom `makemigrations` diffs. You MUST demand `format_lazy()` from `django.utils.text` instead so the promise defers until template render.
 - **Duplication & Parity**: Is the author copy-pasting code? Demand extraction. Is a bugfix applied asymmetrically? If fixing logic in `openModal`, ensure `confirmAction` and `openAttachmentPreview` also got it. Scan for sister-functions.
 - **Template Hierarchy Parity (The Minimal Clone Flaw)**: If injecting critical global context variables, tracking scripts, or theme bypass variables (`window.__FOO__`) into the root `base.html` template, you MUST aggressively check for inherited or sibling base templates (e.g. `base_minimal.html`, `base_embed.html`, `base_auth.html`). Failing to duplicate core Javascript injections into alternative layouts silently corrupts cross-origin functionality and embeds.
 - **Deduplication of Hand-Rolled Parsers**: Are developers manually using `.split(';')` to parse `document.cookie` or manual string manipulation to parse URLs inline within a script? Demand extraction and utilization of existing utility parsing functions. Never allow duplicated raw DOM/Cookie extraction logic.
+- **Dictionary Key Collisions**: Are massive Python dictionaries defining duplicate keys? Python silently swallows earlier entries, burying dead configuration overrides. Demand explicitly unique mapping keys.
+- **Eviction Boundary Blindness**: Are LRU trims or quota-limit deletions tucked inside an `if created:` object initialization block? If quotas can be lowered natively, the eviction logic MUST run unconditionally on every database touch or save, not just initial creation.
 - **Fat Models / Thin Views**: Is heavy business logic cluttering the View or API endpoint? Demand it be moved onto the Model or a dedicated service tier.
 - **Date/Time**: Are they using naive `datetime.now()` instead of timezone-aware contexts? 
 
 ### PASS 4: The Performance & DB Integrity Pass
+- **Data Migration Backfills (Drop Protection)**: If a PR modifies a model schema to abstract, replace, or drop a field (e.g. moving a legacy FK to a polymorphic mapping table), you MUST verify that a `RunPython` data migration exists to bulk backfill the existing production rows before the legacy column evaporates.
 - **N+1 Queries**: Are loops hitting `.all()` without `select_related()` or `prefetch_related()`? 
 - **Bulk Operations**: Are iterations calling `.save()` continuously instead of `bulk_create` or `bulk_update`?
 - **Celery Integrity**: Does this background task hold locks for too long? Is it idempotent?
