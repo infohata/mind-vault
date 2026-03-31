@@ -1,6 +1,6 @@
 ---
 name: django-frontend
-description: Django frontend patterns for building modern web interfaces with HTMX, Alpine.js, and Bulma CSS for server-driven interactivity and responsive design.
+description: Implement cross-project Django frontend conventions using HTMX, Alpine.js, and Bulma CSS to maintain consistent, server-driven responsive web interfaces.
 ---
 
 # SKILL: Django Frontend Patterns with HTMX, Alpine.js, and Bulma
@@ -463,6 +463,35 @@ When generating URLs for `hx-get`, `hx-post` or standard links, **never build qu
 <div hx-get="/api{% query_string search=query copy_mode='true' %}">
 ```
 
+### Global Single-Submit Locking (HTMX + Standard)
+
+To prevent double-submissions, rapid multi-clicks, or missing spinners without polluting forms with ad-hoc `onsubmit` JS:
+**Pattern**: Use a global event listener (e.g. `sync_form_submit.js`) combined with a `.sync-submit-button` CSS class and `data-sync-submit` attributes.
+- On submit, script immediately disables the button and injects an `__in-flight-label` (like a spinner).
+- Listens to HTMX's `htmx:sendError` and `htmx:responseError` to securely reset the button state back to active on failure.
+
+### Sticky-Navbar Aware Scrolling
+
+When validating forms (both standard and HTMX), scrolling to an error summary using native `element.scrollIntoView()` often hides the error behind sticky or fixed top navigation bars.
+**Fix**: Abandon `scrollIntoView()` for validation errors. Calculate the explicit viewport offset and use `window.scrollTo`:
+```javascript
+const y = errorSummary.getBoundingClientRect().top + window.scrollY - navbarHeightOffset;
+window.scrollTo({ top: y, behavior: 'smooth' });
+```
+
+### Save-Then-Attach Lifecycle (Complex Forms)
+
+For entities that require complex attachments (files, images, references) alongside standard fields, do **not** try to process attachments simultaneously during the `CreateView`.
+**UX Convention**:
+- **Create Mode**: Hide attachment dropzones entirely. Display an info notice: "Save this record first to attach files."
+- **Edit Mode**: Display the attachment manager.
+**Why**: Prevents orphaned uploads on failed submits, simplifies DRF serializer edge-cases, and avoids complex multi-part generic creation bugs.
+
+### Shared "Today" ISO Date Context
+
+Instead of having individual views compute and inject the current date into template context (which drifts or misses tz edges):
+**Pattern**: Rely on a globally registered context processor (e.g. `today_iso`) that resolves the exact current date/time based on the user's timezone.
+Expose it to frontend scripts via `<script id="today_iso" type="application/json">{{ today_iso }}</script>` or Alpine's `x-data`. This prevents logical bugs where JS "new Date()" ignores server timezone contexts for validation logic.
 ---
 
 ## Template Standards (Bulma)

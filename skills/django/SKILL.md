@@ -1,10 +1,6 @@
 ---
 name: django
-description: |
-  Core Django architecture patterns including BaseModel abstractions,
-  DRF conventions, ASGI setup, multi-tenancy, async WebSocket, Celery background tasks,
-  testing strategies, and development workflows. Use for Django projects requiring 
-  production-ready patterns with optional multi-tenant support.
+description: Apply global cross-project Django backend dev conventions for models, views, signals, Channels, DRF, and all backend architecture before hitting templates or JS.
 license: MIT
 compatibility: opencode
 metadata:
@@ -176,6 +172,12 @@ Article.objects.filter(is_deleted=False)
 Article.objects.all()  # ❌
 ```
 
+### Schema-based Multi-tenancy vs FKs
+
+When using purely schema-based multi-tenancy (e.g., `django-tenants`), **do not** place an `org` or `tenant` Foreign Key on models that reside in the tenant schema. The PostgreSQL schema provides the isolation.
+- Use tenant-local BaseModel derivatives without an `org` FK for these tables.
+- Reserve abstract mixins like `OwnedModel` (which contain the `org` FK) **strictly** for tables that live in the `public` schema (e.g. Users, Billing, Subscriptions, Organization directories).
+
 ### Settings & Configuration
 
 **Organize settings with environment variables**:
@@ -246,6 +248,18 @@ class ArticleViewSet(BaseViewSet):
     queryset = Article.objects.filter(is_deleted=False)
     serializer_class = ArticleSerializer
     permission_classes = [IsAuthenticated, IsResourceOwner]
+```
+
+### Permission DRY-ness via Probes
+
+**Never duplicate authorization logic** between DRF `BasePermission` classes and standard Django views, forms, or template tags. Treat DRF permissions as the single source of truth.
+
+When you need to evaluate permission in a non-DRF context, use a "permission probe" pattern to build a synthetic DRF request and feed it to the exact same `BasePermission` class:
+
+```python
+# Create a synthetic DRF request to reuse the DRF BasePermission
+drf_request = build_drf_request(request, data=request.POST) 
+has_perm = CanManageArticles().has_permission(drf_request, None)
 ```
 
 ### Mixins and Reusable Patterns

@@ -1,6 +1,6 @@
 ---
 name: artefact-retrieval
-description: Systematic approach for retrieving and utilizing artefacts from the mind-vault knowledge base, enabling agents and developers to access validated research, analysis, and documentation efficiently across projects.
+description: Search outside the project (in IDE plans, AI agent memory, or /tmp temporary storage) and retrieve standalone artefacts, research, or validation logs to bring them inside the project repository.
 ---
 
 # SKILL_artefact-retrieval

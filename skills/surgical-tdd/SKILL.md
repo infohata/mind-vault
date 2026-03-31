@@ -1,6 +1,6 @@
 ---
 name: surgical-tdd
-description: Strategy for executing Test-Driven Development (TDD) in massive monolithic codebases with thousands of tests that take too long to run. Enforces surgical, pinpoint execution to maintain flow-state.
+description: Debug failing tests quickly across any massive Python monolith by surgically specifying and running targeted test paths instead of running full, slow test suites locally.
 ---
 
 # Surgical TDD (Test-Driven Development)
