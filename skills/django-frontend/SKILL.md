@@ -63,7 +63,7 @@ Production-ready frontend architecture for Django applications using **HTMX** fo
     <!-- CSRF token for JavaScript access -->
     <meta name="csrf-token" content="{{ csrf_token }}">
     
-    <!-- CSS: Bulma + Custom Theme -->
+    <!-- CSS: Bulma + Custom Theme (theme.css may be built from SCSS) -->
     <link rel="stylesheet" href="{% static 'core/css/bulma.min.css' %}">
     <link rel="stylesheet" href="{% static 'core/css/theme.css' %}">
     <link rel="stylesheet" href="{% static 'core/css/fontawesome.min.css' %}">
@@ -120,6 +120,8 @@ Production-ready frontend architecture for Django applications using **HTMX** fo
 - HTMX loaded globally (no initialization needed)
 - CSS variables for theming (light/dark mode)
 - Django messages container for server-side notifications
+
+**Theme CSS / SCSS (optional):** Some projects build `theme.css` from SCSS (variables, mixins, component partials, mobile overrides). Edit the relevant partial in `scss/` (e.g. `scss/components/_buttons.scss`, `scss/mobile/_responsive.scss`); run `make build-scss` or `make static` (build-scss + collectstatic) so the compiled CSS is updated. Never edit `theme.css` by hand when SCSS is the source. See project docs (e.g. Frontend UI guide, CSS_PREPROCESSOR_OPTIONS) for structure.
 
 ---
 
@@ -345,7 +347,7 @@ function openModal(url, title, modalId = 'formModal') {
     })
     .catch(error => {
         console.error('Failed to load modal content:', error);
-        modalBody.innerHTML = `<div class="notification is-danger">
+        modalBody.innerHTML = `<div class="notification is-danger is-light">
             <p>Error loading form. Please try again.</p>
             <p class="is-size-7 mt-2">${error.message}</p>
         </div>`;
@@ -398,6 +400,131 @@ window.closeModal = closeModal;
 {% include "core/partials/generic_form_modal.html" %}
 ```
 
+**Modal script loading:** Load `modal.js` in the base template when modals are used project-wide, rather than per-page in `{% block extra_head %}`, to avoid "confirmAction is not defined" when a page includes the modal but forgets the script.
+
+### Confirm-Then-Submit Modal
+
+For actions that need user confirmation before submitting (e.g. "Mark as broken", "Revoke access"), use a shared modal instead of native `confirm()` or `alert()`.
+
+**Pattern:**
+- Shared modal partial with configurable title, message, confirm button text
+- `confirmAction(url, options)` in `modal.js` — configures form and shows modal
+- Form uses HTMX to POST; on success, reload or trigger custom event
+- **Critical:** After setting `hx-post` dynamically, call `htmx.process(form)` so HTMX binds to the new URL
+
+**Options:** `{ title, message, confirmText, confirmClass, onSuccess }`
+
+### Formset table (shared partial + JS)
+
+For **modelformsets** (e.g. reminders, profile defaults), use a **shared partial** and one JS module so multiple formsets share the same behaviour:
+
+- **Template contract**: Management form (TOTAL_FORMS, INITIAL_FORMS, MIN/MAX_NUM_FORMS), a `<tbody id="…">`, a `<template id="…">` with one row using Django's `__prefix__` in name/id, and an "Add row" button. Each data row has a single CSS class (e.g. `reminder-row`) for the script to reindex and handle DELETE.
+- **JS behaviour**: On "Add", clone template, replace `__prefix__` with current index, append to tbody, increment TOTAL_FORMS. On DELETE for a new row (no pk), remove from DOM and reindex names/ids to 0..n-1; for existing rows leave in DOM (Django will treat as deleted on submit).
+- **Backend**: Pass formset, `empty_form_template_id`, `add_button_id`, `table_body_id`, `thead_partial`, `row_partial`, `row_css_class`; optional caption and add_button_text.
+
+**Why**: One implementation for all formset tables; consistent add/remove/reindex; frontend and backend stay in sync via a fixed contract.
+
+### Date/time/duration layout (responsive row)
+
+When a form has **date**, **time**, and **duration** (or similar) in one row, use a single Crispy `Div` with Bulma `columns` and responsive column classes (e.g. `column is-2-widescreen is-full-mobile`) so the three fields are inline on desktop and stack on mobile. Avoid separate full-width rows when they belong together semantically.
+
+### Dynamic hx-* Attributes
+
+HTMX binds event listeners at page load. When you change `hx-post`, `hx-get`, etc. via `setAttribute()`, HTMX does **not** automatically pick up the new values. The form may submit to the wrong URL (e.g. current page) → 405 Method Not Allowed.
+
+**Fix:** Call `htmx.process(element)` after modifying attributes:
+
+```javascript
+form.setAttribute('hx-post', url);
+if (typeof htmx !== 'undefined') htmx.process(form);
+```
+
+### HTMX Headers: Hyphenated Keys in JSON
+
+When building headers for HTMX (e.g. CSRF), use **quoted keys** for hyphenated header names in object literals:
+
+```javascript
+// ❌ BAD - X-CSRFToken parsed as X minus CSRFToken (SyntaxError)
+JSON.stringify({ X-CSRFToken: value })
+
+// ✅ GOOD
+JSON.stringify({ 'X-CSRFToken': value })
+```
+
+---
+
+## Template Standards (Bulma)
+
+When building templates with Bulma, follow these conventions for consistency and dark-theme compatibility:
+
+### Buttons
+| Role | Class | Example |
+|------|-------|---------|
+| Primary action | `button is-primary` | Save, Create, Submit |
+| Secondary action | `button is-info` | View, Manage |
+| Cancel / Back | `button is-light` | Cancel, Go Back |
+| Danger | `button is-danger` | Delete |
+| Edit (header) | `button is-primary` | Edit on detail pages |
+| Edit (table row) | `button is-small is-primary` | Edit in table actions |
+| Ghost / Menu trigger | `button is-ghost is-small` | Ellipsis dropdowns |
+
+**Never use**: `is-outlined`, `is-text` (use `is-light` for cancel/back).
+
+### Button Icon Pattern
+```html
+<button class="button is-primary">
+    <span class="icon">{% fa_icon "save" %}</span>
+    <span>{% trans "Save" %}</span>
+</button>
+```
+
+### Icons
+Always use `{% fa_icon "name" %}` template tag. Exceptions: dynamic Alpine.js `:class` bindings, brand icons (`fab`), dynamic `{{ trigger_icon }}` in navbar submenus.
+
+### Cards
+Use `card-content`, never `card-body` (Bootstrap leak). Structure:
+```html
+<div class="card">
+    <div class="card-header">
+        <div class="card-header-title">Title</div>
+    </div>
+    <div class="card-content">...</div>
+</div>
+```
+
+### Tables in Cards
+- Use `table-scroll-container` wrapper, never `table-responsive`
+- Table classes: `table is-fullwidth is-hoverable is-striped`
+- Always `scope="col"` on `<th>`
+
+### Status Tags
+Use Bulma `tag`, never Bootstrap `badge`:
+```html
+<span class="tag is-success">Active</span>
+<span class="tag is-warning">Pending</span>
+<span class="tag is-danger">Cancelled</span>
+```
+
+### Notifications
+Always include `is-light` for dark-theme compatibility:
+```html
+<div class="notification is-success is-light">...</div>
+<div class="notification is-danger is-light">...</div>
+```
+
+### Empty States
+- Full: `has-text-centered py-6` with icon, heading, subtitle, action button
+- Text only: `<p class="has-text-grey">{% trans "No items found." %}</p>`
+- Never use `text-muted` (use `has-text-grey`)
+
+### Inline Styles
+- `style="display: none;"` is acceptable for JS-toggled elements
+- Dynamic CSS custom properties (`--pill-color`, `--tag-color`) are acceptable
+- All other styles should be in SCSS files
+
+### i18n
+All user-visible text must be wrapped in `{% trans %}` or `{% blocktrans %}`. Template tag arguments (e.g., modal titles passed via `with`) must also be translated.
+
 ---
 
 ## Why It's Generic
@@ -410,13 +537,15 @@ window.closeModal = closeModal;
 4. **Accessibility**: Semantic HTML, ARIA attributes, keyboard navigation
 5. **Responsive design**: Bulma's mobile-first approach
 6. **Theme flexibility**: CSS variables allow easy customization
-7. **Minimal dependencies**: No build step, no npm, no bundler required
+7. **Minimal dependencies**: No npm/bundler for core stack; optional SCSS build for theme (`make build-scss`)
 
 **Not project-specific:**
 - No business logic in JavaScript
 - Reusable widget patterns (autocomplete, color picker, file upload)
 - Generic modal/notification systems
 - Standard Django view patterns
+
+**Theme build (when SCSS is used):** One optional build step for theme CSS: compile SCSS → `theme.css` (e.g. `python manage.py compile_scss` or `make build-scss`). Run before `collectstatic` when SCSS changes; `make static` often does both. No npm/bundler required for the core stack.
 
 ---
 
@@ -450,6 +579,7 @@ window.closeModal = closeModal;
 
 **Related Skills:**
 - [Django Skill](../django/SKILL.md) - Backend patterns for views, forms, and multi-tenancy integration
+- [Django I18N](../django/references/I18N.md) - Translation workflows, template `{% trans %}`, bulk-fill optimization for .po files
 - [Django Multi-Tenant Skill](../django/references/MULTI_TENANT.md) - Schema isolation for multi-tenant frontend apps
 - [Django Async WebSocket Skill](../django/references/ASYNC_WEBSOCKET.md) - Real-time features complementing HTMX
 
@@ -463,7 +593,8 @@ window.closeModal = closeModal;
 - **Widget initialization**: Re-initialize after HTMX swaps (`htmx:afterSwap`)
 - **Event-driven architecture**: Custom events for cross-component communication
 - **Progressive enhancement**: Server renders HTML, JavaScript enhances
-- **CSS variables**: Theme customization without Sass/Less
+- **CSS variables**: Theme colors/spacing via `:root` and `.dark` (often defined in SCSS `_variables.scss` and compiled to CSS)
+- **Theme as SCSS (optional)**: Variables, mixins, component partials (`components/`), mobile overrides (`mobile/`); build with `make build-scss` or `make static` before collectstatic
 
 **Performance Considerations:**
 - HTMX reduces JavaScript payload (no SPA framework)
@@ -479,7 +610,8 @@ window.closeModal = closeModal;
 
 ---
 
-**Last Updated**: 2026-01-28  
-**Validated In**: Teisutis (Django 5.2.9, HTMX 1.9, Alpine.js 3.x, Bulma 0.9)  
+**Last Updated**: 2026-02-26  
+**Validated In**: Teisutis (Django 5.2.9, HTMX 1.9, Alpine.js 3.x, Bulma 0.9; theme from SCSS via libsass, `make static`)  
+**Template Standards**: Aligned with Teisutis Template Consistency Audit (docs/artefacts/by-agent/curator/TEMPLATE_CONSISTENCY_AUDIT.md)  
 **Pattern Type**: Frontend Architecture  
 **Complexity**: Intermediate to Advanced

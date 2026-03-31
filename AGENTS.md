@@ -310,6 +310,27 @@ Before finishing work on skills/rules/documentation:
 - [ ] Clear explanation of why this pattern matters
 - [ ] **Rule Enforcement**: Run `/load-rules` command at session start and after compaction to enforce active rules
 
+## Updating skills from project work
+
+When work in **other projects** (e.g. Teisutis) yields reusable patterns (formset abstractions, date/time handling, frontend conventions), update **generic** mind-vault skills so all projects benefit.
+
+**When to update** (same bar as creating a skill):
+- Pattern is reusable across projects; you’d reference it again; not project-specific.
+- Don’t add one-off fixes or project-only conventions (those stay in the project’s AGENTS.md).
+
+**What to update**:
+- **Fits existing skill** (e.g. django, django-frontend) → Edit that skill: add a short section or bullet.
+- **New cross-project technique** → Extend the relevant skill or create a new one only if it’s a new category.
+- **Project-specific** → Do not add to generic skills.
+
+**Where**: Edit in this repo (`skills/`, `rules/`). Projects symlink from here (e.g. `~/.cursor/skills/`, `~/.claude/rules/`). **Subagents in other projects must not write here** — only the main agent or user updates mind-vault.
+
+**Format**: Follow SKILL.md template and content style; keep content generic (no project names except as examples).
+
+**Workflow**: (1) Note patterns that were non-obvious and reusable. (2) Decide: existing skill vs new skill. (3) Edit in mind-vault; keep changes small and generic. (4) Commit so symlinked Cursor/Claude skills stay in sync.
+
+---
+
 ## Next Steps
 
 For agents extending this repository:

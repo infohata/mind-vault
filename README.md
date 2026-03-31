@@ -1,36 +1,47 @@
 # mind-vault
 
-AI agent configuration, skills, and rules for Claude Code and OpenCode.
+AI agent configuration, skills, and rules for Claude Code, OpenCode, and Cursor.
 
 ## Structure
 
 - **`skills/`** - Reusable agent skills (SKILL.md files)
-  - Discoverable by OpenCode and Claude Code
+  - Discoverable by OpenCode, Claude Code, and Cursor (2.4+)
   - Loaded on-demand, zero context overhead
   - Project-specific and global patterns
 
-- **`agents/`** - Custom agent definitions
+- **`agents/`** - Custom agent definitions (subagents)
   - Agent configuration and specialization
-  - Project-specific agent rules
+  - Used by OpenCode and Cursor (2.4+)
 
 - **`rules/`** - Shared behavioral rules
   - Coding conventions
   - Architecture patterns
   - Best practices
 
-## Symlinks
+## Symlinks (single source of truth)
 
-From `~/.claude/` and `~/.config/opencode/`:
+User-level symlinks keep one copy in mind-vault; all tools point to it.
+
+**Skills (shared by Claude Code and Cursor):**  
+Cursor 2.4+ loads user-level skills from both `~/.cursor/skills/` and `~/.claude/skills/` (Claude compatibility). A single symlink to `~/.claude/skills` therefore serves **both** Claude Code and Cursor—no need for `~/.cursor/skills` unless you want Cursor’s path explicit.
+
 ```bash
-# Skills (both Claude Code and OpenCode)
+# Skills: Claude Code and Cursor both read ~/.claude/skills
 ln -s ~/projects/mind-vault/skills ~/.claude/skills
 ln -s ~/projects/mind-vault/skills ~/.config/opencode/skills
 
-# OpenCode-specific integration
+# OpenCode-specific
 ln -s ~/projects/mind-vault/agents ~/.config/opencode/agents
 ln -s ~/projects/mind-vault/commands ~/.config/opencode/commands
 ln -s ~/projects/mind-vault/rules ~/.config/opencode/rules
 ```
+
+**Cursor (2.4+)** – full setup (skills, commands, agents, rules):
+```bash
+./scripts/setup-cursor-symlinks.sh
+```
+
+Or manually: `~/.cursor/agents`, `~/.cursor/commands`, `~/.cursor/skills/*`, `~/.cursor/rules` → mind-vault. See [Cursor setup](docs/CURSOR_SETUP.md).
 
 ## OpenCode Configuration
 
@@ -57,9 +68,10 @@ This enables:
 
 ## Usage
 
-In OpenCode or Claude Code, reference skills by name:
+In OpenCode, Claude Code, or Cursor, reference skills by name:
 - Ask: "Load the django skill" or "Load the django-frontend skill"
-- Or implicitly: OpenCode will find relevant skills
+- Or use `/skill-name` in Cursor Agent chat
+- OpenCode and Cursor will apply skills when relevant
 
 Skills available include:
 - **django** - Core Django patterns (ORM, views, forms, multi-tenancy)

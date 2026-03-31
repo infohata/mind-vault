@@ -9,7 +9,7 @@ license: MIT
 compatibility: opencode
 metadata:
   author: mind-vault
-  version: "4.0"
+  version: "4.1"
   replaces:
      - django-architecture
      - django-async-websocket
@@ -281,6 +281,40 @@ class ArticleViewSet(
     serializer_class = ArticleSerializer
 ```
 
+### String Building with Optional Parts
+
+When building strings from optional parts (append B to A, or use only B when A is empty), prefer `filter(None, [...])` + `join`:
+
+```python
+body = (base_value or "").strip()
+if optional_part:
+    line = "Label: " + optional_part
+    body = "\n".join(filter(None, [body, line]))
+```
+
+- **Non-empty base**: both kept, joined by newline.
+- **Empty base**: `filter(None, [...])` drops empty strings; result is just the new part.
+- Avoids ternaries and explicit if/else for append vs replace logic.
+
+### Formsets (modelformset with unique constraints)
+
+When a model has a **UniqueConstraint** (e.g. `(author, preset)`), the formset must prevent duplicate rows or save will raise **IntegrityError** and leave the user with a 500.
+
+**Pattern**:
+1. **Formset-level validation**: Subclass `BaseModelFormSet`, override `clean()`, and collect the constrained field(s) from each form's `cleaned_data`. If any value is repeated (excluding deleted forms), raise `forms.ValidationError` with a clear message (e.g. "Duplicate reminder: you already have …").
+2. **View safety net**: In the view, wrap the formset save loop in `try/except IntegrityError`. On exception, add an error message and re-render the form so the user can fix duplicates instead of seeing a 500.
+3. **Shared table UI**: For multiple formsets (e.g. event reminders, profile defaults), use a shared partial (management form + table + add button) and a small JS module that handles TOTAL_FORMS, cloning the empty-form template, and reindexing on delete. Same contract (prefix, template id, tbody id, row class) keeps backend and frontend in sync.
+
+**Why**: Duplicate (author, preset) is a common mistake when users add two rows with the same option; validating in the formset gives a clear error; catching IntegrityError handles races and edge cases.
+
+### Date/time and timezone
+
+**Centralize timezone handling** in one module (e.g. `core/timezone_utils.py`): `get_timezone_object`, `normalize_to_user_tz`, `validate_timezone_string`, `get_available_timezone_names`. Migrate all call sites (consumers, templatetags, auth forms/views) to use it so zoneinfo/pytz fallback and exception handling live in one place.
+
+**Sensible date validation**: For forms and API that accept a `date` field, use shared constants (e.g. min/max from env) and a single `validate_sensible_date(value)` that raises `ValidationError` if out of range. Add widget attrs (min/max) for HTML5 date inputs from the same constants. Roll out incrementally (event/form serializer first, then other date-bearing forms when touched).
+
+**All-day events and reminder time**: When exporting calendar events (e.g. iCal), for **date-only** (all-day) events use the user's **daily reminder time** (e.g. 09:00) so "1 day before" becomes that time on the previous day; export as absolute DATE-TIME in UTC. For timed events, keep relative TRIGGER (e.g. -PT15M). Compute the absolute trigger with a shared helper that takes event date, event time (or None), preset, user timezone, and daily_reminder_time.
+
 ### Middleware Patterns
 
 **Custom middleware for request context**:
@@ -497,6 +531,6 @@ class ArticleViewSet(BaseViewSet):
 
 ---
 
-**Last Updated**: 2026-01-28
-**Version**: 4.0
+**Last Updated**: 2026-02-26
+**Version**: 4.1
 **Replaces**: django-architecture, django-async-websocket, django-celery, django-multi-tenant, django-celery-multitenant, django-async-websocket-multitenant
