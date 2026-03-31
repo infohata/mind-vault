@@ -286,7 +286,8 @@ When you need to evaluate permission in a non-DRF context, use a "permission pro
 ```python
 # Create a synthetic DRF request to reuse the DRF BasePermission
 drf_request = build_drf_request(request, data=request.POST) 
-
+has_perm = CanManageArticles().has_permission(drf_request, None)
+```
 
 ### Mixins and Reusable Patterns
 
