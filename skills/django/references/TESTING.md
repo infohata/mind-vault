@@ -256,6 +256,19 @@ no schema has been selected
 ```
 **Fix**: Use proper tenant test case or set schema context.
 
+**Schema/Field Deletions (The Keyword Argument Phantom)**:
+```
+TypeError: Event() got unexpected keyword arguments: 'org'
+```
+**Fix**: When squashing migrations or dropping model fields (e.g. removing `org` from an entity), `makemigrations` does NOT update your test suite logic. You must run a codebase-wide find/replace for direct model instantiations (e.g., `Event(org=...)` or `Model.objects.create(org=...)`) and manually purge the dead kwargs from test factories.
+
+**Form Queryset Filtering vs Custom Clean Validation**:
+```
+AssertionError: 'invalid_tags_scope' not found in []
+```
+**Fix**: If a `ModelMultipleChoiceField` dynamically restricts its `queryset` in `__init__` (e.g., strictly filtering tags by scope), Django will natively raise a `Select a valid choice` field-error when an invalid ID is POSTed. Tests should assert that invalid objects are explicitly excluded `assertNotIn(invalid_obj, form.fields['tags'].queryset)` rather than testing for custom `clean()` non-field errors, which will be preempted by default Django field validation.
+
+
 ## Database Query Optimization Testing
 
 **Verify queryset optimization prevents N+1 queries**:
