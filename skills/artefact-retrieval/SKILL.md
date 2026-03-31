@@ -230,7 +230,38 @@ for f in ~/.cursor/plans/*.plan.md; do
 done
 ```
 
-### 6. Integrate into Development Workflow
+### 6. Retrieve Gemini Agent Artefacts
+
+Gemini (Antigravity) agents generate project-specific artefacts (like implementation plans, analyses, and walkthroughs) stored within isolated conversational brains at `~/.gemini/antigravity/brain/<conversation-id>/artifacts/`.
+
+To ensure permanent retention and cross-session knowledge sharing, valuable Gemini artefacts should be extracted into the project repository.
+
+**Discovery — find recent Gemini artefacts:**
+```bash
+# List all Gemini conversational brains (newest first)
+ls -lt ~/.gemini/antigravity/brain/
+
+# Look for generated artefacts in a specific recent conversation
+ls -lt ~/.gemini/antigravity/brain/<conversation-id>/artifacts/
+```
+
+**Save valuable Gemini artefacts to the project tree:**
+```bash
+# Copy an analysis or implementation plan into the project artefacts
+cp ~/.gemini/antigravity/brain/<conversation-id>/artifacts/devlog_analysis.md \
+   docs/artefacts/by-type/analyses/devlog_analysis.md
+
+# Symlink into the topic taxonomy
+ln -sf ../../by-type/analyses/devlog_analysis.md \
+   docs/artefacts/by-topic/security/devlog_analysis.md
+```
+
+**When to save Gemini artefacts:**
+- The agent summarized complex architectural changes or log discoveries
+- The artefact contains a reusable implementation plan that was successfully executed
+- The artefact acts as a "walkthrough" explaining a new system to developers
+
+### 7. Integrate into Development Workflow
 Make artefact retrieval part of standard processes:
 
 ```bash
@@ -325,6 +356,8 @@ docs/artefacts/by-type/plans/
 | Topic cross-refs | `docs/artefacts/by-topic/` | Symlinks |
 | Cursor plans | `~/.cursor/plans/*.plan.md` | YAML frontmatter + Markdown |
 | Agent transcripts | `~/.cursor/projects/<project>/agent-transcripts/` | JSONL |
+| Gemini artefacts | `~/.gemini/antigravity/brain/<id>/artifacts/` | Markdown |
+| Gemini transcripts | `~/.gemini/antigravity/brain/<id>/.system_generated/logs/overview.txt` | Text |
 
 ## References
 - [Agent Artefacts Knowledge Base](../docs/artefacts/README.md)

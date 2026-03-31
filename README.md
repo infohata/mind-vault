@@ -36,13 +36,12 @@ ln -s ~/projects/mind-vault/commands ~/.config/opencode/commands
 ln -s ~/projects/mind-vault/rules ~/.config/opencode/rules
 ```
 
-**Cursor (2.4+) subagents only** (skills already covered by `~/.claude/skills` above):
+**Cursor (2.4+)** – full setup (skills, commands, agents, rules):
 ```bash
-# Subagents: Cursor discovers from ~/.cursor/agents/
-ln -sf ~/projects/mind-vault/agents ~/.cursor/agents
+./scripts/setup-cursor-symlinks.sh
 ```
 
-If Cursor does not discover skills (known issue with symlinked parent dirs), use per-skill symlinks—see [Cursor setup](docs/CURSOR_SETUP.md).
+Or manually: `~/.cursor/agents`, `~/.cursor/commands`, `~/.cursor/skills/*`, `~/.cursor/rules` → mind-vault. See [Cursor setup](docs/CURSOR_SETUP.md).
 
 ## OpenCode Configuration
 
