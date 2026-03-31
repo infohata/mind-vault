@@ -2,7 +2,11 @@
 
 # Generic Update/Rollout Script
 # Updates existing deployment with latest code changes
-# Usage: ./scripts/deploy_update.sh [--remote user@host] [--dir /path]
+# Usage: ./scripts/deploy_update.sh [--remote user@host] [--dir /path] [--yes|-y]
+#
+# Non-interactive mode (skips all prompts, uses safe defaults):
+#   DEPLOY_NON_INTERACTIVE=1 ./scripts/deploy_update.sh
+#   ./scripts/deploy_update.sh --yes
 
 set -e
 
@@ -12,6 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Parse command line arguments (for direct remote execution)
 REMOTE_HOST=""
 REMOTE_DIR=""
+NON_INTERACTIVE=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         --remote)
@@ -22,11 +27,22 @@ while [[ $# -gt 0 ]]; do
             REMOTE_DIR="$2"
             shift 2
             ;;
+        --yes|-y)
+            NON_INTERACTIVE=true
+            shift
+            ;;
         *)
             break
             ;;
     esac
 done
+if [ "$DEPLOY_NON_INTERACTIVE" = "1" ] || [ "$DEPLOY_NON_INTERACTIVE" = "true" ]; then
+    NON_INTERACTIVE=true
+fi
+IS_INTERACTIVE=false
+if [ "$NON_INTERACTIVE" != "true" ] && [ -t 0 ]; then
+    IS_INTERACTIVE=true
+fi
 
 # Determine project root (supports global skill usage)
 if [ -n "$PROJECT_ROOT" ]; then
@@ -50,7 +66,7 @@ CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 if [ "$CURRENT_BRANCH" != "deployment" ] && [ "$CURRENT_BRANCH" != "production" ] && [ "$CURRENT_BRANCH" != "unknown" ]; then
     echo "⚠️  Warning: You're on branch '${CURRENT_BRANCH}', not 'deployment' or 'production'"
     echo "   Production deployments should use a dedicated branch"
-    if [ -t 0 ]; then
+    if [ "$IS_INTERACTIVE" = "true" ]; then
         read -p "Continue anyway? (yes/no): " confirm
         if [ "$confirm" != "yes" ]; then
             echo "Update cancelled"
@@ -95,7 +111,7 @@ echo ""
 echo "📥 Pulling latest code..."
 git pull origin "${CURRENT_BRANCH:-deployment}" || {
     echo "⚠️  Warning: Failed to pull latest code"
-    if [ -t 0 ]; then
+    if [ "$IS_INTERACTIVE" = "true" ]; then
         read -p "Continue with current code? (yes/no): " confirm
         if [ "$confirm" != "yes" ]; then
             echo "Update cancelled"
@@ -111,6 +127,7 @@ echo "✅ Code updated"
 echo ""
 
 # Detect change type (customize file patterns for your project)
+# Aligns with Teisutis tools/deploy_update.sh: static includes CSS/JS/images and SCSS/Sass source
 HAS_MIGRATIONS=false
 HAS_STATIC=false
 HAS_DEPENDENCIES=false
@@ -123,8 +140,8 @@ if [ -n "$PREVIOUS_COMMIT" ]; then
         HAS_MIGRATIONS=true
     fi
 
-    # Check for static files
-    if git diff "$PREVIOUS_COMMIT" HEAD --name-only | grep -qE "\.(css|js|png|jpg|jpeg|gif|svg|ico)$"; then
+    # Check for static files (CSS, JS, images, and SCSS/Sass source — compile_scss or make build-scss runs when static changed)
+    if git diff "$PREVIOUS_COMMIT" HEAD --name-only | grep -qE "\.(css|js|png|jpg|jpeg|gif|svg|ico|scss|sass)$|/scss/|/sass/"; then
         HAS_STATIC=true
     fi
 
@@ -132,16 +149,20 @@ if [ -n "$PREVIOUS_COMMIT" ]; then
     if git diff "$PREVIOUS_COMMIT" HEAD --name-only | grep -qE "(requirements.*\.txt|package\.json|Gemfile|Dockerfile)"; then
         HAS_DEPENDENCIES=true
     fi
+    # When rebuilding (deps changed), always run SCSS compile + collectstatic — new code may have SCSS changes
+    if [ "$HAS_DEPENDENCIES" = "true" ]; then
+        HAS_STATIC=true
+    fi
 else
     # If we can't detect changes, ask user or assume minimal changes
-    if [ -t 0 ]; then
+    if [ "$IS_INTERACTIVE" = "true" ]; then
         echo "💡 Unable to auto-detect change types. Please specify:"
         read -p "Does this update include database migrations? (yes/no): " mig_confirm
         if [ "$mig_confirm" = "yes" ]; then
             HAS_MIGRATIONS=true
         fi
 
-        read -p "Does this update include static files? (yes/no): " static_confirm
+        read -p "Does this update include static files (CSS/JS/SCSS)? (yes/no): " static_confirm
         if [ "$static_confirm" = "yes" ]; then
             HAS_STATIC=true
         fi
@@ -149,6 +170,7 @@ else
         read -p "Does this update include dependency changes? (yes/no): " deps_confirm
         if [ "$deps_confirm" = "yes" ]; then
             HAS_DEPENDENCIES=true
+            HAS_STATIC=true
         fi
     else
         echo "💡 Non-interactive mode: assuming no migrations or dependencies changed"
@@ -157,7 +179,7 @@ fi
 
 # Check for .env changes
 env_changed="no"
-if [ -t 0 ]; then
+if [ "$IS_INTERACTIVE" = "true" ]; then
     read -p "Did you modify .env file? (yes/no): " env_changed
 else
     echo "💡 Non-interactive mode: assuming .env was not modified"
@@ -208,8 +230,16 @@ if [ "$HAS_MIGRATIONS" = "true" ]; then
     echo ""
 fi
 
-# Collect static files
+# Build theme from SCSS/Sass when static changed (then collectstatic)
+# Try host make build-scss first, then Django compile_scss in container (e.g. Teisutis) — one will typically apply
 if [ "$HAS_STATIC" = "true" ]; then
+    echo "🎨 Building theme (SCSS/Sass if present)..."
+    if [ -f "Makefile" ] && grep -q "build-scss" Makefile 2>/dev/null; then
+        make build-scss || { echo "   (make build-scss skipped or failed)" ; }
+    fi
+    if $DOCKER_COMPOSE exec -T web python manage.py compile_scss --style compressed 2>/dev/null; then
+        echo "   SCSS compiled (Django compile_scss)"
+    fi
     echo "📦 Collecting static files..."
     # Customize for your framework
     # Django example:

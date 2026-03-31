@@ -64,6 +64,13 @@ git pull origin deployment
 ./deploy.sh
 ```
 
+### Deployment documentation tracking
+**Do not skip**: When running or assisting with a deployment, ensure the project tracks it.
+- **Where**: Session logs and state live in the repo under a deployment subdir (e.g. `docs/execution/deployment/`).
+- **Session filename**: `{host}_yyyymmdd-hhmm.md` (e.g. `teisutis_com_20260203-1415.md`). One file per deployment run; include screen session name, log path, checklist, rollback plan.
+- **Template**: Copy from a state template in that directory when preparing a deployment (risk, verification, rollback).
+- **Reference**: If the project has a deployment guide, it should point to this directory and convention so agents and humans don't forget to create/update session files.
+
 ### Service Architecture
 **Multi-service Docker Compose with:**
 - Web application container (Django/Flask/etc.)
@@ -85,14 +92,34 @@ git pull origin deployment
 ```bash
 #!/bin/bash
 # scripts/deploy.sh - Auto-detect first-time vs update
+# Non-interactive: DEPLOY_NON_INTERACTIVE=1 ./deploy.sh  or  ./deploy.sh --yes
+
 SERVICES_RUNNING=$(docker compose ps | grep -q "Up\|running" && echo "true" || echo "false")
 
 if [ "$SERVICES_RUNNING" = "true" ]; then
-    exec ./scripts/deploy_update.sh
+    exec ./scripts/deploy_update.sh "$@"
 else
-    exec ./scripts/deploy_first_time.sh
+    exec ./scripts/deploy_first_time.sh "$@"
 fi
 ```
+
+**Non-interactive mode** (for screen sessions, CI, automated runs):
+
+Deploy scripts may prompt for `.env` changes and confirmations. Use non-interactive mode to skip all prompts (safe defaults: no .env changes, auto-detect from git):
+
+```bash
+# Option 1: Environment variable
+DEPLOY_NON_INTERACTIVE=1 ./tools/deploy.sh
+
+# Option 2: --yes flag
+./tools/deploy.sh --yes
+
+# Remote in screen (recommended):
+screen -dmS myapp-deploy-$(date -u +%Y%m%d-%H%M%S) bash -c \
+  'cd /opt/myapp && DEPLOY_NON_INTERACTIVE=1 ./tools/deploy.sh 2>&1 | tee deploy-$(date -u +%Y%m%d-%H%M%S).log'
+```
+
+**Why**: Screen allocates a TTY, so `[ -t 0 ]` is true and scripts wait for input. Explicit `DEPLOY_NON_INTERACTIVE=1` or `--yes` forces non-interactive regardless of TTY.
 
 **Update script with smart change detection and backups:**
 ```bash
@@ -110,6 +137,8 @@ fi
 # Apply changes based on detection
 # ... (rebuilds, restarts, migrations)
 ```
+
+**Dependency rebuild + SCSS**: When dependencies change (requirements, Dockerfile), the script rebuilds containers. Always run SCSS compile + collectstatic after a rebuild — new code may have SCSS changes even if change detection misses them. The generic scripts set `HAS_STATIC=true` when `HAS_DEPENDENCIES=true`.
 
 **Complete generic scripts are available in the `scripts/` directory with:**
 - `deploy.sh` - Auto-detecting wrapper
@@ -155,13 +184,13 @@ fi
 # Remote staging deployment with screen
 ssh deploy@staging.example.com << 'EOF'
 cd /opt/myapp
-screen -dmS myapp-deploy-$(date +%Y%m%d-%H%M%S) bash -c "./tools/deploy.sh 2>&1 | tee deploy-$(date +%Y%m%d-%H%M%S).log"
+screen -dmS myapp-deploy-$(date +%Y%m%d-%H%M%S) bash -c "DEPLOY_NON_INTERACTIVE=1 ./tools/deploy.sh 2>&1 | tee deploy-$(date +%Y%m%d-%H%M%S).log"
 EOF
 
 # Remote production deployment with screen
 ssh deploy@production.example.com << 'EOF'
 cd /opt/myapp
-screen -dmS myapp-deploy-$(date +%Y%m%d-%H%M%S) bash -c "./tools/deploy.sh 2>&1 | tee deploy-$(date +%Y%m%d-%H%M%S).log"
+screen -dmS myapp-deploy-$(date +%Y%m%d-%H%M%S) bash -c "DEPLOY_NON_INTERACTIVE=1 ./tools/deploy.sh 2>&1 | tee deploy-$(date +%Y%m%d-%H%M%S).log"
 EOF
 ```
 
@@ -196,12 +225,13 @@ Example: teisutis-deploy-20260130-012343
 **Standard remote deployment with screen:**
 ```bash
 # SSH and start screen session with timestamped log
+# Use DEPLOY_NON_INTERACTIVE=1 so scripts skip prompts (screen has TTY but no stdin)
 ssh user@production.com << 'EOF'
 cd /opt/myapp
 SESSION_NAME="myapp-deploy-$(date +%Y%m%d-%H%M%S)"
 LOG_FILE="deploy-$(date +%Y%m%d-%H%M%S).log"
 
-screen -dmS "$SESSION_NAME" bash -c "./tools/deploy.sh 2>&1 | tee $LOG_FILE"
+screen -dmS "$SESSION_NAME" bash -c "DEPLOY_NON_INTERACTIVE=1 ./tools/deploy.sh 2>&1 | tee $LOG_FILE"
 
 echo "✅ Screen session started: $SESSION_NAME"
 echo "📋 Log file: $LOG_FILE"
@@ -234,7 +264,7 @@ ssh -t user@production.com 'screen -r $(screen -ls | grep deploy | head -1 | cut
 
 **One-liner for quick remote deployment:**
 ```bash
-ssh user@production.com "cd /opt/myapp && screen -dmS myapp-deploy-\$(date +%Y%m%d-%H%M%S) bash -c './tools/deploy.sh 2>&1 | tee deploy-\$(date +%Y%m%d-%H%M%S).log' && sleep 3 && screen -ls | grep deploy && tail -n 50 deploy-*.log | tail -n 50"
+ssh user@production.com "cd /opt/myapp && screen -dmS myapp-deploy-\$(date +%Y%m%d-%H%M%S) bash -c 'DEPLOY_NON_INTERACTIVE=1 ./tools/deploy.sh 2>&1 | tee deploy-\$(date +%Y%m%d-%H%M%S).log' && sleep 3 && screen -ls | grep deploy && tail -n 50 deploy-*.log"
 ```
 
 **Session cleanup after successful deployment:**
