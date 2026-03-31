@@ -108,6 +108,12 @@ git_repo_root/
 - Docker-friendly: `web/` service mounts to `/app` in container
 - Django code self-contained: `web/` has everything Django needs
 
+### Type Hinting & Documentation
+
+**Strict typing and docstrings are mandatory** across all project code:
+- **Type Annotations**: All function and method signatures must explicitly declare argument and return types (e.g., `def process(data: dict) -> bool:`).
+- **Docstrings**: Every class, function, and method must have a descriptive docstring explaining its purpose, arguments, and return value.
+
 ### BaseModel Abstraction
 
 **Create abstract base models to reduce duplication**:
@@ -295,6 +301,24 @@ if optional_part:
 - **Non-empty base**: both kept, joined by newline.
 - **Empty base**: `filter(None, [...])` drops empty strings; result is just the new part.
 - Avoids ternaries and explicit if/else for append vs replace logic.
+
+### Safe URL Query String Generation
+
+**Never build query strings manually with string concatenation in templates**, as this exposes the application to URL-encoding fractures and HTML-entity parsing bugs (e.g., `&copy` rendering as `©`). 
+
+**Pattern**: Create and use a `{% query_string %}` custom template tag that wraps Python's `urllib.parse.urlencode()`.
+
+```django
+<!-- ❌ WRONG: Fragile, unescaped, prone to entity bugs -->
+<a href="?property={{ property.id }}&scope={{ scope.id }}&copy_context_from={{ conv.id }}">
+
+<!-- ✅ CORRECT: Safe, auto-escaped, fully URL-encoded -->
+{% load core_tags %}
+<a href="{% query_string property=property.id scope=scope.id copy_context_from=conv.id %}">
+```
+
+- **Why**: `urlencode` safely encodes spaces/special chars, drops `None` values, and outputs safe `&` separators which Django's HTML auto-escaper catches and safely converts into `&amp;` in the DOM layout.
+
 
 ### Formsets (modelformset with unique constraints)
 

@@ -451,6 +451,18 @@ JSON.stringify({ X-CSRFToken: value })
 JSON.stringify({ 'X-CSRFToken': value })
 ```
 
+### Safe URL Query String Generation for HTMX
+
+When generating URLs for `hx-get`, `hx-post` or standard links, **never build query strings manually with string concatenation**. This exposes your application to URL syntax errors around spaces and dangerous HTML entity conversion (e.g., `&copy` being parsed to `©` natively in the DOM).
+
+```django
+<!-- ❌ WRONG: Fragile string concatenation, prone to XSS and entity translation -->
+<div hx-get="/api?search={{ query }}&copy_mode=true">
+
+<!-- ✅ GOOD: Uses a backend custom tag (like `{% query_string %}`) to output valid urlencoded string -->
+<div hx-get="/api{% query_string search=query copy_mode='true' %}">
+```
+
 ---
 
 ## Template Standards (Bulma)
