@@ -104,6 +104,16 @@ git_repo_root/
 - Docker-friendly: `web/` service mounts to `/app` in container
 - Django code self-contained: `web/` has everything Django needs
 
+### Docker Generated Migrations (Ownership Bypass)
+
+When generating new migrations from within a Docker container (e.g. via `docker compose exec`), the resulting files are created with `root` ownership. This prevents the host machine (or AI agents) from editing data migrations later.
+
+**Bypass Pattern**: Regain host ownership by running `chown` from *within* docker using your host's UID/GID:
+```bash
+CURRENT_UID=$(id -u); CURRENT_GID=$(id -g); docker compose exec web chown -R $$CURRENT_UID:$$CURRENT_GID /app/your_app/migrations
+```
+This is a universal, project-agnostic pattern to fix permissions without disrupting the container context.
+
 ### Type Hinting & Documentation
 
 **Strict typing and docstrings are mandatory** across all project code:
@@ -559,6 +569,35 @@ class ArticleViewSet(BaseViewSet):
 ### Performance Monitoring
 - **Don't add to every method** (only critical paths)
 - **Don't use in development** (affects debugging)
+
+## Translation Workflow (No Manual .po Editing)
+
+**CRITICAL**: Never manually edit `.po` files. Teisutis uses a scripted translation map workflow.
+
+**Workflow process**:
+1. Add newly introduced, user-facing `msgid` entries into the appropriate python dictionary file inside `tools/translation_maps/*.py`.
+2. Extract your new strings: `make translate-extract` (or `make manage ARGS="makemessages -l lt ..."` if limiting scope)
+3. Inject map values into `.po` targets: `make translate-fill`
+4. Compile final translations: `make translate-compile`
+
+Manual changes in `.po` files WILL be obliterated by the next `make translate-fill` or automated CI pipeline.
+
+### Testing UI Strings & Locale Enforcement
+
+When writing test assertions that inspect HTTP responses for string presence (e.g. error messages, success alerts, or static labels), the test execution environment must be entirely deterministic regardless of the host's default locale.
+
+**Pattern**: Force tests to execute in plain English using Django's `@override_settings` and `activate()`:
+```python
+from django.test import override_settings
+from django.utils.translation import activate
+
+@override_settings(LANGUAGE_CODE='en')
+def test_some_ui_endpoint(self):
+    activate('en')
+    # ... test logic
+    self.assertIn("Expected English String", response.content.decode())
+```
+**Why**: Avoids brittle tests that pass locally but fail in CI if the locale defaults to Lithuanian (lt), or fail if translations are incomplete.
 
 ## Related References
 
