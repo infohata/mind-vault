@@ -8,6 +8,19 @@
 
 ### Enforce Consistent Locale
 
+Always assert against English strings and force the English locale in tests that verify UI-facing strings, tool descriptions, or error messages. This prevents fuzzy matching failures and prevents brittle tests when running suites across different locales.
+
+```python
+from django.test import override_settings
+from django.utils.translation import activate
+
+@override_settings(LANGUAGE_CODE='en')
+def test_some_ui_string(self):
+    activate('en')  # Ensure the active thread uses English mapping
+    response = self.client.get('/some-url/')
+    self.assertContains(response, "Expected English String")
+```
+
 **✅ GOOD**: Override language code for tests checking text output
 ```python
 from django.test import override_settings

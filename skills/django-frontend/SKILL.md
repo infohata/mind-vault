@@ -492,6 +492,14 @@ For entities that require complex attachments (files, images, references) alongs
 Instead of having individual views compute and inject the current date into template context (which drifts or misses tz edges):
 **Pattern**: Rely on a globally registered context processor (e.g. `today_iso`) that resolves the exact current date/time based on the user's timezone.
 Expose it to frontend scripts via `<script id="today_iso" type="application/json">{{ today_iso }}</script>` or Alpine's `x-data`. This prevents logical bugs where JS "new Date()" ignores server timezone contexts for validation logic.
+
+### Vanilla JS Deprecation Hazard (Asymmetric Deletion)
+
+Because this stack utilizes Vanilla JavaScript without strict compilation steps or aggressive ESLint pipelines (like TypeScript or React might use), dropping a function definition does not trigger a compile-time or CI failure if the function is still invoked elsewhere.
+**Pattern:**
+- When removing "orphan" or deprecated JavaScript functions, do not rely solely on targeted diffs or agent-provided removals.
+- You **MUST** execute a global `grep_search` across `static/` directories for the function name to locate and remove any lingering execution calls (e.g., inside event listeners, HTMX callbacks, or async functions). Failure to do so leads to runtime `ReferenceError` bugs slipping through CI.
+
 ---
 
 ## Template Standards (Bulma)

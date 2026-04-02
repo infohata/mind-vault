@@ -24,6 +24,7 @@ Your goal is to autonomously retrieve external GitHub PR bot findings (like Bugb
 - Read the critique. Analyze the failure against internal `mind-vault` conventions.
 - Implement the exact localized code, styling, or configuration patch within the target codebase. Validate your snippet locally.
 - Do not attempt sweeping architectural refactors (that is the Curator's job). Address only what Bugbot flagged.
+- **Asymmetric Deletion Hazard**: When removing "orphan" or deprecated UI functions (especially Vanilla JS), do not just delete the function declaration. You MUST execute a project-wide `grep_search` across `static/` directories to find and eliminate all lingering execution calls.
 
 ### PASS 3: The Re-Trigger Loop
 - Commit your validated patches. Push them to the remote branch (`git push origin HEAD`).
