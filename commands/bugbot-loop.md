@@ -73,12 +73,12 @@ If at least one fix was applied:
 
 1. `ScheduleWakeup(delaySeconds=180, ...)` for the first poll (cache-warm).
 2. On wake: re-fetch bugbot comments via `./tools/find_bugbot_comments.sh`.
-3. Decision:
-   - **New comments since last push** → **reset idle-poll counter to 0**, reload triage state from scratch file, return to Phase 1. (The bound counts *consecutive* idle polls; any productive cycle resets.)
+3. Decision — compare against `last_seen_comment_id` tracked in the scratch file, **not** against last push SHA. Reason: when Phase 3 is skipped (all fixes reverted), the last push doesn't advance, so "new since last push" would stay true forever and reset `idle_polls` on every wake. Comparing against `last_seen_comment_id` ensures that once a review is processed, subsequent polls with no new findings correctly accumulate idle polls.
+   - **New comments since `last_seen_comment_id`** → **reset idle-poll counter to 0**, update `last_seen_comment_id` to the newest comment's id in the scratch file, reload triage state, return to Phase 1. (The bound counts *consecutive* idle polls; any productive cycle resets.)
    - **No new comments**, idle-poll counter < 20 → increment idle-poll counter, `ScheduleWakeup` again (escalate delay: 180 → 600 → 1200s).
    - **No new comments**, idle-poll counter ≥ 20 → escalate: bugbot may be hung or PR clean; hand back to user.
    - **Active-work minutes ≥ 20** (excluding sleep) → hand back.
-   - **Same finding category flagged 2× post-fix** → no-progress detector trips; hand back.
+   - **Same finding category flagged 2× across cycles where a commit attempted that category** → no-progress detector trips; hand back. ("Attempted" counts whether the fix succeeded or was reverted — this closes the mixed-cycle stuck-loop gap where a reverted fix could be retried indefinitely if a sibling finding's successful push re-triggered bugbot.)
 
 ## Hand-back report
 

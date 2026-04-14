@@ -82,7 +82,8 @@ These are recurring issues that Bugbot correctly catches. Check for them proacti
 - Push to remote (`git push origin HEAD`).
 - Re-trigger via `gh pr comment -b "bugbot run"`.
 - Use `ScheduleWakeup` for adaptive polling (180s warm; 1200s+ for longer waits). Bugbot review latency does not count against the 20-minute active-work budget.
-- On wake: re-fetch comments. If new findings → loop to PASS 1. If clean → final hand-back report.
+- On wake: re-fetch comments. Compare against `last_seen_comment_id` tracked in the scratch file (**not** last push SHA — if Phase 3 was skipped, the push doesn't advance, so a "since last push" comparison would stay true indefinitely and reset idle polls on every wake). If new findings → update `last_seen_comment_id`, reset idle polls, loop to PASS 1. If no new comments → increment idle polls. If clean after idle bound → final hand-back report.
+- No-progress detector: same finding category flagged 2× across cycles where a commit *attempted* that category (success-or-revert counts equally). This closes the mixed-cycle stuck-loop case where a reverted fix could otherwise be retried indefinitely when a sibling finding's successful push re-triggered bugbot.
 - Honour all hard bounds (max 10 commits, 20 active-work min, 20 idle polls, no-progress detector). On any breach: stop and hand back to user.
 
 ## How to Deliver Your Verdict
