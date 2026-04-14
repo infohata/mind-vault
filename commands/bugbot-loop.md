@@ -58,7 +58,7 @@ Tier 3 findings: skip the fix, log to the scratch file, and continue processing 
 
 ## Phase 3: Commit + push + re-trigger
 
-**Skip condition**: if zero fixes were applied in Phase 2 (all findings Tier 3, or all edits reverted on test failure), skip Phase 3 entirely and go directly to Phase 4 with `idle_polls += 1`. Do not commit empty, do not re-trigger bugbot on unchanged code — that would just burn the active-work budget on the same unfixable findings. Surface the unfixed findings in the hand-back immediately if no Tier 1/2 fixes are possible.
+**Skip condition**: if zero fixes were applied in Phase 2 (all findings Tier 3, or all edits reverted on test failure), skip Phase 3 **and** skip Phase 4 entirely — hand back to the user immediately with all unfixed findings surfaced as Tier 3 escalations. Rationale: no fixes means no push; no push means bugbot has nothing new to review; polling would only rediscover the same unfixable findings and waste the active-work budget. The user either fixes manually and re-invokes `/bugbot-loop`, or decides the findings are not actionable. Do not commit empty, do not re-trigger bugbot on unchanged code.
 
 If at least one fix was applied:
 

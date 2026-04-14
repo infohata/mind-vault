@@ -76,7 +76,7 @@ These are recurring issues that Bugbot correctly catches. Check for them proacti
 
 ### PASS 3: The Re-Trigger Loop
 
-- **Skip PASS 3 if zero fixes were applied in PASS 2** (all findings Tier 3, or all edits reverted on test failure). Go directly to the wait-and-wake state with `idle_polls += 1`. Never commit empty, never re-trigger bugbot on unchanged code — that creates a wasteful loop where bugbot re-reports the same findings and the no-progress detector never trips (it requires *post-fix* flagging). If no Tier 1/2 fixes are possible, hand back to the user instead.
+- **Skip PASS 3 *and* the wait-and-wake state if zero fixes were applied in PASS 2** (all findings Tier 3, or all edits reverted on test failure). Hand back to the user immediately with all unfixed findings surfaced as Tier 3 escalations. Rationale: no fixes → no push → bugbot has nothing new to review; polling would only rediscover the same unfixable findings and waste the active-work budget. Never commit empty, never re-trigger bugbot on unchanged code.
 - Run targeted tests locally (`make test-fresh ARGS="..."`) before committing — targeted class only inside the loop.
 - **Batch all fixes from one bugbot review pass into a single commit** (`fix(scope): address bugbot review N (PR #M)`), not one commit per finding.
 - Push to remote (`git push origin HEAD`).
