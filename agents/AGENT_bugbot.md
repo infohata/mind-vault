@@ -41,11 +41,10 @@ You are the **PR Resolution Loop Agent**. You orchestrate fixes for external Git
 If running inside a git worktree (detect: `git rev-parse --git-common-dir` differs from `.git`):
 
 - Worktree paths don't share docker volumes with the main checkout — containers need their own `.env`.
-- If `.env` missing AND `.env.template` present:
-  - Copy `.env.template` → `.env`.
-  - Fill with **test-safe sentinel values**: `*_API_KEY=test-not-a-real-key`, `SECRET_KEY=test-$(openssl rand -hex 16)`, DB/Redis URLs scoped to this worktree's docker compose project namespace.
-  - Never populate real credentials. Never read or copy from sibling `.env` files.
-- If `.env.template` missing → escalate (cannot safely guess schema).
+- If `.env` already exists: skip .env handling (reuse existing), proceed with container spin-up only.
+- Else (`.env` missing):
+  - If `.env.template` present: copy template → `.env`, fill with **test-safe sentinel values** (`*_API_KEY=test-not-a-real-key`, `SECRET_KEY=test-$(openssl rand -hex 16)`, DB/Redis URLs scoped to this worktree's docker compose project namespace). Never populate real credentials. Never read or copy from sibling `.env` files.
+  - If `.env.template` missing: escalate (cannot safely guess schema).
 - Skip this pass entirely when running in the primary working tree.
 
 This pass is the only place this agent is permitted to touch `.env` — see the worktree exception in global `CLAUDE.md`.
@@ -77,6 +76,7 @@ These are recurring issues that Bugbot correctly catches. Check for them proacti
 
 ### PASS 3: The Re-Trigger Loop
 
+- **Skip PASS 3 if zero fixes were applied in PASS 2** (all findings Tier 3, or all edits reverted on test failure). Go directly to the wait-and-wake state with `idle_polls += 1`. Never commit empty, never re-trigger bugbot on unchanged code — that creates a wasteful loop where bugbot re-reports the same findings and the no-progress detector never trips (it requires *post-fix* flagging). If no Tier 1/2 fixes are possible, hand back to the user instead.
 - Run targeted tests locally (`make test-fresh ARGS="..."`) before committing — targeted class only inside the loop.
 - **Batch all fixes from one bugbot review pass into a single commit** (`fix(scope): address bugbot review N (PR #M)`), not one commit per finding.
 - Push to remote (`git push origin HEAD`).

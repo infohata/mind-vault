@@ -23,12 +23,14 @@ Drive a Cursor Bugbot review-fix-rerun cycle on the current PR (or specified PR 
 
 If `git rev-parse --git-common-dir` differs from `.git` (i.e. running inside a worktree):
 
-1. Check for `.env`. If missing AND `.env.template` exists:
-   - Copy template → `.env`.
-   - Replace any `*_API_KEY=` / `*_TOKEN=` / `*_SECRET=` values with `test-not-a-real-key`.
-   - Replace `SECRET_KEY=` with `test-$(openssl rand -hex 16)`.
-   - Scope DB/Redis URLs to the worktree's docker compose project namespace.
-2. If `.env.template` missing → escalate to user; do not proceed.
+1. If `.env` already exists → skip to step 3 (containers only).
+2. Else (`.env` missing):
+   - If `.env.template` exists:
+     - Copy template → `.env`.
+     - Replace any `*_API_KEY=` / `*_TOKEN=` / `*_SECRET=` values with `test-not-a-real-key`.
+     - Replace `SECRET_KEY=` with `test-$(openssl rand -hex 16)`.
+     - Scope DB/Redis URLs to the worktree's docker compose project namespace.
+   - If `.env.template` missing → escalate to user; do not proceed.
 3. Spin up containers: `docker compose up -d`.
 4. In primary working tree: skip this phase entirely.
 
@@ -56,6 +58,10 @@ Tier 3 findings: skip the fix, log to the scratch file, and continue processing 
 
 ## Phase 3: Commit + push + re-trigger
 
+**Skip condition**: if zero fixes were applied in Phase 2 (all findings Tier 3, or all edits reverted on test failure), skip Phase 3 entirely and go directly to Phase 4 with `idle_polls += 1`. Do not commit empty, do not re-trigger bugbot on unchanged code — that would just burn the active-work budget on the same unfixable findings. Surface the unfixed findings in the hand-back immediately if no Tier 1/2 fixes are possible.
+
+If at least one fix was applied:
+
 1. **One commit per bugbot-run cycle**, not per finding.
    - Format: `fix(scope): address bugbot review N (PR #M)`
    - Body lists each finding closed.
@@ -68,8 +74,8 @@ Tier 3 findings: skip the fix, log to the scratch file, and continue processing 
 1. `ScheduleWakeup(delaySeconds=180, ...)` for the first poll (cache-warm).
 2. On wake: re-fetch bugbot comments via `./tools/find_bugbot_comments.sh`.
 3. Decision:
-   - **New comments since last push** → reload triage state from scratch file, return to Phase 1.
-   - **No new comments**, idle-poll counter < 20 → `ScheduleWakeup` again (escalate delay: 180 → 600 → 1200s).
+   - **New comments since last push** → **reset idle-poll counter to 0**, reload triage state from scratch file, return to Phase 1. (The bound counts *consecutive* idle polls; any productive cycle resets.)
+   - **No new comments**, idle-poll counter < 20 → increment idle-poll counter, `ScheduleWakeup` again (escalate delay: 180 → 600 → 1200s).
    - **No new comments**, idle-poll counter ≥ 20 → escalate: bugbot may be hung or PR clean; hand back to user.
    - **Active-work minutes ≥ 20** (excluding sleep) → hand back.
    - **Same finding category flagged 2× post-fix** → no-progress detector trips; hand back.

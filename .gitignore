@@ -20,3 +20,6 @@ tokens.json
 /tmp/
 /temp/
 *.tmp
+
+# Claude Code local state
+.claude/*.lock
