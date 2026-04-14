@@ -50,13 +50,12 @@ echo ""
 # PR review (state=COMMENTED) rather than an issue comment, with a BUGBOT_REVIEW
 # marker in the body. We surface the latest one so the /bugbot-loop can fast-path
 # to hand-back instead of burning 20 idle polls.
-CLEAN_SIGNAL=$(gh api --paginate "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews" 2>/dev/null | python3 -c "
+CLEAN_SIGNAL=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews?per_page=100" 2>/dev/null | python3 -c "
 import json, sys
 try:
-    # --paginate concatenates pages into a single JSON array, so a normal
-    # json.load works. Without it, long-running sessions can exceed the
-    # 30-item default and the latest clean-signal review would be on page
-    # 2+ and invisible to the max() below.
+    # per_page=100 (the GitHub API max) avoids any --paginate / --slurp
+    # ambiguity across gh CLI versions. A PR with >100 bugbot reviews is
+    # already a sign to bail out, not to read further pages.
     reviews = json.load(sys.stdin)
     if not isinstance(reviews, list):
         # gh api can return an error object (e.g. {'message': 'Not Found'}) as
