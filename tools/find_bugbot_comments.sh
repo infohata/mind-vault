@@ -46,7 +46,41 @@ fi
 echo "📋 Fetching bugbot comments for PR #$PR_NUMBER..."
 echo ""
 
-# Fetch PR comments using GitHub API
+# Check for clean-signal PR review ("no new issues"). Bugbot posts this as a
+# PR review (state=COMMENTED) rather than an issue comment, with a BUGBOT_REVIEW
+# marker in the body. We surface the latest one so the /bugbot-loop can fast-path
+# to hand-back instead of burning 20 idle polls.
+CLEAN_SIGNAL=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews" 2>/dev/null | python3 -c "
+import json, sys
+try:
+    reviews = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+clean = [r for r in reviews
+         if r.get('user', {}).get('login') == 'cursor[bot]'
+         and '<!-- BUGBOT_REVIEW -->' in (r.get('body') or '')
+         and 'found no new issues' in (r.get('body') or '')]
+if clean:
+    latest = max(clean, key=lambda r: r.get('submitted_at', ''))
+    print(f\"{latest.get('id', '')}|{latest.get('submitted_at', '')}|{latest.get('commit_id', '')}|{latest.get('html_url', '')}\")
+" 2>/dev/null)
+
+if [ -n "$CLEAN_SIGNAL" ]; then
+    IFS='|' read -r CS_ID CS_TIME CS_SHA CS_URL <<< "$CLEAN_SIGNAL"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}✅ CLEAN SIGNAL: Bugbot reviewed and found no new issues${NC}"
+    echo -e "${BLUE}   Review id:${NC}  $CS_ID"
+    echo -e "${BLUE}   Submitted:${NC}  $CS_TIME"
+    echo -e "${BLUE}   Commit:${NC}     $CS_SHA"
+    echo -e "${BLUE}   Link:${NC}       $CS_URL"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    # Machine-readable marker for the /bugbot-loop skill to grep:
+    echo "BUGBOT_CLEAN_SIGNAL=$CS_ID COMMIT=$CS_SHA AT=$CS_TIME"
+    echo ""
+fi
+
+# Fetch PR review comments (inline findings) using GitHub API
 COMMENTS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/comments" 2>/dev/null)
 
 if [ -z "$COMMENTS" ] || [ "$COMMENTS" = "[]" ]; then
