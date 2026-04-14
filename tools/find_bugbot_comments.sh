@@ -54,16 +54,20 @@ CLEAN_SIGNAL=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews" 2>
 import json, sys
 try:
     reviews = json.load(sys.stdin)
+    if not isinstance(reviews, list):
+        # gh api can return an error object (e.g. {'message': 'Not Found'}) as
+        # a dict — iterating that yields string keys and breaks .get() below.
+        sys.exit(0)
+    clean = [r for r in reviews
+             if r.get('user', {}).get('login') == 'cursor[bot]'
+             and '<!-- BUGBOT_REVIEW -->' in (r.get('body') or '')
+             and 'found no new issues' in (r.get('body') or '')]
+    if clean:
+        latest = max(clean, key=lambda r: r.get('submitted_at', ''))
+        print(f\"{latest.get('id', '')}|{latest.get('submitted_at', '')}|{latest.get('commit_id', '')}|{latest.get('html_url', '')}\")
 except Exception:
     sys.exit(0)
-clean = [r for r in reviews
-         if r.get('user', {}).get('login') == 'cursor[bot]'
-         and '<!-- BUGBOT_REVIEW -->' in (r.get('body') or '')
-         and 'found no new issues' in (r.get('body') or '')]
-if clean:
-    latest = max(clean, key=lambda r: r.get('submitted_at', ''))
-    print(f\"{latest.get('id', '')}|{latest.get('submitted_at', '')}|{latest.get('commit_id', '')}|{latest.get('html_url', '')}\")
-" 2>/dev/null)
+" 2>/dev/null || true)
 
 if [ -n "$CLEAN_SIGNAL" ]; then
     IFS='|' read -r CS_ID CS_TIME CS_SHA CS_URL <<< "$CLEAN_SIGNAL"
