@@ -82,13 +82,13 @@ If at least one fix was applied:
 
 1. `ScheduleWakeup(delaySeconds=180, ...)` for the first poll (cache-warm).
 2. On wake: re-fetch bugbot comments via `./tools/find_bugbot_comments.sh`. The script output includes two signals of interest: a `BUGBOT_CLEAN_SIGNAL=<id> COMMIT=<sha> AT=<timestamp>` line if bugbot has posted a "found no new issues" review, and an inline list of any unresolved findings (with their review comment ids).
-3. Decision tree — evaluate in order:
+3. Decision tree — evaluate in order. The first two branches are **absolute hard-bound guards**: they are checked before any happy-path branch so that the happy paths (which are collectively exhaustive over wake state) cannot shadow them.
+   - **Guard: active-work minutes ≥ 60** (excluding sleep) → hand back immediately, regardless of wake state.
+   - **Guard: no-progress detector trips** — same finding category flagged 2× across cycles where a commit *attempted* that category (success-or-revert both count) → hand back immediately. This closes the mixed-cycle stuck-loop case where a reverted fix could be retried indefinitely when a sibling finding's successful push re-triggered bugbot.
    - **`BUGBOT_CLEAN_SIGNAL` present AND its `COMMIT` equals `last_push_sha`** → **PR clean for current head** → hand back immediately with the clean summary. Do not wait out the idle-poll bound. Ignore clean signals whose `COMMIT` is a stale SHA (bugbot posted them for a previous push).
    - **New findings since `last_seen_comment_id`** → reset idle-poll counter to 0, update `last_seen_comment_id` to the newest finding's id in the scratch file, reload triage state, return to Phase 1. (Compare against `last_seen_comment_id`, **not** last push SHA — when Phase 3 is skipped, the push doesn't advance and "new since last push" would stay true forever, resetting `idle_polls` on every wake. `last_seen_comment_id` ensures once a review is processed, subsequent polls with no new findings correctly accumulate idle polls.)
    - **No clean signal, no new findings**, idle-poll counter < 20 → increment idle-poll counter, `ScheduleWakeup` again (escalate delay: 180 → 600 → 1200s). Clean signal is the fast path; idle-poll accumulation is the fallback for the case where bugbot is hung or slow.
    - **No clean signal, no new findings**, idle-poll counter ≥ 20 → escalate: bugbot may be hung; hand back to user.
-   - **Active-work minutes ≥ 60** (excluding sleep) → hand back.
-   - **Same finding category flagged 2× across cycles where a commit attempted that category** → no-progress detector trips; hand back. ("Attempted" counts whether the fix succeeded or was reverted — this closes the mixed-cycle stuck-loop gap where a reverted fix could be retried indefinitely if a sibling finding's successful push re-triggered bugbot.)
 
 ## Hand-back report
 
