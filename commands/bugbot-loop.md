@@ -11,12 +11,13 @@ Drive a Cursor Bugbot review-fix-rerun cycle on the current PR (or specified PR 
 
 ## Hard bounds (enforced by the loop)
 
-- `max_commits_per_session = 5`
+- `max_commits_per_session = 10`
 - `max_active_work_minutes = 20` (excludes ScheduleWakeup sleep time)
 - `max_idle_polls = 20` (consecutive wakes with no new bugbot comment AND no new push)
 - Targeted tests only inside the loop; broader regression deferred to hand-back
 - Feature branch only — never main (per `RULE_git-safety`)
 - Batch fixes per `bugbot run` cycle into one commit, not one-per-finding
+- **Autonomous commit authority within this loop**: per-commit approval from `RULE_git-safety` is *pre-granted* by the act of invoking `/bugbot-loop`. The loop may commit and push Tier 1 fixes without a per-cycle `yes` prompt. Tier 2 fixes still require explicit per-finding approval (that is a *fix-direction* approval, not a commit approval). All other `RULE_git-safety` guardrails remain in force: never main, never merge, never force-push, never `--no-verify`, all commits to feature branches only.
 
 ## Phase 0: Worktree environment bootstrap
 
@@ -51,7 +52,7 @@ For each Tier 1 finding (no prompt) and each Tier 2 finding (after explicit `yes
 2. Run targeted test (`make test-fresh ARGS="app.tests.ClassName"` or project equivalent) — class scope only.
 3. If test fails: revert edit, log to scratch file, move to next finding (do not retry-fix in the same cycle).
 
-Tier 3 findings: do not fix in this loop. List them in the final hand-back.
+Tier 3 findings: skip the fix, log to the scratch file, and continue processing other findings in this cycle. List all Tier 3 escalations in the final hand-back for human decision. This is a *per-finding* escalation, not a whole-loop abort.
 
 ## Phase 3: Commit + push + re-trigger
 
@@ -60,7 +61,7 @@ Tier 3 findings: do not fix in this loop. List them in the final hand-back.
    - Body lists each finding closed.
 2. `git push origin HEAD`.
 3. `gh pr comment -b "bugbot run"`.
-4. Increment session commit counter. If > 5 → stop and hand back.
+4. Increment session commit counter. If ≥ 10 → stop and hand back.
 
 ## Phase 4: Wait + wake
 

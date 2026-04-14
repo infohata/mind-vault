@@ -138,7 +138,7 @@ commands/bugbot-loop.md
       - commit (fix(scope): description (bugbot PR #N))
   ↳ Phase 3 (poll): push, comment "bugbot run", ScheduleWakeup(180s)
   ↳ Phase 4 (wake): re-fetch; if new comments → back to Phase 1; if clean → report
-  ↳ Stop conditions: max_commits=5, max_wall_time=30min, or user interrupt
+  ↳ Stop conditions: max_commits=10, max_active_work=20min, max_idle_polls=20, or user interrupt
 ```
 
 ## Open Questions
@@ -158,11 +158,11 @@ After re-evaluation the user accepted **Option B with a narrow autonomy carve-ou
 |------|-------|--------|
 | 1 — Auto-fix | Matches one of 8 codified patterns in `AGENT_bugbot.md`, ≤1 file, targeted test exists | Fix, test, commit (no prompt) |
 | 2 — Approve-then-fix | Actionable but uncodified, OR touches shared helper | Present diff + justification, wait `yes` |
-| 3 — Escalate | Cross-file, architectural, or bugbot self-withdrew | Stop loop, hand back |
+| 3 — Escalate | Cross-file, architectural, or bugbot self-withdrew | Skip finding, log it, continue cycle; surface in final hand-back (per-finding escalation, not whole-loop abort) |
 
 ### Hard bounds
 
-- `max_commits_per_session = 5`
+- `max_commits_per_session = 10`
 - `max_active_work_minutes = 20` — wall-time **excluding** `ScheduleWakeup` sleep. Bugbot review latency does not eat the budget (review can legitimately exceed 30 min on wide-touch PRs).
 - `max_idle_polls = 20` — consecutive wakes with no new comment AND no new push.
 - Per-finding written justification required before any Tier 1 or 2 fix.

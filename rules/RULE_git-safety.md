@@ -22,7 +22,10 @@
 - "Commit when ready" = still ask when ready
 - Approval from X messages ago = expired (even if X=1)
 
-**ONLY exception:** User says "yes, commit" or "go ahead" in the CURRENT response.
+**ONLY exceptions:**
+
+- User says "yes, commit" or "go ahead" in the CURRENT response.
+- **Autonomous workflows with pre-granted commit authority** — specifically the `/bugbot-loop` workflow (see `commands/bugbot-loop.md`). Invocation of the loop is session-level approval; Tier 1 auto-fix commits proceed without per-cycle prompts. Tier 2 still requires per-finding direction approval. All other guardrails (never main, never merge, never force-push, never `--no-verify`) remain absolute.
 
 ### 3. NEVER MERGE TO MAIN
 **Agent NEVER merges to main branch:**
