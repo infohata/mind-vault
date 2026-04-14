@@ -75,7 +75,7 @@ If at least one fix was applied:
    - Format: `fix(scope): address bugbot review N (PR #M)`
    - Body lists each finding closed.
 2. `git push origin HEAD`.
-3. `gh pr comment -b "bugbot run"`.
+3. `./tools/bugbot_retrigger.sh [PR_NUMBER]` (preferred) — hard-codes the `bugbot run` body so it can be pre-approved in `~/.claude/settings.json` without risking arbitrary comment injection. Falls back to current-branch PR lookup if no arg given. Equivalent to `gh pr comment <PR> -b "bugbot run"` but auto-approved.
 4. Increment session commit counter. If ≥ 10 → stop and hand back.
 
 ## Phase 4: Wait + wake

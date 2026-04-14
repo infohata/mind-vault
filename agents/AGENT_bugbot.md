@@ -81,7 +81,7 @@ These are recurring issues that Bugbot correctly catches. Check for them proacti
 - Run targeted tests locally (`make test-fresh ARGS="..."`) before committing — targeted class only inside the loop.
 - **Batch all fixes from one bugbot review pass into a single commit** (`fix(scope): address bugbot review N (PR #M)`), not one commit per finding.
 - Push to remote (`git push origin HEAD`).
-- Re-trigger via `gh pr comment -b "bugbot run"`.
+- Re-trigger via `./tools/bugbot_retrigger.sh [PR_NUMBER]` (preferred — hard-coded body, pre-approved in settings) or fall back to `gh pr comment <PR> -b "bugbot run"`.
 - Use `ScheduleWakeup` for adaptive polling (180s warm; 1200s+ for longer waits). Bugbot review latency does not count against the 60-minute active-work budget.
 - On wake: re-fetch via `./tools/find_bugbot_comments.sh`. The script prints a `BUGBOT_CLEAN_SIGNAL=<id> COMMIT=<sha> AT=<timestamp>` marker line when bugbot has posted a "found no new issues" review. **Fast-path clean detection**: if the marker is present AND its `COMMIT` matches `last_push_sha`, hand back immediately with the clean summary — do not wait out the idle-poll bound. Ignore clean signals whose `COMMIT` is a stale SHA (they were posted for a previous push).
 - Compare findings against `last_seen_comment_id` tracked in the scratch file (**not** last push SHA — if Phase 3 was skipped, the push doesn't advance, so a "since last push" comparison would stay true indefinitely and reset idle polls on every wake). If new findings → update `last_seen_comment_id`, reset idle polls, loop to PASS 1. If no new comments and no clean signal → increment idle polls. If clean-signal fast-path or idle bound reached → final hand-back report.
