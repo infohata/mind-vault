@@ -12,7 +12,7 @@ Drive a Cursor Bugbot review-fix-rerun cycle on the current PR (or specified PR 
 ## Hard bounds (enforced by the loop)
 
 - `max_commits_per_session = 10`
-- `max_active_work_minutes = 20` (excludes ScheduleWakeup sleep time)
+- `max_active_work_minutes = 60` (excludes ScheduleWakeup sleep time)
 - `max_idle_polls = 20` (consecutive wakes with no new bugbot comment AND no new push)
 - Targeted tests only inside the loop; broader regression deferred to hand-back
 - Feature branch only — never main (per `RULE_git-safety`)
@@ -44,7 +44,16 @@ This is the **only** authorised place to create `.env` — see exception clause 
    - **Tier 2 — Approve-then-fix**: actionable but uncodified, OR touches shared helper/mixin.
    - **Tier 3 — Escalate**: cross-file, architectural, conflicts with project convention, OR bugbot self-withdrew.
 3. For every Tier 1 and Tier 2 finding, write a one-sentence justification: *why is this actually a bug?* If the explanation is hand-wavy or just paraphrases the bot → drop to Tier 3.
-4. Persist triage to `~/.claude/memory/projects/<project-slug>/bugbot-pr-<N>.md` so the next wake cycle can reload intent without re-reading summaries (mitigates context rot).
+4. Persist to `~/.claude/memory/projects/<project-slug>/bugbot-pr-<N>.md` so the next wake cycle can reload state without re-reading summaries (mitigates context rot). The scratch file must checkpoint **every** piece of state that a hard bound depends on, after every mutation:
+   - `commits_this_session` (int, /10)
+   - `active_work_minutes` (int, /60 — best-effort, updated each cycle)
+   - `idle_polls` (int, /20)
+   - `last_seen_comment_id` (GitHub comment id; used by Phase 4 to detect truly-new comments)
+   - `last_push_sha` (SHA of the last feature-branch push)
+   - `no_progress_map` (per-finding-category count of cycles where a commit attempted that category — used by the no-progress detector)
+   - Plus the per-cycle triage table (findings + tier + justification + outcome).
+
+   If any of these live only in conversation context, they will be summarised away across `ScheduleWakeup` boundaries and the hard bounds become unenforceable.
 
 ## Phase 2: Execute
 
@@ -77,7 +86,7 @@ If at least one fix was applied:
    - **New comments since `last_seen_comment_id`** → **reset idle-poll counter to 0**, update `last_seen_comment_id` to the newest comment's id in the scratch file, reload triage state, return to Phase 1. (The bound counts *consecutive* idle polls; any productive cycle resets.)
    - **No new comments**, idle-poll counter < 20 → increment idle-poll counter, `ScheduleWakeup` again (escalate delay: 180 → 600 → 1200s).
    - **No new comments**, idle-poll counter ≥ 20 → escalate: bugbot may be hung or PR clean; hand back to user.
-   - **Active-work minutes ≥ 20** (excluding sleep) → hand back.
+   - **Active-work minutes ≥ 60** (excluding sleep) → hand back.
    - **Same finding category flagged 2× across cycles where a commit attempted that category** → no-progress detector trips; hand back. ("Attempted" counts whether the fix succeeded or was reverted — this closes the mixed-cycle stuck-loop gap where a reverted fix could be retried indefinitely if a sibling finding's successful push re-triggered bugbot.)
 
 ## Hand-back report
