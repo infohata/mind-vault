@@ -138,7 +138,7 @@ commands/bugbot-loop.md
       - commit (fix(scope): description (bugbot PR #N))
   ↳ Phase 3 (poll): push, comment "bugbot run", ScheduleWakeup(180s)
   ↳ Phase 4 (wake): re-fetch; if new comments → back to Phase 1; if clean → report
-  ↳ Stop conditions: max_commits=10, max_active_work=20min, max_idle_polls=20, or user interrupt
+  ↳ Stop conditions: max_commits=10, max_active_work=60min, max_idle_polls=20, or user interrupt
 ```
 
 ## Open Questions
