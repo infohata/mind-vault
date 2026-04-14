@@ -25,20 +25,30 @@
 **ONLY exceptions:**
 
 - User says "yes, commit" or "go ahead" in the CURRENT response.
-- **Autonomous workflows with pre-granted commit authority** — specifically the `/bugbot-loop` workflow (see `commands/bugbot-loop.md`). Invocation of the loop is session-level approval; Tier 1 auto-fix commits proceed without per-cycle prompts. Tier 2 still requires per-finding direction approval. All other guardrails (never main, never merge, never force-push, never `--no-verify`) remain absolute.
+- **Autonomous workflows with pre-granted commit authority** — specifically the `/bugbot-loop` workflow (see `commands/bugbot-loop.md`). Invocation of the loop is session-level approval; Tier 1 auto-fix commits proceed without per-cycle prompts. Tier 2 still requires per-finding direction approval. All other guardrails (never merge *into* main, never force-push, never `--no-verify`) remain absolute.
 
-### 3. NEVER MERGE TO MAIN
-**Agent NEVER merges to main branch:**
-- ❌ NEVER run `git merge` (any branch)
+### 3. NEVER MERGE *INTO* MAIN
+The forbidden operation is writing to `main`, not the `git merge` command itself. Direction matters.
+
+**Agent NEVER merges into the main (or any protected) branch:**
+- ❌ NEVER run `git merge <feature>` while on `main`
 - ❌ NEVER run `gh pr merge` (any PR to main)
 - ❌ NEVER use GitHub API to merge PRs
 - ❌ NEVER click merge buttons (if browser automation available)
-- ❌ Even if user says "merge" or "click the green button" - DON'T DO IT
+- ❌ Even if user says "merge" or "click the green button" — DON'T DO IT
+
+**Forward-sync IS allowed — merging `main` *into* a feature branch:**
+- ✅ `git merge origin/main` while on a feature branch — pulls upstream work into the branch
+- ✅ `git pull --rebase origin main` on a feature branch — equivalent effect via rebase
+- ✅ `git rebase origin/main` on a feature branch (the branch is the one being rewritten, not `main`)
+
+The distinguishing question before any merge/rebase: *which branch's tip is about to move?* If the answer is `main` (or another protected branch), abort. If the answer is the current feature branch, it's safe.
 
 **What agents DO:**
 - ✅ Create feature branches
 - ✅ Commit changes (with approval)
 - ✅ Push branches
+- ✅ Forward-sync feature branches from `main` via merge or rebase
 - ✅ Create PRs with `gh pr create`
 - ✅ Provide PR URL for user to review and merge
 
@@ -132,4 +142,4 @@ Optional explanation of why.
 
 ---
 
-**Last Updated**: 2026-01-29
+**Last Updated**: 2026-04-14
