@@ -63,6 +63,7 @@ This pass is the only place this agent is permitted to touch `.env` — see the 
 
 - Use the CLI (`gh pr view`) or a dedicated Makefile query (`make bugbot-read`) to pull down the exact unaddressed, unresolved findings from the target Pull Request.
 - Identify the exact `path/to/file.py` and the surrounding diff lines the automated bot flagged.
+- **Zero bugbot activity for the current push SHA?** Post `bugbot run` once to trigger the review (`./tools/bugbot_retrigger.sh [PR_NUMBER]` or `gh pr comment <PR> -b "bugbot run"`), record the trigger-comment id as `last_seen_comment_id`, and proceed to the wait/wake phase — do **not** fall through to "no findings, hand back". Never re-trigger when bugbot activity already exists for the current push: bugbot is rate-limited and each review is billed.
 
 ### PASS 2: The Direct Patch Application
 
