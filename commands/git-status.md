@@ -11,7 +11,7 @@ Steps to follow:
 
 2. Run `git log --oneline -5` to show recent commits.
 
-3. Run `git diff --stat HEAD` to show unstaged changes summary.
+3. Run `git diff --stat` to show unstaged changes summary (working tree vs index).
 
 4. Run `git diff --cached --stat` to show staged changes summary.
 

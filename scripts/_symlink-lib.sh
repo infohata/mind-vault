@@ -36,7 +36,11 @@ mv_link_skills_per_dir() {
     name=$(basename "$d")
     target="$target_dir/$name"
     if [[ -L "$target" ]] || [[ -d "$target" ]]; then
-      ln -sf "$(cd "$d" && pwd)" "$target"
+      # `ln -sfn` (not `-sf`): when target is an existing symlink to a directory,
+      # `-sf` follows the dereference and creates a nested symlink *inside* that
+      # directory instead of replacing the symlink. `-n` treats the target as a
+      # regular file even if it's a symlink, so the replacement works correctly.
+      ln -sfn "$(cd "$d" && pwd)" "$target"
       echo "  Updated skills/$name"
     else
       ln -s "$(cd "$d" && pwd)" "$target"
