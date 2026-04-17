@@ -38,17 +38,27 @@ This is the **only** authorised place to create `.env` — see exception clause 
 
 ## Phase 1: Triage
 
-1. Fetch bugbot findings: `./tools/find_bugbot_comments.sh [PR_NUMBER]` (or equivalent `gh api` call filtering `cursor[bot]`).
+1. **Fetch bugbot state** for the PR:
 
-2. For each finding, classify into a tier:
+   - Comments: `./tools/find_bugbot_comments.sh [PR_NUMBER]` (preferred — includes the `BUGBOT_CLEAN_SIGNAL` marker), or equivalent `gh api repos/.../pulls/<N>/comments` + `.../issues/<N>/comments` + `.../pulls/<N>/reviews`, filtering `user.login == "cursor[bot]"`.
+   - Parse unresolved review comments on code lines (findings) separately from reviews (clean-signal source).
+
+2. **Zero bugbot activity for `last_push_sha`?** Either the PR is fresh and bugbot hasn't auto-triggered, or auto-trigger is off for this repo. **Post the trigger comment once, then go to Phase 4** — do NOT fall through to "no findings, hand back":
+
+   - `./tools/bugbot_retrigger.sh [PR_NUMBER]` (preferred — hard-coded body, pre-approved in settings) or `gh pr comment <PR_NUMBER> -b "bugbot run"` as fallback.
+   - Record the trigger-comment id in `last_seen_comment_id` immediately so subsequent polls don't misread our own "bugbot run" as a new finding.
+   - Do **not** proceed to Phase 2/3 this cycle — there's nothing to fix yet.
+   - **Guardrail**: only post the trigger when zero bugbot activity exists for the current push SHA. Don't re-trigger on every invocation; bugbot is rate-limited and each review is billed.
+
+3. For each finding found, classify into a tier:
 
    - **Tier 1 — Auto-fix**: matches a codified pattern (see `AGENT_bugbot.md` *Common Bugbot Patterns* §1-8), touches ≤1 file, targeted test exists.
    - **Tier 2 — Approve-then-fix**: actionable but uncodified, OR touches shared helper/mixin.
    - **Tier 3 — Escalate**: cross-file, architectural, conflicts with project convention, OR bugbot self-withdrew.
 
-3. For every Tier 1 and Tier 2 finding, write a one-sentence justification: *why is this actually a bug?* If the explanation is hand-wavy or just paraphrases the bot → drop to Tier 3.
+4. For every Tier 1 and Tier 2 finding, write a one-sentence justification: *why is this actually a bug?* If the explanation is hand-wavy or just paraphrases the bot → drop to Tier 3.
 
-4. Persist to `~/.claude/memory/projects/<project-slug>/bugbot-pr-<N>.md` so the next wake cycle can reload state without re-reading summaries (mitigates context rot). The scratch file must checkpoint **every** piece of state that a hard bound depends on, after every mutation:
+5. Persist to `~/.claude/memory/projects/<project-slug>/bugbot-pr-<N>.md` so the next wake cycle can reload state without re-reading summaries (mitigates context rot). The scratch file must checkpoint **every** piece of state that a hard bound depends on, after every mutation:
 
    - `commits_this_session` (int, /10)
    - `active_work_minutes` (int, /60 — best-effort, updated each cycle)
