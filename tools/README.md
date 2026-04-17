@@ -4,6 +4,33 @@ This directory contains utility scripts and tools for maintaining the mind-vault
 
 ## Available Tools
 
+### install-emoji-support.sh
+**Purpose**: Install a color emoji font on Linux so terminals render emojis in color instead of monochrome / tofu.
+
+**Problem Solved**:
+- Many Linux installs ship only monochrome emoji fonts (e.g. Symbola) — color emojis show as boxes or B&W glyphs
+- Common on fresh Debian/Ubuntu/Fedora/Arch installs
+- Fixing it manually means knowing your distro's package name + refreshing fontconfig
+
+**Usage**:
+```bash
+# From repo root
+./tools/install-emoji-support.sh           # installs
+./tools/install-emoji-support.sh --check   # reports current state only
+```
+
+**Features**:
+- ✅ Multi-distro: auto-detects apt / dnf / pacman / zypper
+- ✅ Idempotent: skips install if a color emoji font is already present
+- ✅ `--check` flag for a dry run
+- ✅ Verifies via `fc-list` after install
+- ✅ Lists terminal emulators known to support color emoji
+
+**Terminal compatibility**:
+- ✅ kitty, wezterm, gnome-terminal, konsole, foot
+- ⚠️  xfce4-terminal (version-dependent)
+- ❌ xterm, urxvt (monochrome only — terminal limitation)
+
 ### cleanup-contamination.sh
 **Purpose**: Detect and remove grok-code-fast-1 tool response contamination from files
 
