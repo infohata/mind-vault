@@ -1,0 +1,20 @@
+# Pre-commit hooks for mind-vault
+#
+# First-time setup:
+#   pipx install pre-commit          # (or: pip install --user pre-commit)
+#   pre-commit install               # installs the git hook
+#
+# One-time sweep across all existing files:
+#   pre-commit run --all-files
+#
+# Bump pinned versions later:
+#   pre-commit autoupdate
+
+repos:
+  - repo: https://github.com/executablebooks/mdformat
+    rev: 0.7.17
+    hooks:
+      - id: mdformat
+        additional_dependencies:
+          - mdformat-gfm # GitHub-flavored markdown (tables, task lists, etc.)
+          - mdformat-frontmatter # preserves YAML frontmatter

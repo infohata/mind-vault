@@ -1,135 +1,83 @@
 ---
 name: django
-description: Apply global cross-project Django backend dev conventions for models, views, signals, Channels, DRF, and all backend architecture before hitting templates or JS.
+description: Apply cross-project Django backend conventions — BaseModel abstractions, DRF viewsets, ORM optimisation (select_related / prefetch_related), multi-tenancy boundaries, generic-FK patterns, permission probes, and translation workflow — before hitting templates.
 license: MIT
-compatibility: opencode
 metadata:
   author: mind-vault
-  version: "4.1"
+  version: '5.0'
   replaces:
-     - django-architecture
-     - django-async-websocket
-     - django-celery
-     - django-multi-tenant
-     - django-celery-multitenant
-     - django-async-websocket-multitenant
+    - django-architecture
+    - django-async-websocket
+    - django-celery
+    - django-multi-tenant
+    - django-celery-multitenant
+    - django-async-websocket-multitenant
 ---
 
-## Overview
+# django
 
-Core Django project architecture patterns for organizing models, views,
-serializers, and middleware. Covers BaseModel abstractions, DRF conventions,
-ASGI setup, database optimization, testing strategies, and development workflows.
+Core Django backend patterns for project organisation, model abstractions, DRF conventions, ORM optimisation, middleware, and testing. Applies identically across single-tenant and multi-tenant projects; specialised concerns (Channels, Celery, multi-tenancy, i18n) live in `references/`.
 
-**This skill covers**:
- - Project structure and organization
- - BaseModel abstractions (soft deletes, timestamps, BigAutoField)
- - Settings & environment configuration
- - DRF ViewSets, permissions, serializers
- - Mixins for reusable view functionality
- - Middleware patterns
- - ASGI configuration (basic)
- - Database optimization (N+1 prevention, batch operations, queryset patterns)
- - Performance monitoring
- - Logging configuration and audit trails
- - Translation workflows and locale handling
- - Testing patterns and best practices
- - Development workflow and environment management
+**Pairs with:** [django-frontend](../django-frontend/SKILL.md) for HTMX / Alpine / Bulma template patterns. Load both on full-stack feature work (e.g. a view that returns an HTMX partial on `HX-Request`).
 
-**Optional Extensions** (load on-demand):
- - [Multi-Tenant Architecture](references/MULTI_TENANT.md) - Schema-per-tenant isolation
- - [Async WebSocket](references/ASYNC_WEBSOCKET.md) - Real-time communication
- - [Celery Background Tasks](references/CELERY.md) - Async job processing
- - [Logging Patterns](references/LOGGING.md) - Structured logging and monitoring
- - [Internationalization](references/I18N.md) - Translation workflows and locale handling
- - [Testing Patterns](references/TESTING.md) - Comprehensive testing strategies
- - [Development Workflow](references/DEVELOPMENT_WORKFLOW.md) - Environment config and processes
+**Optional extensions** (load on demand):
 
-**Combined Patterns**:
-- [Multi-Tenant + Async](references/MULTI_TENANT_ASYNC.md) - WebSocket with tenants
-- [Multi-Tenant + Celery](references/MULTI_TENANT_CELERY.md) - Tasks with tenants
+- [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation (django-tenants)
+- [Async WebSocket](references/ASYNC_WEBSOCKET.md) — Channels consumers and routing
+- [Celery Background Tasks](references/CELERY.md) — async job processing
+- [Logging Patterns](references/LOGGING.md) — structured logging and audit trails
+- [Internationalization](references/I18N.md) — translation workflow, fuzzy-wipe, locale testing
+- [Testing Patterns](references/TESTING.md) — query-count asserts, locale enforcement, isolation
+- [Development Workflow](references/DEVELOPMENT_WORKFLOW.md) — env config, Docker dev-loop
+- [Multi-Tenant + Async](references/MULTI_TENANT_ASYNC.md)
+- [Multi-Tenant + Celery](references/MULTI_TENANT_CELERY.md)
 
-## When to Use
+## When to use
 
-**Use this skill when**:
-- Starting a new Django project
-- Organizing app structure and models
-- Setting up DRF viewsets and permissions
-- Configuring middleware and ASGI
-- Extracting common patterns into mixins/base classes
-- Optimizing database queries
-- Adding performance monitoring
+**TRIGGER when:** editing a Django project (`manage.py`, `models.py`, `views.py`, `serializers.py`, `admin.py`, `migrations/`); adding a DRF endpoint, viewset, or permission; touching BaseModel / mixins / middleware; running `makemessages`; debugging N+1 or query-count issues.
 
-**Load additional references when**:
-- Multi-tenancy required → [MULTI_TENANT.md](references/MULTI_TENANT.md)
-- Real-time features needed → [ASYNC_WEBSOCKET.md](references/ASYNC_WEBSOCKET.md)
-- Background tasks needed → [CELERY.md](references/CELERY.md)
-- Combining patterns → [MULTI_TENANT_ASYNC.md](references/MULTI_TENANT_ASYNC.md) or [MULTI_TENANT_CELERY.md](references/MULTI_TENANT_CELERY.md)
+**SKIP for:** template-only work (use [django-frontend](../django-frontend/SKILL.md)); pure-frontend JS; non-Django Python projects (FastAPI / Flask / Starlette have different idioms); DevOps without code (use [deployment](../deployment/SKILL.md)).
 
 ## Pattern
 
-### Project Structure
+### Project structure
 
-**Standard Django layout with infrastructure separation**:
+Infrastructure at repo root, Django code under `web/`:
 
-```
+```text
 git_repo_root/
-├── docker-compose.yml              # Infrastructure
+├── docker-compose.yml         # Infrastructure
 ├── Dockerfile
 ├── nginx/
 ├── docs/
 ├── tools/
-│
-└── web/                            # ← All Django code here
+└── web/                       # ← All Django code here
     ├── manage.py
     ├── requirements.txt
     ├── .env.example
-    ├── project/                    # Project settings
-    │   ├── __init__.py
-    │   ├── settings.py
-    │   ├── asgi.py
-    │   └── urls.py
-    ├── core/                       # Shared utilities
-    │   ├── models.py               # BaseModel
-    │   ├── mixins.py
-    │   ├── permissions.py
-    │   └── middleware.py
-    ├── auth/                       # Authentication app
-    ├── api/                        # Main API endpoints
-    └── [feature]/                  # Feature-specific apps
+    ├── project/               # settings.py, urls.py, asgi.py
+    ├── core/                  # BaseModel, mixins, permissions, middleware
+    ├── auth/
+    ├── api/
+    └── [feature]/
 ```
 
-**Why `web/` subdirectory**:
-- Clean separation: Infrastructure at repo root, Django code in `web/`
-- Docker-friendly: `web/` service mounts to `/app` in container
-- Django code self-contained: `web/` has everything Django needs
+**Why `web/`:** clean separation of infra vs. app code. Docker's `web` service mounts `web/` to `/app` in the container, keeping Django self-contained and infra isolated from the Python path.
 
-### Docker Generated Migrations (Ownership Bypass)
+### Type hints and docstrings
 
-When generating new migrations from within a Docker container (e.g. via `docker compose exec`), the resulting files are created with `root` ownership. This prevents the host machine (or AI agents) from editing data migrations later.
+Mandatory on all function signatures and classes. Explicit arg/return types (`def process(data: dict) -> bool:`) and a descriptive docstring per class / function / method.
 
-**Bypass Pattern**: Regain host ownership by running `chown` from *within* docker using your host's UID/GID:
-```bash
-CURRENT_UID=$(id -u); CURRENT_GID=$(id -g); docker compose exec web chown -R $$CURRENT_UID:$$CURRENT_GID /app/your_app/migrations
-```
-This is a universal, project-agnostic pattern to fix permissions without disrupting the container context.
+### BaseModel abstraction
 
-### Type Hinting & Documentation
-
-**Strict typing and docstrings are mandatory** across all project code:
-- **Type Annotations**: All function and method signatures must explicitly declare argument and return types (e.g., `def process(data: dict) -> bool:`).
-- **Docstrings**: Every class, function, and method must have a descriptive docstring explaining its purpose, arguments, and return value.
-
-### BaseModel Abstraction
-
-**Create abstract base models to reduce duplication**:
+Reduce duplication with an abstract base:
 
 ```python
 # core/models.py
 from django.db import models, transaction
 
 class BaseModel(models.Model):
-    """Abstract base model with common fields."""
+    """Abstract base with timestamps and soft-delete support."""
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
@@ -137,100 +85,194 @@ class BaseModel(models.Model):
     class Meta:
         abstract = True
         indexes = [
-            models.Index(fields=['created_at']),
-            models.Index(fields=['updated_at']),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["updated_at"]),
         ]
 
     def soft_delete(self):
-        """Mark as deleted instead of removing."""
+        """Atomic soft-delete with row lock to prevent double-delete races."""
         with transaction.atomic():
             obj = self.__class__.objects.select_for_update().get(pk=self.pk)
             if obj.is_deleted:
                 return False
             obj.is_deleted = True
-            obj.save(update_fields=['is_deleted', 'updated_at'])
+            obj.save(update_fields=["is_deleted", "updated_at"])
             return True
 ```
 
-**Use in your models**:
+**PK convention:** `id = models.BigAutoField(primary_key=True)` on concrete models — future-proof vs. 32-bit integer overflow; Django 3.2+ defaults to this for new projects but legacy apps often still use `AutoField`.
+
+✅ DO: `Article.objects.filter(is_deleted=False)` — explicit filter on every query surface.
+❌ DON'T: `Article.objects.all()` — will include soft-deleted rows and leak them to the UI.
+
+**When NOT to soft-delete:** audit logs (never delete), temporary/cache data (hard delete), FK-integrity-critical records (soft deletes break cascades and `on_delete=PROTECT`).
+
+### Multi-tenancy vs. ForeignKey boundaries
+
+For projects using schema-based isolation (`django-tenants`):
+
+- **Tenant-schema tables** (Articles, Events, Scopes): **no** `org`/`tenant` FK — the PostgreSQL schema itself is the isolation. Tenant-local BaseModel without the org column.
+- **Public-schema tables** (Users, Billing, Subscriptions, Organization directory): live in `public`. Use an `OwnedModel` mixin with the `org` FK here.
+
+Getting this wrong (FK on tenant-schema tables) duplicates the schema isolation at the row level, wastes indexes, and turns every tenant-scoped query into a needless `WHERE org_id = ?` on top of the already-scoped schema.
+
+### Generic foreign keys and polymorphism
+
+When a model references heterogeneous types (AI context item pointing to Article / Event / Property), use `contenttypes.GenericForeignKey` via a reusable mixin:
 
 ```python
-class Article(BaseModel):
-    title = models.CharField(max_length=255)
-    content = models.TextField()
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
+# core/mixins.py
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+from django.db import models
+
+class GenericFKMixin(models.Model):
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey("content_type", "object_id")
 
     class Meta:
-        ordering = ['-created_at']
+        abstract = True
+        indexes = [models.Index(fields=["content_type", "object_id"])]
 ```
 
-**Primary key conventions**:
-```python
-class Article(BaseModel):
-    # Use BigAutoField for primary keys (handles large datasets)
-    id = models.BigAutoField(primary_key=True)
-    title = models.CharField(max_length=255)
-```
-
-**Critical**: Always filter soft-deleted records:
+**Critical caveat — Django ticket #30214:** `Meta.indexes` declared on an abstract parent are **NOT** propagated when a concrete subclass defines its own `Meta` (which it almost always does). Consumers must manually re-declare:
 
 ```python
-# Correct
-Article.objects.filter(is_deleted=False)
+class ConversationContextItem(GenericFKMixin, models.Model):
+    conversation = models.ForeignKey("Conversation", on_delete=models.CASCADE)
 
-# Wrong - includes deleted records!
-Article.objects.all()  # ❌
-```
-
-### Schema-based Multi-tenancy vs FKs
-
-When using purely schema-based multi-tenancy (e.g., `django-tenants`), **do not** place an `org` or `tenant` Foreign Key on models that reside in the tenant schema. The PostgreSQL schema provides the isolation.
-- Use tenant-local BaseModel derivatives without an `org` FK for these tables.
-- Reserve abstract mixins like `OwnedModel` (which contain the `org` FK) **strictly** for tables that live in the `public` schema (e.g. Users, Billing, Subscriptions, Organization directories).
-
-### Generic Foreign Keys and Polymorphism
-
-When an object needs to reference heterogeneous models dynamically (e.g., an AI Context Manager pointing to Articles, Events, or Properties), use Django's `contenttypes` framework (`GenericForeignKey`).
-
-**Critical Performance Convention**: When querying models that contain a Generic Foreign Key, you **must** use `prefetch_related("content_object")` to resolve the related objects, otherwise Django will trigger a massive N+1 database querying storm when serializing or rendering the generic references.
-```python
-# Correct pattern for resolving GFKs
-context_items = ConversationContextItem.objects.filter(
-    conversation_id=conv.id
-).select_related("content_type").prefetch_related("content_object")
-```
-
-**DRY Mixin Pattern**: Do not redefine `content_type`, `object_id`, and `content_object` fields inline across multiple models. Extract them into a reusable abstract mixin (e.g., `GenericFKMixin`) in your core app.
-
-**Important Indexing Caveat (Django #30214)**: `Meta.indexes` from abstract parents are **not** propagated if a subclass defines its own `Meta` (which is almost always). Consumers of the mixin must manually re-declare the composite index:
-```python
-class PolymorphicChild(GenericFKMixin, models.Model):
     class Meta:
         indexes = [
-            # MUST manually mirror the indexing from the mixin
-            models.Index(fields=["content_type", "object_id"]),
-            # ... other indexes
+            models.Index(fields=["content_type", "object_id"]),  # MUST mirror the mixin
+            models.Index(fields=["conversation"]),
         ]
 ```
 
-### Gettext Translation Safety (Fuzzy matching)
+**N+1 prevention:** always `prefetch_related("content_object")` when iterating — Django otherwise fires one query per row to resolve the generic reference:
 
-By default, GNU Gettext's `msgmerge` (invoked by Django's `makemessages`) uses aggressive fuzzy-matching heuristics. If a new string is added, gettext will often guess its translation based on similar older strings, appending a `#, fuzzy` marker.
-If your deployment pipeline strips `#, fuzzy` flags or simply ignores them, these wrong guesses will silently burn bad translations into the compiled `.mo` files affecting the production UI.
-
-**Required Safeguard**: Never let fuzzy mappings persist lock-in. Embed a `msgattrib --clear-fuzzy --empty` wipe instantly into your translation extraction workflow.
-```Makefile
-# Makefile
-translate-extract:
-	docker compose exec web python manage.py makemessages -a --no-obsolete
-	@echo "Wiping fuzzy heuristics to prevent silent UI corruption"
-	docker compose exec -T web sh -c 'for po in /app/*/locale/*/LC_MESSAGES/django.po; do [ -f "$$po" ] && msgattrib --clear-fuzzy --empty -o "$$po" "$$po" || true; done'
+```python
+items = (
+    ConversationContextItem.objects
+    .filter(conversation_id=conv.id)
+    .select_related("content_type")
+    .prefetch_related("content_object")
+)
 ```
-This guarantees all incorrect fuzzy guesses instantly become `""`, forcing explicit translation and letting CI tools reliably detect missing strings.
 
-### Settings & Configuration
+### DRF — base viewset and permissions
 
-**Organize settings with environment variables**:
+```python
+# core/views.py
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+
+class BaseViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return super().get_queryset()  # subclasses add select_related / prefetch_related
+```
+
+```python
+# core/permissions.py
+from rest_framework.permissions import BasePermission
+
+class IsResourceOwner(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.author == request.user
+```
+
+### Permission DRY-ness via probe pattern
+
+**Never duplicate authorisation logic** between DRF `BasePermission` classes and plain Django views / forms / template tags. The DRF permission class is the single source of truth.
+
+When checking permission in a non-DRF context, build a synthetic DRF request and feed it to the same permission class:
+
+```python
+# core/permissions.py — helper
+def build_drf_request(django_request, data=None):
+    from rest_framework.request import Request
+    drf_req = Request(django_request)
+    if data is not None:
+        drf_req._data = data
+    return drf_req
+
+# usage in a Django FBV/CBV or template tag
+drf_request = build_drf_request(request, data=request.POST)
+has_perm = CanManageArticles().has_permission(drf_request, None)
+```
+
+✅ DO: Reuse the DRF permission class via a probe for consistent authz across endpoints.
+❌ DON'T: Reimplement "is this user allowed?" in a template tag or form — divergence from DRF is a permission bypass waiting to happen.
+
+### Reusable view mixins
+
+```python
+# core/mixins.py
+
+class SoftDeleteMixin:
+    """Use with ModelViewSet — DELETE becomes soft-delete."""
+    def perform_destroy(self, instance):
+        instance.soft_delete()
+
+class AuditMixin:
+    """Stamps created_by / updated_by on writes."""
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+```
+
+Stack them on viewsets:
+
+```python
+class ArticleViewSet(AuditMixin, SoftDeleteMixin, BaseViewSet):
+    queryset = Article.objects.filter(is_deleted=False)
+    serializer_class = ArticleSerializer
+```
+
+HTMX-aware template selection and response-type switching lives in [django-frontend](../django-frontend/SKILL.md).
+
+### Middleware
+
+Request-context middleware pattern (classic class-based style):
+
+```python
+# core/middleware.py
+from django.utils import timezone
+
+class RequestContextMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        request.user_context = {
+            "user_id": request.user.id if request.user.is_authenticated else None,
+            "timestamp": timezone.now(),
+        }
+        return self.get_response(request)
+```
+
+### ASGI configuration
+
+HTTP-only app — the one-liner suffices:
+
+```python
+# project/asgi.py
+import os
+from django.core.asgi import get_asgi_application
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "project.settings")
+application = get_asgi_application()
+```
+
+For WebSocket/Channels routing (protocol router, auth middleware stack, consumers), see [references/ASYNC_WEBSOCKET.md](references/ASYNC_WEBSOCKET.md).
+
+### Settings
+
+Environment-driven configuration:
 
 ```python
 # project/settings.py
@@ -239,121 +281,97 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Environment-based configuration
-SECRET_KEY = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
-DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+SECRET_KEY = os.getenv("SECRET_KEY", "dev-key-change-in-production")
+DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
-# Database
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'project_db'),
-        'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
-        'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '600')),
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME", "project_db"),
+        "USER": os.getenv("DB_USER", "postgres"),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "HOST": os.getenv("DB_HOST", "localhost"),
+        "PORT": os.getenv("DB_PORT", "5432"),
+        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "600")),
     }
 }
 ```
 
-**For comprehensive environment configuration patterns**: See [DEVELOPMENT_WORKFLOW.md](references/DEVELOPMENT_WORKFLOW.md)
+For URL-encoded `DATABASE_URL` parsing and typed casting, use `django-environ` or `python-decouple` — see [references/DEVELOPMENT_WORKFLOW.md](references/DEVELOPMENT_WORKFLOW.md).
 
-### DRF Patterns
+### Docker-generated migrations — ownership bypass
 
-**Base ViewSet with common functionality**:
+`docker compose exec web python manage.py makemigrations` creates files owned by `root` (the container user), blocking host-side edits and AI-agent rewrites. Chown from inside the container using the host's UID/GID:
 
-```python
-# core/views.py
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-
-class BaseViewSet(viewsets.ModelViewSet):
-    """Base viewset with common functionality."""
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        # Add select_related/prefetch_related as needed
-        return queryset
+```bash
+CURRENT_UID=$(id -u) CURRENT_GID=$(id -g) \
+  docker compose exec web chown -R $CURRENT_UID:$CURRENT_GID /app/your_app/migrations
 ```
 
-**Permission classes**:
+Wrap in a Makefile target so it's one command:
 
-```python
-# core/permissions.py
-from rest_framework.permissions import BasePermission
-
-class IsResourceOwner(BasePermission):
-    """Only allow resource owner to modify."""
-    def has_object_permission(self, request, view, obj):
-        return obj.author == request.user
+```makefile
+makemigrations:
+	docker compose exec web python manage.py makemigrations
+	docker compose exec web chown -R $$(id -u):$$(id -g) /app
 ```
 
-**Use in viewsets**:
+### ORM optimisation — N+1 prevention
 
 ```python
-class ArticleViewSet(BaseViewSet):
-    queryset = Article.objects.filter(is_deleted=False)
-    serializer_class = ArticleSerializer
-    permission_classes = [IsAuthenticated, IsResourceOwner]
+# ❌ N+1 storm — one query per article to fetch author
+articles = Article.objects.all()
+for article in articles:
+    print(article.author.name)
+
+# ✅ single join
+articles = Article.objects.select_related("author")
+
+# ✅ prefetch for reverse FK / M2M
+articles = Article.objects.prefetch_related("comments")
 ```
 
-### Permission DRY-ness via Probes
-
-**Never duplicate authorization logic** between DRF `BasePermission` classes and standard Django views, forms, or template tags. Treat DRF permissions as the single source of truth.
-
-When you need to evaluate permission in a non-DRF context, use a "permission probe" pattern to build a synthetic DRF request and feed it to the exact same `BasePermission` class:
+Batch update instead of loop-save:
 
 ```python
-# Create a synthetic DRF request to reuse the DRF BasePermission
-drf_request = build_drf_request(request, data=request.POST) 
-has_perm = CanManageArticles().has_permission(drf_request, None)
+# ❌ one UPDATE per row
+for article in articles:
+    article.status = "published"
+    article.save()
+
+# ✅ one UPDATE total
+Article.objects.filter(status="draft").update(status="published")
 ```
 
-### Mixins and Reusable Patterns
+**When NOT to optimise:** small result sets (\<10 rows), related objects not accessed in the code path, measured impact negligible. Premature `select_related` over-fetches columns and can make things worse.
 
-**Create mixins for common view functionality**:
+**Assert query count in tests:**
 
 ```python
-# core/mixins.py
+from django.test import TestCase
 
-class SoftDeleteMixin:
-    """Handle soft delete operations."""
-    def perform_destroy(self, instance):
-        instance.soft_delete()
-
-class AuditMixin:
-    """Track who created/updated objects."""
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
-    
-    def perform_update(self, serializer):
-        serializer.save(updated_by=self.request.user)
-
-class HTMXMixin:
-    """Handle HTMX requests and responses."""
-    def get_template_names(self):
-        if self.request.htmx:
-            return [f"{self.model._meta.app_label}/partials/{self.model._meta.model_name}_form.html"]
-        return super().get_template_names()
+class ArticleTest(TestCase):
+    def test_list_query_count(self):
+        with self.assertNumQueries(2):
+            articles = Article.objects.prefetch_related("tags")
+            for article in articles:
+                list(article.tags.all())
 ```
 
-**Use mixins in views**:
+### Formsets with `UniqueConstraint`
 
-```python
-class ArticleViewSet(
-    AuditMixin, SoftDeleteMixin,  # Reusable functionality
-    viewsets.ModelViewSet
-):
-    queryset = Article.objects.filter(is_deleted=False)
-    serializer_class = ArticleSerializer
-```
+When a model has `UniqueConstraint(fields=["author", "preset"])`, a naive formset submission with duplicate rows raises `IntegrityError` — which bubbles to the user as a 500.
 
-### String Building with Optional Parts
+**Belt-and-braces pattern:**
 
-When building strings from optional parts (append B to A, or use only B when A is empty), prefer `filter(None, [...])` + `join`:
+1. **Formset-level `clean()`** — subclass `BaseModelFormSet`, collect constrained fields from each form's `cleaned_data` (skip deleted), raise `ValidationError` on duplicates with a clear message.
+2. **View-level `try/except IntegrityError`** — catches races the clean pass missed, adds a user-facing error instead of 500.
+3. **Shared table UI** — JS contract (TOTAL_FORMS, template cloning, reindexing on delete) lives in [django-frontend](../django-frontend/SKILL.md).
+
+### String building with optional parts
+
+Append B to A, or use only B when A is empty:
 
 ```python
 body = (base_value or "").strip()
@@ -362,289 +380,76 @@ if optional_part:
     body = "\n".join(filter(None, [body, line]))
 ```
 
-- **Non-empty base**: both kept, joined by newline.
-- **Empty base**: `filter(None, [...])` drops empty strings; result is just the new part.
-- Avoids ternaries and explicit if/else for append vs replace logic.
+- Non-empty base: both kept, joined by newline.
+- Empty base: `filter(None, [...])` drops the empty string; result is just the new part.
+- Avoids the ternary / if-else ceremony for append-vs-replace.
 
-### Safe URL Query String Generation
+### Date / time / timezone
 
-**Never build query strings manually with string concatenation in templates**, as this exposes the application to URL-encoding fractures and HTML-entity parsing bugs (e.g., `&copy` rendering as `©`). 
+**Centralise timezone handling** in one module (convention: `core/timezone_utils.py`): `get_timezone_object`, `normalize_to_user_tz`, `validate_timezone_string`, `get_available_timezone_names`. All call sites (DRF serializers, consumers, template tags, auth forms) go through it so zoneinfo/pytz fallback and exception handling live in one place.
 
-**Pattern**: Create and use a `{% query_string %}` custom template tag that wraps Python's `urllib.parse.urlencode()`.
+**Sensible-date validation:** for forms/APIs accepting a `date`, use shared min/max constants (from env) and one `validate_sensible_date(value)` raising `ValidationError` on out-of-range. HTML5 widget attrs (`min`, `max`) come from the same constants.
 
-```django
-<!-- ❌ WRONG: Fragile, unescaped, prone to entity bugs -->
-<a href="?property={{ property.id }}&scope={{ scope.id }}&copy_context_from={{ conv.id }}">
+**All-day events in iCal export:** date-only events use the user's daily reminder time (e.g. 09:00) so "1 day before" resolves to 09:00 on the previous day. Compute the absolute trigger in a shared helper taking `(event_date, event_time, preset, user_tz, daily_reminder_time)` — both the iCal exporter and the in-app notification scheduler go through it.
 
-<!-- ✅ CORRECT: Safe, auto-escaped, fully URL-encoded -->
-{% load core_tags %}
-<a href="{% query_string property=property.id scope=scope.id copy_context_from=conv.id %}">
-```
+### Translation workflow
 
-- **Why**: `urlencode` safely encodes spaces/special chars, drops `None` values, and outputs safe `&` separators which Django's HTML auto-escaper catches and safely converts into `&amp;` in the DOM layout.
+**Never edit `.po` files directly** — they are clobbered on the next `makemessages` run.
 
+Canonical flow:
 
-### Formsets (modelformset with unique constraints)
+1. Add user-facing `msgid` entries to the project's translation-map script (convention: `tools/translation_maps/<lang>.py`).
+2. `make translate-extract` — runs `makemessages` + Docker-chown + fuzzy-wipe.
+3. `make translate-fill` — applies map values into `.po`.
+4. `make translate-audit` — catches carryovers, placeholder parity mismatches, fuzzy residue.
+5. `make translate-compile` — produces `.mo` files.
 
-When a model has a **UniqueConstraint** (e.g. `(author, preset)`), the formset must prevent duplicate rows or save will raise **IntegrityError** and leave the user with a 500.
+Key gotcha — **Gettext fuzzy matching**: `msgmerge` appends `#, fuzzy` markers to guessed translations. If the pipeline strips the flag without wiping the msgstr, bad guesses burn into the `.mo` files. The extract target must invoke `msgattrib --clear-fuzzy --empty` to reset all fuzzy entries to empty msgstr, forcing explicit re-translation.
 
-**Pattern**:
-1. **Formset-level validation**: Subclass `BaseModelFormSet`, override `clean()`, and collect the constrained field(s) from each form's `cleaned_data`. If any value is repeated (excluding deleted forms), raise `forms.ValidationError` with a clear message (e.g. "Duplicate reminder: you already have …").
-2. **View safety net**: In the view, wrap the formset save loop in `try/except IntegrityError`. On exception, add an error message and re-render the form so the user can fix duplicates instead of seeing a 500.
-3. **Shared table UI**: For multiple formsets (e.g. event reminders, profile defaults), use a shared partial (management form + table + add button) and a small JS module that handles TOTAL_FORMS, cloning the empty-form template, and reindexing on delete. Same contract (prefix, template id, tbody id, row class) keeps backend and frontend in sync.
+Full workflow detail in [references/I18N.md](references/I18N.md). Hard rules across projects in [`RULE_i18n-workflow`](../../rules/RULE_i18n-workflow.md).
 
-**Why**: Duplicate (author, preset) is a common mistake when users add two rows with the same option; validating in the formset gives a clear error; catching IntegrityError handles races and edge cases.
+### Testing UI strings under locale
 
-### Date/time and timezone
+When test assertions inspect response content for string presence (error messages, labels, alerts), force English explicitly — don't rely on host locale:
 
-**Centralize timezone handling** in one module (e.g. `core/timezone_utils.py`): `get_timezone_object`, `normalize_to_user_tz`, `validate_timezone_string`, `get_available_timezone_names`. Migrate all call sites (consumers, templatetags, auth forms/views) to use it so zoneinfo/pytz fallback and exception handling live in one place.
-
-**Sensible date validation**: For forms and API that accept a `date` field, use shared constants (e.g. min/max from env) and a single `validate_sensible_date(value)` that raises `ValidationError` if out of range. Add widget attrs (min/max) for HTML5 date inputs from the same constants. Roll out incrementally (event/form serializer first, then other date-bearing forms when touched).
-
-**All-day events and reminder time**: When exporting calendar events (e.g. iCal), for **date-only** (all-day) events use the user's **daily reminder time** (e.g. 09:00) so "1 day before" becomes that time on the previous day; export as absolute DATE-TIME in UTC. For timed events, keep relative TRIGGER (e.g. -PT15M). Compute the absolute trigger with a shared helper that takes event date, event time (or None), preset, user timezone, and daily_reminder_time.
-
-### Middleware Patterns
-
-**Custom middleware for request context**:
-
-```python
-# core/middleware.py
-from django.utils import timezone
-
-class RequestContextMiddleware:
-    """Add context to request for downstream use."""
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        user_id = request.user.id if request.user.is_authenticated else None
-        request.user_context = {
-            'user_id': user_id,
-            'timestamp': timezone.now(),
-        }
-        response = self.get_response(request)
-        return response
-```
-
-**Add to settings**:
-
-```python
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'core.middleware.RequestContextMiddleware',  # Your custom middleware
-]
-```
-
-### ASGI Configuration (Basic)
-
-**Pragmatic single-server setup with Daphne**:
-
-```python
-# project/asgi.py
-import os
-from django.core.asgi import get_asgi_application
-
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'project.settings')
-
-django_asgi_app = get_asgi_application()
-
-async def application(scope, receive, send):
-    """Single entry point for all HTTP/WebSocket."""
-    if scope['type'] == 'http':
-        await django_asgi_app(scope, receive, send)
-    else:
-        # WebSocket handling
-        await django_asgi_app(scope, receive, send)
-```
-
-**For WebSocket support**: See [ASYNC_WEBSOCKET.md](references/ASYNC_WEBSOCKET.md)
-
-### Database Optimization
-
-**Prevent N+1 query problems**:
-
-```python
-# Wrong: N+1 queries
-articles = Article.objects.all()
-for article in articles:
-    print(article.author.name)  # ❌ One query per article!
-
-# Correct: Select related
-articles = Article.objects.select_related('author')
-for article in articles:
-    print(article.author.name)  # ✅ Only 2 queries total
-
-# Correct: Prefetch related (many-to-many)
-articles = Article.objects.prefetch_related('comments')
-for article in articles:
-    for comment in article.comments.all():  # ✅ Only 2 queries total
-        print(comment.text)
-```
-
-**Batch operations**:
-
-```python
-# Inefficient
-for article in articles:
-    article.status = 'published'
-    article.save()  # ❌ One query per article!
-
-# Efficient
-Article.objects.filter(status='draft').update(status='published')  # ✅ One query!
-```
-
-**Queryset optimization patterns**:
-
-```python
-# List views - optimize for display
-def get_queryset(self):
-    return Article.objects.select_related(
-        'category', 'author', 'scope'
-    ).prefetch_related('tags').order_by('-created_at')
-
-# Detail views - optimize for single object access
-def get_queryset(self):
-    return Article.objects.select_related(
-        'category', 'category__parent', 'author', 'scope'
-    ).prefetch_related('tags', 'events', 'events__attachments')
-```
-
-**When NOT to optimize**:
-- Query used once with small result sets (< 10 items)
-- Related objects not accessed in templates/views
-- Performance impact negligible
-
-**Test query optimization**:
-```python
-from django.test import TestCase
-
-class ArticleTest(TestCase):
-    def test_queryset_optimization(self):
-        with self.assertNumQueries(2):  # Articles + prefetched tags
-            articles = Article.objects.prefetch_related('tags')
-            for article in articles:
-                list(article.tags.all())
-```
-
-### Performance Monitoring
-
-**Decorator-based timing and alerting**:
-
-```python
-# core/decorators.py
-import time
-import logging
-from functools import wraps
-
-logger = logging.getLogger(__name__)
-
-def monitor_performance(operation_name, warn_threshold_ms=1000):
-    """Alert if operation takes longer than threshold."""
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            start = time.time()
-            try:
-                result = func(*args, **kwargs)
-                return result
-            finally:
-                elapsed_ms = (time.time() - start) * 1000
-                if elapsed_ms > warn_threshold_ms:
-                    logger.warning(
-                        f"{operation_name} took {elapsed_ms:.1f}ms "
-                        f"(threshold: {warn_threshold_ms}ms)"
-                    )
-        return wrapper
-    return decorator
-```
-
-**Use in views**:
-
-```python
-class ArticleViewSet(BaseViewSet):
-    @monitor_performance('list_articles', warn_threshold_ms=500)
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
-```
-
-## When NOT to Use These Patterns
-
-### BaseModel Soft Deletes
-- **Don't use for audit logs** (never delete, keep all history)
-- **Don't use for temporary data** (should hard delete)
-- **Don't use if you need referential integrity** (soft deletes break FK constraints)
-
-### ASGI with Daphne
-- **Don't use if no WebSocket/async needs** (Gunicorn is more mature)
-- **Don't use for high-traffic HTTP-only APIs** (performance overhead)
-
-### Performance Monitoring
-- **Don't add to every method** (only critical paths)
-- **Don't use in development** (affects debugging)
-
-## Translation Workflow (No Manual .po Editing)
-
-**CRITICAL**: Never manually edit `.po` files. Teisutis uses a scripted translation map workflow.
-
-**Workflow process**:
-1. Add newly introduced, user-facing `msgid` entries into the appropriate python dictionary file inside `tools/translation_maps/*.py`.
-2. Extract your new strings: `make translate-extract` (or `make manage ARGS="makemessages -l lt ..."` if limiting scope)
-3. Inject map values into `.po` targets: `make translate-fill`
-4. Compile final translations: `make translate-compile`
-
-Manual changes in `.po` files WILL be obliterated by the next `make translate-fill` or automated CI pipeline.
-
-### Testing UI Strings & Locale Enforcement
-
-When writing test assertions that inspect HTTP responses for string presence (e.g. error messages, success alerts, or static labels), the test execution environment must be entirely deterministic regardless of the host's default locale.
-
-**Pattern**: Force tests to execute in plain English using Django's `@override_settings` and `activate()`:
 ```python
 from django.test import override_settings
 from django.utils.translation import activate
 
-@override_settings(LANGUAGE_CODE='en')
-def test_some_ui_endpoint(self):
-    activate('en')
-    # ... test logic
-    self.assertIn("Expected English String", response.content.decode())
+@override_settings(LANGUAGE_CODE="en")
+def test_error_message(self):
+    activate("en")
+    response = self.client.post(url, bad_data)
+    self.assertIn("Expected English string", response.content.decode())
 ```
-**Why**: Avoids brittle tests that pass locally but fail in CI if the locale defaults to Lithuanian (lt), or fail if translations are incomplete.
 
-## Related References
+Without this, tests pass locally but fail in CI when the container locale differs, or when translations are incomplete. See [references/TESTING.md](references/TESTING.md).
 
-**Core Extensions**:
- - [Multi-Tenant Architecture](references/MULTI_TENANT.md) - Schema-per-tenant isolation
- - [Async WebSocket](references/ASYNC_WEBSOCKET.md) - Real-time communication
- - [Celery Background Tasks](references/CELERY.md) - Async job processing
- - [Logging Patterns](references/LOGGING.md) - Structured logging and monitoring
- - [Internationalization](references/I18N.md) - Translation workflows and locale handling
- - [Testing Patterns](references/TESTING.md) - Comprehensive testing strategies
- - [Development Workflow](references/DEVELOPMENT_WORKFLOW.md) - Environment config and processes
+## When NOT to use these patterns
 
-**Combined Patterns**:
-- [Multi-Tenant + Async](references/MULTI_TENANT_ASYNC.md) - WebSocket with tenants
-- [Multi-Tenant + Celery](references/MULTI_TENANT_CELERY.md) - Tasks with tenants
+- **Non-Django Python projects** (FastAPI, Flask, Starlette) — different idioms; the BaseModel / DRF / ORM patterns map poorly.
+- **Small single-model project** — BaseModel + soft-delete is overhead; a plain `models.Model` is fine.
+- **Microservices / stateless APIs** — audit trails and soft-delete may not apply. Reconsider which patterns you actually need per service.
+- **Fundamentally async app** — if the app is mostly WebSocket/Channels-driven with only a handful of HTTP endpoints, start from [references/ASYNC_WEBSOCKET.md](references/ASYNC_WEBSOCKET.md) and treat the ViewSet pattern as secondary.
 
-**Deployment Integration**:
-- [Deployment Skill](../deployment/SKILL.md) - Production deployment patterns and automation
+## References
 
-## Scripts & Tools
-
-**Automation helpers** (in `scripts/`):
-- `run_tests.sh` - Comprehensive test execution with coverage reports
-
-## External References
-
+- [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation
+- [Async WebSocket](references/ASYNC_WEBSOCKET.md) — Channels consumers and routing
+- [Celery Background Tasks](references/CELERY.md)
+- [Logging Patterns](references/LOGGING.md)
+- [Internationalization](references/I18N.md) — full translation workflow
+- [Testing Patterns](references/TESTING.md)
+- [Development Workflow](references/DEVELOPMENT_WORKFLOW.md)
+- [Multi-Tenant + Async](references/MULTI_TENANT_ASYNC.md)
+- [Multi-Tenant + Celery](references/MULTI_TENANT_CELERY.md)
+- [django-frontend](../django-frontend/SKILL.md) — HTMX / Alpine / Bulma frontend pairing
+- [deployment](../deployment/SKILL.md) — production deployment patterns
+- [surgical-tdd](../surgical-tdd/SKILL.md) — focused test execution
+- [`RULE_i18n-workflow`](../../rules/RULE_i18n-workflow.md) — hard rules for translations
 - [Django Documentation](https://docs.djangoproject.com/)
 - [Django REST Framework](https://www.django-rest-framework.org/)
-- [Django ORM Query Optimization](https://docs.djangoproject.com/en/stable/topics/db/optimization/)
-- [ASGI Specification](https://asgi.readthedocs.io/)
-- [Daphne Documentation](https://github.com/django/daphne)
+- [Django ORM Query Optimisation](https://docs.djangoproject.com/en/stable/topics/db/optimization/)
 
----
-
-**Last Updated**: 2026-02-26
-**Version**: 4.1
-**Replaces**: django-architecture, django-async-websocket, django-celery, django-multi-tenant, django-celery-multitenant, django-async-websocket-multitenant
+**Last Updated**: 2026-04-17
+**Version**: 5.0

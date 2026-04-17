@@ -7,6 +7,9 @@
 # Non-interactive mode (skips all prompts, uses safe defaults):
 #   DEPLOY_NON_INTERACTIVE=1 ./scripts/deploy_update.sh
 #   ./scripts/deploy_update.sh --yes
+#
+# Force recreate services to pick up .env changes (no git diff available for .env):
+#   DEPLOY_RECREATE_ENV=1 ./scripts/deploy_update.sh
 
 set -e
 
@@ -53,8 +56,9 @@ else
     echo "Warning: Could not determine project root. Using current directory."
     echo "Set PROJECT_ROOT environment variable if needed."
 fi
+PROJECT_ROOT="$PWD"
 
-ENV_FILE="$PWD/.env"
+ENV_FILE="$PROJECT_ROOT/.env"
 
 echo "=========================================="
 echo "Deployment Update"
@@ -127,136 +131,220 @@ echo "✅ Code updated"
 echo ""
 
 # Detect change type (customize file patterns for your project)
-# Aligns with Teisutis tools/deploy_update.sh: static includes CSS/JS/images and SCSS/Sass source
 HAS_MIGRATIONS=false
 HAS_STATIC=false
 HAS_DEPENDENCIES=false
+HAS_NGINX_CONFIG=false
+HAS_TRANSLATIONS=false
 
-PREVIOUS_COMMIT=$(git rev-parse HEAD@{1} 2>/dev/null || echo "")
+# Get the commit hash before pull — prefer persistent state (survives crashes/partial deploys).
+# Falls back to git reflog if no state file (e.g. first update after initial deploy).
+# The state file is written at the end of a successful run, so a crashed rerun
+# still compares against the last good deploy, not the broken in-progress one.
+if [ -f "$PROJECT_ROOT/.deploy_commit_state" ]; then
+    PREVIOUS_COMMIT=$(cat "$PROJECT_ROOT/.deploy_commit_state")
+    echo "🔍 Comparing changes against last successful deploy state..."
+else
+    PREVIOUS_COMMIT=$(git rev-parse HEAD@{1} 2>/dev/null || echo "")
+fi
 
 if [ -n "$PREVIOUS_COMMIT" ]; then
-    # Check for migrations (customize patterns)
+    # Check for migrations (customize patterns for non-Django frameworks)
     if git diff "$PREVIOUS_COMMIT" HEAD --name-only | grep -qE "(migrations/|db/migrate)"; then
         HAS_MIGRATIONS=true
     fi
 
-    # Check for static files (CSS, JS, images, and SCSS/Sass source — compile_scss or make build-scss runs when static changed)
+    # Check for static files (CSS, JS, images, and SCSS/Sass source)
     if git diff "$PREVIOUS_COMMIT" HEAD --name-only | grep -qE "\.(css|js|png|jpg|jpeg|gif|svg|ico|scss|sass)$|/scss/|/sass/"; then
         HAS_STATIC=true
     fi
 
     # Check for dependencies
-    if git diff "$PREVIOUS_COMMIT" HEAD --name-only | grep -qE "(requirements.*\.txt|package\.json|Gemfile|Dockerfile)"; then
+    if git diff "$PREVIOUS_COMMIT" HEAD --name-only | grep -qE "(requirements.*\.txt|package\.json|Gemfile|^Dockerfile$)"; then
         HAS_DEPENDENCIES=true
     fi
-    # When rebuilding (deps changed), always run SCSS compile + collectstatic — new code may have SCSS changes
+
+    # Check for nginx / certbot config changes (config files, Dockerfile, entrypoint scripts)
+    if git diff "$PREVIOUS_COMMIT" HEAD --name-only | grep -qE "nginx/.*\.(conf|sh)|nginx/Dockerfile"; then
+        HAS_NGINX_CONFIG=true
+    fi
+
+    # Check for translation file changes (.po files under any locale/ directory)
+    if git diff "$PREVIOUS_COMMIT" HEAD --name-only | grep -qE "locale/.*\.po"; then
+        HAS_TRANSLATIONS=true
+    fi
+
+    # When dependencies changed:
+    # - always run static (new code may have SCSS changes the file-pattern grep missed)
+    # - always run migrations (new packages may ship their own, e.g. django-two-factor-auth's otp_* migrations)
     if [ "$HAS_DEPENDENCIES" = "true" ]; then
         HAS_STATIC=true
+        HAS_MIGRATIONS=true
     fi
 else
-    # If we can't detect changes, ask user or assume minimal changes
+    # Can't auto-detect — ask user or exit in non-interactive mode
     if [ "$IS_INTERACTIVE" = "true" ]; then
         echo "💡 Unable to auto-detect change types. Please specify:"
         read -p "Does this update include database migrations? (yes/no): " mig_confirm
-        if [ "$mig_confirm" = "yes" ]; then
-            HAS_MIGRATIONS=true
-        fi
+        [ "$mig_confirm" = "yes" ] && HAS_MIGRATIONS=true
 
         read -p "Does this update include static files (CSS/JS/SCSS)? (yes/no): " static_confirm
-        if [ "$static_confirm" = "yes" ]; then
-            HAS_STATIC=true
-        fi
+        [ "$static_confirm" = "yes" ] && HAS_STATIC=true
 
         read -p "Does this update include dependency changes? (yes/no): " deps_confirm
         if [ "$deps_confirm" = "yes" ]; then
             HAS_DEPENDENCIES=true
             HAS_STATIC=true
+            HAS_MIGRATIONS=true
         fi
+
+        read -p "Does this update include nginx configuration changes? (yes/no): " nginx_confirm
+        [ "$nginx_confirm" = "yes" ] && HAS_NGINX_CONFIG=true
+
+        read -p "Does this update include translation file changes? (yes/no): " trans_confirm
+        [ "$trans_confirm" = "yes" ] && HAS_TRANSLATIONS=true
     else
-        echo "💡 Non-interactive mode: assuming no migrations or dependencies changed"
+        echo "❌ Error: Unable to auto-detect change types in non-interactive mode"
+        echo "   Ensure git reflog is available or .deploy_commit_state exists"
+        exit 1
     fi
 fi
 
-# Check for .env changes
+# Check for .env changes (user-driven; or force via DEPLOY_RECREATE_ENV=1)
 env_changed="no"
-if [ "$IS_INTERACTIVE" = "true" ]; then
+if [ -n "$DEPLOY_RECREATE_ENV" ] && [ "$DEPLOY_RECREATE_ENV" != "0" ]; then
+    env_changed="yes"
+    echo "🔄 DEPLOY_RECREATE_ENV set — will force-recreate services"
+elif [ "$IS_INTERACTIVE" = "true" ]; then
     read -p "Did you modify .env file? (yes/no): " env_changed
 else
     echo "💡 Non-interactive mode: assuming .env was not modified"
+    echo "   (set DEPLOY_RECREATE_ENV=1 to force-recreate services)"
 fi
 
-# Database backup (before migrations)
+# Database backup (before migrations) — track success for accurate summary
+PRE_MIGRATION_BACKUP_SUCCESS=false
 if [ "$HAS_MIGRATIONS" = "true" ]; then
     echo "💾 Creating database backup before migrations..."
     if [ -f "$SCRIPT_DIR/backup_db.sh" ]; then
-        bash "$SCRIPT_DIR/backup_db.sh" || {
+        if bash "$SCRIPT_DIR/backup_db.sh"; then
+            PRE_MIGRATION_BACKUP_SUCCESS=true
+        else
             echo "⚠️  Warning: Database backup failed, but continuing..."
-        }
+        fi
     else
         echo "⚠️  Warning: backup_db.sh not found, skipping backup"
     fi
     echo ""
 fi
 
-# Handle dependency changes
+# Handle dependency changes (requires rebuild)
 if [ "$HAS_DEPENDENCIES" = "true" ]; then
     echo "🔨 Dependencies changed - rebuilding containers..."
-    echo "   This will take 5-15 minutes..."
-    $DOCKER_COMPOSE build web  # Customize service names
-    $DOCKER_COMPOSE up -d web
+    echo "   This may take several minutes depending on project size."
+    $DOCKER_COMPOSE build web  # Customize: add worker/celery/other services as needed
+    $DOCKER_COMPOSE up -d web  # Customize: add worker/celery/other services as needed
     echo "✅ Containers rebuilt"
     echo ""
 fi
 
-# Handle environment variable changes
+# Handle environment variable changes (requires recreate to pick up new env)
 if [ "$env_changed" = "yes" ]; then
     echo "🔄 Recreating containers to pick up .env changes..."
-    $DOCKER_COMPOSE up -d --force-recreate web  # Customize service names
+    $DOCKER_COMPOSE up -d --force-recreate web  # Customize: add worker/celery/other services
     echo "✅ Containers recreated"
     echo ""
 fi
 
-# Run migrations
+# Run migrations (if needed) — back up again after success as a clean rollback point
+POST_MIGRATION_BACKUP_SUCCESS=false
 if [ "$HAS_MIGRATIONS" = "true" ]; then
     echo "🗄️  Running database migrations..."
-    # Customize for your framework
-    # Django example:
+    # Customize for your framework.
+    # Django single-tenant (default):
     $DOCKER_COMPOSE exec -T web python manage.py migrate || {
         echo "❌ Error: Migrations failed"
-        echo "   Database backup from before migrations is available"
+        echo "   Database backup from before migrations is available in data/"
         exit 1
     }
+    # django-tenants (uncomment if using):
+    # $DOCKER_COMPOSE exec -T web python manage.py migrate_schemas --shared
+    # $DOCKER_COMPOSE exec -T web python manage.py migrate_schemas
     echo "✅ Migrations completed"
+    echo ""
+
+    echo "💾 Creating database backup after successful migrations..."
+    if [ -f "$SCRIPT_DIR/backup_db.sh" ]; then
+        if bash "$SCRIPT_DIR/backup_db.sh"; then
+            POST_MIGRATION_BACKUP_SUCCESS=true
+        else
+            echo "⚠️  Warning: Post-migration backup failed"
+        fi
+    fi
+    echo ""
+fi
+
+# Compile translation messages (if .po files changed)
+SERVICES_RESTARTED=false
+if [ "$HAS_TRANSLATIONS" = "true" ]; then
+    echo "🌐 Compiling translation messages..."
+    $DOCKER_COMPOSE exec -T web python manage.py compilemessages || {
+        echo "⚠️  Warning: Translation compilation failed, continuing..."
+    }
+    echo "✅ Translation messages compiled"
+    # Restart so the newly compiled .mo files are loaded — Django caches the catalogue at startup.
+    # Required especially when HAS_DEPENDENCIES=true: containers were started before compilemessages ran.
+    echo "🔄 Restarting services to load compiled translations..."
+    $DOCKER_COMPOSE restart web  # Customize: add worker/celery if they use translations
+    SERVICES_RESTARTED=true
+    echo "✅ Services restarted after translation compile"
     echo ""
 fi
 
 # Build theme from SCSS/Sass when static changed (then collectstatic)
-# Try host make build-scss first, then Django compile_scss in container (e.g. Teisutis) — one will typically apply
 if [ "$HAS_STATIC" = "true" ]; then
     echo "🎨 Building theme (SCSS/Sass if present)..."
     if [ -f "Makefile" ] && grep -q "build-scss" Makefile 2>/dev/null; then
-        make build-scss || { echo "   (make build-scss skipped or failed)" ; }
+        make build-scss || { echo "   (make build-scss skipped or failed)"; }
     fi
     if $DOCKER_COMPOSE exec -T web python manage.py compile_scss --style compressed 2>/dev/null; then
         echo "   SCSS compiled (Django compile_scss)"
     fi
     echo "📦 Collecting static files..."
-    # Customize for your framework
-    # Django example:
+    # Customize for your framework. Django example:
     $DOCKER_COMPOSE exec -T web python manage.py collectstatic --noinput
     echo "✅ Static files collected"
     echo ""
 fi
 
-# Restart services (for code changes)
-SERVICES_RESTARTED=false
-if [ "$HAS_DEPENDENCIES" != "true" ] && [ "$env_changed" != "yes" ]; then
+# Restart services for code changes
+# Skip if we already restarted for translations, deps rebuild already up -d'd, or env change already force-recreated
+if [ "$HAS_DEPENDENCIES" != "true" ] && [ "$env_changed" != "yes" ] && [ "$SERVICES_RESTARTED" != "true" ]; then
     echo "🔄 Restarting services to pick up code changes..."
-    $DOCKER_COMPOSE restart web  # Customize service names
+    $DOCKER_COMPOSE restart web  # Customize: add worker/celery/other services
     echo "✅ Services restarted"
     SERVICES_RESTARTED=true
     echo ""
 fi
+
+# Rebuild nginx (if nginx config or entrypoints changed)
+if [ "$HAS_NGINX_CONFIG" = "true" ]; then
+    echo "🔨 Rebuilding nginx (configuration changed)..."
+    $DOCKER_COMPOSE build nginx
+    $DOCKER_COMPOSE up -d nginx
+    # Restart certbot if its entrypoint script changed (typical volume-mount pattern).
+    if [ -n "$PREVIOUS_COMMIT" ] && \
+       git diff "$PREVIOUS_COMMIT" HEAD --name-only | grep -q "nginx/certbot-entrypoint.sh"; then
+        echo "🔄 Restarting certbot (entrypoint script changed)..."
+        $DOCKER_COMPOSE restart certbot
+    fi
+    echo "✅ Nginx rebuilt and restarted"
+    echo ""
+fi
+
+# Record successful deployment state — so a crashed rerun doesn't skip migrations
+# by diffing against a bad HEAD@{1}.
+git rev-parse HEAD > "$PROJECT_ROOT/.deploy_commit_state"
 
 # Verify deployment
 echo "📊 Verifying deployment..."
@@ -270,13 +358,28 @@ echo ""
 echo "📋 Summary:"
 echo ""
 if [ "$HAS_MIGRATIONS" = "true" ]; then
-    echo "  ✅ Database migrations applied"
+    echo "  ✅ Migrations applied"
+    if [ "$PRE_MIGRATION_BACKUP_SUCCESS" = "true" ] && [ "$POST_MIGRATION_BACKUP_SUCCESS" = "true" ]; then
+        echo "  ✅ Database backups created (before and after migrations)"
+    elif [ "$PRE_MIGRATION_BACKUP_SUCCESS" = "true" ]; then
+        echo "  ⚠️  Pre-migration backup created, post-migration backup failed or skipped"
+    elif [ "$POST_MIGRATION_BACKUP_SUCCESS" = "true" ]; then
+        echo "  ⚠️  Post-migration backup created, pre-migration backup failed or skipped"
+    else
+        echo "  ⚠️  Database backups failed or were skipped (check warnings above)"
+    fi
+fi
+if [ "$HAS_TRANSLATIONS" = "true" ]; then
+    echo "  ✅ Translation messages compiled"
 fi
 if [ "$HAS_STATIC" = "true" ]; then
     echo "  ✅ Static files collected"
 fi
 if [ "$HAS_DEPENDENCIES" = "true" ]; then
     echo "  ✅ Containers rebuilt"
+fi
+if [ "$HAS_NGINX_CONFIG" = "true" ]; then
+    echo "  ✅ Nginx rebuilt (config updated)"
 fi
 if [ "$env_changed" = "yes" ]; then
     echo "  ✅ Containers recreated (env changes)"

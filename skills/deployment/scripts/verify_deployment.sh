@@ -123,17 +123,25 @@ echo ""
 # Check HTTP endpoints (customize URLs for your application)
 echo "🌐 Checking HTTP endpoints..."
 
-# Check main application
-check_endpoint "http://$DOMAIN" "HTTP endpoint"
-
-# Check HTTPS if SSL is enabled
 if [ "${DEPLOYMENT_MODE:-local}" = "production" ]; then
+    # In production, HTTP should redirect to HTTPS (301/302) — a 200 indicates misconfiguration.
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://$DOMAIN" 2>/dev/null)
+    if [ "$HTTP_CODE" = "301" ] || [ "$HTTP_CODE" = "302" ]; then
+        echo "✅ HTTP: Redirecting to HTTPS (${HTTP_CODE})"
+    else
+        echo "⚠️  HTTP: Expected redirect, got ${HTTP_CODE} (may be normal if DNS not propagated)"
+        WARNINGS=$((WARNINGS + 1))
+    fi
+
     if curl -s -k -o /dev/null -w "%{http_code}" "https://$DOMAIN" 2>/dev/null | grep -q "200\|301\|302"; then
         echo "✅ HTTPS endpoint: Accessible"
     else
         echo "⚠️  HTTPS endpoint: Not accessible (SSL certificates may not be ready)"
         WARNINGS=$((WARNINGS + 1))
     fi
+else
+    # Local/dev mode: just confirm HTTP responds at all.
+    check_endpoint "http://$DOMAIN" "HTTP endpoint"
 fi
 
 # Check API endpoint (customize path for your API)
@@ -152,6 +160,12 @@ if [ "${DEPLOYMENT_MODE:-local}" = "production" ]; then
     if $DOCKER_COMPOSE ps | grep -q "certbot"; then
         if $DOCKER_COMPOSE exec -T certbot certbot certificates 2>/dev/null | grep -q "$DOMAIN"; then
             echo "✅ SSL certificates: Found"
+            # Extract expiry so the operator can spot certs that are about to lapse.
+            CERT_EXPIRY=$($DOCKER_COMPOSE exec -T certbot certbot certificates 2>/dev/null \
+                | grep -A 2 "$DOMAIN" | grep "Expiry Date" | awk '{print $3, $4, $5}' || echo "")
+            if [ -n "$CERT_EXPIRY" ]; then
+                echo "   Expiry: $CERT_EXPIRY"
+            fi
         else
             echo "⚠️  SSL certificates: Not found yet (may take a few minutes)"
             WARNINGS=$((WARNINGS + 1))

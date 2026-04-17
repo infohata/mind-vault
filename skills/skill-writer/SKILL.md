@@ -1,45 +1,215 @@
 ---
-description: Mandatory instructional meta-skill triggered during ANY AI skill creation or skill modification task to enforce strict IDE-agnostic formatting and YAML protocols.
+name: skill-writer
+description: Author or refactor `.md` skills and rules for AI coding agents — enforces YAML frontmatter schema, trigger-phrase quality, length budgets, and the references/assets progressive-disclosure layout.
 ---
 
-# SKILL_Skill_Writer
+# skill-writer
 
-## Overview
-An instructional meta-skill that dictates how AI agents must construct, format, and phrase new `.md` skills and repository rules. This skill is fully IDE-agnostic (designed for Claude, Copilot, Antigravity, OpenClaw, Cursor, etc.). It ensures all authored skills adhere to universal probabilistic trigger optimization, strict YAML configurations, and context-window-lean formatting regardless of the underlying LLM platform.
+Meta-skill that governs how AI agents author and refactor skills (and rules) inside `mind-vault` or any sibling repository that follows the same convention. Fully IDE-agnostic: the same rules apply whether the invoking host is Claude Code, Cursor, Antigravity, OpenCode, Copilot, or any other skill-aware agent.
 
-## When to Use
-Trigger this skill whenever the user requests to "create a new skill", "extract a pattern into mind-vault", or "formalize an AI codebase rule".
+## When to use
+
+**TRIGGER when:** user asks to "create/add/write a new skill", "extract a pattern into mind-vault", "formalize an AI codebase rule", "refactor a skill"; or when reviewing/rewriting any file matching `skills/*/SKILL.md` or `rules/RULE_*.md`.
+
+**SKIP for:** one-off prose docs, changelogs, READMEs, ADRs, or in-project configuration files — these are not agent-invoked skills and do not need the `SKILL.md` contract.
+
+## File layout
+
+A skill lives in its own folder whose name is the skill slug:
+
+```text
+skills/
+└── <skill-slug>/
+    ├── SKILL.md              # Pattern body (required, target <500 lines)
+    ├── references/           # Long examples, configs, deep-dive docs (loaded on demand)
+    │   └── *.md
+    ├── assets/               # Templates/snippets the agent emits verbatim
+    │   └── *.{py,sh,yml,…}
+    └── scripts/              # Executable helpers the agent runs
+        └── *.sh
+```
+
+- **Filename must be `SKILL.md`** (uppercase). Lowercase `skill.md` is not discovered by most hosts.
+- **Folder name = `name:` frontmatter field**, kebab-case, no `skill-` prefix (the folder is already under `skills/`).
+
+## Frontmatter contract
+
+**Required minimum:**
+
+```yaml
+---
+name: <kebab-case-slug>         # matches folder name
+description: <one-line trigger> # <200 chars, noun-dense
+---
+```
+
+**Optional on larger skills** (use when the skill is versioned, replaces older skills, or needs provenance):
+
+```yaml
+license: MIT
+metadata:
+  author: mind-vault
+  version: "1.0"
+  replaces:
+     - <older-skill-name>
+```
+
+### Writing the `description`
+
+The description is the **probabilistic trigger** — the only text the host agent inspects when deciding whether to load the skill. Bad descriptions = skill never fires, or fires on the wrong turns.
+
+**✅ DO — noun-dense, names the concrete stack, specific verbs:**
+
+- `Apply global cross-project Django backend dev conventions for models, views, signals, Channels, DRF, and all backend architecture before hitting templates or JS.`
+- `Debug failing tests quickly across any massive Python monolith by surgically specifying and running targeted test paths instead of running full, slow test suites locally.`
+- `Search outside the project (in IDE plans, AI agent workspaces, or temporary storage) and retrieve standalone artefacts, research, or validation logs to bring them inside the project repository.`
+
+**❌ DON'T — generic, verb-only, hand-wavy, or buzzword soup:**
+
+- `A skill for helping write frontend code.`
+- `Helps with Django stuff.`
+- `Enforce robust anchor store bounding box triggers for elite deployment excellence.`
+
+### TRIGGER / SKIP expansion
+
+For skills that fire frequently and misfire often (language-specific, stack-specific, or tool-specific skills), add an explicit `TRIGGER when / SKIP` block at the top of `## When to use`. Example from `claude-api`:
+
+```text
+TRIGGER when: code imports `anthropic`/`@anthropic-ai/sdk`; user asks for the
+Claude API, Anthropic SDK, or Managed Agents; user adds/modifies/tunes a Claude
+feature (caching, thinking, compaction, tool use, batch, files, citations,
+memory) or model (Opus/Sonnet/Haiku) in a file.
+SKIP: file imports `openai`/other-provider SDK; filename like `*-openai.py`/
+`*-generic.py`; provider-neutral code; general programming/ML.
+```
+
+This is load-bearing: it gives the host agent a crisp decision rule instead of vibes, and it's the single biggest lever against false-positive skill activation.
+
+## Body structure
+
+Canonical `SKILL.md` body, in order:
+
+1. `# <title>` + one-paragraph **Overview** (what this skill covers; what it does not).
+2. `## When to use` — scoping rules, with TRIGGER/SKIP block if applicable.
+3. `## Pattern` — the actual conventions, numbered or named subsections.
+4. `## When NOT to use these patterns` — counter-cases that prevent over-application.
+5. `## References` — links to `./references/*.md`, external docs, related skills.
+6. Trailing `**Last Updated**: YYYY-MM-DD` line.
+
+## The additive-only rule
+
+Skills document **deviations from default LLM knowledge**, not generic programming advice.
+
+- ❌ Don't explain "what Django is" or "how to write a for-loop".
+- ❌ Don't re-document framework basics (`pip install`, `git commit`, `npm run build`).
+- ✅ Do document: project-specific conventions, non-obvious ordering constraints, workarounds for known bugs, mixin/base-class contracts, required Makefile targets, opinionated stack choices, negative patterns learned from incidents.
+
+The host agent already knows `pip install -r requirements.txt`. It does not know that _this_ repo forbids manual `.po` edits and uses a map-based fill workflow. Write the latter.
+
+## The ✅ DO / ❌ DON'T matrix
+
+Every non-trivial convention must include an explicit counter-example. This bounds the agent's guessing space — without the negative side, agents "revert to mean" and produce idiomatic-but-wrong output.
+
+```text
+✅ DO: Use `filter(None, [...])` + `"\n".join(...)` to build optional-prefix strings.
+❌ DON'T: Use ternaries or `if/else` append-vs-replace logic.
+```
+
+```text
+✅ DO: `prefetch_related("content_object")` when iterating models with GenericForeignKey.
+❌ DON'T: Access `.content_object` in a loop without prefetch — N+1 storm.
+```
+
+## Length budget & progressive disclosure
+
+**Target: `SKILL.md` under 500 lines. Hard stop: ~800 lines.**
+
+When a skill outgrows the budget:
+
+1. Move long code examples into `references/<TOPIC>.md` and link to them.
+2. Move large templates/snippets into `assets/<name>.<ext>` and instruct the agent to read them via tool.
+3. Keep the `SKILL.md` body focused on **decisions, contracts, and pointers**. Details load on demand.
+
+```markdown
+<!-- ✅ SKILL.md stays lean -->
+### WebSocket support
+See [references/ASYNC_WEBSOCKET.md](references/ASYNC_WEBSOCKET.md) for Channels
+routing, consumers, and tenant-aware auth middleware.
+
+<!-- ❌ SKILL.md bloating -->
+### WebSocket support
+<100 lines of consumer code, routing setup, middleware config…>
+```
+
+Why this matters: every line of `SKILL.md` is loaded into context on every activation. A 1000-line skill spends context budget the downstream task could have used.
+
+## Cross-project portability
+
+A skill in `mind-vault` is consumed by multiple projects. Therefore:
+
+- **Concrete project names in the pattern body are leaks.** If the pattern says "Teisutis uses X" as a universal rule, the rule is wrong for every other project. Either generalise ("Projects with constraint Y should Z") or clearly fence as an example.
+- **Examples may name real projects**, but must be visually fenced:
+  > Example (Teisutis): the translation map lives at `tools/translation_maps/*.py`.
+- **Never hard-code paths from a consuming project** in `References`. `docs/artefacts/by-agent/researcher/…` paths do not exist from the agent's perspective when invoked from a sibling project.
+
+## Maintaining skills
+
+- Bump the trailing `**Last Updated**` line on every substantive change.
+- If an example drifts out of sync with real code, fix it or delete it — stale examples are worse than none.
+- When merging two skills, keep `metadata.replaces` so agents recognise old names.
+- When deprecating a skill, leave a tombstone `SKILL.md` that points to the successor rather than deleting silently.
+
+## Minimal skeleton
+
+Copy this as the starting point for any new skill:
+
+```markdown
+---
+name: my-skill
+description: <one-line trigger under 200 chars, noun-dense, names the concrete stack>
+---
+
+# my-skill
+
+Overview: what this pattern does, what stack it assumes, what it does not cover.
+
+## When to use
+
+TRIGGER when: <conditions>
+SKIP: <conditions>
 
 ## Pattern
-When an AI agent is instructed to create or refactor a skill within `mind-vault` or `camper-aurora`, it MUST enforce the following structural constraints:
 
-### 1. The Universal YAML Trigger Protocol
-- All AI skills must place a `description` field in the frontmatter.
-- The description MUST be a hyper-specific, one-line trigger under 200 characters loaded with domain-specific nouns (e.g., "Enforce robust anchor store bounding box triggers...").
-- Do NOT use generic language like "A skill for helping write frontend code." 
+### 1. <First convention>
 
-### 2. The Additive-Only Instruction Rule
-- The markdown body must skip generic programming advice (e.g., "use `git commit` to commit code"). LLM platforms already know the basics.
-- Focus strictly on framework deviations, custom architectural rules, and project-specific constraints that an AI would not native-guess.
+<short explanation>
 
-### 3. The Negative Space Matrix (✅ DO vs ❌ DON'T)
-- Every significant piece of coding instruction MUST include a negative counter-example. Provide explicit matrix definitions to bound the AI's imagination.
-- Example: 
-  ✅ DO: Return `Result {ok: bool, error: string}`.
-  ❌ DON'T: Throw silent Javascript `Error` exceptions.
+✅ DO: <example>
+❌ DON'T: <counter-example>
 
-### 4. Progressive Disclosure via References
-- Forbid copying massive external documentation or multi-hundred-line templates directly into the root `SKILL.md`.
-- Force the new skill to specify that the executing agent must dynamically load external references (e.g., instructing the agent to invoke tools to read an adjacent `references/` or `assets/` subdirectory) to protect the immediate context window.
+### 2. <Second convention>
 
-## Why It's Generic
-This is a pure meta-framework designed to govern the probabilistic construction of all future rules and skills across the user's multi-repository ecosystem, completely decoupled from any specific IDE or AI toolchain.
+…
 
-## Example Use Cases
-- Generating a new skill for standardizing Django migrations.
-- Extracting a hard-fought debugging session into a reusable Three.js skill.
-- Migrating legacy, platform-specific AI rules into this universal, IDE-agnostic `.md` format.
+## When NOT to use these patterns
+
+- <case 1>
+- <case 2>
 
 ## References
-- `AGENTS.md` (Project Rules)
-- Universal AI Agent `SKILL.md` specification formats.
+
+- [details](references/DETAILS.md)
+- [Related skill](../other-skill/SKILL.md)
+
+---
+
+**Last Updated**: YYYY-MM-DD
+```
+
+## References
+
+- Adjacent examples in this repo: `skills/artefact-retrieval/SKILL.md`, `skills/surgical-tdd/SKILL.md` (lean), `skills/django/SKILL.md` (feature-dense)
+- [Git Safety Rule](../../rules/RULE_git-safety.md) — applies to commits produced while authoring skills
+- Anthropic's Claude Code Agent Skills documentation (`docs.claude.com`) — the official `SKILL.md` spec this skill aligns with
+
+**Last Updated**: 2026-04-17

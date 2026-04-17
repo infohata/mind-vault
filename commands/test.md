@@ -1,7 +1,6 @@
 ---
 description: Comprehensive testing with edge case validation and pattern verification
 agent: test-engineer
-model: anthropic/claude-opus-4-5
 temperature: 0.1
 extended_thinking: true
 tools:
@@ -12,6 +11,7 @@ tools:
   glob: true
   read: true
 ---
+
 Execute comprehensive testing with rigorous validation:
 
 1. **Run test suite** with coverage and identify failures
@@ -20,6 +20,6 @@ Execute comprehensive testing with rigorous validation:
 4. **Verify patterns work** across different scenarios and constraints
 5. **Document limitations** and missing test scenarios
 6. **Suggest fixes** for failing tests with comprehensive explanations
-7. **Implement additional tests** for uncovered edge cases
+7. **Suggest additional tests** for uncovered edge cases (implement only on explicit user approval)
 
 Focus on thorough validation rather than just passing tests - identify what's missing, broken, or could fail in production.

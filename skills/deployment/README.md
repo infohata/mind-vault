@@ -1,88 +1,92 @@
 # Deployment Skill
 
-**Quick Start Guide**
+**Quick-start guide for `skills/deployment/`**
 
-This skill provides production-ready deployment patterns for web applications using Docker Compose. It emphasizes safety, automation, and zero-downtime deployments.
+Production-ready deployment patterns for Docker Compose web applications. Prioritises safety (pre-change backups, rollback-ready state, mandatory screen sessions for remote runs) over raw speed. **Not a zero-downtime pattern** — a stop/rebuild/start cycle with health verification; 5–30 s outages on update are expected.
 
 ## Structure
 
-```
+```text
 skills/deployment/
-├── SKILL.md              # Main deployment patterns and architecture
-├── README.md             # This overview guide
+├── SKILL.md              # Main pattern body
+├── README.md             # This overview
 ├── scripts/              # Deployment automation toolkit
-│   ├── deploy.sh         # Smart deployment wrapper (auto-detects changes)
-│   ├── deploy_first_time.sh  # Initial setup with data seeding
-│   ├── deploy_update.sh  # Change-aware updates
-│   ├── backup_db.sh      # Multi-database backup utility
-│   ├── verify_deployment.sh  # Health checks and verification
-│   ├── setup_server.sh   # Initial server setup (pyenv, Docker, Node)
-│   └── harden_server.sh  # SSH/firewall/fail2ban hardening (see references/HARDENING.md)
-└── references/           # Optional extensions (load on-demand)
-    ├── MONITORING.md     # Production monitoring with Prometheus/Grafana/ELK
-    ├── DJANGO_DEPLOYMENT.md  # Django-specific deployment optimizations
-    └── HARDENING.md      # Server hardening guide for setup_server.sh
+│   ├── deploy.sh             # Auto-detecting wrapper (first-time vs update)
+│   ├── deploy_first_time.sh  # Initial deploy + data seed
+│   ├── deploy_update.sh      # Change-aware update
+│   ├── backup_db.sh          # Database snapshot
+│   ├── verify_deployment.sh  # Post-deploy health checks
+│   ├── setup_server.sh       # Initial host setup (Docker, pyenv, etc.)
+│   └── harden_server.sh      # SSH / UFW / fail2ban hardening
+└── references/           # Optional extensions (load on demand)
+    ├── SCREEN_SESSIONS.md    # Mandatory remote-deploy screen recipes
+    ├── CICD.md               # GitHub Actions, GitLab CI, secrets, approval gates
+    ├── MONITORING.md         # Prometheus, Grafana, ELK
+    ├── DJANGO_DEPLOYMENT.md  # Django-specific optimisations
+    └── HARDENING.md          # Server hardening before first deploy
 ```
 
-## Getting Started
+## Getting started
 
-1. **Copy the scripts** to your project's `scripts/` directory
-2. **Customize** `docker-compose.yml` for your services
-3. **Configure environment** variables for your target environment
-4. **Run initial deployment**:
+1. **Copy the scripts** from [`scripts/`](scripts/) into your project's `scripts/` (or `tools/`) directory.
+
+2. **Customise** `docker-compose.yml` for your services.
+
+3. **Configure environment** variables in `.env` (provide a committed `.env.example`).
+
+4. **Initial deploy:**
+
    ```bash
    ./scripts/deploy_first_time.sh
    ```
-5. **Deploy updates**:
+
+5. **Subsequent updates:**
+
    ```bash
-   ./scripts/deploy.sh  # Auto-detects and handles changes safely
+   ./scripts/deploy.sh   # auto-detects first-time vs update
    ```
 
-## Key Features
+## Key features
 
-- **Change Detection**: Automatically detects migrations, new services, config changes
-- **Database Safety**: Automated backups before schema changes, rollback on failure
-- **Zero Downtime**: Service-by-service updates with health checks
-- **Multi-Database Support**: PostgreSQL, MySQL, SQLite with appropriate backup strategies
-- **SSL Automation**: Let's Encrypt certificates with nginx
-- **Remote Deployment**: SSH-based deployment with safety confirmations
-- **CI/CD Integration**: GitHub Actions and GitLab CI examples
+- **Change detection** — diffs git history to decide whether migrations, dependencies, or static assets need rebuilding.
+- **Database safety** — automated snapshots before schema change; paired code + DB rollback points (commit sha embedded in backup filename).
+- **Service restarts with health checks** — not zero-downtime; wrap health checks in a retry loop since services take 10–30 s to accept traffic.
+- **Multi-database support** — PostgreSQL, MySQL, SQLite backup strategies.
+- **SSL automation** — Let's Encrypt via certbot + nginx.
+- **Remote deployment** — SSH-based with mandatory screen sessions for connection-independence.
+- **CI/CD integration** — GitHub Actions / GitLab CI, manual approval gates, pinned host keys.
 
 ## Extensions
 
-**Load these on-demand for specific needs:**
+Load on demand when the pattern applies:
 
-- **[Monitoring Integration](references/MONITORING.md)**: Add Prometheus metrics, Grafana dashboards, ELK logging, and alerting
-- **[Django Deployment](references/DJANGO_DEPLOYMENT.md)**: Django-specific optimizations for migrations, static files, and multi-tenant support
-- **[Server Hardening](references/HARDENING.md)**: SSH key-only auth, UFW firewall, fail2ban, automatic security updates (use after setup_server.sh)
+- [`references/SCREEN_SESSIONS.md`](references/SCREEN_SESSIONS.md) — remote deploy mechanics (mandatory reading if you run remote deploys)
+- [`references/CICD.md`](references/CICD.md) — pipeline wiring
+- [`references/MONITORING.md`](references/MONITORING.md) — Prometheus metrics, Grafana dashboards, ELK logging
+- [`references/DJANGO_DEPLOYMENT.md`](references/DJANGO_DEPLOYMENT.md) — Django migrations, static files, multi-tenant
+- [`references/HARDENING.md`](references/HARDENING.md) — SSH key-only auth, UFW, fail2ban, unattended security updates
 
-## Framework Support
+## Framework support
 
-The core patterns work with any Docker Compose application:
+Core patterns work with any Docker Compose application; service names differ, the deploy shape does not.
 
-- **Django**: Full support with migration safety and WebSocket handling
-- **Rails**: Puma/nginx setup with asset compilation
-- **Node.js**: Express/Next.js with PM2 process management
-- **Any Framework**: Generic patterns for containerized web apps
+- **Django** — pairs with the [django skill](../django/SKILL.md) for migration safety and ASGI/WebSocket handling.
+- **Rails** — Puma + nginx, asset pipeline on dependency change.
+- **Node.js / Next.js** — build step runs on dependency change, static output served via nginx.
+- **Any framework** — generic patterns for containerised web apps.
 
-## Safety First
+## Safety model
 
-All scripts include safety measures:
-- Automatic backups before destructive operations
-- Health checks after each deployment step
-- Rollback procedures for failed deployments
-- Confirmation prompts for production environments
-
-## Integration with Django Skill
-
-This deployment skill integrates seamlessly with the [Django skill](../django/SKILL.md) for comprehensive Django application deployment.
+- Automatic backups before destructive operations.
+- Health checks with retry loops after each deploy step.
+- **Rollback is human-operated** — destructive git (`reset --hard`, `--force-with-lease`) and DB-restore operations are never auto-executed by agents (see [`RULE_git-safety`](../../rules/RULE_git-safety.md)).
+- Confirmation prompts on interactive runs; `DEPLOY_NON_INTERACTIVE=1` skips them for CI and screen sessions.
 
 ## Documentation
 
-- **[Main Skill](SKILL.md)**: Complete deployment patterns and architecture
-- **[Scripts README](scripts/README.md)**: Detailed script usage and customization
-- **[Artefacts](../../docs/artefacts/)**: Research, design, and validation documentation
+- [`SKILL.md`](SKILL.md) — complete pattern
+- [`scripts/README.md`](scripts/README.md) — per-script usage and customisation
+- [`rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — rollback procedure authority
 
----
-
-**Last Updated**: 2026-01-28
+**Last Updated**: 2026-04-17
+**Version**: 2.0

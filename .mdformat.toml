@@ -1,0 +1,2 @@
+number = true      # keep consecutive numbering (1. 2. 3.), not all-1.
+wrap = "keep"      # never reflow prose lines

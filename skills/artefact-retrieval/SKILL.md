@@ -1,366 +1,231 @@
 ---
 name: artefact-retrieval
-description: Search outside the project (in IDE plans, AI agent memory, or /tmp temporary storage) and retrieve standalone artefacts, research, or validation logs to bring them inside the project repository.
+description: Search outside the project (in IDE plans, AI agent workspaces, or temporary storage) and retrieve standalone artefacts, research, or validation logs to bring them inside the project repository.
 ---
 
 # SKILL_artefact-retrieval
 
 ## Overview
-Systematic approach for retrieving and utilizing artefacts from the mind-vault knowledge base, enabling agents and developers to access validated research, analysis, and documentation efficiently across projects.
+
+IDE-agnostic pattern for retrieving valuable artefacts (plans, analyses, validation reports, research notes) that AI coding assistants generate _outside_ the project tree, and importing them into the project's `docs/artefacts/` taxonomy for permanent retention and cross-session reuse.
+
+## Host Environments
+
+This skill works identically whether the agent is invoked from:
+
+- **Claude Code** (CLI, IDE extension, or Desktop app)
+- **Antigravity** (Gemini brain workspace)
+- **Cursor** (Plan Mode, Composer, or Agent)
+- **Any combination** — same project, multiple assistants across sessions
+
+The retrieval logic is source-agnostic: each IDE/assistant writes its artefacts to a known location outside the repo, and this skill catalogues those locations so any agent can sweep them into the project artefact tree.
+
+### ⚠️ Claude Code auto-memory: consult, don't copy
+
+`~/.claude/projects/*/memory/` is **personal memory**, not an artefact store — memory files stay where they are and are never copied into `docs/artefacts/`.
+
+But memory _informs_ retrieval. Before sweeping IDE locations, skim:
+
+- `MEMORY.md` and any `project_*.md` entries for the active project — they often name current initiatives, IDEA numbers, modules, stakeholders, and deadlines. Use these to seed `PROJECT_KEYWORDS` for the discovery sweep (§2) and the unsaved-artefacts audit (§5).
+- `user_*.md` / `feedback_*.md` for signals about which assistant (Cursor / Antigravity / Claude Code) the user has been using recently — narrows where to look first.
+
+The same consult-don't-copy rule applies to `~/.claude/CLAUDE.md` and private user config. `~/.gemini/` / `~/.cursor/` _config_, credentials, and session metadata remain fully off limits — only **generated work product** (plans, analyses, walkthroughs) from those workspaces is a retrieval candidate.
 
 ## When to Use
-- Starting new projects that can leverage existing validated knowledge
-- Researching proven patterns before implementing solutions
-- Validating assumptions against documented findings
-- Building on previous agent analysis and validation work
-- Ensuring consistency with established best practices
-- Avoiding re-inventing solutions already documented
-- Checking for Cursor plan mode artefacts that should be saved to the project
+
+- 🆕 Starting a new project and looking for validated knowledge from prior work
+- 🔍 Researching proven patterns before implementing a solution
+- ✅ Validating assumptions against documented findings
+- 🧹 Periodic sweep for completed plans and analyses that still live outside the repo
+- 🔄 Ensuring consistency across agents (Claude Code / Antigravity / Cursor all see the same canonical knowledge)
+
+## Artefact Sources (Complete Reference)
+
+| Source                         | Location                                                               | Format                      |
+| ------------------------------ | ---------------------------------------------------------------------- | --------------------------- |
+| In-repo agent outputs          | `docs/artefacts/by-agent/`                                             | Markdown                    |
+| In-repo research / validations | `docs/artefacts/by-type/`                                              | Markdown                    |
+| In-repo topic cross-refs       | `docs/artefacts/by-topic/`                                             | Symlinks                    |
+| Cursor plans                   | `~/.cursor/plans/*.plan.md`                                            | YAML frontmatter + Markdown |
+| Cursor agent transcripts       | `~/.cursor/projects/<project>/agent-transcripts/`                      | JSONL                       |
+| Antigravity/Gemini artefacts   | `~/.gemini/antigravity/brain/<id>/artifacts/`                          | Markdown                    |
+| Antigravity/Gemini transcripts | `~/.gemini/antigravity/brain/<id>/.system_generated/logs/overview.txt` | Text                        |
+| Claude Code transcripts        | `~/.claude/projects/<project-slug>/*.jsonl`                            | JSONL (session logs)        |
+| Temp scratch                   | `/tmp/*.md`, `/tmp/artefacts/`                                         | Markdown                    |
+
+### Excluded from copying (consult-only or fully off-limits)
+
+- 📖 `~/.claude/projects/*/memory/` — personal agent memory; **consult** project-type entries for keywords and scope, but never copy into `docs/artefacts/`
+- ❌ Any `.env`, credentials, session tokens — fully off-limits
+- ❌ Raw transcripts — search them for artefact references, but don't copy wholesale
 
 ## Pattern
 
-### 1. Identify Retrieval Context
-Determine what type of knowledge you need:
+### 1. Pick the source
+
+Figure out which assistant generated the artefact. If unsure, sweep all known locations (§2).
+
+### 2. Discovery — list and filter
 
 ```bash
-# For pattern validation
-cd docs/artefacts/by-agent/test-engineer/validations/
+# Cursor plans — newest first
+ls -lt ~/.cursor/plans/*.plan.md 2>/dev/null
 
-# For research findings
-cd docs/artefacts/by-agent/researcher/research/
+# Antigravity/Gemini brains — newest first
+ls -lt ~/.gemini/antigravity/brain/ 2>/dev/null
 
-# For model analysis
-cd docs/artefacts/by-agent/[agent]/model-analysis/
-```
-
-### 2. Query by Multiple Dimensions
-Use the multi-dimensional taxonomy for comprehensive discovery:
-
-```bash
-# Find by Agent
-find docs/artefacts/by-agent/researcher/ -name "*.md" | head -10
-
-# Find by Type
-find docs/artefacts/by-type/validations/ -name "*DJANGO*" -type f
-
-# Find by Topic
-find docs/artefacts/by-topic/django-architecture/ -name "*.md"
-```
-
-### 3. Implement Structured Retrieval
-Create reusable retrieval patterns:
-
-```python
-import os
-import glob
-import logging
-from pathlib import Path
-
-logger = logging.getLogger(__name__)
-
-def retrieve_artefacts(query_type, subject, agent=None):
-    """
-    Retrieve artefacts matching specific criteria.
-    
-    Args:
-        query_type: 'validation', 'research', 'analysis', 'report' or None
-        subject: topic or pattern name
-        agent: specific agent name (optional)
-    
-    Returns:
-        List of file paths sorted by modification time (newest first)
-    
-    Raises:
-        ValueError: If parameters contain invalid characters
-    """
-    # Input validation
-    if query_type and not query_type.replace('-', '').replace('_', '').isalnum():
-        raise ValueError(f"Invalid query_type: {query_type}")
-    
-    if subject and not subject.replace('-', '').replace('_', '').isalnum():
-        raise ValueError(f"Invalid subject: {subject}")
-    
-    base_paths = []
-    
-    if query_type:
-        base_paths.append(f"docs/artefacts/by-type/{query_type}")
-    
-    if subject:
-        base_paths.append(f"docs/artefacts/by-topic/{subject}")
-    
-    if agent:
-        base_paths.append(f"docs/artefacts/by-agent/{agent}")
-    
-    results = []
-    for path in base_paths:
-        if os.path.exists(path):
-            # Fixed glob pattern with proper path separator
-            pattern = f"{path}/**/*{subject or ''}*.md"
-            try:
-                for file in glob.glob(pattern, recursive=True):
-                    # Validate file path to prevent traversal attacks
-                    if os.path.commonpath([os.path.abspath(file), os.path.abspath(path)]) == os.path.abspath(path):
-                        results.append(file)
-            except Exception as e:
-                logger.warning(f"Error searching in {path}: {e}")
-    
-    return sorted(set(results), key=lambda x: os.path.getmtime(x), reverse=True)
-
-# Example usage
-django_validations = retrieve_artefacts('validation', 'django', 'test-engineer')
-```
-
-### 4. Validate Artefact Relevance
-Always assess artefact applicability:
-
-```python
-def validate_artefact_relevance(artefact_path, current_context):
-    """
-    Check if artefact applies to current project context.
-    
-    Args:
-        artefact_path: path to artefact file
-        current_context: dict with project details (can be None)
-    
-    Returns:
-        bool: True if artefact is relevant
-    
-    Raises:
-        FileNotFoundError: If artefact file doesn't exist
-    """
-    # Input validation
-    if current_context is None:
-        current_context = {}
-    
-    if not os.path.exists(artefact_path):
-        raise FileNotFoundError(f"Artefact not found: {artefact_path}")
-    
-    try:
-        with open(artefact_path, 'r', encoding='utf-8') as f:
-            content = f.read().lower()
-    except Exception as e:
-        logger.error(f"Error reading artefact {artefact_path}: {e}")
-        return False
-    
-    # Check applicability criteria
-    checks = {
-        'framework': current_context.get('framework', ''),
-        'python_version': current_context.get('python_version', ''),
-        'production_ready': current_context.get('production_ready', False),
-    }
-    
-    relevance_score = 0
-    for key, value in checks.items():
-        if value and str(value).lower() in content:
-            relevance_score += 1
-    
-    return relevance_score >= 2  # Require 2+ matches
-```
-
-### 5. Retrieve Cursor Plan Mode Artefacts
-
-Cursor's Plan Mode generates structured plans at `~/.cursor/plans/`. These are
-valuable artefacts that often get lost because they live outside the project tree.
-
-**Plan file format** (`*.plan.md` with YAML frontmatter):
-```yaml
----
-name: IDEA-057 Text File Preview
-overview: Add text/code/CSV/Markdown file upload support...
-todos:
-  - id: vendor-assets
-    content: Download highlight.min.js + CSS...
-    status: completed
-  - id: server-mime
-    content: Add _validate_file_mime() helper...
-    status: completed
-isProject: false
----
-```
-
-**Discovery — find plans relevant to the current project:**
-```bash
-# List all Cursor plans (newest first)
-ls -lt ~/.cursor/plans/*.plan.md
-
-# Find plans matching a topic (e.g. "dashboard", "auth", "IDEA-047")
-grep -l "dashboard\|IDEA-006" ~/.cursor/plans/*.plan.md
-
-# Show plan names and statuses at a glance
+# Show names + status at a glance for Cursor plans
 for f in ~/.cursor/plans/*.plan.md; do
     name=$(grep "^name:" "$f" | head -1 | sed 's/name: //')
     echo "$f → $name"
 done
+
+# Find plans/artefacts matching a project keyword across all sources
+KEYWORDS="teisutis|IDEA-|ai_service|dashboard"
+grep -rlE "$KEYWORDS" \
+    ~/.cursor/plans/ \
+    ~/.gemini/antigravity/brain/ \
+    2>/dev/null
 ```
 
-**Save completed plans to the project artefact tree:**
+### 3. Assess relevance before copying
+
+Open the artefact. Ask:
+
+- Is the work **complete** (Cursor: all todos `status: completed`; Antigravity: final draft)?
+- Does it document a **non-trivial** architectural decision or reusable pattern?
+- Could it **inform future work** — not just describe what the agent did?
+- Does it match the **current project context** (framework, stack, production state)?
+
+Low-value ephemera (single-file bug fixes, debug logs, one-shot refactors) usually doesn't need saving — the git history already captures the change.
+
+### 4. Import into the project taxonomy
+
+Ensure the taxonomy exists (first-time setup):
+
 ```bash
-# Copy a completed plan into the project artefacts
+mkdir -p docs/artefacts/by-type/{plans,analyses,validations,research,reports}
+mkdir -p docs/artefacts/by-topic/{architecture,deployment,security,frontend,backend}
+mkdir -p docs/artefacts/by-agent
+```
+
+Copy the artefact and symlink into topic cross-refs:
+
+```bash
+# Example: Cursor plan for text file preview feature
 cp ~/.cursor/plans/idea-057_text_file_preview_52778d48.plan.md \
    docs/artefacts/by-type/plans/IDEA-057-text-file-preview.plan.md
 
-# Symlink into the topic taxonomy
 ln -sf ../../by-type/plans/IDEA-057-text-file-preview.plan.md \
-   docs/artefacts/by-topic/attachments/IDEA-057-text-file-preview.plan.md
-```
+   docs/artefacts/by-topic/frontend/IDEA-057-text-file-preview.plan.md
 
-**When to save plans:**
-- Plan is completed (all todos `status: completed`)
-- Plan documents a non-trivial architectural decision
-- Plan could inform future similar work (reusable patterns)
-- Plan captures research/exploration that predates implementation
-
-**Batch check for unsaved plans (run periodically):**
-```bash
-#!/bin/bash
-# Find Cursor plans that might belong to this project
-# Match on IDEA numbers, feature names, or module names from AGENTS.md
-PROJECT_KEYWORDS="teisutis|IDEA-|kb|ai_service|dashboard"
-
-echo "=== Cursor plans potentially related to this project ==="
-for f in ~/.cursor/plans/*.plan.md; do
-    if grep -qiE "$PROJECT_KEYWORDS" "$f"; then
-        name=$(grep "^name:" "$f" | head -1 | sed 's/name: //')
-        basename=$(basename "$f")
-        # Check if already saved to project
-        if ! find docs/artefacts/ -name "*${basename%.*}*" -o -name "*$(echo "$name" | tr ' ' '-')*" 2>/dev/null | grep -q .; then
-            echo "  NOT SAVED: $name ($basename)"
-        fi
-    fi
-done
-```
-
-### 6. Retrieve Gemini Agent Artefacts
-
-Gemini (Antigravity) agents generate project-specific artefacts (like implementation plans, analyses, and walkthroughs) stored within isolated conversational brains at `~/.gemini/antigravity/brain/<conversation-id>/artifacts/`.
-
-To ensure permanent retention and cross-session knowledge sharing, valuable Gemini artefacts should be extracted into the project repository.
-
-**Discovery — find recent Gemini artefacts:**
-```bash
-# List all Gemini conversational brains (newest first)
-ls -lt ~/.gemini/antigravity/brain/
-
-# Look for generated artefacts in a specific recent conversation
-ls -lt ~/.gemini/antigravity/brain/<conversation-id>/artifacts/
-```
-
-**Save valuable Gemini artefacts to the project tree:**
-```bash
-# Copy an analysis or implementation plan into the project artefacts
+# Example: Antigravity analysis
 cp ~/.gemini/antigravity/brain/<conversation-id>/artifacts/devlog_analysis.md \
    docs/artefacts/by-type/analyses/devlog_analysis.md
 
-# Symlink into the topic taxonomy
 ln -sf ../../by-type/analyses/devlog_analysis.md \
    docs/artefacts/by-topic/security/devlog_analysis.md
 ```
 
-**When to save Gemini artefacts:**
-- The agent summarized complex architectural changes or log discoveries
-- The artefact contains a reusable implementation plan that was successfully executed
-- The artefact acts as a "walkthrough" explaining a new system to developers
-
-### 7. Integrate into Development Workflow
-Make artefact retrieval part of standard processes:
+### 5. Unsaved-artefacts audit (run periodically)
 
 ```bash
-# Pre-implementation checklist
 #!/bin/bash
-echo "🔍 Checking for existing artefacts..."
+# Find IDE-generated artefacts not yet imported into the project tree.
+# Adjust PROJECT_KEYWORDS to match IDEA numbers, feature names, modules from AGENTS.md/CLAUDE.md.
+PROJECT_KEYWORDS="${1:-teisutis|IDEA-|ai_service|dashboard}"
 
-PROJECT_TYPE="${1:-django}"
-AGENT="${2:-researcher}"
+echo "=== 🔍 IDE artefacts potentially related to this project ==="
 
-# Find relevant artefacts
-find docs/artefacts/ -name "*${PROJECT_TYPE}*" -type f | head -5
+check_source() {
+    local label="$1"
+    local pattern="$2"
+    for f in $pattern; do
+        [ -f "$f" ] || continue
+        if grep -qiE "$PROJECT_KEYWORDS" "$f"; then
+            basename=$(basename "$f")
+            # Heuristic: is a file with a similar name already under docs/artefacts/?
+            if ! find docs/artefacts/ -name "*${basename%.*}*" 2>/dev/null | grep -q .; then
+                echo "  [$label] NOT SAVED: $basename"
+            fi
+        fi
+    done
+}
 
-# Check for validation reports
-if [ -d "docs/artefacts/by-agent/test-engineer/validations/" ]; then
-    echo "✅ Validation artefacts available"
-    ls docs/artefacts/by-agent/test-engineer/validations/ | grep -i "$PROJECT_TYPE"
-fi
-
-echo "📚 Review artefacts before implementation"
+check_source "Cursor"      ~/.cursor/plans/*.plan.md
+check_source "Antigravity" ~/.gemini/antigravity/brain/*/artifacts/*.md
 ```
 
-## Why It's Generic
-This pattern applies universally across software development projects because:
+### 6. Retrieve from the project tree (for downstream work)
 
-- **Knowledge preservation**: Captures institutional memory that would otherwise be lost
-- **Consistency enforcement**: Ensures teams build on validated approaches
-- **Efficiency gains**: Prevents redundant research and validation cycles
-- **Quality assurance**: Leverages peer-reviewed agent outputs
-- **Scalability**: Works regardless of project size or team composition
+Once imported, artefacts are discoverable via simple path queries:
+
+```bash
+# By agent
+find docs/artefacts/by-agent/researcher/ -name "*.md"
+
+# By type
+find docs/artefacts/by-type/validations/ -name "*DJANGO*"
+
+# By topic
+find docs/artefacts/by-topic/django-architecture/ -name "*.md"
+
+# Full-text
+grep -rli "multi-tenant" docs/artefacts/
+```
+
+## Taxonomy Reference
+
+```
+docs/artefacts/
+├── by-agent/              # who generated it
+│   ├── researcher/
+│   ├── test-engineer/
+│   └── architect/
+├── by-type/               # what kind of artefact
+│   ├── plans/             # completed IDE plans (Cursor Plan Mode etc.)
+│   ├── analyses/          # exploratory analysis / walkthroughs
+│   ├── validations/       # test / validation reports
+│   ├── research/          # background research notes
+│   └── reports/           # status / audit reports
+└── by-topic/              # cross-cutting concern (symlinks into by-type/)
+    ├── architecture/
+    ├── deployment/
+    ├── security/
+    ├── frontend/
+    └── backend/
+```
+
+`by-type/` is the canonical store. `by-topic/` holds symlinks for discovery. `by-agent/` is optional; skip it if your project doesn't track per-agent provenance.
 
 ## Example Use Cases
 
-### 1. Django Project Onboarding
-New team members automatically access validated Django patterns:
-```
-docs/artefacts/by-topic/django-architecture/
-├── DJANGO_ARCHITECTURE_VALIDATION_REPORT.md
-├── ASGI_CONFIGURATION_ANALYSIS.md
-└── MODEL_DESIGN_PATTERNS.md
-```
+### 🎯 Project onboarding
 
-### 2. Multi-Tenant Implementation
-Retrieve proven multi-tenant patterns before custom development:
-```
-docs/artefacts/by-agent/architect/analyses/
-└── MULTI_TENANT_ARCHITECTURE_REVIEW.md
-```
+New agent session starts, checks `docs/artefacts/by-topic/architecture/` for validated patterns before proposing new designs.
 
-### 3. Monitoring Architecture Design
-Review observability patterns for production applications:
-```
-docs/artefacts/by-agent/architect/analyses/
-├── MULTI_TENANT_ARCHITECTURE_REVIEW.md
-└── MONITORING_ARCHITECTURE_DESIGN.md
-```
+### 🔄 Cross-IDE continuity
 
-### 4. Production Readiness Validation
-Check existing validation reports before deployment:
-```
-docs/artefacts/by-type/validations/
-├── DJANGO_PRODUCTION_VALIDATION.md
-├── WEBSOCKET_SCALING_ASSESSMENT.md
-├── DATABASE_PERFORMANCE_ANALYSIS.md
-└── DEPLOYMENT_APPROACH_VALIDATION.md
-```
+Cursor plan for IDEA-057 was generated yesterday; today a Claude Code session picks it up from `docs/artefacts/by-type/plans/` and implements against it.
 
-### 5. Deployment Pattern Research
-Access validated deployment patterns before implementation:
-```
-docs/artefacts/by-topic/deployment/
-├── DEPLOYMENT_PATTERN_ANALYSIS.md
-├── DEPLOYMENT_ARCHITECTURE_DESIGN.md
-└── MONITORING_ARCHITECTURE_DESIGN.md
-```
+### 🧪 Production readiness
 
-### 6. Cursor Plan Mode Artefacts
-Completed plans saved from `~/.cursor/plans/` into the project:
-```
-docs/artefacts/by-type/plans/
-├── IDEA-057-text-file-preview.plan.md
-├── IDEA-006-user-dashboard.plan.md
-└── fix-invitation-accept-flow.plan.md
-```
+Before deployment, sweep `docs/artefacts/by-type/validations/` for prior sign-offs on related components.
 
-**Artefact sources (complete list):**
+### 🧹 Periodic cleanup
 
-| Source | Location | Format |
-|---|---|---|
-| Agent outputs | `docs/artefacts/by-agent/` | Markdown |
-| Research / validations | `docs/artefacts/by-type/` | Markdown |
-| Topic cross-refs | `docs/artefacts/by-topic/` | Symlinks |
-| Cursor plans | `~/.cursor/plans/*.plan.md` | YAML frontmatter + Markdown |
-| Agent transcripts | `~/.cursor/projects/<project>/agent-transcripts/` | JSONL |
-| Gemini artefacts | `~/.gemini/antigravity/brain/<id>/artifacts/` | Markdown |
-| Gemini transcripts | `~/.gemini/antigravity/brain/<id>/.system_generated/logs/overview.txt` | Text |
+Weekly run of the unsaved-artefacts audit (§5) captures anything new from Cursor / Antigravity workspaces.
+
+## Why This Is Generic
+
+- **Assistant-agnostic**: Cursor, Claude Code, Antigravity, and future assistants all drop generated work into predictable host locations.
+- **Project-agnostic**: any project can adopt the `docs/artefacts/` taxonomy with a single `mkdir -p`.
+- **Format-agnostic**: Markdown with YAML frontmatter is universally readable; symlinks are universally resolvable.
+- **Knowledge preservation**: artefacts outlive individual agent sessions and IDE workspaces.
+- **No lock-in**: plain files in the repo, no special tooling required to read them.
 
 ## References
+
 - [Agent Artefacts Knowledge Base](../../docs/artefacts/README.md)
 - [Multi-dimensional Taxonomy](../../docs/artefacts/taxonomy.md)
-- [Django Architecture Skill](../django/SKILL.md)
 - [Git Workflow Rule](../../rules/RULE_git-safety.md)

@@ -17,7 +17,7 @@ Drive a Cursor Bugbot review-fix-rerun cycle on the current PR (or specified PR 
 - Targeted tests only inside the loop; broader regression deferred to hand-back
 - Feature branch only — never main (per `RULE_git-safety`)
 - Batch fixes per `bugbot run` cycle into one commit, not one-per-finding
-- **Autonomous commit authority within this loop**: per-commit approval from `RULE_git-safety` is *pre-granted* by the act of invoking `/bugbot-loop`. The loop may commit and push Tier 1 fixes without a per-cycle `yes` prompt. Tier 2 fixes still require explicit per-finding approval (that is a *fix-direction* approval, not a commit approval). All other `RULE_git-safety` guardrails remain in force: never main, never merge, never force-push, never `--no-verify`, all commits to feature branches only.
+- **Commits**: standard `RULE_git-safety` applies — feature branches are the agent's sandbox, so the loop commits and pushes Tier 1 fixes autonomously. Tier 2 still needs explicit per-finding *fix-direction* approval (that is a content decision, not a commit approval). Protected-branch guardrails remain in force: never main, never merge into a protected branch, never force-push to protected, never `--no-verify`.
 
 ## Phase 0: Worktree environment bootstrap
 
@@ -39,12 +39,17 @@ This is the **only** authorised place to create `.env` — see exception clause 
 ## Phase 1: Triage
 
 1. Fetch bugbot findings: `./tools/find_bugbot_comments.sh [PR_NUMBER]` (or equivalent `gh api` call filtering `cursor[bot]`).
+
 2. For each finding, classify into a tier:
+
    - **Tier 1 — Auto-fix**: matches a codified pattern (see `AGENT_bugbot.md` *Common Bugbot Patterns* §1-8), touches ≤1 file, targeted test exists.
    - **Tier 2 — Approve-then-fix**: actionable but uncodified, OR touches shared helper/mixin.
    - **Tier 3 — Escalate**: cross-file, architectural, conflicts with project convention, OR bugbot self-withdrew.
+
 3. For every Tier 1 and Tier 2 finding, write a one-sentence justification: *why is this actually a bug?* If the explanation is hand-wavy or just paraphrases the bot → drop to Tier 3.
+
 4. Persist to `~/.claude/memory/projects/<project-slug>/bugbot-pr-<N>.md` so the next wake cycle can reload state without re-reading summaries (mitigates context rot). The scratch file must checkpoint **every** piece of state that a hard bound depends on, after every mutation:
+
    - `commits_this_session` (int, /10)
    - `active_work_minutes` (int, /60 — best-effort, updated each cycle)
    - `idle_polls` (int, /20)
