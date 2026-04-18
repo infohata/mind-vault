@@ -152,8 +152,8 @@ check_source() {
     done
 }
 
-check_source "Cursor"      ~/.cursor/plans/*.plan.md
-check_source "Antigravity" ~/.gemini/antigravity/brain/*/artifacts/*.md
+check_source "Cursor"      "$HOME/.cursor/plans/*.plan.md"
+check_source "Antigravity" "$HOME/.gemini/antigravity/brain/*/artifacts/*.md"
 ```
 
 ### 6. Retrieve from the project tree (for downstream work)
