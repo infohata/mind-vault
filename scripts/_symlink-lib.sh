@@ -35,13 +35,18 @@ mv_link_skills_per_dir() {
     [[ -d "$d" ]] || continue
     name=$(basename "$d")
     target="$target_dir/$name"
-    if [[ -L "$target" ]] || [[ -d "$target" ]]; then
+    if [[ -L "$target" ]]; then
       # `ln -sfn` (not `-sf`): when target is an existing symlink to a directory,
       # `-sf` follows the dereference and creates a nested symlink *inside* that
       # directory instead of replacing the symlink. `-n` treats the target as a
       # regular file even if it's a symlink, so the replacement works correctly.
       ln -sfn "$(cd "$d" && pwd)" "$target"
       echo "  Updated skills/$name"
+    elif [[ -e "$target" ]]; then
+      # Real (non-symlink) file or directory — refuse to clobber user content.
+      # `ln -sfn` cannot replace a real directory anyway (kernel rejects unlink
+      # on a directory), and under `set -e` would abort the whole setup script.
+      echo "  Skipped skills/$name (non-symlink exists at $target — leave intact)"
     else
       ln -s "$(cd "$d" && pwd)" "$target"
       echo "  Linked skills/$name"
@@ -82,9 +87,13 @@ mv_link_files_renamed() {
     [[ -f "$f" ]] || continue
     base=$(basename "$f" .md)
     target="$target_dir/${base}${suffix}.md"
-    if [[ -L "$target" ]] || [[ -f "$target" ]]; then
+    if [[ -L "$target" ]]; then
       ln -sf "$(cd "$(dirname "$f")" && pwd)/$(basename "$f")" "$target"
       echo "  Updated $src_subdir/$base -> $(basename "$target")"
+    elif [[ -e "$target" ]]; then
+      # Real (non-symlink) file — refuse to clobber user-authored content like
+      # custom .prompt.md / .instructions.md files in the VS Code user dir.
+      echo "  Skipped $src_subdir/$base -> $(basename "$target") (non-symlink exists — leave intact)"
     else
       ln -s "$(cd "$(dirname "$f")" && pwd)/$(basename "$f")" "$target"
       echo "  Linked $src_subdir/$base -> $(basename "$target")"
