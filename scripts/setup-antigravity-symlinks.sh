@@ -25,7 +25,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-export VSCODE_USER="$HOME/.config/Antigravity/User"
+export VSCODE_USER="${VSCODE_USER:-$HOME/.config/Antigravity/User}"
 
 if [[ ! -d "$VSCODE_USER" ]]; then
   echo "Error: Antigravity user directory not found at $VSCODE_USER"
