@@ -80,8 +80,11 @@ Useful alongside fully-qualified paths when pytest is the runner:
 | `--ff`                | Failed-first — run prior failures before the rest (broader scope, fast feedback).     |
 | `-k "expr"`           | Keyword-select — substring match over nodeids when you can't recall the full path.    |
 | `-n auto`             | pytest-xdist parallel across cores — for the *rare* broader run.                      |
+| `-n 8 --dist loadscope` | Physical-core parallel + class-scoped distribution for TenantTestCase suites.       |
 | `-s`                  | No capture — see `print()` / logging output while iterating.                          |
 | `-p no:cacheprovider` | Disable cache — when debugging test-selection issues or running in CI.                |
+
+**Multi-tenant suites with schema pooling**: projects with django-tenants + `TEISUTIS_POOLING=1` env var (or equivalent) can stack a pool fixture on top of xdist for another ~15-20% wall-clock reduction — but pool mode is for full-suite runs, not surgical iteration. When a surgical run fails only under pooling, the test is exposing latent fragility (see `django/references/TESTING.md` "Parallel Execution" section for debugging flow).
 
 ### 5. Handle schema / DB state strategically
 
