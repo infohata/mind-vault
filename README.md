@@ -21,18 +21,18 @@ mind-vault/
 
 Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each skill has frontmatter `name` + `description` (the probabilistic trigger), stays under ~500 lines, and pushes deep-dive content to `references/`.
 
-| Skill                  | Purpose                                                                                                                                               |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **skill-writer**       | Meta-standard for authoring / refactoring skills — frontmatter schema, TRIGGER/SKIP, length budget, DO/DON'T matrix, cross-project portability rules. |
-| **django**             | Backend conventions: BaseModel, soft-delete, DRF viewsets, multi-tenancy boundaries, generic-FK pattern, permission probes, translation workflow.     |
-| **django-frontend**    | HTMX + Alpine + Bulma + Crispy Forms — partial dispatch, modal/formset JS contracts, safe query-string generation. Pairs with `django`.               |
-| **deployment**         | Docker Compose production deploys — change-aware scripts, pre/post-migration backups, screen-session remote execution, Let's Encrypt SSL.             |
-| **surgical-tdd**       | Targeted test execution for large Python monoliths (Django runner + pytest nodeids + `--lf` / `-k` / `pytest-xdist` levers).                          |
-| **artefact-retrieval** | Sweep IDE workspaces (Cursor / Antigravity / Claude Code) for plans and analyses; import into `docs/artefacts/`.                                      |
-| **idea**               | Sprint workflow stage 1 — create or update atomic `IDEA-NNN-<slug>.md` files in `docs/ideas/`, maintain the per-priority index. Shape from teisutis IDEA-112. |
-| **plan**               | Sprint workflow stage 2 — turn an IDEA file or rough description into a durable plan; interactive brainstorm bootstrap on thin input; `AGENT_architect` as reviewer. |
-| **work**               | Sprint workflow stage 3 — thin orchestrator that reads a plan, enforces `RULE_git-safety` + `RULE_parallel-worktree-docker`, dispatches to implementation personas. |
-| **compound**           | Sprint workflow stage 5 — **the novel piece.** Routes a post-incident learning through a hybrid Shape-C probe to one of six destinations (project-local, mind-vault skill / rule / agent / command, or auto-memory). |
+| Skill | Purpose |
+| --- | --- |
+| **skill-writer** | Meta-standard for authoring / refactoring skills — frontmatter schema, TRIGGER/SKIP, length budget, DO/DON'T matrix, cross-project portability rules. |
+| **django** | Backend conventions: BaseModel, soft-delete, DRF viewsets, multi-tenancy boundaries, generic-FK pattern, permission probes, translation workflow. |
+| **django-frontend** | HTMX + Alpine + Bulma + Crispy Forms — partial dispatch, modal/formset JS contracts, safe query-string generation. Pairs with `django`. |
+| **deployment** | Docker Compose production deploys — change-aware scripts, pre/post-migration backups, screen-session remote execution, Let's Encrypt SSL. |
+| **surgical-tdd** | Targeted test execution for large Python monoliths (Django runner + pytest nodeids + `--lf` / `-k` / `pytest-xdist` levers). |
+| **artefact-retrieval** | Sweep IDE workspaces (Cursor / Antigravity / Claude Code) for plans and analyses; import into `docs/artefacts/`. |
+| **idea** | Sprint workflow stage 1 — create or update atomic `IDEA-NNN-<slug>.md` files in `docs/ideas/`, maintain the per-priority index. Shape from teisutis IDEA-112. |
+| **plan** | Sprint workflow stage 2 — turn an IDEA file or rough description into a durable plan; interactive brainstorm bootstrap on thin input; `AGENT_architect` as reviewer. |
+| **work** | Sprint workflow stage 3 — thin orchestrator that reads a plan, enforces `RULE_git-safety` + `RULE_parallel-worktree-docker`, dispatches to implementation personas. |
+| **compound** | Sprint workflow stage 5 — **the novel piece.** Routes a post-incident learning through a hybrid Shape-C probe to one of six destinations (project-local, mind-vault skill / rule / agent / command, or auto-memory). |
 
 ## Agents (9 subagent personas)
 
