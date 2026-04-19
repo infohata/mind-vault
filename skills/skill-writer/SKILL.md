@@ -151,6 +151,7 @@ A skill in `mind-vault` is consumed by multiple projects. Therefore:
 - **Examples may name real projects**, but must be visually fenced:
   > Example (Teisutis): the translation map lives at `tools/translation_maps/*.py`.
 - **Never hard-code paths from a consuming project** in `References`. `docs/artefacts/by-agent/researcher/…` paths do not exist from the agent's perspective when invoked from a sibling project.
+- **Never hard-code relative paths in templates the skill emits** when the skill supports multiple source locations. A template that writes `[docs/ideas/](../ideas/)` only works when the source file lives at `docs/execution/...`; it breaks for `docs/IDEAS.md` or root-level `IDEAS.md`. Parameterise with placeholders (`<IDEAS_REL>`), derive the path from the actual source location at emit time, and include a worked-examples table for the common cases. See [references/emitted-templates.md](references/emitted-templates.md) for the full rule + DO/DON'T.
 
 ## Maintaining skills
 
@@ -212,4 +213,4 @@ SKIP: <conditions>
 - [Git Safety Rule](../../rules/RULE_git-safety.md) — applies to commits produced while authoring skills
 - Anthropic's Claude Code Agent Skills documentation (`docs.claude.com`) — the official `SKILL.md` spec this skill aligns with
 
-**Last Updated**: 2026-04-17
+**Last Updated**: 2026-04-19
