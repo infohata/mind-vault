@@ -91,13 +91,30 @@ Only when explicitly passed `--write`:
    - Emit `<project>/docs/ideas/IDEA-NNN-<slug>.md` using [`assets/idea-template.md`](assets/idea-template.md).
    - Frontmatter derived from parsed fields; body transplanted from the source entry with minor normalisation (strip legacy emoji status prefixes, keep prose).
 4. Write `<project>/docs/ideas/README.md` with the standard skeleton — one line per Active/Superseded idea grouped by priority, Completed entries as footer lines.
-5. Rewrite the source monolithic file as a short stub pointing at `docs/ideas/README.md`:
+5. Rewrite the source monolithic file as a short stub pointing at `docs/ideas/README.md`. **The stub's relative links must be computed from the source file's directory to `<project>/docs/ideas/`, not hardcoded.** Step 1 supports source files at the repo root (`IDEAS.md`), under `docs/` (`docs/IDEAS.md`), or deeper (`docs/execution/IDEAS.md`, `docs/planning/IDEAS.md`); a hardcoded `../ideas/` path would break in most of those locations.
+
+   Derivation rule (applied per-invocation):
+
+   - `<SOURCE_DIR>` = directory containing the legacy source file, relative to repo root.
+   - `<IDEAS_REL>` = relative path from `<SOURCE_DIR>` to `<project>/docs/ideas/`. Compute with `os.path.relpath(docs/ideas, SOURCE_DIR)` or equivalent.
+   - `<INDEX_REL>` = `<IDEAS_REL>/README.md`.
+
+   Worked examples:
+
+   | Source file | `<IDEAS_REL>` | `<INDEX_REL>` |
+   | --- | --- | --- |
+   | `IDEAS.md` (repo root) | `docs/ideas/` | `docs/ideas/README.md` |
+   | `docs/IDEAS.md` | `ideas/` | `ideas/README.md` |
+   | `docs/execution/IDEAS.md` | `../ideas/` | `../ideas/README.md` |
+   | `docs/planning/BACKLOG.md` | `../ideas/` | `../ideas/README.md` |
+
+   Stub template (substitute `<IDEAS_REL>` + `<INDEX_REL>` + `<ORIGINAL_FILENAME>`):
 
    ```markdown
-   # IDEAS.md
+   # <ORIGINAL_FILENAME>
 
-   This file was split into per-idea files under [`docs/ideas/`](../ideas/).
-   See [`docs/ideas/README.md`](../ideas/README.md) for the index.
+   This file was split into per-idea files under [`docs/ideas/`](<IDEAS_REL>).
+   See [`docs/ideas/README.md`](<INDEX_REL>) for the index.
 
    _Original content preserved in git history — see commit that landed the split._
    ```
