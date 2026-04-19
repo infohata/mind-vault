@@ -11,8 +11,8 @@ Drive a Cursor Bugbot review-fix-rerun cycle on the current PR (or specified PR 
 
 ## Hard bounds (enforced by the loop)
 
-- `max_commits_per_session = 10`
-- `max_active_work_minutes = 60` (excludes ScheduleWakeup sleep time)
+- `max_commits_per_session = 20`
+- `max_active_work_minutes = 180` (excludes ScheduleWakeup sleep time)
 - `max_idle_polls = 20` (consecutive wakes with no new bugbot comment AND no new push)
 - Targeted tests only inside the loop; broader regression deferred to hand-back
 - Feature branch only — never main (per `RULE_git-safety`)
@@ -91,14 +91,14 @@ If at least one fix was applied:
    - Body lists each finding closed.
 2. `git push origin HEAD`.
 3. `./tools/bugbot_retrigger.sh [PR_NUMBER]` (preferred) — hard-codes the `bugbot run` body so it can be pre-approved in `~/.claude/settings.json` without risking arbitrary comment injection. Falls back to current-branch PR lookup if no arg given. Equivalent to `gh pr comment <PR> -b "bugbot run"` but auto-approved.
-4. Increment session commit counter. If ≥ 10 → stop and hand back.
+4. Increment session commit counter. If ≥ 20 → stop and hand back.
 
 ## Phase 4: Wait + wake
 
 1. `ScheduleWakeup(delaySeconds=180, ...)` for the first poll (cache-warm).
 2. On wake: re-fetch bugbot comments via `./tools/find_bugbot_comments.sh`. The script output includes two signals of interest: a `BUGBOT_CLEAN_SIGNAL=<id> COMMIT=<sha> AT=<timestamp>` line if bugbot has posted a "found no new issues" review, and an inline list of any unresolved findings (with their review comment ids).
 3. Decision tree — evaluate in order. The first two branches are **absolute hard-bound guards**: they are checked before any happy-path branch so that the happy paths (which are collectively exhaustive over wake state) cannot shadow them.
-   - **Guard: active-work minutes ≥ 60** (excluding sleep) → hand back immediately, regardless of wake state.
+   - **Guard: active-work minutes ≥ 180** (excluding sleep) → hand back immediately, regardless of wake state.
    - **Guard: no-progress detector trips** — same finding category flagged 2× across cycles where a commit *attempted* that category (success-or-revert both count) → hand back immediately. This closes the mixed-cycle stuck-loop case where a reverted fix could be retried indefinitely when a sibling finding's successful push re-triggered bugbot.
    - **New findings since `last_seen_comment_id`** → reset idle-poll counter to 0, update `last_seen_comment_id` to the newest finding's id in the scratch file, reload triage state, return to Phase 1. (Compare against `last_seen_comment_id`, **not** last push SHA — when Phase 3 is skipped, the push doesn't advance and "new since last push" would stay true forever, resetting `idle_polls` on every wake. `last_seen_comment_id` ensures once a review is processed, subsequent polls with no new findings correctly accumulate idle polls.) **This branch must precede the clean-signal branch** because `/reviews` (clean signals) and `/comments` (findings) are independent API resources; both can coexist for the same commit if bugbot is re-triggered and produces new findings after a prior clean review. Unprocessed findings always take precedence over a stale clean signal.
    - **`BUGBOT_CLEAN_SIGNAL` present AND its `COMMIT` equals `last_push_sha`** → **PR clean for current head** → hand back immediately with the clean summary. Do not wait out the idle-poll bound. Ignore clean signals whose `COMMIT` is a stale SHA (bugbot posted them for a previous push). (This branch is only reached when the new-findings branch above didn't fire — i.e. no unprocessed findings exist.)
