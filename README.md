@@ -29,6 +29,10 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **deployment**         | Docker Compose production deploys — change-aware scripts, pre/post-migration backups, screen-session remote execution, Let's Encrypt SSL.             |
 | **surgical-tdd**       | Targeted test execution for large Python monoliths (Django runner + pytest nodeids + `--lf` / `-k` / `pytest-xdist` levers).                          |
 | **artefact-retrieval** | Sweep IDE workspaces (Cursor / Antigravity / Claude Code) for plans and analyses; import into `docs/artefacts/`.                                      |
+| **idea**               | Sprint workflow stage 1 — create or update atomic `IDEA-NNN-<slug>.md` files in `docs/ideas/`, maintain the per-priority index. Shape from teisutis IDEA-112. |
+| **plan**               | Sprint workflow stage 2 — turn an IDEA file or rough description into a durable plan; interactive brainstorm bootstrap on thin input; `AGENT_architect` as reviewer. |
+| **work**               | Sprint workflow stage 3 — thin orchestrator that reads a plan, enforces `RULE_git-safety` + `RULE_parallel-worktree-docker`, dispatches to implementation personas. |
+| **compound**           | Sprint workflow stage 5 — **the novel piece.** Routes a post-incident learning through a hybrid Shape-C probe to one of six destinations (project-local, mind-vault skill / rule / agent / command, or auto-memory). |
 
 ## Agents (9 subagent personas)
 
@@ -38,11 +42,28 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 
 Each persona has Prime Directives, an N-pass review/implementation workflow, and a structured verdict format. The project-tuned ones carry a `**Validated in:**` tag.
 
-## Commands (7 slash commands)
+## Commands (12 slash commands)
 
-`bugbot`, `bugbot_comments`, `bugbot-loop`, `create-pr`, `git-status`, `load-rules`, `test`.
+Review + PR flow: `bugbot`, `bugbot_comments`, `bugbot-loop`, `create-pr`, `git-status`, `load-rules`, `test`.
+
+Sprint workflow: `idea`, `plan` (alias `brainstorm`), `work`, `compound`. See [docs/SPRINT_WORKFLOW.md](docs/SPRINT_WORKFLOW.md) for the full five-stage loop and the compound-routing story.
 
 Invoke as `/<command-name>` in any host that supports slash commands.
+
+## Sprint workflow
+
+Five-stage loop inspired by Every Inc's compound-engineering plugin, re-centred on mind-vault's unique advantage: the compound stage routes learnings back into the knowledge store, so each sprint compounds the next.
+
+```text
+idea → brainstorm/plan → work → review → compound
+```
+
+- Artifacts live in the **target project's** `docs/{ideas,plans,solutions}/` tree. Mind-vault is the library; projects are the journal.
+- Mind-vault grows only when `/compound` explicitly promotes a learning — new skill, extended rule, additional agent pass, new command/tool, or auto-memory entry.
+- Review stays as `/bugbot-loop` (unchanged); `/compound` reads bugbot's findings file as an input source.
+- `RULE_git-safety` is honoured throughout: `/compound` branches if mind-vault is on `main`, extends any existing feature branch otherwise, maintains an open PR, and never merges.
+
+See [docs/SPRINT_WORKFLOW.md](docs/SPRINT_WORKFLOW.md) for the authoritative frontmatter schemas, the compound routing table, and right-sizing guidance.
 
 ## Rules
 
