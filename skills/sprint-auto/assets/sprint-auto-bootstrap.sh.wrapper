@@ -48,7 +48,7 @@ if [[ -z "$found" ]]; then
 The canonical $CANON_REL lives in mind-vault. This wrapper could not locate it.
 
 Searched:
-$(printf "$searched")
+$(printf '%b' "$searched")
 Fix one of:
   - Clone mind-vault:   git clone git@github.com:infohata/mind-vault.git ~/projects/mind-vault
   - Set env var:        export MIND_VAULT_ROOT=/path/to/mind-vault

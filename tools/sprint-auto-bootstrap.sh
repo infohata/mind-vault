@@ -99,16 +99,21 @@ log ".env generated (credentials sentinel-replaced)"
 # 2. Generate docker-compose.override.yml with port offset
 # ---------------------------------------------------------------------------
 
-port_offset=$(( 10000 + (idea_number % 100) * 100 ))
+port_offset=$(( 10000 + (10#$idea_number % 100) * 100 ))
 log "Computing port offset: +$port_offset"
 
 # `docker compose config --format json` resolves variable substitution and
 # merges any existing project-owned overrides into the final spec.
-if ! compose_json=$(docker compose config --format json 2>&1); then
+# Keep stderr OUT of the JSON stream — compose emits warnings (undefined vars,
+# deprecations, orphan containers) that would corrupt jq parsing if merged.
+compose_err=$(mktemp)
+if ! compose_json=$(docker compose config --format json 2>"$compose_err"); then
     log "docker compose config failed:"
-    printf '%s\n' "$compose_json" >&2
+    cat "$compose_err" >&2
+    rm -f "$compose_err"
     die "check compose file + .env"
 fi
+rm -f "$compose_err"
 
 # Compose normalises port entries into objects: {mode, target, published, protocol, host_ip}
 # regardless of source syntax. One service block per service with ports.
