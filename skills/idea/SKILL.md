@@ -31,7 +31,7 @@ Auto-increment, two-phase capture.
 
 **Phase A — establish the record.**
 
-1. Determine the next IDEA number by scanning `docs/ideas/IDEA-*.md` for the greatest existing three-digit number and adding 1; default to `001` if no files exist. Users can override with an explicit number argument (`/idea 200` → forces `IDEA-200`).
+1. Determine the next IDEA number by scanning **all three IDEA-file locations** — `docs/ideas/IDEA-*.md`, `docs/execution/IDEA-*.md`, and `docs/archive/*/IDEA-*.md` — for the greatest existing three-digit number, and adding 1. Default to `001` if no files exist. Users can override with an explicit number argument (`/idea 200` → forces `IDEA-200`). Scanning only `docs/ideas/` would collide with any IDEA currently in `in-progress` (execution/) or `superseded` / `rejected` (archive/) state, per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md).
 2. Ask the user for **title**, **priority** (high / medium / low), and an optional **depends_on** / **related** list referencing existing IDEA ids.
 3. Use the platform's blocking question tool when available (`AskUserQuestion` in Claude Code, `request_user_input` in Codex) for the priority choice. Ask one question at a time.
 4. Derive the slug from the title: lowercase, kebab-case, strip stopwords (`a`, `the`, `for`, `into`), truncate to ~40 chars. Confirm with the user if the slug is ambiguous.
@@ -39,7 +39,7 @@ Auto-increment, two-phase capture.
 Reference command for the number scan (agent may adapt to project specifics):
 
 ```bash
-ls docs/ideas/IDEA-*.md 2>/dev/null \
+ls docs/ideas/IDEA-*.md docs/execution/IDEA-*.md docs/archive/*/IDEA-*.md 2>/dev/null \
   | sed 's/.*IDEA-\([0-9]\+\).*/\1/' \
   | sort -n | tail -1
 ```
@@ -122,9 +122,9 @@ Rebuild the index from scratch if it gets out of sync: scan all three directorie
 
 ### 4. Auto-incrementing IDEA-NNN
 
-- Scan `<project>/docs/ideas/IDEA-*.md` — zero-padded three-digit numbers preferred (`IDEA-042` not `IDEA-42`).
+- Scan **all three IDEA-file locations** together: `<project>/docs/ideas/IDEA-*.md`, `<project>/docs/execution/IDEA-*.md`, and `<project>/docs/archive/*/IDEA-*.md`. Zero-padded three-digit numbers preferred (`IDEA-042` not `IDEA-42`). Scanning only `docs/ideas/` would miss IDEAs currently in `in-progress` / `superseded` / `rejected` state and produce a collision on the next increment.
 - Take max + 1. If no files exist, start at `IDEA-001`.
-- User override: `/idea 200 "Title here"` forces the number. Warn and ask if the number already exists.
+- User override: `/idea 200 "Title here"` forces the number. Warn and ask if the number already exists **in any of the three locations**.
 - Do **not** attempt to find "gaps" in the numbering. Numbers are append-only; holes from deleted ideas stay as holes.
 
 ✅ DO: `IDEA-001`, `IDEA-042`, `IDEA-112` (zero-padded to 3 digits).
