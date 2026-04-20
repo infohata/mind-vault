@@ -59,10 +59,13 @@ echo "📋 Fetching bugbot activity for PR #$PR_NUMBER..."
 echo ""
 
 # Fetch all three endpoints up-front (each defaults to [] on failure so the python
-# passes never receive empty stdin)
-INLINE_COMMENTS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/comments" 2>/dev/null || echo "[]")
-ISSUE_COMMENTS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments" 2>/dev/null || echo "[]")
-REVIEWS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews" 2>/dev/null || echo "[]")
+# passes never receive empty stdin). `per_page=100` is GitHub's max-per-page — avoids
+# the default-30 cap that would silently drop the most recent review / comment on a
+# long-iteration PR and defeat the exact clean-signal fast-path this helper exists
+# to serve. Single-page only (no --paginate) — bugbot review history is bounded.
+INLINE_COMMENTS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/comments?per_page=100" 2>/dev/null || echo "[]")
+ISSUE_COMMENTS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments?per_page=100" 2>/dev/null || echo "[]")
+REVIEWS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews?per_page=100" 2>/dev/null || echo "[]")
 
 # ------------------------------------------------------------------------------
 # Pass 1 — Reviews: clean-signal detection (and any review-level bugbot summary)
@@ -90,7 +93,12 @@ for r in bugbot:
 " 2>/dev/null || true)
 
 if [ -n "$CLEAN_SIGNAL_LINE" ]; then
-    echo -e "${GREEN}${CLEAN_SIGNAL_LINE}${NC}"
+    # Machine-readable marker for /bugbot-loop Phase 4: MUST be plain text, no ANSI
+    # escapes. Phase 4 greps `^BUGBOT_CLEAN_SIGNAL=` and parses `COMMIT=<sha>` for
+    # the fast-path hand-back. Wrapping this in color codes prefixes the line with
+    # `\033[0;32m`, breaks the anchor, and suffixes `AT=<ts>` with `\033[0m` — the
+    # exact failure mode this script exists to prevent.
+    echo "$CLEAN_SIGNAL_LINE"
     echo -e "${GREEN}✅ Bugbot reviewed the PR head and found no new issues.${NC}"
     echo ""
 fi
