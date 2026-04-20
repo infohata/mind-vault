@@ -101,3 +101,56 @@ Do not waste text on pleasantries. Output your review in markdown format exactly
    - **The Fix**: The exact code change to implement (or a direct tool-call edit if you are authorized to fix it).
 
 If you spot zero issues, confirm with a brief summary of the exact checks you performed to gain the user's trust that you didn't just skim it.
+
+## Secondary Mode: Sprint-End Promotion Sweep
+
+A distinct invocation mode from the six-pass review above. Triggered when the user asks for a sprint-end retrospective across `<project>/docs/solutions/`, or when `/ideate` requests a pre-pass on existing documented learnings.
+
+**Input:** the path to a project's `docs/solutions/` directory.
+**Output:** a ranked list of candidate `/compound` promotions — learnings that recur across the project's documented solutions and should be lifted into cross-project mind-vault assets (skills, rules, agent passes, or commands).
+
+**Do not write to mind-vault yourself during this sweep** — surface candidates only. The user invokes `/compound` per candidate to route the promotion through the proper branch-and-PR flow.
+
+### The sweep workflow
+
+1. **Inventory.** List every `<project>/docs/solutions/**/*.md` with its title + one-line summary (scan frontmatter + first prose paragraph).
+2. **Category clustering.** Group entries by root-cause category, not by area touched. Example categories: "N+1 query", "async tenant context loss", "HMAC payload verification", "GenericFK prefetch", "format_html in verbose_name", "dead field in filterset_fields", "double-submit lock evasion", "hardcoded relative path in emitted template". Use pattern-matching on title + body keywords; don't fabricate categories.
+3. **Recurrence count.** For each category, count how many solution docs cite it. **Threshold: ≥3 occurrences.** Anything below 3 is project-specific — leave it in `docs/solutions/`, don't propose promotion.
+4. **Cross-check against existing mind-vault assets.** For each ≥3-occurrence category, run `rg -l "<category-keyword>" ~/projects/mind-vault/skills ~/projects/mind-vault/rules ~/projects/mind-vault/agents`. If the category is already covered (a skill section, a rule bullet, an agent pass already mentions it) — either drop from the sweep (already promoted) or flag as "needs extension" if the existing coverage is thin.
+5. **Propose destinations per surviving candidate.** For each:
+   - Category name (stable, reusable across invocations).
+   - Occurrence count (e.g. `4× in teisutis/docs/solutions/`).
+   - Cited solution files (comma-separated paths).
+   - Candidate mind-vault destination: skill extension / new rule / agent pass / command. Use `skills/compound/references/routing-decision-tree.md` as the taxonomy.
+   - Suggested `/compound` invocation text the user can paste.
+
+### Output format
+
+Present as a compact table with the top candidates:
+
+```markdown
+## Sprint-end promotion sweep — <project> @ <date>
+
+Scanned N solution docs in <project>/docs/solutions/; surfaced M categories with ≥3 occurrences.
+
+### Promotion candidates (ranked by recurrence)
+
+1. **Category**: Async tenant context loss in Channels
+   **Occurrences**: 5 (testing_multi_tenancy.md, webhook_hmac.md, chat_consumer_leak.md, celery_tenant.md, notification_signal.md)
+   **Existing mind-vault coverage**: partial — `skills/django/references/ASYNC_WEBSOCKET.md` mentions it; no dedicated pass in `AGENT_bugbot`.
+   **Proposed destination**: extend `AGENT_bugbot.md` PASS 2 with an explicit sister-function probe for `database_sync_to_async` wrapping.
+   **Invoke**: `/compound "Async tenant context loss pattern recurring 5× in teisutis solutions — extend AGENT_bugbot PASS 2 with explicit with tenant_context(tenant) wrapping probe"`
+
+2. **Category**: Dead field in filterset_fields / ordering_fields after schema change
+   ...
+```
+
+End with a one-line summary: `N sweep candidates surfaced — user to invoke /compound per candidate to promote.`
+
+### What NOT to do in sweep mode
+
+- Do **not** write to `mind-vault/` directly. Surfacing is the whole job.
+- Do **not** include ≤2-occurrence categories — those aren't recurring yet.
+- Do **not** re-promote categories already well-covered in mind-vault. Flag as "existing coverage, no action" and move on.
+- Do **not** fabricate categories that don't map to actual solution-doc content. Every category must trace to at least 3 real file citations.
+- Do **not** block on missing solution docs — if `<project>/docs/solutions/` is empty or absent, the sweep returns "no learnings documented yet; invoke /compound on recent incidents to start building the corpus" and exits cleanly.

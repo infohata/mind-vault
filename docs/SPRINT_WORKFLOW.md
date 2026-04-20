@@ -3,14 +3,17 @@
 Mind-vault's five-stage development loop, inspired by Every Inc's compound-engineering plugin but deliberately tuned for a single-user, cross-project knowledge store.
 
 ```text
-┌──────┐   ┌──────────────────┐   ┌──────┐   ┌────────┐   ┌──────────┐
-│ idea │ → │ brainstorm / plan│ → │ work │ → │ review │ → │ compound │
-└──────┘   └──────────────────┘   └──────┘   └────────┘   └──────────┘
-    ↑                                                           │
-    └───── new atomic idea, or update to existing ──────────────┘
+┌──────────┐     ┌──────┐   ┌──────────────────┐   ┌──────┐   ┌────────┐   ┌──────────┐
+│ (ideate) │ ──→ │ idea │ → │ brainstorm / plan│ → │ work │ → │ review │ → │ compound │
+└──────────┘     └──────┘   └──────────────────┘   └──────┘   └────────┘   └──────────┘
+ optional, pre-   ↑                                                           │
+ picks candidates │                                                           │
+                  └───── new atomic idea, or update to existing ──────────────┘
 ```
 
 Each run of the loop produces durable artifacts in the target project's `docs/` tree. The loop compounds because the final stage — `/compound` — routes learnings back into mind-vault when they generalise, extending skills, rules, and reviewer personas every project thereafter will pick up.
+
+The optional `/ideate` stage sits above `/idea` — use it between sprints to discover candidate improvements via divergent scan + adversarial filter, then promote the survivors into IDEA files (it uses the same schema as `/idea`).
 
 ## Philosophy
 
@@ -19,10 +22,11 @@ Each run of the loop produces durable artifacts in the target project's `docs/` 
 - **Artifacts live in the target project.** Mind-vault is the library; projects are the journal. Mind-vault grows only when `/compound` explicitly promotes a cross-cutting pattern.
 - **Review stage is unchanged.** `/bugbot-loop` + the existing review personas stay as-is. What's new is `/compound` reading bugbot's findings file as an input source and routing each cleared finding.
 
-## The five stages
+## The five stages (plus optional discovery)
 
 | Stage | Command | Input | Output |
 | --- | --- | --- | --- |
+| 0. Ideate (optional) | `/ideate` | Scoped area (project / app / layer) | Menu of ranked candidates; selected survivors promoted into `IDEA-NNN-<slug>.md` files |
 | 1. Idea | `/idea [slug]` | Title (new) or slug (update) | `<project>/docs/ideas/IDEA-NNN-<slug>.md` |
 | 2. Brainstorm / Plan | `/plan` or `/brainstorm` | IDEA file, or raw description | `<project>/docs/plans/YYYY-MM-DD-<slug>-plan.md` |
 | 3. Work | `/work` | Plan file | Code changes on a feature branch |
@@ -149,11 +153,13 @@ The loop's value scales with the work's ambiguity. Don't force ceremony onto wor
 
 ## References
 
+- [skills/ideate/](../skills/ideate/SKILL.md) — optional discovery stage above `/idea`
 - [skills/idea/](../skills/idea/SKILL.md) — atomic IDEA file creator / updater
 - [skills/plan/](../skills/plan/SKILL.md) — merged brainstorm + plan skill
 - [skills/work/](../skills/work/SKILL.md) — thin dispatch orchestrator
 - [skills/compound/](../skills/compound/SKILL.md) — the router
 - [skills/ingest-backlog/](../skills/ingest-backlog/SKILL.md) — brownfield-takeover helper (Phase 1.5)
+- [agents/AGENT_curator.md](../agents/AGENT_curator.md) — secondary "sprint-end promotion sweep" mode scans `docs/solutions/` for recurring patterns and proposes `/compound` invocations
 - [rules/RULE_git-safety.md](../rules/RULE_git-safety.md) — what `/compound` honours when promoting to mind-vault
 - [rules/RULE_parallel-worktree-docker.md](../rules/RULE_parallel-worktree-docker.md) — what `/work` cites for parallel execution
 

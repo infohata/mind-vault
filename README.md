@@ -34,6 +34,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **work** | Sprint workflow stage 3 — thin orchestrator that reads a plan, enforces `RULE_git-safety` + `RULE_parallel-worktree-docker`, dispatches to implementation personas. |
 | **compound** | Sprint workflow stage 5 — **the novel piece.** Routes a post-incident learning through a hybrid Shape-C probe to one of six destinations (project-local, mind-vault skill / rule / agent / command, or auto-memory). |
 | **ingest-backlog** | Brownfield-takeover helper. Atomises a monolithic `IDEAS.md` / `BACKLOG.md` / `ROADMAP.md` into per-idea files matching the sprint workflow's schema. Default dry-run; `--write` for destructive. One-pass, forward-only. |
+| **ideate** | Sprint workflow optional stage 0 — discover high-impact improvement candidates through divergent scan + adversarial filter; emits selected survivors as IDEA files via the `/idea` schema. Between-sprint discovery tool. |
 
 ## Agents (9 subagent personas)
 
@@ -43,11 +44,11 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 
 Each persona has Prime Directives, an N-pass review/implementation workflow, and a structured verdict format. The project-tuned ones carry a `**Validated in:**` tag.
 
-## Commands (13 slash commands)
+## Commands (14 slash commands)
 
 Review + PR flow: `bugbot`, `bugbot_comments`, `bugbot-loop`, `create-pr`, `git-status`, `load-rules`, `test`.
 
-Sprint workflow: `idea`, `plan` (alias `brainstorm`), `work`, `compound`, `ingest-backlog`. See [docs/SPRINT_WORKFLOW.md](docs/SPRINT_WORKFLOW.md) for the full five-stage loop and the compound-routing story.
+Sprint workflow: `ideate` (optional entry), `idea`, `plan` (alias `brainstorm`), `work`, `compound`, `ingest-backlog`. See [docs/SPRINT_WORKFLOW.md](docs/SPRINT_WORKFLOW.md) for the full five-stage loop and the compound-routing story.
 
 Invoke as `/<command-name>` in any host that supports slash commands.
 
