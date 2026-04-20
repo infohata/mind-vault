@@ -4,73 +4,97 @@ Cross-host configuration library for AI coding agents — skills, commands, suba
 
 > **Single source of truth.** You edit in `mind-vault/`; one setup script per host drops symlinks into each tool's native config directory. No copy-paste drift between Cursor, Claude Code, OpenCode, VS Code Copilot, or Antigravity.
 
+## Sprint workflow — the compound loop
+
+Mind-vault's headline value: a five-stage development loop (plus one optional discovery stage) that makes each sprint easier than the last. The final stage, `/compound`, routes every learned lesson back into mind-vault itself — extending skills, rules, and reviewer personas so the next sprint starts with a higher floor.
+
+```mermaid
+flowchart LR
+    I0(["/ideate — optional discovery"]) -.-> I1
+    I1(["/idea — capture"]) --> P
+    P(["/plan · /brainstorm — what + how"]) --> W
+    W(["/work — execute"]) --> R
+    R(["/bugbot-loop\n+ bugbot · curator · architect"]) --> C
+    C(["/compound — router"]) -.promotes.-> V[("mind-vault\nskills · rules · agents\ncommands · memory")]
+    C -.next sprint.-> I1
+```
+
+**Design note on the review stage.** Stages 1–2–3–5 each have a dedicated skill (`/idea`, `/plan`, `/work`, `/compound`). Stage 4 (review) intentionally does not — mind-vault's review subsystem is mature and loop-driven: `AGENT_bugbot` + `AGENT_curator` + `AGENT_architect` personas invoked via `/bugbot-loop`. Adding a wrapper skill would duplicate infrastructure without adding value. The loop IS the stage.
+
+See [docs/SPRINT_WORKFLOW.md](docs/SPRINT_WORKFLOW.md) for the full explainer — authoritative frontmatter schemas, compound-routing table, right-sizing guidance, and the handoff contract between stages.
+
 ## Structure
 
 ```text
 mind-vault/
 ├── skills/        Agent Skills (SKILL.md + references/ + assets/ + scripts/)
 ├── agents/        Subagent personas (AGENT_*.md)
-├── commands/      Slash commands (/test, /bugbot-loop, /create-pr, …)
+├── commands/      Slash commands invoked as /<name>
 ├── rules/         Shared behavioural rules (RULE_*.md)
-├── docs/          Reference specs, artefacts, lessons
+├── docs/          Specs, plans, solutions, artefacts
 ├── scripts/       Per-host symlink setup + shared helpers
-└── tools/         Utilities
+└── tools/         Utilities (bugbot helpers, emoji support, etc.)
 ```
 
-## Skills
+## Skills (11)
 
 Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each skill has frontmatter `name` + `description` (the probabilistic trigger), stays under ~500 lines, and pushes deep-dive content to `references/`.
 
+### Sprint workflow
+
 | Skill | Purpose |
 | --- | --- |
-| **skill-writer** | Meta-standard for authoring / refactoring skills — frontmatter schema, TRIGGER/SKIP, length budget, DO/DON'T matrix, cross-project portability rules. |
+| **ideate** | Stage 0 (optional) — divergent scan + adversarial filter to surface candidate improvements; promotes survivors into IDEA files via the `/idea` schema. |
+| **idea** | Stage 1 — create or update atomic `IDEA-NNN-<slug>.md` files in `docs/ideas/`; maintains the per-priority index. Shape from teisutis IDEA-112. |
+| **plan** | Stage 2 — turn an IDEA file or rough description into a durable plan; interactive brainstorm bootstrap on thin input; `AGENT_architect` as reviewer. Aliased `/brainstorm`. |
+| **work** | Stage 3 — thin orchestrator that reads a plan, enforces `RULE_git-safety` + `RULE_parallel-worktree-docker`, dispatches to implementation personas. |
+| **compound** | Stage 5 — **the novel piece.** Routes a post-incident learning through a hybrid Shape-C probe to one of six destinations (project-local, mind-vault skill / rule / agent pass / command, or auto-memory). |
+| **ingest-backlog** | Brownfield-takeover helper (one-time). Atomises a monolithic `IDEAS.md` / `BACKLOG.md` / `ROADMAP.md` into per-idea files matching the sprint-workflow schema. Default dry-run. |
+
+### Cross-project engineering
+
+| Skill | Purpose |
+| --- | --- |
 | **django** | Backend conventions: BaseModel, soft-delete, DRF viewsets, multi-tenancy boundaries, generic-FK pattern, permission probes, translation workflow. |
 | **django-frontend** | HTMX + Alpine + Bulma + Crispy Forms — partial dispatch, modal/formset JS contracts, safe query-string generation. Pairs with `django`. |
 | **deployment** | Docker Compose production deploys — change-aware scripts, pre/post-migration backups, screen-session remote execution, Let's Encrypt SSL. |
 | **surgical-tdd** | Targeted test execution for large Python monoliths (Django runner + pytest nodeids + `--lf` / `-k` / `pytest-xdist` levers). |
 | **artefact-retrieval** | Sweep IDE workspaces (Cursor / Antigravity / Claude Code) for plans and analyses; import into `docs/artefacts/`. |
-| **idea** | Sprint workflow stage 1 — create or update atomic `IDEA-NNN-<slug>.md` files in `docs/ideas/`, maintain the per-priority index. Shape from teisutis IDEA-112. |
-| **plan** | Sprint workflow stage 2 — turn an IDEA file or rough description into a durable plan; interactive brainstorm bootstrap on thin input; `AGENT_architect` as reviewer. |
-| **work** | Sprint workflow stage 3 — thin orchestrator that reads a plan, enforces `RULE_git-safety` + `RULE_parallel-worktree-docker`, dispatches to implementation personas. |
-| **compound** | Sprint workflow stage 5 — **the novel piece.** Routes a post-incident learning through a hybrid Shape-C probe to one of six destinations (project-local, mind-vault skill / rule / agent / command, or auto-memory). |
-| **ingest-backlog** | Brownfield-takeover helper. Atomises a monolithic `IDEAS.md` / `BACKLOG.md` / `ROADMAP.md` into per-idea files matching the sprint workflow's schema. Default dry-run; `--write` for destructive. One-pass, forward-only. |
-| **ideate** | Sprint workflow optional stage 0 — discover high-impact improvement candidates through divergent scan + adversarial filter; emits selected survivors as IDEA files via the `/idea` schema. Between-sprint discovery tool. |
+
+### Meta
+
+| Skill | Purpose |
+| --- | --- |
+| **skill-writer** | Authoring + refactoring `.md` skills and rules — frontmatter schema, TRIGGER/SKIP, length budget, DO/DON'T matrix, cross-project portability, emitted-template rules. |
 
 ## Agents (9 subagent personas)
 
-`AGENT_*.md` files loaded by Cursor's and Claude Code's subagent systems; consulted by OpenCode.
+`AGENT_*.md` files consumed by Cursor's and Claude Code's subagent systems, inlined by OpenCode. Each persona has Prime Directives, an N-pass workflow, and a structured verdict format.
 
-`architect`, `backend`, `bugbot`, `curator`, `devops`, `documentation`, `frontend`, `researcher`, `test-engineer`.
-
-Each persona has Prime Directives, an N-pass review/implementation workflow, and a structured verdict format. The project-tuned ones carry a `**Validated in:**` tag.
+| Persona | Covers | Stage |
+| --- | --- | --- |
+| **architect** | Structural + abstraction + coupling review; author mode for cross-cutting refactors | Stage 2 reviewer (plan), Stage 3 author (cross-cutting) |
+| **backend / frontend / devops / test-engineer** | Implementation personas by domain | Stage 3 dispatch targets from `/work` |
+| **bugbot** | Pre-commit rigorous code review (6-pass workflow) | Stage 4 reviewer (invoked via `/bugbot-loop`) |
+| **curator** | Pre-commit sister to bugbot + **sprint-end promotion sweep** mode | Stage 4 reviewer + cross-sprint retrospective |
+| **documentation** | Docs-only authorship and review | Standalone |
+| **researcher** | Ad-hoc investigation / literature review | Standalone |
 
 ## Commands (14 slash commands)
 
-Review + PR flow: `bugbot`, `bugbot_comments`, `bugbot-loop`, `create-pr`, `git-status`, `load-rules`, `test`.
+**Sprint workflow:** `/ideate`, `/idea`, `/plan` (alias `/brainstorm`), `/work`, `/compound`, `/ingest-backlog`.
 
-Sprint workflow: `ideate` (optional entry), `idea`, `plan` (alias `brainstorm`), `work`, `compound`, `ingest-backlog`. See [docs/SPRINT_WORKFLOW.md](docs/SPRINT_WORKFLOW.md) for the full five-stage loop and the compound-routing story.
+**Review + PR flow:** `/bugbot`, `/bugbot_comments`, `/bugbot-loop`, `/create-pr`, `/test`.
 
-Invoke as `/<command-name>` in any host that supports slash commands.
+**Utility:** `/git-status`, `/load-rules`.
 
-## Sprint workflow
-
-Five-stage loop inspired by Every Inc's compound-engineering plugin, re-centred on mind-vault's unique advantage: the compound stage routes learnings back into the knowledge store, so each sprint compounds the next.
-
-```text
-idea → brainstorm/plan → work → review → compound
-```
-
-- Artifacts live in the **target project's** `docs/{ideas,plans,solutions}/` tree. Mind-vault is the library; projects are the journal.
-- Mind-vault grows only when `/compound` explicitly promotes a learning — new skill, extended rule, additional agent pass, new command/tool, or auto-memory entry.
-- Review stays as `/bugbot-loop` (unchanged); `/compound` reads bugbot's findings file as an input source.
-- `RULE_git-safety` is honoured throughout: `/compound` branches if mind-vault is on `main`, extends any existing feature branch otherwise, maintains an open PR, and never merges.
-
-See [docs/SPRINT_WORKFLOW.md](docs/SPRINT_WORKFLOW.md) for the authoritative frontmatter schemas, the compound routing table, and right-sizing guidance.
+Invoke as `/<command-name>` in any host that supports slash commands. See [docs/SPRINT_WORKFLOW.md](docs/SPRINT_WORKFLOW.md) for the sprint-workflow orchestration story.
 
 ## Rules
 
-- **`RULE_git-safety`** — HITL gate on `main` and the release branch; feature branches are the agent's sandbox. See [rules/RULE_git-safety.md](rules/RULE_git-safety.md).
-- **`RULE_i18n-workflow`** — Django translation map-first workflow; `.po` files are generated, never hand-edited.
+- **[RULE_git-safety](rules/RULE_git-safety.md)** — HITL gate on `main` and the release branch; feature branches are the agent's sandbox. Governs `/compound`'s branch policy and the bugbot-loop's autonomous-commit permissions.
+- **[RULE_i18n-workflow](rules/RULE_i18n-workflow.md)** — Django translation map-first workflow; `.po` files are generated, never hand-edited.
+- **[RULE_parallel-worktree-docker](rules/RULE_parallel-worktree-docker.md)** — Worktree + docker-compose isolation contract for parallel work streams. Cited by `/work` when the plan flags parallelism.
 
 ## Setup
 
@@ -112,7 +136,7 @@ Antigravity is a VS Code fork. Its **built-in Gemini chat** has no user-level sk
 
 ## Authoring
 
-- **New skills**: follow [`docs/SKILL_SPECIFICATION.md`](docs/SKILL_SPECIFICATION.md) (Anthropic Agent Skills reference) and `skills/skill-writer/SKILL.md` (mind-vault enforcement rules).
+- **New skills**: follow [`docs/SKILL_SPECIFICATION.md`](docs/SKILL_SPECIFICATION.md) (Anthropic Agent Skills reference) and [`skills/skill-writer/SKILL.md`](skills/skill-writer/SKILL.md) (mind-vault enforcement rules, including the emitted-template portability rule).
 - **Contributor conventions**: [`AGENTS.md`](AGENTS.md) — naming, structure, file organization, git workflow.
 
 ### Markdown hygiene (pre-commit)
@@ -127,7 +151,7 @@ pre-commit run --all-files       # optional: one-time full-tree sweep
 
 Config: [`.pre-commit-config.yaml`](.pre-commit-config.yaml) pins `mdformat` + `mdformat-gfm` + `mdformat-frontmatter`. [`.mdformat.toml`](.mdformat.toml) preserves consecutive numbering and disables line reflow.
 
-**For documentation-heavy repos (e.g. in-project handbooks)**, prefer `markdownlint-cli2 --fix` instead of mdformat — it preserves `---` horizontal rules and emphasis style. See the note in `feedback_markdown_formatter_per_repo_type.md` memory.
+For documentation-heavy repos, prefer `markdownlint-cli2 --fix` over mdformat — it preserves `---` horizontal rules and emphasis style.
 
 ## Philosophy
 
@@ -135,6 +159,7 @@ Config: [`.pre-commit-config.yaml`](.pre-commit-config.yaml) pins `mdformat` + `
 - **Progressive disclosure**: `SKILL.md` stays under ~500 lines; heavy content lives in `references/` and loads only when invoked.
 - **Description = trigger**: the frontmatter `description:` is the probabilistic trigger the host agent reads to decide whether to activate. Noun-dense, specific verbs, names the concrete stack.
 - **Generic patterns first, examples second**: concrete project names (e.g. Teisutis) appear only as illustrative fences, never as universal rules.
+- **Each unit of engineering work should make the next unit easier** — the compound principle driving the sprint workflow.
 
 ## Git workflow
 

@@ -2,13 +2,15 @@
 
 Mind-vault's five-stage development loop, inspired by Every Inc's compound-engineering plugin but deliberately tuned for a single-user, cross-project knowledge store.
 
-```text
-┌──────────┐     ┌──────┐   ┌──────────────────┐   ┌──────┐   ┌────────┐   ┌──────────┐
-│ (ideate) │ ──→ │ idea │ → │ brainstorm / plan│ → │ work │ → │ review │ → │ compound │
-└──────────┘     └──────┘   └──────────────────┘   └──────┘   └────────┘   └──────────┘
- optional, pre-   ↑                                                           │
- picks candidates │                                                           │
-                  └───── new atomic idea, or update to existing ──────────────┘
+```mermaid
+flowchart LR
+    I0(["/ideate — optional discovery"]) -.-> I1
+    I1(["/idea — capture"]) --> P
+    P(["/plan · /brainstorm — what + how"]) --> W
+    W(["/work — execute"]) --> R
+    R(["/bugbot-loop\n+ bugbot · curator · architect"]) --> C
+    C(["/compound — router"]) -.promotes.-> V[("mind-vault\nskills · rules · agents\ncommands · memory")]
+    C -.next sprint.-> I1
 ```
 
 Each run of the loop produces durable artifacts in the target project's `docs/` tree. The loop compounds because the final stage — `/compound` — routes learnings back into mind-vault when they generalise, extending skills, rules, and reviewer personas every project thereafter will pick up.
