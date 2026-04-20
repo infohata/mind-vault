@@ -430,6 +430,31 @@ def _tenant_schema_pool(django_db_setup, django_db_blocker):
   This is a **quality improvement independent of pooling** — lets tests use `self.tenant.get_primary_domain().domain` reliably as `HTTP_HOST` without worrying about None. Bonus: prevents cross-worker races at `-n 16` when multiple classes share the default `tenant.test.com` domain.
 - **Test mutations of `self.tenant` fields.** Tests that do `self.tenant.is_public_chat_enabled = True; self.tenant.save()` will persist the mutation in `pool_org` and leak into the next class. The snapshot-restore in `pooled_setUpClass` above handles this — if you implement pooling, don't skip it.
 - **Hardcoded `HTTP_HOST = "tenant.test.com"` in tests.** Works fine under non-pooled (default `get_test_tenant_domain()` returns `tenant.test.com`) but can race under xdist `-n 16`. Migrate to `self.tenant.get_primary_domain().domain` as defragilization work.
+- **Pool-tenant DDL races at `-n 8+`** (deadlock on pg_catalog). Autouse session-scoped pool setup does `Org.objects.create(schema_name=pool_schema)` per worker, which fires `CREATE SCHEMA + migrate(TENANT_APPS)`. Eight parallel runs of the tenant-migration `ADD CONSTRAINT` against tables with FKs into public-schema anchors (e.g. `auth_user`) deadlock on `ShareRowExclusiveLock` / `AccessExclusiveLock` on system-catalog relations. Symptom: `psycopg2.errors.DeadlockDetected` during `django_db_setup`, often for pure `SimpleTestCase`-only modules (the autouse fixture runs regardless of what was collected). Single-worker runs pass; `-n 2` usually passes; `-n 8` reliably fails. Fix — serialize the DDL-heavy portion with a PostgreSQL advisory lock, no new Python dep, auto-released on worker exit:
+
+  ```python
+  @pytest.fixture(scope="session", autouse=True)
+  def _tenant_schema_pool(django_db_setup, django_db_blocker):
+      if os.environ.get("POOLING") != "1":
+          yield
+          return
+      from django.db import connection as _pool_conn
+      POOL_SETUP_LOCK_ID = 0x5F00B4  # arbitrary int64, keyed on purpose
+
+      with django_db_blocker.unblock():
+          with _pool_conn.cursor() as cur:
+              cur.execute("SELECT pg_advisory_lock(%s)", [POOL_SETUP_LOCK_ID])
+          try:
+              with schema_context("public"):
+                  Org.objects.create(schema_name=f"test_pool_{worker}")
+          finally:
+              with _pool_conn.cursor() as cur:
+                  cur.execute("SELECT pg_advisory_unlock(%s)", [POOL_SETUP_LOCK_ID])
+          yield
+          # teardown …
+  ```
+
+  Held only during the migration; monkey-patching of `TenantTestCase.setUpClass` afterwards doesn't need the lock. (Teisutis PR #330 cycle 10.)
 
 ### When to use each lever
 
