@@ -123,9 +123,9 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
 
 ### 4. Auto-incrementing IDEA-NNN
 
-- Scan **all three IDEA-file locations** together: `<project>/docs/ideas/IDEA-*.md`, `<project>/docs/execution/IDEA-*.md`, and `<project>/docs/archive/*/IDEA-*.md`. Zero-padded three-digit numbers preferred (`IDEA-042` not `IDEA-42`). Scanning only `docs/ideas/` would miss IDEAs currently in `in-progress` / `superseded` / `rejected` state and produce a collision on the next increment.
+- Scan **both IDEA-file locations** together: `<project>/docs/ideas/IDEA-*.md` and `<project>/docs/archive/*/IDEA-*.md`. Zero-padded three-digit numbers preferred (`IDEA-042` not `IDEA-42`). Scanning only `docs/ideas/` would miss IDEAs in any non-backlog state (`in-progress`, `complete`, `superseded`, `rejected`) — all live in the archive tree per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md) — and produce a collision on the next increment.
 - Take max + 1. If no files exist, start at `IDEA-001`.
-- User override: `/idea 200 "Title here"` forces the number. Warn and ask if the number already exists **in any of the three locations**.
+- User override: `/idea 200 "Title here"` forces the number. Warn and ask if the number already exists **in either location**.
 - Do **not** attempt to find "gaps" in the numbering. Numbers are append-only; holes from deleted ideas stay as holes.
 
 ✅ DO: `IDEA-001`, `IDEA-042`, `IDEA-112` (zero-padded to 3 digits).
