@@ -15,7 +15,7 @@ Behaviour:
 4. Walk the plan's Execution Sequence; dispatch each item to the matching persona via `skills/work/references/persona-dispatch.md`. Pass paths, not content, to subagents.
 5. Commit per logical unit. After each commit, mark the plan item ✅ with the short SHA in the plan file.
 6. Run the plan's Verification section after all items land. If passes, open a PR (never merges). If fails, document in the plan's Open Questions and route back to the user.
-7. Print the PR URL and suggest `/bugbot-loop <pr-url>` as the review stage.
+7. Print the PR URL and suggest `/bugbot-loop <pr-url>` as the review stage. On merge (post-`/bugbot-loop`), the next step is `/wrap` — flip the IDEA frontmatter, update the ideas index + devlog, and scan project docs for stale references before `/compound` routes the learnings.
 
 Does not re-decide what the plan decided. If execution reveals the plan is wrong, stop and route back to `/plan` for a revision.
 

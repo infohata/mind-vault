@@ -7,6 +7,8 @@ agent: general
 
 Invoke the `compound` skill to route a post-incident learning to the right home. The novel piece of the sprint workflow and its entire compound-effect payoff.
 
+**Runs after `/wrap`.** The paper trail (IDEA status flipped, index re-sorted, devlog entry, downstream docs swept) should be in place before `/compound` starts; `/compound` appends its PR link to the wrap-created devlog entry rather than creating a parallel entry.
+
 Behaviour:
 
 1. Collect the raw learning: explicit prompt content, a `/bugbot-loop` findings file, a PR comment thread, or interactive prompt.
