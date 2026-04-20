@@ -90,9 +90,9 @@ If verification fails:
 2. Document the failure in the plan's Open Questions section (append, don't overwrite).
 3. Route to the user for a decision: fix in place, roll back the latest commit, or return to `/plan` for a revised approach.
 
-### 6. Flip status on merge — frontmatter only, no file moves
+### 6. Flip status on merge — frontmatter only (with `/plan`-bypass fallback)
 
-Per the revised [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md), the IDEA file already lives in its permanent home (`docs/archive/YYYY-MM-idea-NNN-<slug>/`, placed there by `/plan` step 7). On merge, **no file moves**. Just frontmatter edits:
+Per the revised [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md), the IDEA file normally already lives in its permanent home (`docs/archive/YYYY-MM-idea-NNN-<slug>/`, placed there by `/plan` step 6 when the user went through `/plan` first). On merge, **no file moves** in that case. Just frontmatter edits:
 
 ```yaml
 # docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md
@@ -112,7 +112,21 @@ Plus `docs/ideas/README.md`:
 
 That's it. No `git mv` cascade, no archive-dir creation (it already exists), no cross-tree routing. The single filesystem move per idea happened at `/plan` time.
 
-Commit message: `docs(archive): IDEA-NNN <slug> — mark complete (merged in PR #xxx)`.
+**Fallback: idea bypassed `/plan` entirely.** If the user went straight from `/idea` to `/work` without a `/plan` invocation (small scope, simple fix), the source file is still in `docs/ideas/` at merge time. `/work` is the fallback owner of the `idea → archive` move per `RULE_ideas-location-status`. Before the frontmatter flip above, run the same move `/plan` step 6 would have done:
+
+```bash
+mkdir -p <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/
+git mv <project>/docs/ideas/IDEA-NNN-<slug>.md \
+       <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md
+# + update docs/ideas/README.md: remove from priority section,
+#   add footer line under "References — Implemented"
+```
+
+`YYYY-MM` = merge month (since work happened without a separate plan-time stamp). Then apply the frontmatter flip above — on the now-archive path.
+
+Detection: glob `<project>/docs/ideas/IDEA-*-<slug>.md` before the frontmatter flip. If a match exists, run the fallback move first. If not, the file is already in archive and the frontmatter flip is all that's needed.
+
+Commit message: `docs(archive): IDEA-NNN <slug> — mark complete (merged in PR #xxx)`. If the fallback move ran, the commit combines both the move and the frontmatter flip; commit message prefix becomes `feat(archive)` instead of `docs(archive)` to signal the filesystem change.
 
 This commit lands on a cleanup branch after the primary PR merges (typically `chore/complete-idea-NNN`) since the status-flip commit references the merged PR number. The human can also roll the completion-flip into the same commit that updates `DEVELOPMENT_LOG` for that merge.
 

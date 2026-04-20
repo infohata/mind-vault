@@ -107,9 +107,7 @@ git mv <project>/docs/ideas/IDEA-NNN-<slug>.md \
 
 After this step's move, step 7 emits the plan file into the same dir. All subsequent artefacts (research notes, session prompts, screenshots, the eventual README) go into this dir too. Future `/work` on completion edits frontmatter to `status: complete` — **no further file movement**.
 
-Skip the transition when:
-
-- The plan is scoped as **trivial** or **small** — emit the plan wherever it makes sense (often just write it into the IDEA file's existing dir if it's already been archived, or drop it ad hoc). Small scopes may not warrant a lifecycle stamp at all.
+**Always run this step when `/plan` is invoked**, even for trivial or small scopes. Earlier drafts allowed skipping the move for small scopes; that created a gap where a complete IDEA could end up sitting in `docs/ideas/` (location-status mismatch per `RULE_ideas-location-status` hard rule #2). `/plan` is the primary owner of this transition; if the user bypassed `/plan` entirely and went straight to `/work`, `/work` performs the same move as a fallback.
 
 ### 7. Emit the plan file into the idea's archive dir
 
@@ -137,8 +135,11 @@ project: <project-name>
 ```
 
 Print the created path + a one-line summary. Suggest `/work <plan-path>` as the next command.
-- The source IDEA file already lives in `docs/archive/<dir>/` — this is a plan revision on work already in-progress or a re-plan after rejection; just emit the new plan into the existing dir.
-- There is no source IDEA file — the plan is a standalone artefact; emit it to a context-appropriate location (often `docs/plans/` as a fallback, which exists only for orphan plans).
+
+**Special cases** (skip step 6's move, emit the plan differently):
+
+- The source IDEA file already lives in `docs/archive/<dir>/` — this is a plan revision on work already in-progress or a re-plan after rejection; just emit the new plan into the existing dir. Step 6's move was already done by the original `/plan` run.
+- There is no source IDEA file — the plan is a standalone artefact; emit it to a context-appropriate location (often `docs/plans/` as a fallback, which exists only for orphan plans). Step 6 doesn't apply because there's nothing to move.
 
 Commit message for the combined IDEA-move + plan-emit change: `docs(plan): <slug> — draft plan + move IDEA-NNN to in-progress`.
 
