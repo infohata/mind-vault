@@ -359,10 +359,23 @@ if [ -z "$PR_NUMBER" ]; then
             PR_NUMBER=$(gh api "repos/${REPO_SLUG}/pulls" --method POST --input "$PAYLOAD_TMP" --jq '.number' 2>/dev/null || true)
         fi
         rm -f "$PAYLOAD_TMP"
+        # `gh api` bypasses `--jq` and prints raw error JSON to stdout on non-2xx
+        # responses (422 for duplicate head, 401/403, etc.). Without this guard
+        # the JSON body would pass the `-z` empty check below, silently skip the
+        # CLI fallback, and propagate as `✅ Created PR #{"message":"..."}` + a
+        # crash at the next `gh pr comment`. Require purely numeric output.
+        if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            PR_NUMBER=""
+        fi
     fi
     if [ -z "$PR_NUMBER" ]; then
         echo "⚠️  REST PR create failed or no jq/python3; falling back to gh pr create..."
         PR_NUMBER=$(gh pr create --title "$PR_TITLE" --body "$PR_BODY" --draft --base "$BASE_REF" --json number -q '.number' 2>/dev/null || true)
+        # Same numeric-guard discipline for parity — cheap, and protects against
+        # any future CLI wrapper that might print non-numeric output on edge cases.
+        if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            PR_NUMBER=""
+        fi
     fi
 
     if [ -z "$PR_NUMBER" ]; then
