@@ -96,7 +96,12 @@ cp .env.template .env
 sed -i -E 's/^([A-Z0-9_]*_(KEY|SECRET|TOKEN|PASSWORD|PASS|PWD|CREDENTIAL))=.*/\1=test-not-a-real-key/' .env
 
 # Entropy-sensitive fields → fresh random per worktree.
-sed -i -E "s|^SECRET_KEY=.*|SECRET_KEY=test-$(rand_hex)|" .env
+# First pattern must precede the generic credential sentinel above when the
+# order ever gets reshuffled — but since the generic sentinel already ran,
+# those values are currently `test-not-a-real-key` and get overwritten here.
+# Matches SECRET_KEY (bare) and common prefixed variants like DJANGO_SECRET_KEY,
+# APP_SECRET_KEY — anything ending in SECRET_KEY at start of line.
+sed -i -E "s|^([A-Z0-9_]*SECRET_KEY)=.*|\1=test-$(rand_hex)|" .env
 sed -i -E "s|^([A-Z0-9_]*(SALT|HMAC))=.*|\1=test-$(rand_hex)|" .env
 
 # *_URL values with embedded user:pass → neutralise.
@@ -140,7 +145,7 @@ override_yaml=$(echo "$compose_json" | jq -r --argjson offset "$port_offset" '
         (.value.ports
           | map(
               "      - \"" +
-              (.host_ip // "127.0.0.1") + ":" +
+              (if (.host_ip // "") == "" then "127.0.0.1" else .host_ip end) + ":" +
               ((.published | tonumber + $offset) | tostring) + ":" +
               (.target | tostring) +
               (if (.protocol // "tcp") != "tcp" then "/" + .protocol else "" end) +
