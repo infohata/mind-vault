@@ -90,6 +90,33 @@ If verification fails:
 2. Document the failure in the plan's Open Questions section (append, don't overwrite).
 3. Route to the user for a decision: fix in place, roll back the latest commit, or return to `/plan` for a revised approach.
 
+### 6. Archive on merge (`in-progress` → `complete`)
+
+After the human merges the PR, route the IDEA file from `docs/execution/` into the archive dir per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md). This is triggered either automatically on the user's "merged" confirmation during local cleanup (see `RULE_git-safety` step 6–7) or explicitly via `/idea <slug> --complete`.
+
+```bash
+# Archive dir may already exist (research artefacts, plan docs dropped there
+# during execution) or may need to be created fresh:
+mkdir -p <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/
+
+# Move the IDEA file + the plan file in the same commit so the archive dir
+# holds the complete execution history:
+git mv <project>/docs/execution/IDEA-NNN-<slug>.md \
+       <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md
+git mv <project>/docs/plans/YYYY-MM-DD-<slug>-plan.md \
+       <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md
+
+# Update the IDEA file's frontmatter: status: complete, completed: YYYY-MM-DD
+# Update docs/ideas/README.md: remove In-Progress entry, add footer line under
+# References — Implemented pointing into the archive dir.
+```
+
+`YYYY-MM` uses the merge/completion month, not the creation month. The archive dir name already includes the IDEA id and slug for grep-friendliness.
+
+Commit message: `docs(archive): IDEA-NNN <slug> — complete (merged in PR #xxx)`.
+
+The archive step is on a separate feature branch from the execution work itself — typically the human creates `chore/archive-idea-NNN` after the primary PR merges, since the archive commit can't land until after the merge.
+
 ## Interaction rules
 
 - **Don't re-decide what the plan already decided.** If the plan says "use Redis for the queue", use Redis. If the right answer is Postgres instead, that's a plan revision — route back to `/plan`.
@@ -108,6 +135,7 @@ If verification fails:
 ## References
 
 - [references/persona-dispatch.md](references/persona-dispatch.md) — per-domain persona routing, worktree setup for parallel work streams, override conventions
+- [rules/RULE_ideas-location-status.md](../../rules/RULE_ideas-location-status.md) — location-by-status contract driving step 6's archive move on merge
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer
 - [skills/plan/SKILL.md](../plan/SKILL.md) — previous stage; produces the plan this skill executes
 - [skills/compound/SKILL.md](../compound/SKILL.md) — final stage; compound what was learned after review clears
@@ -118,4 +146,4 @@ If verification fails:
 
 ---
 
-**Last Updated**: 2026-04-19
+**Last Updated**: 2026-04-20 (step 6 added: archive move on PR merge per RULE_ideas-location-status)

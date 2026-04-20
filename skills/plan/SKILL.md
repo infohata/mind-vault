@@ -99,13 +99,32 @@ Write to `<project>/docs/plans/YYYY-MM-DD-<slug>-plan.md` with the stage-handoff
 stage: plan
 slug: sprint-workflow
 created: 2026-04-19
-source: docs/ideas/IDEA-001-sprint-workflow.md  # path, or null if no IDEA
+source: docs/execution/IDEA-001-sprint-workflow.md  # path after transition, or null
 status: draft                                    # draft | ready | shipped
 project: mind-vault
 ---
 ```
 
 Print the created path + a one-line summary. Suggest `/work <plan-path>` as the next command.
+
+### 7. Transition the source IDEA file (if present)
+
+Per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md), the existence of a plan is the signal that an idea has moved from backlog to active work. When the source IDEA file lives in `docs/ideas/`, move it to `docs/execution/` in the same commit as the plan emission:
+
+```bash
+git mv <project>/docs/ideas/IDEA-NNN-<slug>.md <project>/docs/execution/IDEA-NNN-<slug>.md
+# + update frontmatter: status: in-progress
+```
+
+Then update `docs/ideas/README.md` to move the entry from its priority section into the "🚧 In Progress" section (link now points at `../execution/`).
+
+Skip this transition when:
+
+- The plan is scoped as **trivial** or **small** — no file move; the work may not warrant lifecycle tracking.
+- The source IDEA file already lives in `docs/execution/` — a plan revision on work already in-progress.
+- There is no source IDEA file — the plan is a standalone artifact.
+
+The `source:` frontmatter field on the emitted plan should reflect the **post-transition path** so `/work` can resolve it cleanly. Commit message for the combined change follows the format `docs(plan): <slug> — draft plan + move IDEA-NNN to in-progress`.
 
 ## Right-sizing the artifact
 
@@ -137,6 +156,7 @@ The plan's philosophy stays the same at every scope; the depth scales.
 - [assets/plan-template.md](assets/plan-template.md) — the verbatim plan structure the skill emits
 - [references/thin-input-bootstrap.md](references/thin-input-bootstrap.md) — the interactive brainstorm front-end for thin inputs
 - [references/architect-handoff.md](references/architect-handoff.md) — how to invoke AGENT_architect as a reviewer and integrate findings
+- [rules/RULE_ideas-location-status.md](../../rules/RULE_ideas-location-status.md) — the location-by-status contract driving step 7's `idea` → `in-progress` move
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
 - [skills/idea/SKILL.md](../idea/SKILL.md) — previous stage; produces the IDEA file this skill consumes
 - [skills/work/SKILL.md](../work/SKILL.md) — next stage; executes the plan this skill emits
@@ -144,4 +164,4 @@ The plan's philosophy stays the same at every scope; the depth scales.
 
 ---
 
-**Last Updated**: 2026-04-19
+**Last Updated**: 2026-04-20 (step 7 added: plan emission now triggers the source IDEA's `idea` → `in-progress` move)
