@@ -9,7 +9,7 @@ Second stage of the five-stage sprint workflow (`idea → brainstorm/plan → wo
 
 This skill merges the brainstorm + plan stages from CE. When input is already specific (a filled-out IDEA file, a bug report with clear repro), the skill skips straight to plan authoring. When input is thin (a one-line description, an IDEA stub), a **thin-input bootstrap** fires — the interactive brainstorm front-end — before the plan is written. Brainstorming is a mode, not a separate skill. `/brainstorm` is an alias for `/plan`.
 
-This skill does not write code, run tests, or modify any project files outside `<project>/docs/plans/`. Execution belongs in `/work` (the next stage).
+This skill does not write code, run tests, or modify project source. It does, however, author the plan artifact and — per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md) and step 7 below — trigger the single `git mv` that moves the source IDEA file from `docs/ideas/` into its `docs/archive/YYYY-MM-idea-NNN-<slug>/` dir. The plan artifact itself lands in that same archive dir. Execution belongs in `/work` (the next stage).
 
 ## When to use
 
@@ -33,7 +33,7 @@ This skill does not write code, run tests, or modify any project files outside `
 Before drafting anything, check for existing work and classify the input.
 
 1. **Check for an existing plan.** If the slug (explicit argument or derived from the input) matches `<project>/docs/plans/*-<slug>-plan.md`, offer to continue: "Found `2026-04-19-sprint-workflow-plan.md`. Resume or start fresh?" Default to resume unless the user says otherwise.
-2. **Resolve the input source.** Accept in order: IDEA file path, IDEA slug (`/plan sprint-workflow` → glob `docs/ideas/IDEA-*-sprint-workflow.md`), plan-file path for deepening, raw description in the command argument, or nothing (ask the user what to plan).
+2. **Resolve the input source.** Accept in order: IDEA file path, IDEA slug (`/plan sprint-workflow` → glob **both locations** `docs/ideas/IDEA-*-sprint-workflow.md` AND `docs/archive/*/IDEA-*-sprint-workflow.md`, since an already-in-progress idea has been moved to its archive dir per step 7 and a deepening pass must still find it), plan-file path for deepening, raw description in the command argument, or nothing (ask the user what to plan).
 3. **Classify scope** early: trivial / small / medium / large. Trivial skips out of the skill entirely. Small gets a compact plan. Medium and large get the full structure. Do not force ceremony onto work that doesn't need it.
 
 ### 2. Thin-input bootstrap (brainstorm front-end)

@@ -160,13 +160,18 @@ If the user disagrees on a specific entry, they can hand-create the file post-in
 
 ### 8. Idempotency on re-run
 
-If `<project>/docs/ideas/IDEA-NNN-<slug>.md` already exists (e.g. re-running after a partial previous ingest), the skill:
+A re-run after a partial previous ingest must check **both destination trees**, since step 5 can route an entry into either `docs/ideas/` (backlog) or `docs/archive/YYYY-MM-idea-NNN-<slug>/` (in-progress / superseded / rejected) per the classification in step 3. Checking only `docs/ideas/` would miss already-written archive-tree files and risk duplicate creation for non-backlog entries on the second pass.
 
-- Compares the existing file's frontmatter against the proposed one.
-- **If identical or existing is a superset:** skip the file, report "already present" in the summary.
-- **If divergent:** refuse to overwrite, report the conflict, and route the user to resolve manually. Do not silently stomp.
+For each proposed entry:
 
-This makes re-runs safe when the legacy file has been edited since a prior ingest.
+1. Glob both `<project>/docs/ideas/IDEA-NNN-<slug>.md` and `<project>/docs/archive/*/IDEA-NNN-<slug>.md`. Expect at most one hit if the prior run completed partially.
+2. If a file is found:
+   - Compare the existing file's frontmatter against the proposed one.
+   - **If identical or existing is a superset:** skip the file, report "already present (at `<found-path>`)" in the summary.
+   - **If divergent:** refuse to overwrite, report the conflict including the found path, and route the user to resolve manually. Do not silently stomp.
+3. If no file is found, proceed with the normal step 5 write.
+
+This makes re-runs safe when the legacy file has been edited since a prior ingest, and prevents duplicate-file creation for entries already promoted into the archive tree.
 
 ## Invocation
 
