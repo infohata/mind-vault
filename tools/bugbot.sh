@@ -3,6 +3,11 @@
 # Automatically commits, pushes, and creates PR if needed.
 # Uses AI-generated commit messages and PR descriptions.
 #
+# PR creation uses the GitHub REST API (`gh api repos/.../pulls`) first so we avoid
+# `gh pr create --json` failures caused by GraphQL deprecation around classic Projects
+# (`repository.pullRequest.projectCards`). Falls back to `gh pr create` if REST fails.
+# Optional: BUGBOT_PR_BASE (default: main) — base branch for new PRs.
+#
 # Auto Mode: When run by AI agent (non-interactive) or CURSOR_AI_MODE=1,
 #            automatically generates commit messages and PR descriptions.
 #            For better commit messages, provide COMMIT_MSG env var:
@@ -325,17 +330,43 @@ if [ -z "$PR_NUMBER" ]; then
         fi
     fi
     
-    # Create draft PR
+    # Create draft PR (REST first — avoids gh pr create GraphQL projectCards issues)
     echo ""
     echo "📋 Creating PR with title: $PR_TITLE"
-    PR_NUMBER=$(gh pr create --title "$PR_TITLE" --body "$PR_BODY" --draft --json number -q '.number' 2>/dev/null)
-    
+    BASE_REF="${BUGBOT_PR_BASE:-main}"
+    REPO_SLUG=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)
+    PR_NUMBER=""
+    if [ -n "$REPO_SLUG" ]; then
+        PAYLOAD_TMP=$(mktemp)
+        if command -v jq >/dev/null 2>&1; then
+            jq -n \
+                --arg title "$PR_TITLE" \
+                --arg head "$BRANCH" \
+                --arg base "$BASE_REF" \
+                --arg body "$PR_BODY" \
+                '{title: $title, head: $head, base: $base, body: $body, draft: true}' >"$PAYLOAD_TMP"
+        elif command -v python3 >/dev/null 2>&1; then
+            env PR_TITLE="$PR_TITLE" BRANCH="$BRANCH" PR_BODY="$PR_BODY" BUGBOT_PR_BASE="$BASE_REF" python3 -c \
+                'import json, os; print(json.dumps({"title": os.environ["PR_TITLE"], "head": os.environ["BRANCH"], "base": os.environ.get("BUGBOT_PR_BASE", "main"), "body": os.environ["PR_BODY"], "draft": True}))' \
+                >"$PAYLOAD_TMP"
+        fi
+        if [ -s "$PAYLOAD_TMP" ]; then
+            PR_NUMBER=$(gh api "repos/${REPO_SLUG}/pulls" --method POST --input "$PAYLOAD_TMP" --jq '.number' 2>/dev/null || true)
+        fi
+        rm -f "$PAYLOAD_TMP"
+    fi
+    if [ -z "$PR_NUMBER" ]; then
+        echo "⚠️  REST PR create failed or no jq/python3; falling back to gh pr create..."
+        PR_NUMBER=$(gh pr create --title "$PR_TITLE" --body "$PR_BODY" --draft --base "$BASE_REF" --json number -q '.number' 2>/dev/null || true)
+    fi
+
     if [ -z "$PR_NUMBER" ]; then
         echo "❌ Failed to create PR. Please create manually:"
-        echo "   gh pr create --title '$PR_TITLE' --body '$PR_BODY'"
+        echo "   gh api repos/<owner>/<repo>/pulls --method POST (JSON body)   # or"
+        echo "   gh pr create --base '$BASE_REF' --draft --title '...' --body '...'"
         exit 1
     fi
-    
+
     echo "✅ Created PR #$PR_NUMBER"
 fi
 
