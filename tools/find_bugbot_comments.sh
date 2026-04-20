@@ -79,17 +79,18 @@ except Exception:
 bugbot = [r for r in reviews if (r.get('user') or {}).get('login') == 'cursor[bot]']
 # Newest first
 bugbot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
-# Find the most recent review matching the clean-signal marker.
-# Bugbot's clean review body contains 'found no new issues' (sometimes wrapped
-# in the <!-- BUGBOT_REVIEW --> HTML-comment marker).
-for r in bugbot:
+# The output contract (file header, lines 5-8) says the marker fires iff bugbot's
+# MOST RECENT review is the 'found no new issues' clean-signal. Check the newest
+# review only — never skip past a newer non-clean review to find an older clean
+# one. The 'Recent reviews' pass below separately surfaces non-clean history.
+if bugbot:
+    r = bugbot[0]
     body = r.get('body') or ''
     if 'found no new issues' in body:
         rid = r.get('id')
         commit = r.get('commit_id') or ''
         at = r.get('submitted_at') or ''
         print(f'BUGBOT_CLEAN_SIGNAL={rid} COMMIT={commit} AT={at}')
-        break
 " 2>/dev/null || true)
 
 if [ -n "$CLEAN_SIGNAL_LINE" ]; then

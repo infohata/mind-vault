@@ -338,17 +338,22 @@ if [ -z "$PR_NUMBER" ]; then
     PR_NUMBER=""
     if [ -n "$REPO_SLUG" ]; then
         PAYLOAD_TMP=$(mktemp)
+        # `|| true` preserves the REST-to-CLI fallback chain under `set -e`: if
+        # `command -v` finds the tool but then it exits non-zero (corrupt binary,
+        # OOM, locale error, etc.), the surrounding script must not terminate
+        # here — the `-s "$PAYLOAD_TMP"` check below falls through to `gh pr
+        # create` on line 360 when the payload file is empty.
         if command -v jq >/dev/null 2>&1; then
             jq -n \
                 --arg title "$PR_TITLE" \
                 --arg head "$BRANCH" \
                 --arg base "$BASE_REF" \
                 --arg body "$PR_BODY" \
-                '{title: $title, head: $head, base: $base, body: $body, draft: true}' >"$PAYLOAD_TMP"
+                '{title: $title, head: $head, base: $base, body: $body, draft: true}' >"$PAYLOAD_TMP" || true
         elif command -v python3 >/dev/null 2>&1; then
             env PR_TITLE="$PR_TITLE" BRANCH="$BRANCH" PR_BODY="$PR_BODY" BUGBOT_PR_BASE="$BASE_REF" python3 -c \
                 'import json, os; print(json.dumps({"title": os.environ["PR_TITLE"], "head": os.environ["BRANCH"], "base": os.environ.get("BUGBOT_PR_BASE", "main"), "body": os.environ["PR_BODY"], "draft": True}))' \
-                >"$PAYLOAD_TMP"
+                >"$PAYLOAD_TMP" || true
         fi
         if [ -s "$PAYLOAD_TMP" ]; then
             PR_NUMBER=$(gh api "repos/${REPO_SLUG}/pulls" --method POST --input "$PAYLOAD_TMP" --jq '.number' 2>/dev/null || true)
