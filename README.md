@@ -36,7 +36,7 @@ mind-vault/
 └── tools/         Utilities (bugbot helpers, emoji support, etc.)
 ```
 
-## Skills (11)
+## Skills (13)
 
 Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each skill has frontmatter `name` + `description` (the probabilistic trigger), stays under ~500 lines, and pushes deep-dive content to `references/`.
 
@@ -50,6 +50,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **work** | Stage 3 — thin orchestrator that reads a plan, enforces `RULE_git-safety` + `RULE_parallel-worktree-docker`, dispatches to implementation personas. |
 | **compound** | Stage 5 — **the novel piece.** Routes a post-incident learning through a hybrid Shape-C probe to one of six destinations (project-local, mind-vault skill / rule / agent pass / command, or auto-memory). |
 | **ingest-backlog** | Brownfield-takeover helper (one-time). Atomises a monolithic `IDEAS.md` / `BACKLOG.md` / `ROADMAP.md` into per-idea files matching the sprint-workflow schema. Default dry-run. |
+| **sprint-auto** | Overnight unattended wrapper around stages 2–3 — runs a curated list of opt-in IDEAs through `/plan → /work → PR` in per-IDEA git worktrees with independent docker-compose stacks. Belt-and-suspenders gates (`auto_safe: true` frontmatter + explicit arg allowlist); stops at the HITL merge boundary per `RULE_git-safety`. |
 
 ### Cross-project engineering
 
@@ -80,9 +81,11 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **documentation** | Docs-only authorship and review | Standalone |
 | **researcher** | Ad-hoc investigation / literature review | Standalone |
 
-## Commands (14 slash commands)
+## Commands (15 slash commands)
 
 **Sprint workflow:** `/ideate`, `/idea`, `/plan` (alias `/brainstorm`), `/work`, `/compound`, `/ingest-backlog`.
+
+**Automation:** `/sprint-auto` — overnight unattended orchestrator that chains stages 2–3 for curated IDEAs; see [`skills/sprint-auto/SKILL.md`](skills/sprint-auto/SKILL.md).
 
 **Review + PR flow:** `/bugbot`, `/bugbot_comments`, `/bugbot-loop`, `/create-pr`, `/test`.
 

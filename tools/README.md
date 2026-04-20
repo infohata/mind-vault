@@ -84,6 +84,34 @@ Files cleaned: 3
 Backups saved: *.backup (for cleaned files only)
 ```
 
+### sprint-auto-bootstrap.sh
+
+**Purpose**: Canonical, project-agnostic worktree bootstrap called by the `/sprint-auto` skill. Brings up an isolated docker-compose stack in a git worktree with sentinel-`.env` + port-offset override, then dispatches to optional project-local hooks for post-up init and smoke-test.
+
+**How projects consume it**: via a ~30-LOC wrapper committed at `<project>/tools/sprint-auto-bootstrap.sh` that locates this canonical script and execs into it. Wrappers fail gracefully when mind-vault is missing (clear error + remediation); symlinks don't. Template: [`skills/sprint-auto/assets/sprint-auto-bootstrap.sh.wrapper`](../skills/sprint-auto/assets/sprint-auto-bootstrap.sh.wrapper).
+
+**Usage** (called by the `/sprint-auto` skill inside the worktree, not usually by hand):
+
+```bash
+./tools/sprint-auto-bootstrap.sh <slug> <idea_number>
+# exits 0 when the stack is up, services running, smoke test passed
+```
+
+**What it does**:
+
+1. Preflight: docker + jq present, `.env.template` exists, `.env` / `docker-compose.override.yml` absent.
+2. Generate sentinel `.env` from `.env.template` — regex-replaces `*_KEY` / `*_SECRET` / `*_TOKEN` / `*_PASSWORD` / `*_PASS` / `*_PWD` / `*_CREDENTIAL` with `test-not-a-real-key`; fresh random `SECRET_KEY` and `*_SALT` / `*_HMAC`; neutralises `user:pass@host` patterns in `*_URL`.
+3. Parse `docker compose config --format json` to discover every service with host-port bindings; emit `docker-compose.override.yml` with ports shifted by `10000 + (idea_number % 100) * 100`.
+4. `docker compose up -d --wait`.
+5. Source optional `tools/sprint-auto-hooks.sh`; call `post_up_init` + `smoke_test` if declared.
+6. Default smoke: all configured services must be in running state.
+
+**Dependencies**: `docker`, `docker compose` plugin, `jq`, `openssl` (falls back to `date+sha256sum` for random bytes).
+
+**Project-local hooks** (optional, copy + edit): [`skills/sprint-auto/assets/sprint-auto-hooks.sh.example`](../skills/sprint-auto/assets/sprint-auto-hooks.sh.example) — declare `post_up_init()` (migrations, MinIO bucket setup, seed fixtures) and/or `smoke_test()` (HTTP health check, `pg_isready`, etc.).
+
+**Full contract**: [`skills/sprint-auto/references/worktree-lifecycle.md`](../skills/sprint-auto/references/worktree-lifecycle.md).
+
 ## Adding New Tools
 
 **Guidelines**:

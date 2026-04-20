@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# tools/sprint-auto-bootstrap.sh — thin wrapper around the canonical script in mind-vault.
+#
+# COPY this file into your project as tools/sprint-auto-bootstrap.sh and commit it.
+# (Do NOT symlink — wrappers fail gracefully when mind-vault is missing; symlinks
+# just produce cryptic "file not found" errors.)
+#
+# The canonical script lives in mind-vault. This wrapper:
+#   1. Locates the canonical script (env override → sibling dir → ~/projects).
+#   2. Emits a clear, actionable error if mind-vault is missing.
+#   3. Execs the canonical script with all args passed through.
+#
+# Updates to the wrapper itself are rare — the canonical script carries all the
+# logic that changes over time.
+
+set -euo pipefail
+
+CANON_REL="tools/sprint-auto-bootstrap.sh"
+
+# Candidate mind-vault roots, priority order. First existing hit wins.
+candidates=(
+    "${MIND_VAULT_ROOT:-}"
+    "$(git rev-parse --show-toplevel 2>/dev/null)/../mind-vault"
+    "$HOME/projects/mind-vault"
+    "$HOME/.local/share/mind-vault"
+    "/opt/mind-vault"
+)
+
+found=""
+for c in "${candidates[@]}"; do
+    [[ -z "$c" ]] && continue
+    if [[ -x "$c/$CANON_REL" ]]; then
+        found="$(cd "$c" && pwd)"
+        break
+    fi
+done
+
+if [[ -z "$found" ]]; then
+    searched=""
+    for c in "${candidates[@]}"; do
+        [[ -z "$c" ]] && continue
+        searched="$searched    - $c\n"
+    done
+
+    cat >&2 <<EOF
+[sprint-auto-bootstrap wrapper] ERROR: canonical script not found.
+
+The canonical $CANON_REL lives in mind-vault. This wrapper could not locate it.
+
+Searched:
+$(printf "$searched")
+Fix one of:
+  - Clone mind-vault:   git clone git@github.com:infohata/mind-vault.git ~/projects/mind-vault
+  - Set env var:        export MIND_VAULT_ROOT=/path/to/mind-vault
+  - Place at /opt:      /opt/mind-vault/$CANON_REL
+EOF
+    exit 127
+fi
+
+exec "$found/$CANON_REL" "$@"

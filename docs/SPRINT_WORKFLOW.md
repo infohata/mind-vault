@@ -37,6 +37,14 @@ The optional `/ideate` stage sits above `/idea` — use it between sprints to di
 
 **Brainstorm folds into plan.** `/brainstorm` is an alias for `/plan`. When the IDEA file is thin or the description is under-specified, the plan skill interactively explores requirements (the brainstorm front-end) before emitting the plan artifact.
 
+## Overnight unattended mode — `/sprint-auto`
+
+`/sprint-auto` is an optional wrapper around stages 2–3 (`/plan → /work → PR`) for unattended overnight execution on a VPS. It takes a curated list of IDEAs the human has pre-cleared and runs each one in its own git worktree + docker-compose project, stopping at the HITL merge boundary per `RULE_git-safety`.
+
+Opt-in is belt-and-suspenders: every IDEA needs `auto_safe: true` + `auto_safe_reason` in frontmatter **and** explicit presence in the invocation args. Never scan-mode. `priority: high` IDEAs and those touching sensitive paths (`.env*`, base `docker-compose.yml`, CI workflows, destructive migrations, auth middleware) require additional explicit overrides. See `skills/sprint-auto/references/safety-gates.md` for the full gate list.
+
+Worktrees are preserved after each run — success or failure — so the human can review PRs or diagnose failures in the morning. The skill never merges, never force-pushes, never teardown worktrees; those are human decisions. See `skills/sprint-auto/SKILL.md` for the full pattern and `references/worktree-lifecycle.md` for the project-local bootstrap-script contract (`tools/sprint-auto-bootstrap.sh`).
+
 ## Compound routing (the novel piece)
 
 When you've just solved a problem — or a bugbot-loop finding has been cleared — `/compound` classifies the learning through a hybrid narrative-probe + taxonomy-quiz and writes it to the right destination:

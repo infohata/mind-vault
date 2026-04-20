@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# tools/sprint-auto-hooks.sh — project-local hooks for sprint-auto-bootstrap.sh
+#
+# COPY this file into your project as tools/sprint-auto-hooks.sh, then edit.
+# (Do not symlink — this file is inherently project-specific.)
+#
+# The canonical bootstrap script sources this file (if present) AFTER
+# `docker compose up -d --wait` succeeds. Define one or both of these
+# bash functions; the canonical script calls each if defined.
+#
+# CONTRACT:
+#   - Both functions must exit 0 on success, non-zero on failure.
+#   - Stdout/stderr: log freely; the /sprint-auto skill tails the last ~50
+#     lines into the auto-run log on failure.
+#   - CWD when called: the worktree root.
+#   - Available env: docker + docker compose on PATH, all services from
+#     `docker compose up` running.
+
+# ----------------------------------------------------------------------------
+# post_up_init — run project-specific initialisation AFTER the stack is up
+# ----------------------------------------------------------------------------
+# Typical uses: DB migrations, seed fixtures, MinIO bucket creation,
+# Elasticsearch index creation, Redis key preload, Django createsuperuser
+# for test user, etc.
+#
+# Idempotent — this runs on every bootstrap, including re-runs.
+
+post_up_init() {
+    echo "[hooks] Running migrations"
+    docker compose exec -T web python manage.py migrate --noinput || return 1
+
+    # Example: MinIO bucket setup (common per RULE_parallel-worktree-docker gotcha)
+    # docker compose exec -T minio mc alias set local http://localhost:9000 \
+    #     "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" || return 1
+    # docker compose exec -T minio mc mb local/media --ignore-existing || return 1
+    # docker compose exec -T minio mc anonymous set public local/media || return 1
+
+    # Example: seed test fixtures
+    # docker compose exec -T web python manage.py loaddata test_fixtures.json || return 1
+
+    # Example: Elasticsearch index
+    # docker compose exec -T web python manage.py search_index --rebuild -f || return 1
+
+    return 0
+}
+
+# ----------------------------------------------------------------------------
+# smoke_test — verify the stack is actually usable, not just "running"
+# ----------------------------------------------------------------------------
+# Runs AFTER post_up_init. If this function is defined, it REPLACES the default
+# "all services are running" check. If you want both your custom check AND the
+# default, call `default_smoke_test` (defined in the canonical script) at the
+# end of your function.
+
+smoke_test() {
+    echo "[hooks] HTTP health check"
+    docker compose exec -T web curl --fail --silent --max-time 5 \
+        http://localhost:8000/health/ >/dev/null || return 1
+
+    # Example: database smoke
+    # docker compose exec -T db pg_isready -U postgres || return 1
+
+    # Example: inherit the default sanity check too
+    # default_smoke_test || return 1
+
+    return 0
+}
