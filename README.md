@@ -17,8 +17,6 @@ flowchart LR
     R(["/bugbot-loop\n+ bugbot · curator · architect"]) --> C
     C(["/compound — router"]) -.promotes.-> V[("mind-vault\nskills · rules · agents\ncommands · memory")]
     C -.next sprint.-> I1
-    classDef stage fill:#f9f9f9,stroke:#333,stroke-width:1px
-    class I0,I1,P,W,R,C stage
 ```
 
 **Design note on the review stage.** Stages 1–2–3–5 each have a dedicated skill (`/idea`, `/plan`, `/work`, `/compound`). Stage 4 (review) intentionally does not — mind-vault's review subsystem is mature and loop-driven: `AGENT_bugbot` + `AGENT_curator` + `AGENT_architect` personas invoked via `/bugbot-loop`. Adding a wrapper skill would duplicate infrastructure without adding value. The loop IS the stage.
