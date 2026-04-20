@@ -16,6 +16,13 @@
 
 set -e
 
+# Resolve the base branch once at script start so every function + the eventual
+# REST/CLI PR-create call use the same ref. Previously only the PR-create block
+# read BUGBOT_PR_BASE, while generate_pr_title / generate_pr_description / the
+# changes-summary hardcoded `origin/main` — on a non-main base the PR would be
+# opened correctly but its auto-generated metadata would reflect the wrong range.
+BASE_REF="${BUGBOT_PR_BASE:-main}"
+
 # Detect if running in auto mode (AI agent) or interactive mode (human)
 # Auto mode if:
 #   1. CURSOR_AI_MODE environment variable is set to 1
@@ -129,7 +136,7 @@ generate_commit_message() {
 # Helper function to generate PR title
 generate_pr_title() {
     local branch=$(git branch --show-current)
-    local first_commit=$(git log origin/main..HEAD --oneline | head -1 | sed 's/^[a-f0-9]* //')
+    local first_commit=$(git log "origin/$BASE_REF..HEAD" --oneline | head -1 | sed 's/^[a-f0-9]* //')
     
     # Use first commit message as base, or branch name
     if [ -n "$first_commit" ]; then
@@ -141,8 +148,8 @@ generate_pr_title() {
 
 # Helper function to generate PR description
 generate_pr_description() {
-    local commits=$(git log origin/main..HEAD --oneline | head -10)
-    local stats=$(git diff origin/main...HEAD --stat | head -20)
+    local commits=$(git log "origin/$BASE_REF..HEAD" --oneline | head -10)
+    local stats=$(git diff "origin/$BASE_REF...HEAD" --stat | head -20)
     
     cat <<EOF
 ## Summary
@@ -268,10 +275,10 @@ if [ -z "$PR_NUMBER" ]; then
     echo "Branch: $BRANCH"
     echo ""
     echo "Recent commits:"
-    git log origin/main..HEAD --oneline | head -10 | sed 's/^/  /'
+    git log "origin/$BASE_REF..HEAD" --oneline | head -10 | sed 's/^/  /'
     echo ""
     echo "Files changed:"
-    git diff origin/main...HEAD --stat | head -20
+    git diff "origin/$BASE_REF...HEAD" --stat | head -20
     echo ""
     echo "═══════════════════════════════════════════════════════════════"
     echo ""
@@ -333,7 +340,8 @@ if [ -z "$PR_NUMBER" ]; then
     # Create draft PR (REST first — avoids gh pr create GraphQL projectCards issues)
     echo ""
     echo "📋 Creating PR with title: $PR_TITLE"
-    BASE_REF="${BUGBOT_PR_BASE:-main}"
+    # BASE_REF is resolved once near the top of the script (line 20) so all
+    # metadata generators and this PR-create call share the same base.
     REPO_SLUG=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)
     PR_NUMBER=""
     if [ -n "$REPO_SLUG" ]; then
