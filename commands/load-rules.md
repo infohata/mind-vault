@@ -3,6 +3,8 @@ description: Reload mind-vault rules after context compaction
 agent: general
 ---
 
+# load-rules
+
 Execute the load-rules command to reload mind-vault rules after context compaction.
 
 Steps to follow:

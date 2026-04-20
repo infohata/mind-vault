@@ -3,6 +3,8 @@ description: Third stage of the sprint workflow — execute a plan by dispatchin
 agent: general
 ---
 
+# work
+
 Invoke the `work` skill to execute a plan produced by `/plan`. Thin orchestrator — delegates actual implementation to personas (backend / frontend / devops / test-engineer / architect as author / documentation) and commits feature-by-feature.
 
 Behaviour:

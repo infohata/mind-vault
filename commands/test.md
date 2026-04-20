@@ -12,6 +12,8 @@ tools:
   read: true
 ---
 
+# test
+
 Execute comprehensive testing with rigorous validation:
 
 1. **Run test suite** with coverage and identify failures

@@ -3,6 +3,8 @@ description: Show comprehensive git status and working directory state
 agent: general
 ---
 
+# git-status
+
 Execute the git-status command to display detailed git status and working directory state.
 
 Steps to follow:

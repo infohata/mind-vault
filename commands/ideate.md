@@ -3,6 +3,8 @@ description: Zeroth (optional) stage of the sprint workflow — discover high-im
 agent: general
 ---
 
+# ideate
+
 Invoke the `ideate` skill to surface a set of candidate improvements for a given scope, filter them adversarially, and let the user pick which to promote into real IDEA files. Optional entry point above `/idea`.
 
 When to use:

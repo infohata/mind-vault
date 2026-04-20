@@ -3,6 +3,8 @@ description: Find and display bugbot comments on current or specified PR
 agent: general
 ---
 
+# bugbot_comments
+
 Execute the bugbot_comments command to retrieve and display bugbot code review comments from GitHub PRs.
 
 Steps to follow:

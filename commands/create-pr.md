@@ -3,6 +3,8 @@ description: Create well-structured pull request with AI-generated title and des
 agent: general
 ---
 
+# create-pr
+
 Execute the create-pr command to generate and create a comprehensive GitHub pull request.
 
 Steps to follow:

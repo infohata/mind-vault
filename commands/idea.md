@@ -3,6 +3,8 @@ description: First stage of the sprint workflow — create a new atomic IDEA-NNN
 agent: general
 ---
 
+# idea
+
 Invoke the `idea` skill to create or update an atomic IDEA file in the target project's `docs/ideas/` tree, and sync the `docs/ideas/README.md` index. Frontmatter shape lifted from teisutis IDEA-112.
 
 Behaviour by argument:

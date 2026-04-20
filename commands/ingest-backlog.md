@@ -3,6 +3,8 @@ description: Brownfield-takeover helper — atomise a monolithic backlog documen
 agent: general
 ---
 
+# ingest-backlog
+
 Invoke the `ingest-backlog` skill to bootstrap a brownfield project for the mind-vault sprint workflow. One-pass, forward-only migration from a legacy monolithic backlog document to per-idea files under `docs/ideas/`.
 
 Behaviour:

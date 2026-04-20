@@ -3,6 +3,8 @@ description: Fifth stage of the sprint workflow — route a just-learned lesson 
 agent: general
 ---
 
+# compound
+
 Invoke the `compound` skill to route a post-incident learning to the right home. The novel piece of the sprint workflow and its entire compound-effect payoff.
 
 Behaviour:

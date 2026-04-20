@@ -3,6 +3,8 @@ description: Alias for /plan — brainstorming is the interactive front-end of t
 agent: general
 ---
 
+# brainstorm
+
 Alias for `/plan`. The brainstorming semantics — one-question-at-a-time interactive requirements capture — are the thin-input bootstrap mode of the plan skill, not a separate stage.
 
 Use whichever command reads better in context:

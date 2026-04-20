@@ -3,6 +3,8 @@ description: Second stage of the sprint workflow — turn an IDEA file or rough 
 agent: general
 ---
 
+# plan
+
 Invoke the `plan` skill to produce a technical plan for an IDEA file, a rough feature description, or a deepening pass on an existing plan. The skill merges CE's brainstorm + plan into a single stage: when the input is thin (sparse IDEA body, < 30-word description), a brainstorm front-end fires before the plan is drafted.
 
 Behaviour:
