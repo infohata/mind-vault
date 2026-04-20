@@ -32,9 +32,11 @@ Detection (first match wins):
 - `git remote get-url origin` → URL contains `mind-vault`.
 - Repo root has `skills/`, `rules/`, `commands/`, and **no** `docs/ideas/README.md` — the mind-vault signature.
 
-In self-mode, jump straight to Step 6 (downstream docs scan). Step 4 (devlog) is generally also skipped on mind-vault — there is no `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md` convention here; merged PR descriptions serve as the history. Step 5 (worktree teardown) almost never applies because mind-vault has no docker stack, but the condition is branch-agnostic — run it if the guards say to.
+In self-mode, Step 4 targets `CHANGELOG.md` at the repo root (not `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md`, which is the per-project convention). Prepend a bullet under **## Unreleased** while the PR is open; promote it into the current `## YYYY-MM` section on merge. Category keys follow Keep a Changelog: **Added / Changed / Fixed / Removed / Deprecated / Security**. See the existing entries for prose-density anchors.
 
-The load-bearing self-mode work is Step 6: catch README.md / SPRINT_WORKFLOW.md / tools/README.md / AGENTS.md drift from newly-added skills, commands, rules, or agent passes. That is what `/wrap` is *for* on mind-vault — the paper trail of its own evolution.
+Step 5 (worktree teardown) almost never applies because mind-vault has no docker stack, but the guards are branch-agnostic — run them if they fire.
+
+The load-bearing self-mode work is Step 6: catch `README.md` / `docs/SPRINT_WORKFLOW.md` / `tools/README.md` / `AGENTS.md` / `CLAUDE.md` drift from newly-added skills, commands, rules, or agent passes. That is what `/wrap` is *for* on mind-vault — the paper trail of its own evolution, alongside the changelog.
 
 ### Step 1 — Resolve the idea
 
