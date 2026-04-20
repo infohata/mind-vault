@@ -32,7 +32,7 @@ This skill does not write code, run tests, or modify project source. It does, ho
 
 Before drafting anything, check for existing work and classify the input.
 
-1. **Check for an existing plan.** If the slug (explicit argument or derived from the input) matches `<project>/docs/plans/*-<slug>-plan.md`, offer to continue: "Found `2026-04-19-sprint-workflow-plan.md`. Resume or start fresh?" Default to resume unless the user says otherwise.
+1. **Check for an existing plan.** Plans live inside the source IDEA's archive dir per step 7 (`docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md`); there is no separate `docs/plans/` tree. If the slug (explicit argument or derived from the input) matches `<project>/docs/archive/*-<slug>/*-<slug>-plan.md`, offer to continue: "Found `2026-04-19-sprint-workflow-plan.md` in `docs/archive/2026-04-idea-042-sprint-workflow/`. Resume or start fresh?" Default to resume unless the user says otherwise. For small-scope plans that were emitted ad hoc per step 6's skip-condition, also fall back to a repo-wide `*-<slug>-plan.md` glob as a best-effort.
 2. **Resolve the input source.** Accept in order: IDEA file path, IDEA slug (`/plan sprint-workflow` → glob **both locations** `docs/ideas/IDEA-*-sprint-workflow.md` AND `docs/archive/*/IDEA-*-sprint-workflow.md`, since an already-in-progress idea has been moved to its archive dir per step 7 and a deepening pass must still find it), plan-file path for deepening, raw description in the command argument, or nothing (ask the user what to plan).
 3. **Classify scope** early: trivial / small / medium / large. Trivial skips out of the skill entirely. Small gets a compact plan. Medium and large get the full structure. Do not force ceremony onto work that doesn't need it.
 
@@ -90,16 +90,37 @@ The architect's 4-pass workflow (abstraction/genericity sweep → coupling/depen
 
 The reviewer pass is optional for trivial and small plans. Required for medium and large.
 
-### 6. Emit the plan file into the idea's archive dir
+### 6. Transition the source IDEA — single move, then never again
+
+Per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md), the act of drafting a plan is the signal that an idea has left the backlog. This triggers the **one and only** filesystem move in the IDEA file's life — and it must run **before** step 7 writes the plan file, because step 7 emits the plan into the dir this step creates:
+
+```bash
+mkdir -p <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/
+git mv <project>/docs/ideas/IDEA-NNN-<slug>.md \
+       <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md
+# + update frontmatter: status: in-progress
+# + update docs/ideas/README.md: move the entry from its priority section
+#   into "🚧 In Progress" (link now points at ../archive/<dir>/)
+```
+
+`YYYY-MM` = current month. Stays fixed across the rest of the idea's life — neither completion nor rejection renames this dir.
+
+After this step's move, step 7 emits the plan file into the same dir. All subsequent artefacts (research notes, session prompts, screenshots, the eventual README) go into this dir too. Future `/work` on completion edits frontmatter to `status: complete` — **no further file movement**.
+
+Skip the transition when:
+
+- The plan is scoped as **trivial** or **small** — emit the plan wherever it makes sense (often just write it into the IDEA file's existing dir if it's already been archived, or drop it ad hoc). Small scopes may not warrant a lifecycle stamp at all.
+
+### 7. Emit the plan file into the idea's archive dir
 
 Plans live **alongside the IDEA file they implement**, inside the same `docs/archive/YYYY-MM-idea-NNN-<slug>/` dir per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md). There is no separate `docs/plans/` tree — that was an earlier draft and was dropped in favour of co-location (cross-refs between plan and IDEA file stay local; no cross-tree paths).
 
-The plan file is written *after* step 7 has created the archive dir and moved the IDEA file into it:
+Step 6's move has already created the archive dir and moved the IDEA file into it, so this step just writes the plan file alongside:
 
 ```text
 docs/archive/YYYY-MM-idea-NNN-<slug>/
-  ├── IDEA-NNN-<slug>.md             # moved here in step 7
-  └── YYYY-MM-DD-<slug>-plan.md      # emitted here in step 6
+  ├── IDEA-NNN-<slug>.md             # moved here in step 6
+  └── YYYY-MM-DD-<slug>-plan.md      # emitted here in step 7
 ```
 
 Stage-handoff frontmatter:
@@ -116,27 +137,6 @@ project: <project-name>
 ```
 
 Print the created path + a one-line summary. Suggest `/work <plan-path>` as the next command.
-
-### 7. Transition the source IDEA — single move, then never again
-
-Per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md), the act of drafting a plan is the signal that an idea has left the backlog. This triggers the **one and only** filesystem move in the IDEA file's life:
-
-```bash
-mkdir -p <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/
-git mv <project>/docs/ideas/IDEA-NNN-<slug>.md \
-       <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md
-# + update frontmatter: status: in-progress
-# + update docs/ideas/README.md: move the entry from its priority section
-#   into "🚧 In Progress" (link now points at ../archive/<dir>/)
-```
-
-`YYYY-MM` = current month. Stays fixed across the rest of the idea's life — neither completion nor rejection renames this dir.
-
-After the move, the plan file from step 6 lands into that same dir. All subsequent artefacts (research notes, session prompts, screenshots, the eventual README) go into this dir too. Future `/work` on completion edits frontmatter to `status: complete` — **no further file movement**.
-
-Skip the transition when:
-
-- The plan is scoped as **trivial** or **small** — emit the plan wherever it makes sense (often just write it into the IDEA file's existing dir if it's already been archived, or drop it ad hoc). Small scopes may not warrant a lifecycle stamp at all.
 - The source IDEA file already lives in `docs/archive/<dir>/` — this is a plan revision on work already in-progress or a re-plan after rejection; just emit the new plan into the existing dir.
 - There is no source IDEA file — the plan is a standalone artefact; emit it to a context-appropriate location (often `docs/plans/` as a fallback, which exists only for orphan plans).
 
