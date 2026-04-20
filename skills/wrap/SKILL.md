@@ -21,7 +21,7 @@ Catches the class of work that's cheap to forget and expensive to find later —
 
 ## Pattern
 
-Five steps in order. Most are guards — skip silently if the state is already correct. The skill is safe to re-run; it produces the same final state regardless of which steps an earlier run completed.
+Six steps in order. Most are guards — skip silently if the state is already correct. The skill is safe to re-run; it produces the same final state regardless of which steps an earlier run completed.
 
 ### Step 1 — Resolve the idea
 
@@ -91,7 +91,39 @@ Append a new entry at the **top** of the chronological section (newest first). T
 
 Use the last two devlog entries in the same file as style anchors — match prose density, heading structure, and linking style. Do **not** cargo-cult the template above verbatim if the project's convention diverges.
 
-### Step 5 — Downstream docs scan
+### Step 5 — Worktree teardown (conditional)
+
+If the sprint ran in a parallel git worktree with its own docker-compose stack (see [`RULE_parallel-worktree-docker`](../../rules/RULE_parallel-worktree-docker.md)) — the idea-specific `.env`, per-worktree stack with port offset, dedicated compose project — this is the natural moment to tear it down. By the time `/wrap` runs, the PR has merged; the worktree's diagnostic value is spent. Leaving it live holds CPU / RAM / disk hostage and invites port collisions when the next sprint starts.
+
+Skip this step when:
+
+- Running from the primary checkout (no worktree). `git rev-parse --git-common-dir` equals `.git`.
+- The user has signalled "keep it up for manual re-testing" (e.g. a `WRAP_KEEP_STACK=1` env var, or an explicit arg `/wrap --keep-stack`).
+- The worktree has uncommitted work. Teardown would be safe for docker (volumes are scoped to the worktree's compose project), but a human might still be iterating; refuse and surface `git status` instead.
+
+Teardown sequence, inside the worktree directory:
+
+```bash
+# 1. Stop + remove containers + named volumes scoped to this worktree's compose project.
+#    -v wipes the per-worktree postgres/redis/minio volumes — safe because the worktree
+#    never held production data; the primary checkout's stack is unaffected (different
+#    COMPOSE_PROJECT_NAME derived from the worktree dir name).
+docker compose down -v
+
+# 2. Leave the worktree directory so `git worktree remove` can take it cleanly.
+cd -
+
+# 3. Remove the worktree and its branch (only if merged; `git worktree remove` refuses
+#    when there are uncommitted changes — keep that safety).
+git worktree remove ../<worktree-dir>
+git branch -d <feature-branch>   # -d not -D; safe-merge check remains in force
+```
+
+If the project has a teardown wrapper (`tools/sprint-teardown.sh` or similar), prefer that — it's the right place for project-specific cleanup (bucket policies, search index cleanup, seed-data reset).
+
+In `sprint-auto` mode, teardown remains **deferred**: per the sprint-auto skill, worktrees stay up for morning review. The `/wrap` reminder block in the sprint-auto batch summary now includes teardown as a post-review action per IDEA, same list as the frontmatter flip.
+
+### Step 6 — Downstream docs scan
 
 The highest-value and most-skipped step. Everything that referenced the pre-merge state may now be stale. Grep is the workhorse.
 
@@ -128,6 +160,7 @@ Commit the documentation edits on the same branch that carries the IDEA-completi
 ## References
 
 - [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md) — the frontmatter-only transition this skill relies on.
+- [`RULE_parallel-worktree-docker`](../../rules/RULE_parallel-worktree-docker.md) — the worktree + compose-project contract Step 5 tears down.
 - [`/work`](../../commands/work.md) — the stage before; its output (a merged PR) is `/wrap`'s input.
 - [`/compound`](../../commands/compound.md) — the stage after; `/wrap` leaves the paper trail `/compound` references.
 - [`/sprint-auto`](../../commands/sprint-auto.md) — the orchestrator that stitches `idea → plan → work → bugbot-loop → wrap → compound` for the unattended case.
