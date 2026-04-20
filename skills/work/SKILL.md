@@ -1,6 +1,6 @@
 ---
 name: work
-description: Execute a plan produced by /plan — reads docs/plans/YYYY-MM-DD-<slug>-plan.md, enforces RULE_parallel-worktree-docker and RULE_git-safety, dispatches to AGENT_backend/frontend/devops/test-engineer, checks off plan items as commits land. Third stage of the mind-vault sprint workflow.
+description: Execute a plan produced by /plan — reads the plan at docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md, enforces RULE_parallel-worktree-docker and RULE_git-safety, dispatches to AGENT_backend/frontend/devops/test-engineer, checks off plan items as commits land. Third stage of the mind-vault sprint workflow.
 ---
 
 # work
@@ -15,7 +15,7 @@ This skill is intentionally thin. It does not re-decide anything the plan alread
 
 - user says "work the plan", "execute the plan", "implement plan X", "start working on Y", "ship the plan at <path>"
 - a `/plan` invocation just completed and the natural next step is execution
-- a plan file exists at `<project>/docs/plans/*-plan.md` with `status: ready` and the user wants to proceed
+- a plan file exists at `<project>/docs/archive/*-<slug>/*-<slug>-plan.md` with `status: ready` and the user wants to proceed
 
 **SKIP when:**
 
