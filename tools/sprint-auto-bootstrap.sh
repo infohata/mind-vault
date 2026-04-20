@@ -30,6 +30,16 @@ idea_number="${2:?usage: sprint-auto-bootstrap.sh <slug> <idea_number>}"
 log() { echo "[sprint-auto-bootstrap] $*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
 
+# Input validation — refuse anything that could interact badly with sed/sh/jq
+# further down. slug lands inside filenames and a compose override (via jq
+# --argjson context only, not directly, but still tightened). idea_number
+# enters bash arithmetic and sed format strings; non-digit input would
+# produce confusing errors or corrupt substitutions.
+[[ "$slug" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
+    || die "slug must match ^[a-z0-9][a-z0-9-]*$ (got: $slug)"
+[[ "$idea_number" =~ ^[0-9]+$ ]] \
+    || die "idea_number must be all-digits (got: $idea_number)"
+
 # Default smoke: every configured service must be in running state.
 # Defined early so both the hooks path and the no-hooks path can call it.
 default_smoke_test() {
@@ -86,8 +96,8 @@ cp .env.template .env
 sed -i -E 's/^([A-Z0-9_]*_(KEY|SECRET|TOKEN|PASSWORD|PASS|PWD|CREDENTIAL))=.*/\1=test-not-a-real-key/' .env
 
 # Entropy-sensitive fields → fresh random per worktree.
-sed -i -E "s/^SECRET_KEY=.*/SECRET_KEY=test-$(rand_hex)/" .env
-sed -i -E "s/^([A-Z0-9_]*(SALT|HMAC))=.*/\1=test-$(rand_hex)/" .env
+sed -i -E "s|^SECRET_KEY=.*|SECRET_KEY=test-$(rand_hex)|" .env
+sed -i -E "s|^([A-Z0-9_]*(SALT|HMAC))=.*|\1=test-$(rand_hex)|" .env
 
 # *_URL values with embedded user:pass → neutralise.
 # Projects that need inter-service URLs should set them in post_up_init.

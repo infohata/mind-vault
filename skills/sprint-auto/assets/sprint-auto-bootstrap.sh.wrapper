@@ -36,19 +36,24 @@ for c in "${candidates[@]}"; do
 done
 
 if [[ -z "$found" ]]; then
-    searched=""
-    for c in "${candidates[@]}"; do
-        [[ -z "$c" ]] && continue
-        searched="$searched    - $c\n"
-    done
-
+    # Emit the error in three parts so each candidate path is passed to printf
+    # as a %s argument, never spliced into a format string or a heredoc body.
+    # This neutralises any % / \n / \b / \0 present in user-controlled paths
+    # (notably $MIND_VAULT_ROOT) — no format specifier is evaluated against
+    # them, no escape sequence interpreted. $CANON_REL is a hard-coded literal,
+    # so its interpolation in the heredoc is safe by inspection.
     cat >&2 <<EOF
 [sprint-auto-bootstrap wrapper] ERROR: canonical script not found.
 
 The canonical $CANON_REL lives in mind-vault. This wrapper could not locate it.
 
 Searched:
-$(printf '%b' "$searched")
+EOF
+    for c in "${candidates[@]}"; do
+        [[ -z "$c" ]] && continue
+        printf '    - %s\n' "$c" >&2
+    done
+    cat >&2 <<EOF
 Fix one of:
   - Clone mind-vault:   git clone git@github.com:infohata/mind-vault.git ~/projects/mind-vault
   - Set env var:        export MIND_VAULT_ROOT=/path/to/mind-vault
