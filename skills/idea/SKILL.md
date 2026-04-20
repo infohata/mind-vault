@@ -31,7 +31,7 @@ Auto-increment, two-phase capture.
 
 **Phase A — establish the record.**
 
-1. Determine the next IDEA number by scanning **all three IDEA-file locations** — `docs/ideas/IDEA-*.md`, `docs/execution/IDEA-*.md`, and `docs/archive/*/IDEA-*.md` — for the greatest existing three-digit number, and adding 1. Default to `001` if no files exist. Users can override with an explicit number argument (`/idea 200` → forces `IDEA-200`). Scanning only `docs/ideas/` would collide with any IDEA currently in `in-progress` (execution/) or `superseded` / `rejected` (archive/) state, per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md).
+1. Determine the next IDEA number by scanning **both IDEA-file locations** — `docs/ideas/IDEA-*.md` and `docs/archive/*/IDEA-*.md` — for the greatest existing three-digit number, and adding 1. Default to `001` if no files exist. Users can override with an explicit number argument (`/idea 200` → forces `IDEA-200`). Scanning only `docs/ideas/` would collide with any IDEA currently in `in-progress`, `complete`, `superseded`, or `rejected` state, all of which live in the archive tree per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md).
 2. Ask the user for **title**, **priority** (high / medium / low), and an optional **depends_on** / **related** list referencing existing IDEA ids.
 3. Use the platform's blocking question tool when available (`AskUserQuestion` in Claude Code, `request_user_input` in Codex) for the priority choice. Ask one question at a time.
 4. Derive the slug from the title: lowercase, kebab-case, strip stopwords (`a`, `the`, `for`, `into`), truncate to ~40 chars. Confirm with the user if the slug is ambiguous.
@@ -39,7 +39,7 @@ Auto-increment, two-phase capture.
 Reference command for the number scan (agent may adapt to project specifics):
 
 ```bash
-ls docs/ideas/IDEA-*.md docs/execution/IDEA-*.md docs/archive/*/IDEA-*.md 2>/dev/null \
+ls docs/ideas/IDEA-*.md docs/archive/*/IDEA-*.md 2>/dev/null \
   | sed 's/.*IDEA-\([0-9]\+\).*/\1/' \
   | sort -n | tail -1
 ```
@@ -53,40 +53,41 @@ ls docs/ideas/IDEA-*.md docs/execution/IDEA-*.md docs/archive/*/IDEA-*.md 2>/dev
 
 ### 2. Updating an existing idea
 
-When invoked with a slug argument that matches an existing file (`/idea sprint-workflow`), load the file for interactive update. The file may live in `docs/ideas/`, `docs/execution/`, or `docs/archive/*/` per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md) — glob across all three when resolving.
+When invoked with a slug argument that matches an existing file (`/idea sprint-workflow`), load the file for interactive update. The file may live in `docs/ideas/` (backlog) or `docs/archive/<dir>/` (any non-backlog status) per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md) — glob both when resolving.
 
-1. Glob `docs/ideas/IDEA-*-<slug>.md`, `docs/execution/IDEA-*-<slug>.md`, and `docs/archive/*/IDEA-*-<slug>.md` — the user rarely types the IDEA number and may not know which tree the file is in.
-2. Offer the user a field-level edit menu. Common updates: status change (triggers a `git mv` per step 2a below; auto-stamps `completed: YYYY-MM-DD` when flipping to `complete`; asks before any other transition), priority bump (moves the index line into the new section; no file move unless status also changes), relationship edits on `related` / `depends_on` / `supersedes` (merge + de-dupe), and body edits (open the file for the user; do not auto-rewrite prose).
+1. Glob `docs/ideas/IDEA-*-<slug>.md` and `docs/archive/*/IDEA-*-<slug>.md` — the user rarely types the IDEA number and may not know whether the idea is still in backlog.
+2. Offer the user a field-level edit menu. Common updates: **status change** (one-move transition per step 2a; most status flips are frontmatter-only since the idea already lives in its permanent dir), **priority bump** (moves the index line into the new section; no file move), **relationship edits** on `related` / `depends_on` / `supersedes` (merge + de-dupe), and **body edits** (open the file for the user; do not auto-rewrite prose).
 3. Re-emit the file with updated frontmatter. Preserve the prose body unless the user asked to edit it.
-4. Re-sync the index: if priority, title, or status changed, update the index line in place or move it between sections.
+4. Re-sync `docs/ideas/README.md`: if priority, title, or status changed, update the index line in place or move it between sections.
 
-**2a. Status transitions must move the file.** Per `RULE_ideas-location-status`, location is authoritative. Any status change goes through `git mv` in the same commit as the frontmatter update:
+**2a. Status transitions.** Per `RULE_ideas-location-status`, **only one filesystem move exists across the whole lifecycle** — the `idea → <anything-else>` move. Everything after is frontmatter-only:
 
-| Transition | From → To |
+| Transition | Action |
 | --- | --- |
-| `idea` → `in-progress` | `git mv docs/ideas/IDEA-NNN-<slug>.md docs/execution/IDEA-NNN-<slug>.md` (typically triggered by `/plan`, not directly here) |
-| `in-progress` → `complete` | `git mv docs/execution/IDEA-NNN-<slug>.md docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md` (create archive dir if missing; typically triggered by `/work` after merge) |
-| `idea` or `in-progress` → `superseded` / `rejected` | `git mv <source> docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md` — set `superseded_by` if known |
-| Reverse (archive → active) | Refuse by default. Require explicit `--resurrect` flag. Undoes the archive commit carefully; reviewed by human. |
+| `idea` → `in-progress` | `mkdir docs/archive/YYYY-MM-idea-NNN-<slug>/` + `git mv docs/ideas/IDEA-NNN-<slug>.md <dir>/IDEA-NNN-<slug>.md` + `status: in-progress`. Usually triggered by `/plan`, not directly. |
+| `idea` → `superseded` \| `rejected` | Same move (fresh archive dir, `YYYY-MM` = rejection month) + `status: superseded \| rejected` + `superseded_by: NNN` if known. |
+| `in-progress` → `complete` \| `superseded` \| `rejected` | **Frontmatter-only.** File stays in its archive dir. Triggered by `/work` (on merge) or `/compound` (on rejection). |
+| Reverse (`complete`/`superseded` → active) | Refuse by default. Require explicit `--resurrect` flag; reviewed by human; may involve `git mv` back to `docs/ideas/` and creating a new IDEA number for the resumed work. |
 
-`YYYY-MM` on the archive dir uses the transition month, not the creation month.
+`YYYY-MM` in the archive dir name = the month the first move happened. Doesn't change on later status flips.
 
 See [`references/update-semantics.md`](references/update-semantics.md) for the full rules about which fields are safe to auto-change, which require confirmation, and how to detect conflicting updates when multiple fields change at once.
 
 ### 3. Index maintenance
 
-`<project>/docs/ideas/README.md` is the single-file index regardless of where individual IDEA files physically live. Links resolve into `docs/ideas/` (same dir), `../execution/`, or `../archive/<dir>/` per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md).
+`<project>/docs/ideas/README.md` is the single-file index regardless of where individual IDEA files physically live. Links resolve into `docs/ideas/` (same dir) or `../archive/<dir>/` per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md).
 
 Standard skeleton:
 
 ```markdown
 # <Project> Ideas Index
 
-_Location = status convention: see RULE_ideas-location-status. Generated by `/idea`._
+_Two locations per RULE_ideas-location-status: `docs/ideas/` = backlog;
+`docs/archive/YYYY-MM-idea-NNN-<slug>/` = everything else. Generated by `/idea`._
 
 ## 🚧 In Progress
 
-- [IDEA-042](../execution/IDEA-042-test-suite-defragilization.md) ⏳ — Test Suite Defragilization
+- [IDEA-042](../archive/2026-04-idea-042/IDEA-042-test-suite-defragilization.md) ⏳ — Test Suite Defragilization
 
 ## 💡 High Priority (backlog)
 
@@ -111,14 +112,14 @@ _(none)_
 - IDEA-107 (2026-04-09) — Event List Dashboard-Style Bucket Tabs · [Archive](../archive/2026-04-idea-107-event-list-buckets/)
 ```
 
-Grouping rules:
+Grouping rules — all read frontmatter `status:`, filter by directory:
 
-- **In Progress** lists files in `docs/execution/IDEA-*.md` (any priority — what's being worked on now, not what might be worked on).
-- **Priority groupings** (High / Medium / Low) list files in `docs/ideas/IDEA-*.md` — pure backlog.
-- **Superseded / Rejected** lists files in `docs/archive/*/IDEA-*.md` with `status: superseded | rejected`.
-- **References — Implemented** is footer lines for completed ideas, pointing into the archive dir (not the migrated file). Forward-only: don't link to the idea file inside the archive dir — the archive dir's own README.md is the canonical landing for a completed idea's full story.
+- **🚧 In Progress** — `docs/archive/*/IDEA-*.md` where `status: in-progress`.
+- **💡 Priority groupings** (High / Medium / Low) — `docs/ideas/IDEA-*.md` (status: idea).
+- **🗃 Superseded / Rejected** — `docs/archive/*/IDEA-*.md` where `status: superseded | rejected`.
+- **✅ References — Implemented** — `docs/archive/*/IDEA-*.md` where `status: complete`. Footer lines pointing at the archive dir (not the IDEA file) — the archive dir's own README is the canonical landing for a completed idea's full story.
 
-Rebuild the index from scratch if it gets out of sync: scan all three directories, read each file's frontmatter, regenerate grouped by location.
+Rebuild the index from scratch if it gets out of sync: scan both dirs, read each file's frontmatter, regenerate.
 
 ### 4. Auto-incrementing IDEA-NNN
 
@@ -150,4 +151,4 @@ Rebuild the index from scratch if it gets out of sync: scan all three directorie
 
 ---
 
-**Last Updated**: 2026-04-20 (status transitions now trigger `git mv` per RULE_ideas-location-status)
+**Last Updated**: 2026-04-20 (second revision — single-move lifecycle per revised RULE_ideas-location-status; `docs/execution/` retired from glob / transition table)

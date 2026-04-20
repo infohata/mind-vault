@@ -64,10 +64,10 @@ See [`references/legacy-formats.md`](references/legacy-formats.md) for the full 
 
 ### 3. Classify entries
 
-Walk the detected entries and classify per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md). Location encodes status:
+Walk the detected entries and classify per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md). Two dirs, not three:
 
-- **`status: idea`** → file lands in `docs/ideas/`.
-- **`status: in-progress`** → file lands in `docs/execution/` (alongside `DEVELOPMENT_LOG.md`, plan docs, research notes).
+- **`status: idea`** → file lands in `docs/ideas/IDEA-NNN-<slug>.md`.
+- **`status: in-progress`** → file lands in `docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md`. `YYYY-MM` = month execution started (inferred from the brownfield source or current month when undated). The IDEA lives inside the archive dir from the moment it left backlog; artefacts (plans, research, screenshots) get co-located there as work proceeds.
 - **`status: superseded`** (with determinable pointer) → file lands in `docs/archive/YYYY-MM-idea-NNN-<slug>/`. If the supersession link is unclear, fall back to `status: idea` and surface a warning.
 - **`status: rejected`** (from a `## ❌ Rejected` section or equivalent) → file lands in `docs/archive/YYYY-MM-idea-NNN-<slug>/`. Entries without an IDEA-NNN number stay as footer-only lines in the index (no file).
 - **`status: complete`** → footer-line only in the index. **Forward-only**: no file created. Already-complete entries have an existing execution archive dir as their canonical home; a new stub file is pure data migration with no gain.
@@ -90,15 +90,25 @@ Print to stdout, exit cleanly. The user reviews, then re-invokes with `--write`.
 Only when explicitly passed `--write`:
 
 1. Require clean git working tree (`git status --porcelain` empty). Refuse with error otherwise.
-2. `mkdir -p <project>/docs/ideas/` and, if any in-progress entries exist, ensure `<project>/docs/execution/` exists (typically already does in brownfield projects).
+2. `mkdir -p <project>/docs/ideas/`. Archive dirs are created on demand per entry.
 3. For each entry, route to its destination per step 3's classification and [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md):
    - `status: idea` → `<project>/docs/ideas/IDEA-NNN-<slug>.md`.
-   - `status: in-progress` → `<project>/docs/execution/IDEA-NNN-<slug>.md`.
-   - `status: superseded | rejected` → `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md`. Create the archive dir if it doesn't exist; use the month of supersession / rejection (or the current month when undated).
+   - `status: in-progress | superseded | rejected` → `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md`. Create the archive dir. `YYYY-MM` = best-effort from the source's dates (execution start for in-progress, supersession/rejection date otherwise), falling back to the current month when undated.
    - `status: complete` → no file. Footer-line only in the index.
    - Each emitted file uses [`assets/idea-template.md`](assets/idea-template.md). Frontmatter derived from parsed fields; body transplanted from the source entry with minor normalisation (strip legacy emoji status prefixes, strip the bold-label fields now living in YAML, keep prose).
-4. Write `<project>/docs/ideas/README.md` as the single index regardless of where individual files live. Links to `../execution/` and `../archive/<dir>/` resolve to the idea files in those trees. Skeleton per `RULE_ideas-location-status` — one In-Progress section, three priority sections (ideas), a Superseded/Rejected section (archive files), a footer-only Rejected section (entries without IDEA-NNN), and a References — Implemented section preserving the legacy completed footer lines.
+4. Write `<project>/docs/ideas/README.md` as the single index regardless of where individual files live. Skeleton per `RULE_ideas-location-status` — one In-Progress section (links into `../archive/<dir>/`), three priority sections (ideas in-place), a Superseded/Rejected section (archive files), a footer-only Rejected section (entries without IDEA-NNN), and a References — Implemented section preserving the legacy completed footer lines.
 5. Rewrite the source monolithic file as a short stub pointing at `docs/ideas/README.md`. **The stub's relative links must be computed from the source file's directory to `<project>/docs/ideas/`, not hardcoded.** Step 1 supports source files at the repo root (`IDEAS.md`), under `docs/` (`docs/IDEAS.md`), or deeper (`docs/execution/IDEAS.md`, `docs/planning/IDEAS.md`); a hardcoded `../ideas/` path would break in most of those locations.
+
+### 5a. Retire `docs/execution/` during the same write
+
+If the source file was in `docs/execution/` AND that's the only remaining content in the dir (typical — `DEVELOPMENT_LOG.md` and any lingering agent-workflow docs are also retired during brownfield takeover per `RULE_ideas-location-status`), include the cleanup in the same write:
+
+- Move `docs/execution/DEVELOPMENT_LOG.md` → `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md` (current month) via `git mv`. Subsequent log entries get written directly to the archive file.
+- Move any other pre-sprint-workflow workflow docs (e.g. `agent_delegation_architecture.md`) to an appropriately-dated archive subdir — they're superseded by the sprint workflow adoption.
+- Delete the stub created in step 5 if it was in `docs/execution/` — the entire dir is about to go — OR keep the stub as a breadcrumb for external bookmarks. Ask the user which.
+- `rmdir docs/execution/` when empty.
+
+Surface the cleanup plan in the dry-run so the user can approve before `--write`.
 
    Derivation rule (applied per-invocation):
 
@@ -196,4 +206,4 @@ Teisutis IDEA-112 is the first real consumer. Validation gate for this skill's v
 
 ---
 
-**Last Updated**: 2026-04-20 (location-by-status routing added after teisutis IDEA-112 PR1 validated the three-destination split)
+**Last Updated**: 2026-04-20 (second revision — two-destination routing per revised RULE_ideas-location-status; `docs/execution/` retired during brownfield takeover in step 5a)

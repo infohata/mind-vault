@@ -90,32 +90,42 @@ If verification fails:
 2. Document the failure in the plan's Open Questions section (append, don't overwrite).
 3. Route to the user for a decision: fix in place, roll back the latest commit, or return to `/plan` for a revised approach.
 
-### 6. Archive on merge (`in-progress` → `complete`)
+### 6. Flip status on merge — frontmatter only, no file moves
 
-After the human merges the PR, route the IDEA file from `docs/execution/` into the archive dir per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md). This is triggered either automatically on the user's "merged" confirmation during local cleanup (see `RULE_git-safety` step 6–7) or explicitly via `/idea <slug> --complete`.
+Per the revised [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md), the IDEA file already lives in its permanent home (`docs/archive/YYYY-MM-idea-NNN-<slug>/`, placed there by `/plan` step 7). On merge, **no file moves**. Just frontmatter edits:
 
-```bash
-# Archive dir may already exist (research artefacts, plan docs dropped there
-# during execution) or may need to be created fresh:
-mkdir -p <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/
-
-# Move the IDEA file + the plan file in the same commit so the archive dir
-# holds the complete execution history:
-git mv <project>/docs/execution/IDEA-NNN-<slug>.md \
-       <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md
-git mv <project>/docs/plans/YYYY-MM-DD-<slug>-plan.md \
-       <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md
-
-# Update the IDEA file's frontmatter: status: complete, completed: YYYY-MM-DD
-# Update docs/ideas/README.md: remove In-Progress entry, add footer line under
-# References — Implemented pointing into the archive dir.
+```yaml
+# docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md
+status: complete
+completed: 2026-04-22
 ```
 
-`YYYY-MM` uses the merge/completion month, not the creation month. The archive dir name already includes the IDEA id and slug for grep-friendliness.
+```yaml
+# docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md
+status: shipped
+```
 
-Commit message: `docs(archive): IDEA-NNN <slug> — complete (merged in PR #xxx)`.
+Plus `docs/ideas/README.md`:
 
-The archive step is on a separate feature branch from the execution work itself — typically the human creates `chore/archive-idea-NNN` after the primary PR merges, since the archive commit can't land until after the merge.
+- Remove the In-Progress entry.
+- Add a footer line under "References — Implemented" pointing at `../archive/<dir>/` (the dir itself, not the IDEA file — the dir's README is the canonical landing for a completed idea's full story).
+
+That's it. No `git mv` cascade, no archive-dir creation (it already exists), no cross-tree routing. The single filesystem move per idea happened at `/plan` time.
+
+Commit message: `docs(archive): IDEA-NNN <slug> — mark complete (merged in PR #xxx)`.
+
+This commit lands on a cleanup branch after the primary PR merges (typically `chore/complete-idea-NNN`) since the status-flip commit references the merged PR number. The human can also roll the completion-flip into the same commit that updates `DEVELOPMENT_LOG` for that merge.
+
+### 6a. Write the completion summary into the archive dir README
+
+Alongside the frontmatter flip, append a short summary to `docs/archive/YYYY-MM-idea-NNN-<slug>/README.md` (create if missing) covering:
+
+- What shipped (one-paragraph)
+- PR number(s)
+- Notable deviations from the plan
+- Follow-up work that got punted to new IDEAs
+
+This is the canonical landing page for anyone discovering the idea via grep/index after completion. Keep it short; details live in the plan doc and the DEVELOPMENT_LOG entry.
 
 ## Interaction rules
 
@@ -146,4 +156,4 @@ The archive step is on a separate feature branch from the execution work itself 
 
 ---
 
-**Last Updated**: 2026-04-20 (step 6 added: archive move on PR merge per RULE_ideas-location-status)
+**Last Updated**: 2026-04-20 (second revision — step 6 is now frontmatter-only on merge; the single lifecycle move happened at `/plan` time per revised RULE_ideas-location-status)

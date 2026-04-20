@@ -90,41 +90,57 @@ The architect's 4-pass workflow (abstraction/genericity sweep → coupling/depen
 
 The reviewer pass is optional for trivial and small plans. Required for medium and large.
 
-### 6. Emit the file
+### 6. Emit the plan file into the idea's archive dir
 
-Write to `<project>/docs/plans/YYYY-MM-DD-<slug>-plan.md` with the stage-handoff frontmatter:
+Plans live **alongside the IDEA file they implement**, inside the same `docs/archive/YYYY-MM-idea-NNN-<slug>/` dir per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md). There is no separate `docs/plans/` tree — that was an earlier draft and was dropped in favour of co-location (cross-refs between plan and IDEA file stay local; no cross-tree paths).
+
+The plan file is written *after* step 7 has created the archive dir and moved the IDEA file into it:
+
+```text
+docs/archive/YYYY-MM-idea-NNN-<slug>/
+  ├── IDEA-NNN-<slug>.md             # moved here in step 7
+  └── YYYY-MM-DD-<slug>-plan.md      # emitted here in step 6
+```
+
+Stage-handoff frontmatter:
 
 ```yaml
 ---
 stage: plan
 slug: sprint-workflow
 created: 2026-04-19
-source: docs/execution/IDEA-001-sprint-workflow.md  # path after transition, or null
-status: draft                                    # draft | ready | shipped
-project: mind-vault
+source: ./IDEA-NNN-<slug>.md                # relative to the plan's own dir
+status: draft                                # draft | ready | shipped
+project: <project-name>
 ---
 ```
 
 Print the created path + a one-line summary. Suggest `/work <plan-path>` as the next command.
 
-### 7. Transition the source IDEA file (if present)
+### 7. Transition the source IDEA — single move, then never again
 
-Per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md), the existence of a plan is the signal that an idea has moved from backlog to active work. When the source IDEA file lives in `docs/ideas/`, move it to `docs/execution/` in the same commit as the plan emission:
+Per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md), the act of drafting a plan is the signal that an idea has left the backlog. This triggers the **one and only** filesystem move in the IDEA file's life:
 
 ```bash
-git mv <project>/docs/ideas/IDEA-NNN-<slug>.md <project>/docs/execution/IDEA-NNN-<slug>.md
+mkdir -p <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/
+git mv <project>/docs/ideas/IDEA-NNN-<slug>.md \
+       <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md
 # + update frontmatter: status: in-progress
+# + update docs/ideas/README.md: move the entry from its priority section
+#   into "🚧 In Progress" (link now points at ../archive/<dir>/)
 ```
 
-Then update `docs/ideas/README.md` to move the entry from its priority section into the "🚧 In Progress" section (link now points at `../execution/`).
+`YYYY-MM` = current month. Stays fixed across the rest of the idea's life — neither completion nor rejection renames this dir.
 
-Skip this transition when:
+After the move, the plan file from step 6 lands into that same dir. All subsequent artefacts (research notes, session prompts, screenshots, the eventual README) go into this dir too. Future `/work` on completion edits frontmatter to `status: complete` — **no further file movement**.
 
-- The plan is scoped as **trivial** or **small** — no file move; the work may not warrant lifecycle tracking.
-- The source IDEA file already lives in `docs/execution/` — a plan revision on work already in-progress.
-- There is no source IDEA file — the plan is a standalone artifact.
+Skip the transition when:
 
-The `source:` frontmatter field on the emitted plan should reflect the **post-transition path** so `/work` can resolve it cleanly. Commit message for the combined change follows the format `docs(plan): <slug> — draft plan + move IDEA-NNN to in-progress`.
+- The plan is scoped as **trivial** or **small** — emit the plan wherever it makes sense (often just write it into the IDEA file's existing dir if it's already been archived, or drop it ad hoc). Small scopes may not warrant a lifecycle stamp at all.
+- The source IDEA file already lives in `docs/archive/<dir>/` — this is a plan revision on work already in-progress or a re-plan after rejection; just emit the new plan into the existing dir.
+- There is no source IDEA file — the plan is a standalone artefact; emit it to a context-appropriate location (often `docs/plans/` as a fallback, which exists only for orphan plans).
+
+Commit message for the combined IDEA-move + plan-emit change: `docs(plan): <slug> — draft plan + move IDEA-NNN to in-progress`.
 
 ## Right-sizing the artifact
 
@@ -164,4 +180,4 @@ The plan's philosophy stays the same at every scope; the depth scales.
 
 ---
 
-**Last Updated**: 2026-04-20 (step 7 added: plan emission now triggers the source IDEA's `idea` → `in-progress` move)
+**Last Updated**: 2026-04-20 (second revision — plans emit INTO the idea's archive dir, not a separate `docs/plans/` tree; step 7 is now the single-move-then-never-again lifecycle per revised RULE_ideas-location-status)
