@@ -110,7 +110,7 @@ End with:
 | Single file / small module | 3–5 | keep 1–3 |
 | Single Django app / feature | 8–12 | keep 3–6 |
 | Project-wide landscape | 15–25 | keep 6–10 |
-| Multi-project / meta | hand off to a human retrospective — skill not designed for it |
+| Multi-project / meta | — | hand off to a human retrospective — skill not designed for it |
 
 Generating more than 25 candidates rarely helps; the filter gets overwhelmed and the user's menu selection degrades.
 
