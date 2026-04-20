@@ -33,6 +33,7 @@ The optional `/ideate` stage sits above `/idea` — use it between sprints to di
 | 2. Brainstorm / Plan | `/plan` or `/brainstorm` | IDEA file, or raw description | `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md` (co-located with the moved IDEA file per `RULE_ideas-location-status`) |
 | 3. Work | `/work` | Plan file | Code changes on a feature branch |
 | 4. Review | `/bugbot-loop` | Open PR | Cleared bugbot findings + loop output file |
+| 4.5. Wrap | `/wrap` | Merged PR | IDEA frontmatter `complete` + re-sorted index + devlog entry + worktree stack torn down + docs patched for renamed / added identifiers |
 | 5. Compound | `/compound` | Solved problem, or bugbot output file | Solution doc OR mind-vault skill/rule/agent/command/memory update |
 
 **Brainstorm folds into plan.** `/brainstorm` is an alias for `/plan`. When the IDEA file is thin or the description is under-specified, the plan skill interactively explores requirements (the brainstorm front-end) before emitting the plan artifact.

@@ -36,7 +36,7 @@ mind-vault/
 └── tools/         Utilities (bugbot helpers, emoji support, etc.)
 ```
 
-## Skills (13)
+## Skills (14)
 
 Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each skill has frontmatter `name` + `description` (the probabilistic trigger), stays under ~500 lines, and pushes deep-dive content to `references/`.
 
@@ -48,6 +48,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **idea** | Stage 1 — create or update atomic `IDEA-NNN-<slug>.md` files in `docs/ideas/`; maintains the per-priority index. Shape from teisutis IDEA-112. |
 | **plan** | Stage 2 — turn an IDEA file or rough description into a durable plan; interactive brainstorm bootstrap on thin input; `AGENT_architect` as reviewer. Aliased `/brainstorm`. |
 | **work** | Stage 3 — thin orchestrator that reads a plan, enforces `RULE_git-safety` + `RULE_parallel-worktree-docker`, dispatches to implementation personas. |
+| **wrap** | Stage 4.5 — post-merge documentation + cleanup sweep. Flips IDEA frontmatter to `complete`, re-sorts the ideas index, appends a devlog entry, tears down the worktree stack (if one was in use), scans project docs for stale references. Sits between a merged PR and `/compound`. |
 | **compound** | Stage 5 — **the novel piece.** Routes a post-incident learning through a hybrid Shape-C probe to one of six destinations (project-local, mind-vault skill / rule / agent pass / command, or auto-memory). |
 | **ingest-backlog** | Brownfield-takeover helper (one-time). Atomises a monolithic `IDEAS.md` / `BACKLOG.md` / `ROADMAP.md` into per-idea files matching the sprint-workflow schema. Default dry-run. |
 | **sprint-auto** | Overnight unattended wrapper around stages 2–3 — runs a curated list of opt-in IDEAs through `/plan → /work → PR` in per-IDEA git worktrees with independent docker-compose stacks. Belt-and-suspenders gates (`auto_safe: true` frontmatter + explicit arg allowlist); stops at the HITL merge boundary per `RULE_git-safety`. |
@@ -81,9 +82,9 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **documentation** | Docs-only authorship and review | Standalone |
 | **researcher** | Ad-hoc investigation / literature review | Standalone |
 
-## Commands (15 slash commands)
+## Commands (16 slash commands)
 
-**Sprint workflow:** `/ideate`, `/idea`, `/plan` (alias `/brainstorm`), `/work`, `/compound`, `/ingest-backlog`.
+**Sprint workflow:** `/ideate`, `/idea`, `/plan` (alias `/brainstorm`), `/work`, `/wrap`, `/compound`, `/ingest-backlog`.
 
 **Automation:** `/sprint-auto` — overnight unattended orchestrator that chains stages 2–3 for curated IDEAs; see [`skills/sprint-auto/SKILL.md`](skills/sprint-auto/SKILL.md).
 

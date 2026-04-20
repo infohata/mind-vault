@@ -23,6 +23,19 @@ Catches the class of work that's cheap to forget and expensive to find later —
 
 Six steps in order. Most are guards — skip silently if the state is already correct. The skill is safe to re-run; it produces the same final state regardless of which steps an earlier run completed.
 
+### Self-mode: running on mind-vault itself
+
+Mind-vault does **not** track IDEA-NNN files of its own — per-project IDEA numbering would collide across the projects mind-vault serves (teisutis, etc.). If `/wrap` is invoked on the mind-vault repository itself, Steps 1–3 (IDEA resolution, frontmatter flip, ideas index re-sort) do not apply and must be skipped.
+
+Detection (first match wins):
+
+- `git remote get-url origin` → URL contains `mind-vault`.
+- Repo root has `skills/`, `rules/`, `commands/`, and **no** `docs/ideas/README.md` — the mind-vault signature.
+
+In self-mode, jump straight to Step 6 (downstream docs scan). Step 4 (devlog) is generally also skipped on mind-vault — there is no `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md` convention here; merged PR descriptions serve as the history. Step 5 (worktree teardown) almost never applies because mind-vault has no docker stack, but the condition is branch-agnostic — run it if the guards say to.
+
+The load-bearing self-mode work is Step 6: catch README.md / SPRINT_WORKFLOW.md / tools/README.md / AGENTS.md drift from newly-added skills, commands, rules, or agent passes. That is what `/wrap` is *for* on mind-vault — the paper trail of its own evolution.
+
 ### Step 1 — Resolve the idea
 
 Derive the IDEA-NNN from one of (in order of precedence):
