@@ -30,7 +30,7 @@ The optional `/ideate` stage sits above `/idea` — use it between sprints to di
 | --- | --- | --- | --- |
 | 0. Ideate (optional) | `/ideate` | Scoped area (project / app / layer) | Menu of ranked candidates; selected survivors promoted into `IDEA-NNN-<slug>.md` files |
 | 1. Idea | `/idea [slug]` | Title (new) or slug (update) | `<project>/docs/ideas/IDEA-NNN-<slug>.md` |
-| 2. Brainstorm / Plan | `/plan` or `/brainstorm` | IDEA file, or raw description | `<project>/docs/plans/YYYY-MM-DD-<slug>-plan.md` |
+| 2. Brainstorm / Plan | `/plan` or `/brainstorm` | IDEA file, or raw description | `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md` (co-located with the moved IDEA file per `RULE_ideas-location-status`) |
 | 3. Work | `/work` | Plan file | Code changes on a feature branch |
 | 4. Review | `/bugbot-loop` | Open PR | Cleared bugbot findings + loop output file |
 | 5. Compound | `/compound` | Solved problem, or bugbot output file | Solution doc OR mind-vault skill/rule/agent/command/memory update |
@@ -100,24 +100,35 @@ The `source` field is what makes handoff possible: `/plan` reads an IDEA file an
 
 ## Directory layout inside a target project
 
+Per [`RULE_ideas-location-status`](../rules/RULE_ideas-location-status.md), an IDEA file lives in exactly one of two locations across its whole life — `docs/ideas/` while in backlog, `docs/archive/YYYY-MM-idea-NNN-<slug>/` everything after. The only filesystem move is `idea → archive` at `/plan` time (or `/work` time for small-scope plans that bypassed `/plan`). Post-move, status flips are frontmatter-only.
+
 ```text
 <project>/
 └── docs/
     ├── ideas/
-    │   ├── README.md                    # index grouped by priority
-    │   ├── IDEA-001-<slug>.md
-    │   ├── IDEA-002-<slug>.md
+    │   ├── README.md                            # single index, grouped by priority
+    │   ├── IDEA-088-<backlog-slug>.md           # status: idea
+    │   ├── IDEA-112-<backlog-slug>.md           # status: idea
     │   └── ...
-    ├── plans/
-    │   ├── 2026-04-19-<slug>-plan.md
-    │   └── 2026-04-20-<other-slug>-plan.md
+    ├── archive/
+    │   ├── 2026-04-idea-042-<slug>/             # in-progress / complete / superseded / rejected
+    │   │   ├── IDEA-042-<slug>.md               # moved here at /plan time; status flips via frontmatter
+    │   │   ├── 2026-04-19-<slug>-plan.md        # plan co-located with the IDEA it implements
+    │   │   ├── research-*.md                    # investigation notes
+    │   │   ├── session-notes/                   # agent session prompts
+    │   │   └── README.md                        # completion summary (added on merge)
+    │   ├── 2026-04-idea-109-<slug>/             # superseded idea — same shape, fewer artefacts
+    │   │   └── IDEA-109-<slug>.md               # status: superseded
+    │   └── 2026-04-DEVELOPMENT_LOG.md           # monthly chronological engineering log
     └── solutions/
-        ├── async-tenant-context.md
+        ├── async-tenant-context.md              # project-local compound destinations
         └── webhook-hmac-edge-cases.md
 ```
 
-- `docs/ideas/README.md` is the index — one line per IDEA grouped by priority, linking to the per-idea file. Completed ideas stay as footer lines rather than being migrated (forward-only policy from teisutis IDEA-112).
-- Plans and solutions use dated slugs so they sort chronologically and never collide.
+- `docs/ideas/README.md` is the single index for all statuses. Entries link out to `../archive/<dir>/` when the IDEA has left backlog. Completed ideas appear as footer lines under "References — Implemented".
+- The archive directory's name (`YYYY-MM-idea-NNN-<slug>/`) is stamped at move-time and never changes — neither completion nor rejection renames it. Stable reference path for the idea's whole life.
+- `DEVELOPMENT_LOG.md` follows a per-month file convention under `docs/archive/` (one file per calendar month).
+- Solutions use dated or topic slugs so they sort and never collide.
 
 ## Running the loop
 
@@ -167,4 +178,4 @@ The loop's value scales with the work's ambiguity. Don't force ceremony onto wor
 
 ---
 
-**Last Updated**: 2026-04-19
+**Last Updated**: 2026-04-20 (stage-2 output path + directory-layout diagram synced with `RULE_ideas-location-status` two-location model)

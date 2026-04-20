@@ -1,5 +1,5 @@
 ---
-description: Second stage of the sprint workflow — turn an IDEA file or rough description into a durable plan at docs/plans/YYYY-MM-DD-<slug>-plan.md; interactively brainstorms when input is thin; invokes AGENT_architect as reviewer
+description: Second stage of the sprint workflow — turn an IDEA file or rough description into a durable plan emitted into the idea's archive dir at docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md; interactively brainstorms when input is thin; invokes AGENT_architect as reviewer; triggers the single idea → archive move per RULE_ideas-location-status
 agent: general
 ---
 
@@ -12,8 +12,9 @@ Behaviour:
 3. Research existing repo patterns, institutional learnings (`docs/solutions/`, mind-vault skills/rules), and external references before structuring.
 4. Draft the plan using the canonical CE-inspired structure: Context → Problem Frame → Requirements Trace → Scope → Key Decisions → Open Questions → Execution Sequence → Verification.
 5. Invoke `AGENT_architect` as a reviewer pass (4-pass structural architecture review) for medium+ plans. Integrate findings.
-6. Write to `<project>/docs/plans/YYYY-MM-DD-<slug>-plan.md` with stage-handoff frontmatter (`stage: plan`, `source:`, `status: draft|ready|shipped`).
-7. Print the path and suggest `/work <plan-path>` as the next command.
+6. Trigger the single `idea → archive` move per `RULE_ideas-location-status` — `mkdir -p <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/` + `git mv` the source IDEA file into it + flip frontmatter to `status: in-progress` + update `docs/ideas/README.md` (entry into 🚧 In Progress).
+7. Write the plan alongside the moved IDEA file at `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md` with stage-handoff frontmatter (`stage: plan`, `source: ./IDEA-NNN-<slug>.md`, `status: draft|ready|shipped`).
+8. Print the path and suggest `/work <plan-path>` as the next command.
 
 Right-sized: trivial work skips the skill entirely; small work gets a compact plan; medium+ gets the full structure with architect review.
 
