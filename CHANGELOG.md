@@ -10,11 +10,13 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 PRs open and not yet merged to main.
 
-- **Added** `/wrap` skill — post-merge documentation + cleanup sweep. Flips IDEA frontmatter to `complete`, re-sorts the ideas index, appends a devlog entry, tears down worktree stacks, scans project docs for stale references. Sits between `/work`'s merge and `/compound`'s learning-routing. Self-mode on mind-vault (this repo) skips IDEA steps, runs docs-scan against this CHANGELOG + READMEs. ([#49](https://github.com/infohata/mind-vault/pull/49))
-- **Added** `AGENT_bugbot` pass + `skills/django/references/TESTING.md` — three compound learnings from teisutis PR #330. ([#49](https://github.com/infohata/mind-vault/pull/49))
-- **Changed** `/bugbot-loop` retry cadence: exponential 180 → 600 → 1200s replaced with **linear 270s** — each wake stays inside the 300s prompt-cache TTL; the only backstop is `max_idle_polls = 20`. ([#49](https://github.com/infohata/mind-vault/pull/49))
+(none)
 
 ## 2026-04
+
+- **Added** `/wrap` skill — post-merge documentation + cleanup sweep. Flips IDEA frontmatter to `complete`, re-sorts the ideas index, appends a devlog entry, tears down worktree stacks, scans project docs for stale references. Sits between `/work`'s merge and `/compound`'s learning-routing. Self-mode on mind-vault (this repo) skips IDEA steps, runs docs-scan against this CHANGELOG + READMEs. (2026-04-20, [#49](https://github.com/infohata/mind-vault/pull/49))
+- **Added** `AGENT_bugbot` pass + `skills/django/references/TESTING.md` — three compound learnings from teisutis PR #330. (2026-04-20, [#49](https://github.com/infohata/mind-vault/pull/49))
+- **Changed** `/bugbot-loop` retry cadence: exponential 180 → 600 → 1200s replaced with **linear 270s** — each wake stays inside the 300s prompt-cache TTL; the only backstop is `max_idle_polls = 20`. (2026-04-20, [#49](https://github.com/infohata/mind-vault/pull/49))
 
 - **Added** `/sprint-auto` skill + canonical `tools/sprint-auto-bootstrap.sh` + wrapper/hooks templates — overnight unattended orchestrator that runs a curated list of opt-in IDEAs through `/plan` → `/work` → PR creation in per-IDEA git worktrees with independent docker-compose stacks. Belt-and-suspenders opt-in (`auto_safe: true` frontmatter + explicit arg allowlist); never merges; worktrees preserved after each run. (2026-04-20, [#48](https://github.com/infohata/mind-vault/pull/48))
 - **Changed** `tools/bugbot.sh` canonicalised — merged variants into a single script and added the `BUGBOT_CLEAN_SIGNAL` marker to `find_bugbot_comments.sh` so `/bugbot-loop` can fast-hand-back on clean reviews without waiting out the idle-poll bound. (2026-04-20, [#47](https://github.com/infohata/mind-vault/pull/47))
