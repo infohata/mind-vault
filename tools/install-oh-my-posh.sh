@@ -29,7 +29,7 @@
 #   --no-rc-edit         Install binary + theme but don't touch the shell rc
 #   -h, --help           Show this header and exit
 
-set -e
+set -eo pipefail
 
 CHECK_ONLY=0
 INTERACTIVE=0
@@ -133,7 +133,15 @@ echo "   Install dir:    $INSTALL_DIR"
 echo "   Themes dir:     $THEMES_DIR"
 
 if [ "$CHECK_ONLY" = "1" ]; then
-    [ -n "$POSH_BIN" ] && [ "$RC_WIRED" = "1" ] && exit 0 || exit 1
+    # Install is complete when the binary exists AND either the rc file is
+    # wired OR the selected shell doesn't use an rc file (pwsh / unsupported).
+    # Previous `[ -z "$POSH_BIN" ] && [ "$RC_WIRED" = "1" ]` always failed for
+    # pwsh because $RC_FILE is empty → RC_WIRED stays 0 even on a correct install.
+    if [ -n "$POSH_BIN" ] && { [ -z "$RC_FILE" ] || [ "$RC_WIRED" = "1" ]; }; then
+        exit 0
+    else
+        exit 1
+    fi
 fi
 
 # --- Interactive menu ---
@@ -213,13 +221,18 @@ if [ "$RC_EDIT" = "1" ] && [ -n "$RC_FILE" ]; then
     # Remove any existing managed block
     if [ -f "$RC_FILE" ] && grep -q 'BEGIN oh-my-posh (managed by install-oh-my-posh.sh)' "$RC_FILE"; then
         # Portable block-delete: keep everything outside the markers.
+        # NOTE: `mv` from an mktemp (0600) file would destroy the rc file's
+        # original permissions (typically 0644) on re-run. Use `cat >` +
+        # `rm` to write content in place while preserving the original file's
+        # inode and permissions.
         tmpfile="$(mktemp)"
         awk '
             /# BEGIN oh-my-posh \(managed by install-oh-my-posh.sh\)/ { skip=1; next }
             /# END oh-my-posh \(managed by install-oh-my-posh.sh\)/   { skip=0; next }
             !skip { print }
         ' "$RC_FILE" > "$tmpfile"
-        mv "$tmpfile" "$RC_FILE"
+        cat "$tmpfile" > "$RC_FILE"
+        rm -f "$tmpfile"
     fi
 
     # Append the fresh block.

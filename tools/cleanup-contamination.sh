@@ -121,8 +121,12 @@ for file in "${CONTAMINATED_FILES[@]}"; do
         fi
     done < "$file"
 
-    # Replace original file
-    mv "$temp_file" "$file"
+    # Replace original file contents while preserving its permissions + inode.
+    # `mv` from an mktemp file (0600) would destroy the scanned file's original
+    # perms (typically 0644); same pattern bugbot flagged in install-oh-my-posh.sh
+    # on PR #53. Use `cat >` + `rm` instead.
+    cat "$temp_file" > "$file"
+    rm -f "$temp_file"
 
     if [ "$cleaned" = true ]; then
         echo -e "${GREEN}CLEANED${NC}"
