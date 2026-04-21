@@ -121,6 +121,18 @@ if [ "$TARGET_USER" = "root" ]; then
     echo "⚠️  Target user resolved to root; rc file edits will land in /root."
     echo "    If you meant to configure a non-root user, pass --target-user NAME."
 fi
+# Pre-validate user existence. Without this, the pipeline-in-assignment
+# below (`TARGET_HOME=$(getent … | cut …)`) would silently abort under
+# `set -eo pipefail` when getent exits 2 for a missing user — the
+# friendly error message that follows would never print. `id -u` is a
+# cheap single-process check that always sets $? correctly. Fixes bugbot
+# PR #59 MED 3120776884; matches install-docker.sh's pattern.
+if ! id -u "$TARGET_USER" >/dev/null 2>&1; then
+    echo "❌ User '$TARGET_USER' does not exist on this system." >&2
+    echo "   Pass --target-user NAME with an existing account, or run the script" >&2
+    echo "   as (or via sudo from) that user." >&2
+    exit 1
+fi
 TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
 if [ -z "$TARGET_HOME" ] || [ ! -d "$TARGET_HOME" ]; then
     echo "❌ Could not resolve home directory for user '$TARGET_USER'." >&2
