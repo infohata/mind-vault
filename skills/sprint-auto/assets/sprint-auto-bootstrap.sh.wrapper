@@ -17,10 +17,21 @@ set -euo pipefail
 
 CANON_REL="tools/sprint-auto-bootstrap.sh"
 
+# Capture the sibling-dir candidate only when we're inside a git repo.
+# Raw `$(git rev-parse ... 2>/dev/null)` inside the array would abort the
+# script under `set -euo pipefail` when git fails (e.g., outside any repo
+# or without git installed) — the non-zero exit from the command
+# substitution propagates through the array assignment and errexit fires
+# before any fallback candidate is tried. `|| true` makes `git_topdir`
+# empty on failure; the `${git_topdir:+...}` form then elides the
+# candidate entirely, so the existing `[[ -z "$c" ]] && continue` guard
+# drops it harmlessly. Bug first surfaced by bugbot on teisutis PR #332.
+git_topdir=$(git rev-parse --show-toplevel 2>/dev/null || true)
+
 # Candidate mind-vault roots, priority order. First existing hit wins.
 candidates=(
     "${MIND_VAULT_ROOT:-}"
-    "$(git rev-parse --show-toplevel 2>/dev/null)/../mind-vault"
+    "${git_topdir:+$git_topdir/../mind-vault}"
     "$HOME/projects/mind-vault"
     "$HOME/.local/share/mind-vault"
     "/opt/mind-vault"
