@@ -61,6 +61,35 @@ sudo ./tools/install-docker.sh --no-test-run  # skip the hello-world smoke test
 **Supported**: Debian 12+ (bookworm, trixie), Ubuntu 22.04+ (jammy, noble, later).
 **Not supported**: RHEL / Fedora / Arch (each needs a different repo path — left for a later PR).
 
+### install-gcloud-cli.sh
+**Purpose**: Install [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) (`gcloud`) on Debian/Ubuntu from Google's official apt repo (not the `curl | bash` convenience script).
+
+**Problem Solved**:
+- Projects talking to GCP (Cloud Storage, Pub/Sub, Cloud Run, Secret Manager, GKE, etc.) need `gcloud` on PATH
+- The curl-bash installer drops an SDK into `$HOME` — poor fit for VPS / shared hosts where multiple users expect `gcloud` system-wide
+- Google's own apt docs still show the deprecated `apt-key add` flow; copy-pasting it each time is error-prone
+
+**Usage**:
+```bash
+# From repo root (requires sudo)
+sudo ./tools/install-gcloud-cli.sh                                   # full install
+sudo ./tools/install-gcloud-cli.sh --check                           # reports current state, no writes
+sudo ./tools/install-gcloud-cli.sh --with-components gke-gcloud-auth-plugin
+sudo ./tools/install-gcloud-cli.sh --with-components gke-gcloud-auth-plugin,cloud-sql-proxy
+```
+
+**Features**:
+- ✅ Idempotent: exits early if `gcloud` is already installed and reports a version
+- ✅ `--check` flag for a dry run (exit 0 if installed, 1 if missing)
+- ✅ Uses dearmored keyring under `/usr/share/keyrings/` + `signed-by=` — no deprecated `apt-key`
+- ✅ Arch-pinned repo line so multi-arch hosts don't try foreign arches
+- ✅ `--with-components` auto-installs extra packages (`google-cloud-cli-<component>`) alongside the base CLI
+- ✅ System-wide install; auto-upgrades via `apt upgrade`
+- ✅ Clear post-install hints (`gcloud init`, `gcloud auth login`, `gcloud auth application-default login`)
+
+**Supported**: Debian 11+ (bullseye, bookworm, trixie), Ubuntu 20.04+ (focal, jammy, noble, later).
+**Not supported**: RHEL / Fedora / Arch (each needs a different repo — see the [official install matrix](https://cloud.google.com/sdk/docs/install)).
+
 ### install-oh-my-posh.sh
 **Purpose**: Install [Oh My Posh](https://ohmyposh.dev) (prompt theme engine) for the current user and wire it into the shell rc. Idempotent, user-scope (no sudo), defaults to the `atomic` theme.
 
