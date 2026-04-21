@@ -31,6 +31,36 @@ This directory contains utility scripts and tools for maintaining the mind-vault
 - ⚠️  xfce4-terminal (version-dependent)
 - ❌ xterm, urxvt (monochrome only — terminal limitation)
 
+### install-docker.sh
+**Purpose**: Install Docker Engine + `docker compose` plugin on a fresh Debian/Ubuntu host from Docker's official apt repo (not `get.docker.com`).
+
+**Problem Solved**:
+- `RULE_parallel-worktree-docker` and the `/sprint-auto` / `/deployment` workflows assume Docker + compose v2 on the host
+- Fresh VPS images rarely ship with Docker; distro-packaged `docker.io` is usually too old for compose-v2's `!override` syntax
+- Manual apt-repo + GPG setup is error-prone to copy-paste each time
+
+**Usage**:
+```bash
+# From repo root (requires sudo)
+sudo ./tools/install-docker.sh              # full install + add $SUDO_USER to docker group + hello-world smoke test
+sudo ./tools/install-docker.sh --check      # reports current state only, no writes
+sudo ./tools/install-docker.sh --no-group   # install only, skip usermod -aG docker
+sudo ./tools/install-docker.sh --no-test-run  # skip the hello-world smoke test
+```
+
+**Features**:
+- ✅ Idempotent: exits early if Docker + compose plugin already work
+- ✅ `--check` flag for a dry run
+- ✅ Detects conflicting distro packages (`docker.io`, `podman-docker`, etc.) and removes them
+- ✅ Installs the official Docker apt repo with GPG-verified keyring
+- ✅ Installs `docker-ce` + `docker-ce-cli` + `containerd.io` + `docker-buildx-plugin` + `docker-compose-plugin`
+- ✅ Auto-adds `$SUDO_USER` to `docker` group; opt out with `--no-group`
+- ✅ Smoke tests via `docker run --rm hello-world`; opt out with `--no-test-run`
+- ✅ Clear post-install hints (log out / `newgrp docker`, verify with `docker ps`)
+
+**Supported**: Debian 12+ (bookworm, trixie), Ubuntu 22.04+ (jammy, noble, later).
+**Not supported**: RHEL / Fedora / Arch (each needs a different repo path — left for a later PR).
+
 ### cleanup-contamination.sh
 **Purpose**: Detect and remove grok-code-fast-1 tool response contamination from files
 
