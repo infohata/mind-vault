@@ -50,11 +50,25 @@ TARGET_USER=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --check) CHECK_ONLY=1; shift ;;
-        --session-name) SESSION_NAME="$2"; shift 2 ;;
+        --session-name)
+            if [ -z "${2:-}" ]; then
+                echo "❌ --session-name requires a value (e.g. --session-name main)." >&2
+                exit 1
+            fi
+            SESSION_NAME="$2"
+            shift 2
+            ;;
         --no-ufw) DO_UFW=0; shift ;;
         --no-autoattach) DO_AUTOATTACH=0; shift ;;
         --no-tmux-config) DO_TMUX_CONFIG=0; shift ;;
-        --target-user) TARGET_USER="$2"; shift 2 ;;
+        --target-user)
+            if [ -z "${2:-}" ]; then
+                echo "❌ --target-user requires a username." >&2
+                exit 1
+            fi
+            TARGET_USER="$2"
+            shift 2
+            ;;
         -h|--help)
             awk '
                 NR==1 && /^#!/ { next }
@@ -158,7 +172,7 @@ if [ "$DO_TMUX_CONFIG" = "1" ]; then
         BACKUP="${TMUX_CONF}.pre-mindvault.$(date +%s)"
         echo "   (backing up existing unmanaged config → $BACKUP)"
         cp "$TMUX_CONF" "$BACKUP"
-        chown "$TARGET_USER:$TARGET_USER" "$BACKUP"
+        chown "$TARGET_USER:" "$BACKUP"
     fi
 
     # Strip any prior managed block (idempotent re-write).
@@ -166,8 +180,12 @@ if [ "$DO_TMUX_CONFIG" = "1" ]; then
         sed -i "/$BEGIN_MARK/,/$END_MARK/d" "$TMUX_CONF"
     fi
 
-    # Append the fresh managed block. Using single-quoted HEREDOC so
-    # tmux's $-variables aren't expanded by the shell writing this file.
+    # Append the fresh managed block. HEREDOC is intentionally unquoted
+    # so $BEGIN_MARK and $END_MARK expand; the tmux config body happens
+    # to have no $-variables. If you add any tmux-format strings that
+    # contain literal $ (e.g. #{s/foo/$bar/}), escape them as \$ or
+    # switch to a single-quoted HEREDOC (<<'TMUXCONF') and inline the
+    # marker strings literally.
     cat >> "$TMUX_CONF" <<TMUXCONF
 $BEGIN_MARK
 # Minimal quality-of-life defaults. Anything outside the BEGIN/END block is
@@ -205,7 +223,7 @@ set -g status-right " #h · %Y-%m-%d %H:%M "
 set -g status-right-length 40
 $END_MARK
 TMUXCONF
-    chown "$TARGET_USER:$TARGET_USER" "$TMUX_CONF"
+    chown "$TARGET_USER:" "$TMUX_CONF"
     echo "✅ $TMUX_CONF written."
 fi
 
@@ -214,7 +232,7 @@ if [ "$DO_AUTOATTACH" = "1" ]; then
     echo ""
     echo "⚙️  Wiring SSH auto-attach into $BASHRC (session: $SESSION_NAME)"
 
-    [ -f "$BASHRC" ] || { touch "$BASHRC"; chown "$TARGET_USER:$TARGET_USER" "$BASHRC"; }
+    [ -f "$BASHRC" ] || { touch "$BASHRC"; chown "$TARGET_USER:" "$BASHRC"; }
 
     # Strip any prior managed block.
     if grep -q "$BEGIN_MARK" "$BASHRC" 2>/dev/null; then
@@ -235,7 +253,7 @@ if [ -z "\$TMUX" ] && [ -n "\$SSH_CONNECTION" ] && [ -t 0 ] && command -v tmux >
 fi
 $END_MARK
 BASHRCBLOCK
-    chown "$TARGET_USER:$TARGET_USER" "$BASHRC"
+    chown "$TARGET_USER:" "$BASHRC"
     echo "✅ Auto-attach snippet written."
 fi
 

@@ -273,17 +273,34 @@ Backups saved: *.backup (for cleaned files only)
 4. Include usage examples
 5. Follow naming: `[purpose]-[action].sh`
 
-**Template for new tools**:
+### Conventions for installer scripts (`install-*.sh`)
+
+This class of script has a recurring set of traps that keep leaking into each new installer — bugbot or my own drill has had to re-flag the same issues across PRs #55 / #58 / #59. The `agents/AGENT_bugbot.md` §9 checklist codifies them for the drill side; **authoring side, the short list**:
+
+- **Use `set -eo pipefail`, never bare `set -e`.** Installers pipe curl into gpg, jq, tee — a failing head of the pipe must abort the script, not write an empty / truncated file downstream.
+- **`chown` uses `user:` (trailing colon), not `user:user`.** The trailing colon asks chown to use the user's primary group from `/etc/passwd`; `user:user` assumes the group name equals the username, which is a Debian default but not a universal guarantee. `user:user` has now leaked into two PRs in a row — fix it once, write it right next time.
+- **Validate args with required values before consuming.** `--flag VALUE` must `[ -z "${2:-}" ] && die` before `VAR="$2"; shift 2`; otherwise a dangling flag silently sets VAR to empty and `shift 2` misbehaves. See `install-gcloud-cli.sh` `--with-components` for the right shape.
+- **Idempotency must respect all flags.** A "gcloud already installed → exit 0" check that ignores `--with-components` silently drops the user's request. Structure the early-exit to skip only when the additional flags are also absent.
+- **Marker blocks use fixed-string matching.** `BEGIN mind-vault-foo (managed by install-foo.sh)` contains `(`, `)`, `.` — regex metacharacters. Grep it with `-qF`, not bare. Sed's `/MARK/,/MARK/d` still treats metacharacters as regex; either use fixed alt-delimiters (`\|MARK|,\|MARK|d`) or strip the metacharacters from the marker string.
+- **HEREDOC quoting is a minefield.** `<<TAG` expands `$`-refs in the body (script-time); `<<'TAG'` does not. When the body has both kinds (wants `$BEGIN_MARK` expanded, wants `$SSH_CONNECTION` kept literal), keep the tag unquoted and backslash-escape the runtime vars (`\$SSH_CONNECTION`). Whichever choice you make, document it — a comment that says "single-quoted" above an unquoted HEREDOC is worse than no comment.
+- **Target-user resolution.** Under `sudo`, honour `$SUDO_USER` and write to that user's `$HOME`; fall back with care. `getent passwd "$user"` is the portable lookup. Warn (don't silently continue) if resolution lands on root when a non-root user was intended.
+- **Managed blocks over append-only.** Configuration touched by the installer goes inside `# BEGIN mind-vault-NAME (managed by install-NAME.sh)` / `# END mind-vault-NAME` markers so re-runs replace cleanly instead of appending duplicates.
+
+**Template for new tools** (follows the conventions above):
+
 ```bash
 #!/bin/bash
-# Description: What this tool does
-# Usage: How to run it
-# Author: Who wrote it
-# Date: When it was created
+# Description: What this tool does (one line — shown by --help)
+# Usage: How to run it (sudo? flags?)
+#
+# Why: the 2–3 sentence rationale. Skip "author" and "date" — git blame
+# has both and they rot when anyone else edits the file.
 
-set -e  # Exit on error
+set -eo pipefail
 
-# Your script here
+# parse flags, resolve target user, check state, do work — see
+# tools/install-gcloud-cli.sh or tools/install-mosh-tmux.sh for the
+# shape.
 ```
 
 ## Maintenance

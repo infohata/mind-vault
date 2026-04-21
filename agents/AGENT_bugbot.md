@@ -90,6 +90,13 @@ These are recurring issues that Bugbot correctly catches. Check for them proacti
 6. **Guard condition completeness**: `elif value:` should also check the discriminator (e.g. `elif end_type == 'count' and count:`).
 7. **Early return bypassing parameters**: Functions with `limit`/`cap` params must apply them in all code paths, including early returns.
 8. **Stale references in user-facing strings**: When adding notes/messages that reference method names or API endpoints, verify they actually exist in the schema.
+9. **Shell installer conventions (`tools/install-*.sh`)**: This class of script has a leak-prone pattern set — bugs keep re-appearing in each new installer even after fixing them in prior ones. When reviewing any `tools/install-*.sh` PR, drill against this checklist alongside the generic §1-8:
+   - `chown "$USER:$USER"` is a bug. Group name is not guaranteed to equal username; prefer `chown "$USER:"` (trailing colon = primary group from `/etc/passwd`). See PR #58 (wrap SKILL fallback), PR #59 (install-mosh-tmux) for cases where this pattern leaked.
+   - `set -e` without `set -o pipefail` lets pipeline failures slip through silently. Installers invariably have `curl | gpg --dearmor` / `curl | bash` / `jq` pipelines — always use `set -eo pipefail`. See PR #55 install-gcloud-cli cycle 1.
+   - Args with required values (`--flag VALUE`) must validate `${2:-}` before assigning and shifting, otherwise `--flag` with no following arg silently sets the var to empty and `shift 2` misbehaves. See install-gcloud-cli.sh `--with-components` (good example) vs install-mosh-tmux.sh `--session-name` pre-fix (leak).
+   - Idempotency check must honour all user-requested flags. Early-exiting on "already installed" without consulting `--with-components`/`--with-*` silently drops the user's request (PR #55 HIGH). Structure the check so flags that request *additional* work bypass the no-op exit.
+   - BEGIN/END marker blocks should use `grep -qF` (fixed-string) and bounded sed delimiters when the marker contains regex metacharacters (`(`, `)`, `.`, etc.). Latent fragility; rarely bites today but will when someone edits the marker.
+   - HEREDOC quoting: `<<TAG` expands `$`-refs in the body; `<<'TAG'` does not. When the body mixes script-time vars (that should expand) with target-runtime vars (that should not), use unquoted + backslash-escape the runtime ones (`\$SSH_CONNECTION`). Document the choice in a comment — the comment and the code MUST agree (PR #59 drill finding).
 
 ### PASS 3: The Re-Trigger Loop
 
