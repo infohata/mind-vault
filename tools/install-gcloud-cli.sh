@@ -37,7 +37,7 @@
 #                              Full package list: `apt-cache search google-cloud-cli-`
 #                              after the base install.
 
-set -e
+set -eo pipefail
 
 CHECK_ONLY=0
 EXTRA_COMPONENTS=""
@@ -79,12 +79,21 @@ if command -v gcloud >/dev/null 2>&1 && gcloud --version >/dev/null 2>&1; then
     if [ "$CHECK_ONLY" = "1" ]; then
         exit 0
     fi
+    # When --with-components was requested, fall through so the component-install
+    # block still runs even though the base CLI is already present. apt-get install
+    # on an already-installed google-cloud-cli is a no-op, so the only extra work
+    # downstream is re-asserting the keyring/repo (harmless) plus installing the
+    # requested components.
+    if [ -z "$EXTRA_COMPONENTS" ]; then
+        echo ""
+        echo "Nothing to install. Re-run with --check to confirm state without prompts."
+        echo "Upgrade later with: sudo apt-get update && sudo apt-get upgrade google-cloud-cli"
+        echo "Install extra components: sudo apt-get install google-cloud-cli-<component>"
+        echo "  (e.g. google-cloud-cli-gke-gcloud-auth-plugin)"
+        exit 0
+    fi
     echo ""
-    echo "Nothing to install. Re-run with --check to confirm state without prompts."
-    echo "Upgrade later with: sudo apt-get update && sudo apt-get upgrade google-cloud-cli"
-    echo "Install extra components: sudo apt-get install google-cloud-cli-<component>"
-    echo "  (e.g. google-cloud-cli-gke-gcloud-auth-plugin)"
-    exit 0
+    echo "ℹ️  Proceeding to install requested components: ${EXTRA_COMPONENTS}"
 fi
 
 if [ "$CHECK_ONLY" = "1" ]; then
