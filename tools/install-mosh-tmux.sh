@@ -117,24 +117,76 @@ END_MARK_RE=$(printf '%s' "$END_MARK" | sed -e 's/[][\/.*^$]/\\&/g')
 # --- Check state ---
 echo "🔍 Checking current mosh + tmux state..."
 MOSH_OK=0; TMUX_OK=0; TMUX_CONF_OK=0; RC_OK=0
+UFW_APPLICABLE=0; UFW_OK=0
 command -v mosh       >/dev/null 2>&1 && MOSH_OK=1
 command -v tmux       >/dev/null 2>&1 && TMUX_OK=1
-[ -f "$TMUX_CONF" ] && grep -qF "$BEGIN_MARK" "$TMUX_CONF" 2>/dev/null && TMUX_CONF_OK=1
-[ -f "$BASHRC" ]    && grep -qF "$BEGIN_MARK" "$BASHRC"    2>/dev/null && RC_OK=1
+# A managed block is only "OK" when BOTH markers are present. An orphan
+# BEGIN without END would otherwise make the strip-and-rewrite sed range
+# unclosed, deleting from BEGIN to EOF on re-run (bugbot PR #59 MED 3120687479).
+[ -f "$TMUX_CONF" ] \
+    && grep -qF "$BEGIN_MARK" "$TMUX_CONF" 2>/dev/null \
+    && grep -qF "$END_MARK"   "$TMUX_CONF" 2>/dev/null \
+    && TMUX_CONF_OK=1
+[ -f "$BASHRC" ] \
+    && grep -qF "$BEGIN_MARK" "$BASHRC" 2>/dev/null \
+    && grep -qF "$END_MARK"   "$BASHRC" 2>/dev/null \
+    && RC_OK=1
+# UFW is "applicable" only when the user hasn't opted out AND ufw is installed
+# AND reports an active status. Otherwise a missing rule is not a failure.
+if [ "$DO_UFW" = "1" ] && command -v ufw >/dev/null 2>&1 \
+    && ufw status 2>/dev/null | head -1 | grep -qE '^Status:[[:space:]]+active[[:space:]]*$'; then
+    UFW_APPLICABLE=1
+    ufw status 2>/dev/null | grep -q "60000:61000/udp" && UFW_OK=1
+fi
 
 echo "   mosh installed:        $([ $MOSH_OK      -eq 1 ] && echo ✅ || echo ❌)"
 echo "   tmux installed:        $([ $TMUX_OK      -eq 1 ] && echo ✅ || echo ❌)"
 echo "   ~/.tmux.conf managed:  $([ $TMUX_CONF_OK -eq 1 ] && echo ✅ || echo ❌)  ($TMUX_CONF)"
 echo "   .bashrc auto-attach:   $([ $RC_OK        -eq 1 ] && echo ✅ || echo ❌)  ($BASHRC)"
+if [ "$UFW_APPLICABLE" = "1" ]; then
+    echo "   ufw rule for mosh:     $([ $UFW_OK -eq 1 ] && echo ✅ || echo ❌)  (60000:61000/udp)"
+else
+    echo "   ufw rule for mosh:     —  (n/a: ufw not installed, inactive, or --no-ufw)"
+fi
+
+# Orphan-marker detection: a file with BEGIN but no END can't be safely
+# re-processed. A single strip would open an unclosed /BEGIN/,/END/d range
+# (data-loss to EOF); a two-run scenario where we append a fresh block
+# alongside the orphan would, on the *next* run, match orphan-BEGIN →
+# new-END and delete everything in between (including unrelated user
+# content). Refuse early with actionable guidance.
+TMUX_ORPHAN=0; BASHRC_ORPHAN=0
+[ -f "$TMUX_CONF" ] \
+    && grep -qF "$BEGIN_MARK" "$TMUX_CONF" 2>/dev/null \
+    && ! grep -qF "$END_MARK"   "$TMUX_CONF" 2>/dev/null \
+    && TMUX_ORPHAN=1
+[ -f "$BASHRC" ] \
+    && grep -qF "$BEGIN_MARK" "$BASHRC" 2>/dev/null \
+    && ! grep -qF "$END_MARK"   "$BASHRC" 2>/dev/null \
+    && BASHRC_ORPHAN=1
+if [ "$TMUX_ORPHAN" = "1" ] || [ "$BASHRC_ORPHAN" = "1" ]; then
+    echo "" >&2
+    echo "❌ Orphan managed block detected (BEGIN marker without END marker):" >&2
+    [ "$TMUX_ORPHAN"   = "1" ] && echo "   - $TMUX_CONF" >&2
+    [ "$BASHRC_ORPHAN" = "1" ] && echo "   - $BASHRC"   >&2
+    echo "" >&2
+    echo "   Either restore the '$END_MARK' line, or remove the managed block by" >&2
+    echo "   hand (delete everything from '$BEGIN_MARK' onward through the END" >&2
+    echo "   line), then re-run. Refusing to proceed — the sed range-delete would" >&2
+    echo "   otherwise truncate your file." >&2
+    exit 1
+fi
 
 if [ "$CHECK_ONLY" = "1" ]; then
     # Respect --no-* opt-outs: if the user explicitly opted out of a piece,
-    # don't count its absence as a --check failure.
+    # don't count its absence as a --check failure. UFW is only counted
+    # when it's applicable (ufw present + active + not opted out).
     CHECK_FAIL=0
     [ $MOSH_OK -eq 0 ] && CHECK_FAIL=1
     [ $TMUX_OK -eq 0 ] && CHECK_FAIL=1
     [ "$DO_TMUX_CONFIG" = "1" ] && [ $TMUX_CONF_OK -eq 0 ] && CHECK_FAIL=1
     [ "$DO_AUTOATTACH"  = "1" ] && [ $RC_OK        -eq 0 ] && CHECK_FAIL=1
+    [ "$UFW_APPLICABLE" = "1" ] && [ $UFW_OK       -eq 0 ] && CHECK_FAIL=1
     [ $CHECK_FAIL -eq 0 ] && exit 0
     exit 1
 fi
@@ -246,13 +298,19 @@ if [ "$DO_AUTOATTACH" = "1" ]; then
 
     [ -f "$BASHRC" ] || { touch "$BASHRC"; chown "$TARGET_USER:" "$BASHRC"; }
 
-    # Strip any prior managed block.
-    if grep -qF "$BEGIN_MARK" "$BASHRC" 2>/dev/null; then
+    # Strip any prior managed block. Run the range-delete ONLY when BOTH
+    # markers are present; an orphan BEGIN without END would otherwise
+    # open an unclosed /BEGIN/,/END/d range and truncate from BEGIN to
+    # EOF, wiping unrelated .bashrc content (bugbot PR #59 MED 3120687479).
+    if grep -qF "$BEGIN_MARK" "$BASHRC" 2>/dev/null \
+        && grep -qF "$END_MARK" "$BASHRC" 2>/dev/null; then
         sed -i "/$BEGIN_MARK_RE/,/$END_MARK_RE/d" "$BASHRC"
     fi
 
+    # Leading blank line is INSIDE the marker range so `sed` cleans it
+    # on re-run. A blank *before* $BEGIN_MARK would leak one extra blank
+    # per invocation (bugbot PR #59 LOW 3120687473).
     cat >> "$BASHRC" <<BASHRCBLOCK
-
 $BEGIN_MARK
 # Auto-attach to tmux on SSH (incl. mosh) login, creating the session if
 # it doesn't exist yet. Skips non-SSH shells, nested tmux, and non-interactive
