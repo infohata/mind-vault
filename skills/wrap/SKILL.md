@@ -176,6 +176,6 @@ Commit the documentation edits on the same branch that carries the IDEA-completi
 
 - [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md) — the frontmatter-only transition this skill relies on.
 - [`RULE_parallel-worktree-docker`](../../rules/RULE_parallel-worktree-docker.md) — the worktree + compose-project contract Step 5 tears down.
-- [`/work`](../../commands/work.md) — the stage before; its output (a merged PR) is `/wrap`'s input.
-- [`/compound`](../../commands/compound.md) — the stage after; `/wrap` leaves the paper trail `/compound` references.
-- [`/sprint-auto`](../../commands/sprint-auto.md) — the orchestrator that stitches `idea → plan → work → bugbot-loop → wrap → compound` for the unattended case.
+- [`/work`](../work/SKILL.md) — the stage before; its output (a merged PR) is `/wrap`'s input.
+- [`/compound`](../compound/SKILL.md) — the stage after; `/wrap` leaves the paper trail `/compound` references.
+- [`/sprint-auto`](../sprint-auto/SKILL.md) — the orchestrator that stitches `idea → plan → work → bugbot-loop → wrap → compound` for the unattended case.
