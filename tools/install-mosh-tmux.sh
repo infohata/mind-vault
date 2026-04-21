@@ -171,7 +171,7 @@ command -v tmux       >/dev/null 2>&1 && TMUX_OK=1
 # UFW is "applicable" only when the user hasn't opted out AND ufw is installed
 # AND reports an active status. Otherwise a missing rule is not a failure.
 if [ "$DO_UFW" = "1" ] && command -v ufw >/dev/null 2>&1 \
-    && ufw status 2>/dev/null | head -1 | grep -qE '^Status:[[:space:]]+active[[:space:]]*$'; then
+    && ufw status 2>/dev/null | grep -qE '^Status:[[:space:]]+active[[:space:]]*$'; then
     UFW_APPLICABLE=1
     ufw status 2>/dev/null | grep -q "60000:61000/udp" && UFW_OK=1
 fi
@@ -391,7 +391,15 @@ if [ "$DO_UFW" = "1" ]; then
         # matches both "Status: active" AND "Status: inactive" because
         # "active" is a substring of "inactive". The anchored form is the
         # fix for bugbot PR #59 comment 3120632776.
-        if ufw status | head -1 | grep -qE '^Status:[[:space:]]+active[[:space:]]*$'; then
+        #
+        # No `head -1`: under `set -eo pipefail`, `head -1` exits after
+        # reading one line, `ufw status` gets SIGPIPE writing the 2nd,
+        # pipeline exit becomes 141, and the `if` condition is false
+        # even when UFW is active. The anchored regex already matches
+        # only the Status line (rule lines don't start with "Status:"),
+        # so `head -1` was redundant anyway. Fixes bugbot PR #59
+        # comment 3120845355.
+        if ufw status | grep -qE '^Status:[[:space:]]+active[[:space:]]*$'; then
             echo ""
             echo "🔥 UFW active — allowing mosh UDP range 60000:61000"
             # `ufw allow` is idempotent — repeating adds a duplicate rule
