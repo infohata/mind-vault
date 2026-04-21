@@ -429,7 +429,15 @@ fi
 # adjacent consistency sweep).
 echo ""
 echo "🎉 Install complete:"
-echo "   mosh: $(mosh-server --version 2>/dev/null | head -1 || echo installed)"
+# mosh-server --version prints 4+ lines (version, copyright, license, warranty).
+# Piping into `head -1` under `set -eo pipefail` produces SIGPIPE when head
+# closes stdin after one line, making the fallback "installed" string fire
+# instead of the real version (bugbot PR #59 MED 3120872586). Capture the
+# full output first, then take the first line via bash parameter expansion —
+# no pipe, no SIGPIPE race. Same class as the UFW fix in cycle 9.
+MOSH_VER=$(mosh-server --version 2>/dev/null || true)
+MOSH_VER_LINE=${MOSH_VER%%$'\n'*}
+echo "   mosh: ${MOSH_VER_LINE:-installed}"
 echo "   tmux: $(tmux -V)"
 if [ "$DO_AUTOATTACH" = "1" ]; then
     echo "   session auto-attach: $SESSION_NAME  (override via \$TMUX_DEFAULT_SESSION)"
