@@ -102,7 +102,7 @@ sed -i -E 's/^([A-Z0-9_]*_(KEY|SECRET|TOKEN|PASSWORD|PASS|PWD|CREDENTIAL))=.*/\1
 # Matches SECRET_KEY (bare) and common prefixed variants like DJANGO_SECRET_KEY,
 # APP_SECRET_KEY — anything ending in SECRET_KEY at start of line.
 sed -i -E "s|^([A-Z0-9_]*SECRET_KEY)=.*|\1=test-$(rand_hex)|" .env
-sed -i -E "s|^([A-Z0-9_]*(SALT|HMAC))=.*|\1=test-$(rand_hex)|" .env
+sed -i -E "s#^([A-Z0-9_]*(SALT|HMAC))=.*#\1=test-$(rand_hex)#" .env
 
 # *_URL values with embedded user:pass → neutralise.
 # Projects that need inter-service URLs should set them in post_up_init.
