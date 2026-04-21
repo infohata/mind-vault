@@ -41,6 +41,15 @@ git add tools/sprint-auto-hooks.sh
 git commit -m "chore: sprint-auto hooks for <project> (migrations + MinIO + smoke)"
 ```
 
+**Also add to `.gitignore`** (canonical bootstrap emits this file on every run; header says "do not commit" but each project needs its own gitignore line):
+
+```
+# Worktree-local docker compose override emitted by tools/sprint-auto-bootstrap.sh
+docker-compose.override.yml
+```
+
+Without this line, every `/sprint-auto` cycle leaves an untracked `docker-compose.override.yml` in the worktree that blocks `git worktree remove` at teardown time unless force-flagged — which (per `/wrap` step 5) hides real findings. See teisutis PR #335 for the exact shape of this one-line gitignore followup. A future version of the bootstrap script may grow a preflight that checks for this rule and warns if missing; until then, it's an adoption-checklist item.
+
 ## The canonical script's responsibilities
 
 Project-agnostic, runs in every Docker Compose project:
