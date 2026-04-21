@@ -63,7 +63,16 @@ while [ $# -gt 0 ]; do
         --shell) FORCE_SHELL="$2"; shift 2 ;;
         --no-rc-edit) RC_EDIT=0; shift ;;
         -h|--help)
-            grep -E '^# ' "$0" | sed 's/^# //; s/^#$//'
+            # Print only the contiguous top-of-file comment header (skip the
+            # shebang, stop at the first non-`#` line). Preemptive fix of the
+            # same issue bugbot flagged on tools/install-docker.sh in PR #52 —
+            # a body-scoped `grep '^# '` would mix section dividers and inline
+            # comments into the help output and drop `#`-only paragraph lines.
+            awk '
+                NR==1 && /^#!/ { next }
+                /^#/            { sub(/^# ?/, ""); print; next }
+                                { exit }
+            ' "$0"
             exit 0
             ;;
         *)
