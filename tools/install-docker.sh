@@ -41,7 +41,16 @@ for arg in "$@"; do
         --no-group) ADD_GROUP=0 ;;
         --no-test-run) TEST_RUN=0 ;;
         -h|--help)
-            grep -E '^# ' "$0" | sed 's/^# //; s/^#$//'
+            # Print only the contiguous top-of-file comment header (skip the
+            # shebang, stop at the first non-`#` line). Prior `grep '^# '` matched
+            # every `#`-prefixed line in the file — including section dividers,
+            # `# shellcheck disable=...`, and inline body comments — and
+            # simultaneously dropped `#`-only paragraph-separator lines.
+            awk '
+                NR==1 && /^#!/ { next }
+                /^#/            { sub(/^# ?/, ""); print; next }
+                                { exit }
+            ' "$0"
             exit 0
             ;;
         *)
