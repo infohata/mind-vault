@@ -203,11 +203,17 @@ fi
 # new-END and delete everything in between (including unrelated user
 # content). Refuse early with actionable guidance.
 TMUX_ORPHAN=0; BASHRC_ORPHAN=0
-[ -f "$TMUX_CONF" ] \
+# Only consider a file "orphaned" when we're actually going to touch it.
+# Without these flag gates, `--no-tmux-config` would still refuse to run
+# just because the user happens to have a corrupted .tmux.conf — the
+# script isn't going to sed that file at all (bugbot PR #59 MED 3120812395).
+[ "$DO_TMUX_CONFIG" = "1" ] \
+    && [ -f "$TMUX_CONF" ] \
     && grep -qF "$BEGIN_MARK" "$TMUX_CONF" 2>/dev/null \
     && ! grep -qF "$END_MARK"   "$TMUX_CONF" 2>/dev/null \
     && TMUX_ORPHAN=1
-[ -f "$BASHRC" ] \
+[ "$DO_AUTOATTACH" = "1" ] \
+    && [ -f "$BASHRC" ] \
     && grep -qF "$BEGIN_MARK" "$BASHRC" 2>/dev/null \
     && ! grep -qF "$END_MARK"   "$BASHRC" 2>/dev/null \
     && BASHRC_ORPHAN=1
@@ -410,11 +416,16 @@ if [ "$DO_UFW" = "1" ]; then
 fi
 
 # --- Verify ---
+# All post-install hint lines honour the opt-out flags so the report
+# matches what the script actually did (bugbot PR #59 LOW 3120812399 +
+# adjacent consistency sweep).
 echo ""
 echo "🎉 Install complete:"
 echo "   mosh: $(mosh-server --version 2>/dev/null | head -1 || echo installed)"
 echo "   tmux: $(tmux -V)"
-echo "   session auto-attach: $SESSION_NAME  (override via \$TMUX_DEFAULT_SESSION)"
+if [ "$DO_AUTOATTACH" = "1" ]; then
+    echo "   session auto-attach: $SESSION_NAME  (override via \$TMUX_DEFAULT_SESSION)"
+fi
 echo ""
 echo "Next steps:"
 echo "  1. On your LOCAL machine, install a mosh client too:"
@@ -425,8 +436,23 @@ echo "  2. Reconnect via mosh instead of ssh:"
 echo "       mosh $TARGET_USER@<server-host>"
 echo "     (or keep ssh — tmux alone still survives ssh drops, mosh just adds"
 echo "      seamless roaming on top)."
-echo "  3. First login auto-attaches to session '$SESSION_NAME'. Detach with"
-echo "     Ctrl-b d; re-attach manually with: tmux attach -t $SESSION_NAME"
+if [ "$DO_AUTOATTACH" = "1" ]; then
+    echo "  3. First login auto-attaches to session '$SESSION_NAME'. Detach with"
+    echo "     Ctrl-b d; re-attach manually with: tmux attach -t $SESSION_NAME"
+else
+    echo "  3. Auto-attach was skipped (--no-autoattach). Start tmux manually:"
+    echo "       tmux new -s $SESSION_NAME"
+fi
 echo ""
-echo "Re-run this script any time — it's idempotent. To remove: edit out the"
-echo "managed blocks in ~/.tmux.conf and ~/.bashrc (they're clearly marked)."
+# "Managed blocks to edit out" — only mention files we actually wrote.
+MANAGED_FILES=""
+[ "$DO_TMUX_CONFIG" = "1" ] && MANAGED_FILES="~/.tmux.conf"
+[ "$DO_AUTOATTACH"  = "1" ] && MANAGED_FILES="${MANAGED_FILES:+$MANAGED_FILES and }~/.bashrc"
+if [ -n "$MANAGED_FILES" ]; then
+    echo "Re-run this script any time — it's idempotent. To remove: edit out the"
+    echo "managed blocks in $MANAGED_FILES (they're clearly marked)."
+else
+    echo "Re-run this script any time — it's idempotent. This run skipped all"
+    echo "config-file writes (--no-tmux-config --no-autoattach), so nothing to"
+    echo "clean up beyond uninstalling the mosh + tmux apt packages."
+fi
