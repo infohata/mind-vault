@@ -153,6 +153,28 @@ A skill in `mind-vault` is consumed by multiple projects. Therefore:
 - **Never hard-code paths from a consuming project** in `References`. `docs/artefacts/by-agent/researcher/…` paths do not exist from the agent's perspective when invoked from a sibling project.
 - **Never hard-code relative paths in templates the skill emits** when the skill supports multiple source locations. A template that writes `[docs/ideas/](../ideas/)` only works when the source file lives at `docs/execution/...`; it breaks for `docs/IDEAS.md` or root-level `IDEAS.md`. Parameterise with placeholders (`<IDEAS_REL>`), derive the path from the actual source location at emit time, and include a worked-examples table for the common cases. See [references/emitted-templates.md](references/emitted-templates.md) for the full rule + DO/DON'T.
 
+## Skills vs commands — no thin wrappers
+
+A skill with `name: X` in its frontmatter is already invocable as `/X` — hosts that support slash menus surface the skill directly. Creating a `commands/X.md` that just says "Invoke the `X` skill" duplicates the slash entry (both appear side-by-side in the menu) without adding any behaviour.
+
+**Write a `commands/*.md` file only when:**
+
+- No same-named skill exists and the command carries its own behavioural spec, OR
+- The command is a deliberate **alias** for another skill (e.g. `/brainstorm` → `/plan`), where the distinct name communicates intent the skill's own slug can't.
+
+**Don't:**
+
+- Write a `commands/X.md` whose body is "Invoke the `X` skill. See `skills/X/SKILL.md`." — it's a redundant registration surface; delete it and trust the skill's own slash-menu entry.
+- Duplicate the skill's `description` in the command frontmatter with slight rewording — drift becomes a maintenance burden and users see both entries with near-identical descriptions, which reads as noise.
+
+```text
+✅ DO: skill at `skills/plan/SKILL.md` with `name: plan` → `/plan` appears once in slash menu.
+✅ DO: standalone command `commands/brainstorm.md` aliasing `/plan` — different intent framing, no skill equivalent.
+❌ DON'T: `commands/plan.md` that says "Invoke the `plan` skill" → `/plan` now appears twice.
+```
+
+The failure mode surfaced as double slash-menu entries across 8 mind-vault names (`compound`, `idea`, `ideate`, `ingest-backlog`, `plan`, `sprint-auto`, `work`, `wrap`) where a thin command wrapper existed alongside the skill; dedup in PR #51.
+
 ## Maintaining skills
 
 - Bump the trailing `**Last Updated**` line on every substantive change.
@@ -213,4 +235,4 @@ SKIP: <conditions>
 - [Git Safety Rule](../../rules/RULE_git-safety.md) — applies to commits produced while authoring skills
 - Anthropic's Claude Code Agent Skills documentation (`docs.claude.com`) — the official `SKILL.md` spec this skill aligns with
 
-**Last Updated**: 2026-04-19
+**Last Updated**: 2026-04-21 (added "Skills vs commands — no thin wrappers" guardrail after PR #51 dedup)
