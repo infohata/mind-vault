@@ -31,6 +31,74 @@ This directory contains utility scripts and tools for maintaining the mind-vault
 - ⚠️  xfce4-terminal (version-dependent)
 - ❌ xterm, urxvt (monochrome only — terminal limitation)
 
+### install-docker.sh
+**Purpose**: Install Docker Engine + `docker compose` plugin on a fresh Debian/Ubuntu host from Docker's official apt repo (not `get.docker.com`).
+
+**Problem Solved**:
+- `RULE_parallel-worktree-docker` and the `/sprint-auto` / `/deployment` workflows assume Docker + compose v2 on the host
+- Fresh VPS images rarely ship with Docker; distro-packaged `docker.io` is usually too old for compose-v2's `!override` syntax
+- Manual apt-repo + GPG setup is error-prone to copy-paste each time
+
+**Usage**:
+```bash
+# From repo root (requires sudo)
+sudo ./tools/install-docker.sh              # full install + add $SUDO_USER to docker group + hello-world smoke test
+sudo ./tools/install-docker.sh --check      # reports current state only, no writes
+sudo ./tools/install-docker.sh --no-group   # install only, skip usermod -aG docker
+sudo ./tools/install-docker.sh --no-test-run  # skip the hello-world smoke test
+```
+
+**Features**:
+- ✅ Idempotent: exits early if Docker + compose plugin already work
+- ✅ `--check` flag for a dry run
+- ✅ Detects conflicting distro packages (`docker.io`, `podman-docker`, etc.) and removes them
+- ✅ Installs the official Docker apt repo with GPG-verified keyring
+- ✅ Installs `docker-ce` + `docker-ce-cli` + `containerd.io` + `docker-buildx-plugin` + `docker-compose-plugin`
+- ✅ Auto-adds `$SUDO_USER` to `docker` group; opt out with `--no-group`
+- ✅ Smoke tests via `docker run --rm hello-world`; opt out with `--no-test-run`
+- ✅ Clear post-install hints (log out / `newgrp docker`, verify with `docker ps`)
+
+**Supported**: Debian 12+ (bookworm, trixie), Ubuntu 22.04+ (jammy, noble, later).
+**Not supported**: RHEL / Fedora / Arch (each needs a different repo path — left for a later PR).
+
+### install-oh-my-posh.sh
+**Purpose**: Install [Oh My Posh](https://ohmyposh.dev) (prompt theme engine) for the current user and wire it into the shell rc. Idempotent, user-scope (no sudo), defaults to the `atomic` theme.
+
+**Problem Solved**:
+- Fresh VPS shells are grey and informationless; Oh My Posh fixes that with minimal setup
+- The getting-started docs assume you'll copy-paste three things: `curl -s ... | bash -s`, a theme download, and an init line in your rc file — easy to half-do and end up with a broken prompt
+- Re-running manual installs tends to append duplicate init lines to `~/.bashrc`; this script uses BEGIN/END markers so re-runs overwrite cleanly
+
+**Usage**:
+```bash
+# Default: install, download atomic theme, wire the detected shell's rc
+./tools/install-oh-my-posh.sh
+
+# Non-interactive with a specific theme
+./tools/install-oh-my-posh.sh --theme tokyonight_storm
+
+# Interactive menu — pick from a curated 10-theme list
+./tools/install-oh-my-posh.sh --interactive
+
+# Check state only — no writes
+./tools/install-oh-my-posh.sh --check
+
+# Install the binary but don't touch the shell rc
+./tools/install-oh-my-posh.sh --no-rc-edit
+```
+
+**Features**:
+- ✅ Idempotent: detects existing binary + existing rc wiring, re-applies theme without duplicating
+- ✅ `--check` reports install state with exit code (0 = fully installed, 1 = partial/missing)
+- ✅ Auto-detects shell from `$SHELL` (bash / zsh / pwsh); `--shell X` forces it
+- ✅ Default theme `atomic`; `--theme NAME` for non-interactive; `--interactive` for numbered menu
+- ✅ User-scope install to `~/.local/bin` by default (override with `--install-dir`); no sudo needed
+- ✅ Warns if no Nerd Font is installed (prompt glyphs render as tofu without one), but doesn't block
+- ✅ Wraps the rc edit in `# BEGIN oh-my-posh (managed by install-oh-my-posh.sh)` / `# END` markers — re-run removes and re-adds, never appends
+
+**Interactive menu** (current curated list):
+`atomic` (default), `jandedobbeleer`, `agnoster`, `paradox`, `powerlevel10k_classic`, `powerlevel10k_lean`, `robbyrussell`, `star`, `tokyonight_storm`, `zash`. Any theme name from the [official theme gallery](https://ohmyposh.dev/docs/themes) also works via `--theme NAME`.
+
 ### cleanup-contamination.sh
 **Purpose**: Detect and remove grok-code-fast-1 tool response contamination from files
 
