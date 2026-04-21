@@ -48,7 +48,7 @@ git commit -m "chore: sprint-auto hooks for <project> (migrations + MinIO + smok
 docker-compose.override.yml
 ```
 
-Without this line, every `/sprint-auto` cycle leaves an untracked `docker-compose.override.yml` in the worktree that blocks `git worktree remove` at teardown time unless force-flagged — which (per `/wrap` step 5) hides real findings. See teisutis PR #335 for the exact shape of this one-line gitignore followup. A future version of the bootstrap script may grow a preflight that checks for this rule and warns if missing; until then, it's an adoption-checklist item.
+Without this line, every `/sprint-auto` cycle leaves an untracked `docker-compose.override.yml` in the worktree that blocks `git worktree remove` at teardown time unless force-flagged — which (per `/wrap` step 5) hides real findings. It's an adoption-checklist item when onboarding a project to sprint-auto.
 
 ## The canonical script's responsibilities
 

@@ -137,6 +137,8 @@ docker run --rm \
     <command> /work[/subpath...]
 ```
 
+The image choice isn't meaningful — any minimal Linux image whose default user is root works (`alpine`, `busybox`, `debian:slim`). Alpine is the default here only because it's small and ubiquitous.
+
 **Security considerations before using this pattern** — these are why it stays a documented technique, not a shipped helper script:
 
 - Docker group membership is effectively **root-equivalent on the host filesystem**. A wrapper that takes arbitrary commands (`./docker-as-root.sh chown ...`) is one `docker-as-root.sh --image ubuntu -- rm -rf /etc` away from a footgun masquerading as a convenience tool. Keep the pattern as a recipe; type the flags each time.
