@@ -106,14 +106,21 @@ BASHRC="$TARGET_HOME/.bashrc"
 TMUX_CONF="$TARGET_HOME/.tmux.conf"
 BEGIN_MARK="# BEGIN mind-vault-mosh-tmux (managed by install-mosh-tmux.sh)"
 END_MARK="# END mind-vault-mosh-tmux"
+# BRE-escaped copies for use in sed address patterns. The markers contain
+# `.` (a BRE metacharacter matching any character) in "install-mosh-tmux.sh";
+# without this escape, sed's /MARK/,/MARK/d range pattern would match more
+# than the literal marker. Grep uses -qF (fixed-string) at the call sites
+# instead of consuming an escaped copy.
+BEGIN_MARK_RE=$(printf '%s' "$BEGIN_MARK" | sed -e 's/[][\/.*^$]/\\&/g')
+END_MARK_RE=$(printf '%s' "$END_MARK" | sed -e 's/[][\/.*^$]/\\&/g')
 
 # --- Check state ---
 echo "🔍 Checking current mosh + tmux state..."
 MOSH_OK=0; TMUX_OK=0; TMUX_CONF_OK=0; RC_OK=0
 command -v mosh       >/dev/null 2>&1 && MOSH_OK=1
 command -v tmux       >/dev/null 2>&1 && TMUX_OK=1
-[ -f "$TMUX_CONF" ] && grep -q "$BEGIN_MARK" "$TMUX_CONF" 2>/dev/null && TMUX_CONF_OK=1
-[ -f "$BASHRC" ]    && grep -q "$BEGIN_MARK" "$BASHRC"    2>/dev/null && RC_OK=1
+[ -f "$TMUX_CONF" ] && grep -qF "$BEGIN_MARK" "$TMUX_CONF" 2>/dev/null && TMUX_CONF_OK=1
+[ -f "$BASHRC" ]    && grep -qF "$BEGIN_MARK" "$BASHRC"    2>/dev/null && RC_OK=1
 
 echo "   mosh installed:        $([ $MOSH_OK      -eq 1 ] && echo ✅ || echo ❌)"
 echo "   tmux installed:        $([ $TMUX_OK      -eq 1 ] && echo ✅ || echo ❌)"
@@ -121,9 +128,14 @@ echo "   ~/.tmux.conf managed:  $([ $TMUX_CONF_OK -eq 1 ] && echo ✅ || echo �
 echo "   .bashrc auto-attach:   $([ $RC_OK        -eq 1 ] && echo ✅ || echo ❌)  ($BASHRC)"
 
 if [ "$CHECK_ONLY" = "1" ]; then
-    if [ $MOSH_OK -eq 1 ] && [ $TMUX_OK -eq 1 ] && [ $TMUX_CONF_OK -eq 1 ] && [ $RC_OK -eq 1 ]; then
-        exit 0
-    fi
+    # Respect --no-* opt-outs: if the user explicitly opted out of a piece,
+    # don't count its absence as a --check failure.
+    CHECK_FAIL=0
+    [ $MOSH_OK -eq 0 ] && CHECK_FAIL=1
+    [ $TMUX_OK -eq 0 ] && CHECK_FAIL=1
+    [ "$DO_TMUX_CONFIG" = "1" ] && [ $TMUX_CONF_OK -eq 0 ] && CHECK_FAIL=1
+    [ "$DO_AUTOATTACH"  = "1" ] && [ $RC_OK        -eq 0 ] && CHECK_FAIL=1
+    [ $CHECK_FAIL -eq 0 ] && exit 0
     exit 1
 fi
 
@@ -177,7 +189,7 @@ if [ "$DO_TMUX_CONFIG" = "1" ]; then
 
     # Strip any prior managed block (idempotent re-write).
     if [ -f "$TMUX_CONF" ] && [ $TMUX_CONF_OK -eq 1 ]; then
-        sed -i "/$BEGIN_MARK/,/$END_MARK/d" "$TMUX_CONF"
+        sed -i "/$BEGIN_MARK_RE/,/$END_MARK_RE/d" "$TMUX_CONF"
     fi
 
     # Append the fresh managed block. HEREDOC is intentionally unquoted
@@ -235,8 +247,8 @@ if [ "$DO_AUTOATTACH" = "1" ]; then
     [ -f "$BASHRC" ] || { touch "$BASHRC"; chown "$TARGET_USER:" "$BASHRC"; }
 
     # Strip any prior managed block.
-    if grep -q "$BEGIN_MARK" "$BASHRC" 2>/dev/null; then
-        sed -i "/$BEGIN_MARK/,/$END_MARK/d" "$BASHRC"
+    if grep -qF "$BEGIN_MARK" "$BASHRC" 2>/dev/null; then
+        sed -i "/$BEGIN_MARK_RE/,/$END_MARK_RE/d" "$BASHRC"
     fi
 
     cat >> "$BASHRC" <<BASHRCBLOCK
