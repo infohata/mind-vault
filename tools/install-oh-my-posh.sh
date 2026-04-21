@@ -220,7 +220,18 @@ if [ "$RC_EDIT" = "1" ] && [ -n "$RC_FILE" ]; then
     echo "📝 Wiring $RC_FILE..."
     # Remove any existing managed block
     if [ -f "$RC_FILE" ] && grep -q 'BEGIN oh-my-posh (managed by install-oh-my-posh.sh)' "$RC_FILE"; then
-        # Portable block-delete: keep everything outside the markers.
+        # Portable block-delete: keep everything outside the markers, AND
+        # strip trailing blank lines. Without the blank-strip, each re-run
+        # would accumulate one extra blank before `# BEGIN` (the awk removal
+        # only strips lines inside the markers, so the leading blank from a
+        # previous install's append survives and compounds on the next).
+        #
+        # Logic: blank lines are buffered in `pending` and only emitted when
+        # a non-blank line follows. At EOF, buffered blanks are dropped. This
+        # preserves legitimate single-blank separators between user content
+        # paragraphs while dropping the trailing ones before the (now removed)
+        # managed block.
+        #
         # NOTE: `mv` from an mktemp (0600) file would destroy the rc file's
         # original permissions (typically 0644) on re-run. Use `cat >` +
         # `rm` to write content in place while preserving the original file's
@@ -229,7 +240,15 @@ if [ "$RC_EDIT" = "1" ] && [ -n "$RC_FILE" ]; then
         awk '
             /# BEGIN oh-my-posh \(managed by install-oh-my-posh.sh\)/ { skip=1; next }
             /# END oh-my-posh \(managed by install-oh-my-posh.sh\)/   { skip=0; next }
-            !skip { print }
+            !skip {
+                if ($0 ~ /^[[:space:]]*$/) {
+                    pending = pending $0 "\n"
+                } else {
+                    printf "%s", pending
+                    pending = ""
+                    print
+                }
+            }
         ' "$RC_FILE" > "$tmpfile"
         cat "$tmpfile" > "$RC_FILE"
         rm -f "$tmpfile"
