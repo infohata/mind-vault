@@ -263,7 +263,12 @@ if [ "$DO_UFW" = "1" ]; then
         # Only act if ufw is *active*; inactive ufw means a non-default
         # firewall (iptables rules, cloud-provider firewall, none) is in
         # charge and our rule wouldn't help.
-        if ufw status | head -1 | grep -qi "active"; then
+        #
+        # NB: grep regex is anchored on both ends — bare `grep -qi "active"`
+        # matches both "Status: active" AND "Status: inactive" because
+        # "active" is a substring of "inactive". The anchored form is the
+        # fix for bugbot PR #59 comment 3120632776.
+        if ufw status | head -1 | grep -qE '^Status:[[:space:]]+active[[:space:]]*$'; then
             echo ""
             echo "🔥 UFW active — allowing mosh UDP range 60000:61000"
             # `ufw allow` is idempotent — repeating adds a duplicate rule
