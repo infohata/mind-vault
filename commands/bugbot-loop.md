@@ -53,6 +53,8 @@ This is the **only** authorised place to create `.env` — see exception clause 
 
      Staleness rule for persistent inline comments: a finding is genuinely stale (not a blocker) only when **both** (a) bugbot's most-recent `/reviews` entry is clean AND (b) the finding's comment id is ≤ `last_seen_comment_id` (so it predates the current trigger, not created by the latest review pass). If either condition is missing, treat as an active finding.
 
+     **Line-number drift is NOT a new-finding signal.** GitHub line-anchored review comments track code position across commits — the same inline comment id will reappear at *different* line numbers on each fetch as the file is edited around it. Example from mind-vault PR #55: after the fix push, bugbot's unresolved comment 3119819571 shifted from `install-gcloud-cli.sh:88` to `:97`, and comment 3119819578 from `:135` to `:144`. The finding title and file stayed identical; only the line moved. The `comment id` (not `file:line`) is the identity for the staleness comparison above. Never compare on title+line and conclude "still flagged" — compare the id.
+
 2. **Zero bugbot activity for `last_push_sha`?** Either the PR is fresh and bugbot hasn't auto-triggered, or auto-trigger is off for this repo. **Post the trigger comment once, then go to Phase 4** — do NOT fall through to "no findings, hand back":
 
    - `./tools/bugbot_retrigger.sh [PR_NUMBER]` (preferred — hard-coded body, pre-approved in settings) or `gh pr comment <PR_NUMBER> -b "bugbot run"` as fallback.

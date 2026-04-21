@@ -29,6 +29,7 @@ Production deployment pattern for containerised web applications using Docker Co
 - [Monitoring](references/MONITORING.md) — Prometheus, Grafana, ELK
 - [Django Deployment](references/DJANGO_DEPLOYMENT.md) — Django-specific optimisations
 - [Server Hardening](references/HARDENING.md) — SSH, UFW, fail2ban, unattended upgrades (run before first deploy)
+- [Container DNS / NSS](references/CONTAINER_DNS_NSS.md) — `getaddrinfo` shadowing public DNS inside containers; anchor case: `sync_domains` silent drop on fresh Debian VPS when hostname matches domain
 
 ## When to use
 
