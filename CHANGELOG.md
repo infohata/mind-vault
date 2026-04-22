@@ -43,6 +43,19 @@ PRs open and not yet merged to main.
 - **Added** `skills/django/` django-tenants parallel-test patterns — pytest-xdist + schema pooling for tenant-aware test runs. (2026-04-18, [#41](https://github.com/infohata/mind-vault/pull/41))
 - **Changed** Cross-host mind-vault revamp — consolidated skills/agents/setup-scripts/docs structure that the rolling config library has run on since. (2026-04-18, [#40](https://github.com/infohata/mind-vault/pull/40))
 
+## 2026-01-26 to 2026-04-17 — pre-revamp (superseded by PR #40)
+
+This period's work is **not detailed below per-PR** because the structural revamp in [#40](https://github.com/infohata/mind-vault/pull/40) consolidated and replaced what came before. The current skills/agents/rules/commands/tools/docs layout started at #40; PRs #1–#39 shipped against an earlier layout that no longer exists.
+
+Thematic coverage (for audit trail — see `git log` + `gh pr list --state merged --base main` for per-PR detail):
+
+- **2026-01** (PRs #1–#13 + 7 pre-PR direct commits): initial repo structure; git-safety rule; agent roles (researcher / architect / frontend / test-engineer / curator / devops / documentation); first Django skill batch (architecture, multi-tenant, Celery, async/websocket); django-frontend (HTMX/Alpine/Bulma); deployment skill baseline; bugbot command ecosystem; screen-session deployment mandate; rule-consolidation pass; project-agnostic agent rewrite; git-safety hardening against PR-prompt-hack attempts; Docker safety check in branch cleanup.
+- **2026-02** (PRs #14–#21): Ubuntu server setup script; Cursor 2.4+ integration + subagent discovery; deployment documentation tracking pattern; static/SCSS alignment with teisutis + frontend docs; Django i18n bulk-fill msgstr pattern; cross-project skill/agent updates, artefact plans, formset patterns.
+- **2026-03** (PRs #22–#35): Cursor user-level symlink setup (`~/.cursor/`); i18n-workflow rule; teisutis devlog pattern extraction; double-submit prevention pattern (`data-sync-submit`); query-string-generation + strict-type-hinting rules for django; generic-agents refactor; skill-description refactor pass. **Caveat**: several March PRs (#22↔#26, #13↔#29, #14↔#30, #16↔#28, #17/18/19↔#27, #20↔#31) are duplicate re-merges from a different host/branch during cross-host reconciliation; the distinct-content count is ≈7 PRs across the month, not 14.
+- **2026-04 (pre-revamp)** (PRs #36–#39): vanilla-JS asymmetric deletion hazards + locale-testing rule; bounded-autonomy `bugbot-loop` policy (Option B+); `BUGBOT_CLEAN_SIGNAL` detection for fast hand-back; `RULE_git-safety` merge-direction clarification.
+
+This section is an **acknowledgement that history exists**, not a specification of what currently ships. For the currently-shipping config, read from `## 2026-04` upward.
+
 ## How this gets maintained
 
 `/wrap` run on mind-vault itself (self-mode) maintains this file end-to-end — Step 4 of the skill both adds new entries for the just-merged PR and promotes any existing `## Unreleased` bullets into the current `## YYYY-MM` section, so `Unreleased` is empty (or lists truly open-and-unmerged PRs) after every wrap. No human promotion step required.
