@@ -1,6 +1,6 @@
 ---
 name: wrap
-description: Post-merge documentation sweep — flip idea frontmatter to complete, re-sort the ideas index, append a devlog entry, and scan project docs (guides, reference, README) for references that need updating. Runs between /work's merge moment and /compound's learning-routing stage.
+description: Documentation sweep — flip idea frontmatter to complete, re-sort the ideas index, append a devlog entry, and scan project docs (guides, reference, README) for references that need updating. Default is PRE-merge on the feature branch so merge lands the final docs state in one shot; post-merge fallback handles PRs that shipped without a wrap. Destructive worktree/volume teardown is strictly post-merge. Runs between /bugbot-loop's pass 1 (deliverables) and pass 2 (docs) in sprint-auto mode.
 license: MIT
 metadata:
   author: mind-vault
@@ -9,19 +9,51 @@ metadata:
 
 # wrap
 
-The sprint-workflow step that runs **after the PR merges and before `/compound`**. It closes the loop from code-shipped back to docs-coherent: everything that was "in flight" during `/work` + `/bugbot-loop` and now needs a finalized paper trail.
+The sprint-workflow step that closes the loop from code-shipped back to docs-coherent — everything that was "in flight" during `/work` + `/bugbot-loop` and now needs a finalized paper trail. Catches the class of work that's cheap to forget and expensive to find later — the devlog entry that didn't get written, the idea still marked `status: in-progress`, the README link that now points at a removed env var, the reference doc section that quotes deleted code.
 
-Catches the class of work that's cheap to forget and expensive to find later — the devlog entry that didn't get written, the idea still marked `status: in-progress`, the README link that now points at a removed env var, the reference doc section that quotes deleted code.
+**Default is pre-merge.** The wrap commits (frontmatter flip, ideas-index move, devlog entry, downstream docs fixes) land on the feature branch, so when the human merges the PR the docs state is already correct in one shot. No follow-up PR, no stale-on-main window between merge and wrap. The "what if the PR doesn't merge?" concern is a non-concern: unmerged commits never reach main, so no stale state can exist — if the branch is closed, the docs commits evaporate with it.
+
+**Post-merge is the fallback.** If a PR landed without a wrap pass (human merged directly, wrap was forgotten, a hotfix went in on the fly), invoking `/wrap NNN` after the fact creates a small `docs/idea-NNN-wrap` branch with the same outputs and opens a cleanup PR. The skill auto-detects PR state (`gh pr view <N> --json state`) and branches accordingly.
+
+**Destructive worktree teardown** (`docker compose down -v` removing volumes, `git worktree remove`, `git branch -d`) is *always* post-merge — the worktree's diagnostic value is only fully spent once the PR is in. Non-destructive container shutdown (`docker compose down` keeping volumes) can run pre-merge and is handled by `/sprint-auto`'s S5 teardown step; see the sprint-auto skill for that contract.
 
 ## When to use
 
-**TRIGGER when:** a feature branch has just merged (`gh pr view <N> --json state` → `MERGED`) and the work is not yet routed through `/compound`. Equivalent phrasings the user might use: "mark the IDEA complete and update docs", "close out this sprint's paper trail", "devlog + index sort", "finalize the docs side of the merge".
+**TRIGGER when:**
 
-**SKIP when:** a pre-merge docs change (that's just `/work` with a documentation persona); the merge landed a revert / rollback (no paper trail to create); the work was purely experimental and won't ship to users (no reference docs to re-point).
+- A feature branch has bugbot-loop-cleared deliverables and is ready for its docs pass (pre-merge default).
+- Sprint-auto completes its S3+S4 deliverables-bugbot pass and is about to enter its S6+S7 docs-bugbot pass — wrap runs between them.
+- A PR merged without a wrap (post-merge fallback) and the ideas index / devlog / frontmatter are stale on main.
+- Phrasings the user might use: "mark the IDEA complete and update docs", "close out this sprint's paper trail", "devlog + index sort", "finalize the docs side of the merge", "sort the docs before merging".
+
+**SKIP when:**
+
+- The merge landed a revert / rollback (no paper trail to create).
+- The work was purely experimental and won't ship to users (no reference docs to re-point).
+- Hotfixes that don't touch a documented surface (typo fix, null-guard on internal function, test-only bug) — skip and go straight to `/compound` if there's a learning worth routing.
 
 ## Pattern
 
 Six steps in order. Most are guards — skip silently if the state is already correct. The skill is safe to re-run; it produces the same final state regardless of which steps an earlier run completed.
+
+### Mode detection (first action each invocation)
+
+Before anything else, determine which mode is running — pre-merge default, post-merge fallback, or self-mode (see below). The decision drives which branch the wrap commits land on:
+
+```bash
+# 1. Is this mind-vault itself?
+git remote get-url origin | grep -q mind-vault && MODE=self
+
+# 2. Otherwise, what's the PR state for the current branch's open PR, or for the
+#    explicit PR number passed as arg?
+gh pr view "${PR_OR_BRANCH}" --json state,headRefName --jq '.state'
+#   OPEN    → pre-merge default: commit Steps 2-6 onto the current feature branch
+#   MERGED  → post-merge fallback: `git checkout -b docs/idea-NNN-wrap origin/main`
+#             before committing
+#   CLOSED  → refuse: the branch was abandoned; no wrap to do
+```
+
+If no PR exists yet (branch pushed but PR not opened), treat as pre-merge default and commit onto the current branch — the PR can be opened later and will carry the wrap commits.
 
 ### Self-mode: running on mind-vault itself
 
@@ -65,8 +97,13 @@ Per `RULE_ideas-location-status`, frontmatter-edit only — **no file move** (ar
 
 ```yaml
 status: complete
-completed: YYYY-MM-DD   # date the PR merged; gh pr view --json mergedAt
+completed: YYYY-MM-DD
 ```
+
+**`completed:` date source** depends on mode:
+
+- **Pre-merge default**: use today's date (the day the wrap is running and the PR is about to merge). If merge slips by a day, the date is off by one — tolerable, and still better than waiting for merge to write the date. The `related:` field may also gain entries here if the wrap sweep reveals sibling IDEAs.
+- **Post-merge fallback**: use `gh pr view <N> --json mergedAt --jq '.mergedAt | split("T")[0]'` to get the real merge date.
 
 Leave `created:` unchanged. If the completed PR superseded or was superseded by another idea, update `superseded_by:` / `supersedes:` too.
 
@@ -120,13 +157,18 @@ Append a new entry at the **top** of the chronological section (newest first). T
 
 Use the last two devlog entries in the same file as style anchors — match prose density, heading structure, and linking style. Do **not** cargo-cult the template above verbatim if the project's convention diverges.
 
-### Step 5 — Worktree teardown (conditional)
+### Step 5 — Worktree teardown (POST-MERGE ONLY, conditional)
 
-If the sprint ran in a parallel git worktree with its own docker-compose stack (see [`RULE_parallel-worktree-docker`](../../rules/RULE_parallel-worktree-docker.md)) — the idea-specific `.env`, per-worktree stack with port offset, dedicated compose project — this is the natural moment to tear it down. By the time `/wrap` runs, the PR has merged; the worktree's diagnostic value is spent. Leaving it live holds CPU / RAM / disk hostage and invites port collisions when the next sprint starts.
+**This step runs only after the PR has merged.** Pre-merge wrap runs stop here — skip Step 5 entirely and continue to Step 6. Destructive teardown (`-v` volume removal, `git worktree remove`, `git branch -d`) unconditionally requires the PR to be in; the worktree's diagnostic value is only fully spent once merge happens, and `git branch -d` itself will refuse the delete if the branch isn't merged into the target (the safety check that keeps accidental unmerged-work loss from being possible).
+
+Non-destructive container shutdown (`docker compose down` without `-v`) is handled elsewhere — `/sprint-auto`'s S5 teardown step stops containers pre-merge to free CPU/RAM/ports while keeping volumes and the worktree filesystem for reviewer inspection. This step is the rest of the cleanup: volumes removed, worktree removed, branch deleted.
+
+If the sprint ran in a parallel git worktree with its own docker-compose stack (see [`RULE_parallel-worktree-docker`](../../rules/RULE_parallel-worktree-docker.md)) — the idea-specific `.env`, per-worktree stack with port offset, dedicated compose project — this is the natural moment to tear it down completely. Leaving it live holds disk hostage and invites port collisions when the next sprint starts.
 
 Skip this step when:
 
 - Running from the primary checkout (no worktree). `git rev-parse --git-common-dir` equals `.git`.
+- The PR is still open (pre-merge mode). Destructive teardown is post-merge only.
 - The user has signalled "keep it up for manual re-testing" (e.g. a `WRAP_KEEP_STACK=1` env var, or an explicit arg `/wrap --keep-stack`).
 - The worktree has uncommitted work. Teardown would be safe for docker (volumes are scoped to the worktree's compose project), but a human might still be iterating; refuse and surface `git status` instead.
 
@@ -190,28 +232,39 @@ Concrete checklist — run each applicable probe, report findings:
 - [ ] **New settings surface?** `docs/reference/environment_variables.md` and any configuration guide need the knob + default + when-to-change.
 - [ ] **Removed settings / defaults flipped?** Same files — deprecate with a clear "As of YYYY-MM-DD, this variable is ignored" note for one release cycle before deletion.
 
-Each finding → either:
-- **Patch now** (cheap, obvious — e.g. replace `GOOGLE_CLOUD_STT_KEY` with `nothing; STT removed 2026-04-20`).
-- **Flag as follow-up** (larger rewrite — e.g. a reference doc section that needs rewriting for a new architecture) in the PR description or a follow-up IDEA stub.
+Each finding → one of three dispositions:
 
-Commit the documentation edits on the same branch that carries the IDEA-completion commits from Steps 2–4 (or as a fresh `docs/idea-NNN-wrap` branch if the feature branch is already merged into main — matches the `/compound` branch-or-extend decision tree).
+- **Patch now — mechanical** (cheap, obvious — e.g. replace `GOOGLE_CLOUD_STT_KEY` with `nothing; STT removed 2026-04-20`). Single commit on the wrap branch.
+- **Patch now — documentation catch-up.** If the finding is that a project pattern exists in the code but has no documentation of how to use it (e.g. `PLURAL_TRANSLATIONS` used by seven msgid pairs in `tools/translation_maps/shared.py` but no section in the translation-workflow guide), **patch it in the wrap**. Documentation catching up to existing reality is `/wrap` scope. Do not escalate to a new IDEA, do not defer to a separate PR — a new-IDEA ticket for "document this existing pattern" is noise that never ships; the wrap is where it belongs. This class of finding often surfaces during `/bugbot-loop`'s docs-pass review, which is another reason the wrap commits ride on the feature branch — bugbot reviews the filled-in docs as part of the same PR cycle.
+- **Flag as follow-up** (larger rewrite — e.g. a reference doc section that needs rewriting for a new architecture, a full walkthrough for a genuinely new concept). Note in the PR description. Legitimate follow-ups: reference-doc *rewrites*, architecture-diagram updates, how-to *tutorials*. Illegitimate follow-ups that should be patched now: "this line is stale", "this pattern isn't documented anywhere", "this section describes a deprecated flow". The test: if one to three paragraphs of documentation would close the gap, it's a patch-now, not a follow-up.
+
+Commit the documentation edits on the same branch that carries the IDEA-completion commits from Steps 2–4:
+
+- **Pre-merge mode** — the feature branch (`auto/<slug>` in sprint-auto, or whatever feature branch the work has been happening on). All wrap commits ride into the merge together.
+- **Post-merge fallback** — a fresh `docs/idea-NNN-wrap` branch off `origin/main` (matches the `/compound` branch-or-extend decision tree).
 
 ## Interaction rules
 
-- **Never skip Step 5** just because it reports zero findings — the grep itself is the value; its output is the audit trail.
+- **Pre-merge is the default.** Unless the PR has already merged (post-merge fallback), the wrap commits land on the feature branch and ride into merge together. This eliminates the stale-on-main window between merge and wrap.
+- **Destructive teardown is strictly post-merge.** Step 5's `-v` volume removal + worktree removal + branch delete require the PR to have landed. Non-destructive container shutdown is handled by `/sprint-auto` S5, not here.
+- **Never skip Step 6** just because it reports zero findings — the grep itself is the value; its output is the audit trail.
 - **Never auto-patch architectural docs** (reference `/architecture.md`, high-level guides). Human review required; list findings, let the author decide.
-- **In `sprint-auto` mode** (unattended orchestrator): Steps 1–4 run autonomously. Step 5 produces a docs-findings report attached to the auto-run log; the human checkpoint reviews before `/compound`.
+- **Documentation catch-up is wrap-scope, never new-IDEA.** If a pattern exists in code but has no docs, the wrap pass that surfaces the gap is where it gets documented — not a future IDEA, not a separate PR. "Document existing thing" tickets never ship; wrap's docs-pass bugbot review is what keeps the project's reference material honest.
+- **In `sprint-auto` mode** (unattended orchestrator): the wrap runs as sprint-auto's `/wrap-docs` step between the two bugbot passes. Steps 1–4 + 6 commit onto the `auto/<slug>` branch; the second bugbot pass reviews those commits against the codebase; Step 5 stays deferred to the morning-review `/wrap` invocation after merge.
 - **Don't merge** — every `/wrap` output is on a branch; the human merges it (same HITL gate as `/work`'s feature branch).
 
 ## When NOT to use these patterns
 
 - Hotfixes that don't touch a documented surface. A typo fix, a null-guard added to a non-public internal function, a test-only bug — no downstream docs to update, no idea to flip. Skip `/wrap`; go straight to `/compound` if there's a learning worth routing.
-- Pre-merge runs. `/wrap` is a post-merge skill; running it against an unmerged PR gives a confusingly partial result (the devlog entry references a PR that hasn't landed, the index says "complete" before the merge lands).
 
 ## References
 
 - [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md) — the frontmatter-only transition this skill relies on.
 - [`RULE_parallel-worktree-docker`](../../rules/RULE_parallel-worktree-docker.md) — the worktree + compose-project contract Step 5 tears down.
-- [`/work`](../work/SKILL.md) — the stage before; its output (a merged PR) is `/wrap`'s input.
+- [`/work`](../work/SKILL.md) — the stage before; its output (a PR on a feature branch, bugbot-cleared deliverables) is `/wrap`'s input.
 - [`/compound`](../compound/SKILL.md) — the stage after; `/wrap` leaves the paper trail `/compound` references.
-- [`/sprint-auto`](../sprint-auto/SKILL.md) — the orchestrator that stitches `idea → plan → work → bugbot-loop → wrap → compound` for the unattended case.
+- [`/sprint-auto`](../sprint-auto/SKILL.md) — the orchestrator that stitches `idea → plan → work → bugbot-loop(deliverables) → wrap-docs → bugbot-loop(docs) → compound` for the unattended case. Sprint-auto's S5 step handles the non-destructive container shutdown; post-merge destructive teardown in Step 5 here complements it.
+
+---
+
+**Last Updated**: 2026-04-22 — reframed pre-merge-is-default (was post-merge-only), added mode-detection preamble, pinned destructive teardown to post-merge, added the "documentation catch-up is wrap-scope, never new-IDEA" rule to Step 6 and Interaction rules. Compounded from teisutis PRs [#338](https://github.com/infohata/teisutis/pull/338) (sprint-auto IDEA-061 dogfood — the run that exposed the stale-on-main window) and [#340](https://github.com/infohata/teisutis/pull/340) (post-merge wrap follow-up that shouldn't have been needed).

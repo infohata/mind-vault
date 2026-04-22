@@ -1,6 +1,6 @@
 ---
 name: sprint-auto
-description: Unattended overnight orchestrator — run a curated list of opt-in IDEAs through /plan → /work → /bugbot-loop (deliverables) → escalation → /wrap-docs → /bugbot-loop (docs) → escalation → pre-merge docker teardown → /compound (mind-vault, each itself bugbot-looped) in isolated per-IDEA git worktrees with independent docker-compose stacks. Enforces belt-and-suspenders safety gates (auto_safe frontmatter + explicit arg allowlist), resolves T2/T3 bugbot escalations autonomously with rollback-able commits (caps per pass — 20 deliverables, 5 docs, 5 mind-vault compound, each independent), halts only at the HITL merge boundary per RULE_git-safety. Wraps the full sprint workflow for VPS / overnight execution.
+description: Unattended overnight orchestrator — run a curated list of opt-in IDEAs through /plan → /work → /bugbot-loop (deliverables) → escalation → /wrap (pre-merge) → /bugbot-loop (docs) → escalation → pre-merge docker teardown → /compound (mind-vault, each itself bugbot-looped) in isolated per-IDEA git worktrees with independent docker-compose stacks. Enforces belt-and-suspenders safety gates (auto_safe frontmatter + explicit arg allowlist), resolves T2/T3 bugbot escalations autonomously with rollback-able commits (caps per pass — 20 deliverables, 5 docs, 5 mind-vault compound, each independent), halts only at the HITL merge boundary per RULE_git-safety. Wraps the full sprint workflow for VPS / overnight execution.
 ---
 
 # sprint-auto
@@ -55,17 +55,19 @@ For each IDEA in the list, in argument order, sequentially. The full state machi
 3. **Work the plan (S2).** Invoke the `work` skill against the emitted plan. Per `RULE_git-safety`, the worktree is on `auto/<slug>` (not main), so commits flow freely. `/work` dispatches personas, commits per plan item, runs verification, and opens the PR on success. If `/work` returns without opening a PR (verification failed, plan infeasible), re-enter at step 8 with `outcome: verification_failed`. Edge case: if `/work` crashed and left docker state inconsistent, re-enter at step 9 instead (skip step 8) with `docker_teardown: skipped_work_crash` — preserving the broken stack is part of the diagnostic.
 
 4. **Bugbot-loop the PR — deliverables pass (S3).** Invoke `/bugbot-loop <PR>` on the PR `/work` just opened. Bugbot-loop has its own bounds (180 min active, 20 idle polls, 20 commits) and autonomously handles Tier-1 findings, handing Tier 2/3 back to the caller. Under sprint-auto the "caller" is this skill, not the human — so bugbot-loop's hand-back is never the end of the line. See [`references/escalation-policy.md`](references/escalation-policy.md). Three outcomes:
-   - **Clean** (BUGBOT_CLEAN_SIGNAL for current head) → proceed to step 5 (/wrap-docs).
+   - **Clean** (BUGBOT_CLEAN_SIGNAL for current head) → proceed to step 5 (/wrap (pre-merge)).
    - **Hand-back with Tier 2/3 findings** → proceed to step 4a (escalation).
    - **Bugbot budget exhausted** → proceed to step 5 with `deliverables_bugbot_outcome: budget_exceeded` in the log; docs pass still runs.
 
    **4a. Escalation resolution — deliverables pass (S4).** Tier 2 auto-approved (pre-authorized by the `auto_safe` frontmatter + explicit-arg allowlist), Tier 3 attempted (not handed back). Maximum thinking effort per attempt. Each attempt is a **fresh commit**; if it needs a different angle, `git revert <previous-attempt-sha>` before trying again — do not pile broken fixes on top of each other. Cap: **20 attempt cycles on this pass** (deliverables bugs have long tails — bugbot may re-flag a T2 multiple times before the right angle lands; being stingy here converts would-be resolutions into shipped-non-clean). After the cap, ship-non-clean for deliverables and proceed to step 5 — the docs pass still runs; a PR with known unresolved deliverables findings is still a valid PR for human review. Log every attempt's SHA + approach + outcome into the auto-run log. Return to step 4 after each attempt to let bugbot re-evaluate (step 4 is the bugbot-loop invocation; step 3 is `/work`, which must not be re-run).
 
-5. **/wrap-docs — pre-merge documentation commit (S5).** Now that deliverables are bugbot-clean (or the deliverables 20-attempt cap is reached), invoke the documentation-sweep phase of the wrap discipline: add a DEVELOPMENT_LOG entry for this IDEA's changes, scan for downstream docs (README, guides, reference files) that reference paths/flags/patterns the PR changed, update what's broken. Commit to the same `auto/<slug>` branch so the docs land in the open PR and bugbot can review them alongside the code.
+5. **/wrap (pre-merge mode) — S5.** Now that deliverables are bugbot-clean (or the deliverables 20-attempt cap is reached), invoke `/wrap <NNN>` — it auto-detects pre-merge mode via `gh pr view` and runs Steps 1–4 (resolve IDEA · frontmatter flip to `status: complete` + `completed: <today>` · ideas-index move to References · devlog entry) plus Step 6 (downstream docs scan). Commits land on `auto/<slug>` so all of it rides into the merge together, and bugbot's docs pass (step 6 below) reviews them alongside the code.
 
-   **Important scope:** this is the **documentation-only** subset of `/wrap`. Do NOT flip the IDEA's frontmatter to `status: complete` (the PR has not merged — pre-merge flip would lie in the paper trail). Do NOT run the post-merge worktree-teardown chores (`-v` volume removal, `git worktree remove`, branch delete) — those are the human's job post-merge. The invocation shape is "apply /wrap's documentation discipline pre-merge on the open PR's branch", not a full /wrap run.
+   **Pre-merge frontmatter flip is intentional and safe.** The concern that a pre-merge flip "lies" if the PR doesn't end up merging is misconceived: unmerged commits never reach main, so the flip evaporates with the branch if the PR closes. The real risk — eliminated here — is the post-merge window where main's docs say "IDEA-NNN is in-progress" despite the code already shipping.
 
-   If there's genuinely no documentation work (the IDEA changed zero paths referenced in docs, added no new features worth a devlog entry), emit a trivial commit like `docs(archive): IDEA-NNN no-op pre-merge docs check` with a one-line rationale in the log body. The trivial commit keeps the state machine uniform — step 6 runs regardless.
+   **Step 5 of `/wrap` (destructive worktree teardown) is NOT run here.** `-v` volume removal, `git worktree remove`, and `git branch -d` are post-merge only; they stay the morning-reviewer's chore via `/wrap <NNN>` after the PR lands. This step of sprint-auto is pre-merge, so it skips Step 5 of `/wrap` by construction.
+
+   If there's genuinely no documentation work to do — the IDEA changed zero paths referenced in docs, added no new features worth a devlog entry, the frontmatter is the only state change — the wrap still runs and produces a minimal commit: IDEA frontmatter flip + ideas-index move + one-line devlog entry + "no docs drift observed" note. The uniform shape keeps the state machine predictable: step 6 runs regardless of what step 5 produced.
 
 6. **Bugbot-loop the PR — docs pass (S6).** Invoke `/bugbot-loop <PR>` a second time, now on the PR with the docs commit(s) on top. Same three outcomes as step 3:
    - **Clean** → proceed to step 8 (teardown).
@@ -137,19 +139,20 @@ When all IDEAs have been processed (or the batch aborted mid-way):
 
 ### 4. Post-merge reminders (still human)
 
-The batch summary's closing section must list `/wrap NNN` for each merged IDEA — the **post-merge** sweep (frontmatter flip `status: in-progress → complete`, `completed: <date>`, index rewrite, `-v` docker teardown, worktree removal) still needs merge to have happened first, which is the HITL gate. Note: the pre-merge docs work (devlog entry + downstream docs scan) already ran at step 5, so `/wrap NNN` post-merge is the cleanup + frontmatter tail, not the full devlog write:
+The batch summary's closing section lists `/wrap NNN` for each merged IDEA — but note its scope has narrowed. Everything except the destructive teardown already ran pre-merge at step 5 (frontmatter flip, ideas-index move, devlog entry, downstream docs scan — all on the `auto/<slug>` branch, landed with the merge). The post-merge `/wrap NNN` invocation now runs **only Step 5 of `/wrap`**: `docker compose down -v`, `git worktree remove ../<slug>`, `git branch -d auto/<slug>`. Short-circuit teardown, not a full re-run of the pre-merge work:
 
 ```markdown
 ## Next steps (post-merge)
 
 For each IDEA whose PR you merge, run `/wrap NNN` from the primary tree —
-it flips the frontmatter to `status: complete`, re-sorts the ideas index,
-removes the worktree docker volumes, removes the worktree itself, and
-sweeps for any downstream docs drift introduced during review. The devlog
-entry is already in place (sprint-auto's step 5 wrote it pre-merge).
+it auto-detects post-merge mode and runs only the destructive teardown:
+`docker compose down -v` to drop volumes, `git worktree remove` to remove
+the worktree dir, `git branch -d` on the auto branch. The frontmatter flip,
+ideas-index move, devlog entry, and downstream docs scan already landed
+with the merge (sprint-auto wrote them pre-merge at step 5).
 
-- `/wrap 050` → finalises IDEA-050 (worktree `../<project>-auto-sync-retry-backoff`)
-- `/wrap 051` → finalises IDEA-051 (worktree `../<project>-auto-modal-dismiss-focus`)
+- `/wrap 050` → teardown for IDEA-050 (worktree `../<project>-auto-sync-retry-backoff`)
+- `/wrap 051` → teardown for IDEA-051 (worktree `../<project>-auto-modal-dismiss-focus`)
 ```
 
 No `/compound` reminder here — compound ran in section 3 above. The mind-vault PRs are already in front of the reviewer. If the reviewer disagrees with anything compound promoted, they can close the mind-vault PR without merging — no project-local state depends on it.
@@ -178,7 +181,7 @@ No `/compound` reminder here — compound ran in section 3 above. The mind-vault
 
 - [references/safety-gates.md](references/safety-gates.md) — opt-in criteria, automatic disqualifiers, halt conditions
 - [references/worktree-lifecycle.md](references/worktree-lifecycle.md) — project-bootstrap-script contract, port offset strategy, teardown policy
-- [references/post-pr-sequence.md](references/post-pr-sequence.md) — the S0–S15 state machine: bootstrap → plan → work → deliverables bugbot + escalation → /wrap-docs → docs bugbot + escalation → teardown → harvest → log → (batch) compound + mind-vault bugbot
+- [references/post-pr-sequence.md](references/post-pr-sequence.md) — the S0–S15 state machine: bootstrap → plan → work → deliverables bugbot + escalation → /wrap (pre-merge) → docs bugbot + escalation → teardown → harvest → log → (batch) compound + mind-vault bugbot
 - [references/escalation-policy.md](references/escalation-policy.md) — how T2/T3 (and theoretical T4+) bugbot findings get resolved autonomously: rollback discipline, per-pass attempt caps (20 deliverables / 5 docs / 5 mind-vault compound), when non-clean ship
 - [assets/auto-run-log-template.md](assets/auto-run-log-template.md) — per-IDEA and batch-summary log shape (includes split deliverables + docs bugbot fields, compound fields)
 - [rules/RULE_parallel-worktree-docker.md](../../rules/RULE_parallel-worktree-docker.md) — underlying worktree + docker isolation contract
@@ -193,4 +196,4 @@ No `/compound` reminder here — compound ran in section 3 above. The mind-vault
 
 ---
 
-**Last Updated**: 2026-04-22 (structural reconciliation pass: S0–S11 per-IDEA + S12–S15 batch state machine, canonical failure-path invariant (re-enter at step 8, harvest + log always run), two-pass bugbot-loop inserted — deliverables pass after /work, docs pass after /wrap-docs. Escalation caps bumped from a placeholder 3 to calibrated per-pass numbers: 20 deliverables / 5 docs / 5 mind-vault compound, each independent — reflects real tail-length of T2/T3 resolution work.)
+**Last Updated**: 2026-04-22 (structural reconciliation pass: S0–S11 per-IDEA + S12–S15 batch state machine, canonical failure-path invariant (re-enter at step 8, harvest + log always run), two-pass bugbot-loop inserted — deliverables pass after /work, docs pass after /wrap (pre-merge). Escalation caps bumped from a placeholder 3 to calibrated per-pass numbers: 20 deliverables / 5 docs / 5 mind-vault compound, each independent — reflects real tail-length of T2/T3 resolution work.)
