@@ -34,12 +34,14 @@ Detection (first match wins):
 
 In self-mode, Step 4 targets `CHANGELOG.md` at the repo root (not `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md`, which is the per-project convention). **End-to-end maintenance is the wrap's job** — not split between "add to Unreleased pre-merge" and "promote to dated section manually later":
 
-1. **Promote** every bullet currently under `## Unreleased` into the current `## YYYY-MM` section. These are typically entries for the just-merged PR that were added pre-merge; promote them above any existing entries in the month (reverse-chronological within the month). Append `(YYYY-MM-DD, [#N](https://github.com/infohata/mind-vault/pull/N))` to each bullet's tail if the date/PR-link aren't already there.
-2. **Add** any new entries for the just-merged PR directly into the dated section (not Unreleased) if they weren't added pre-merge. Category keys follow Keep a Changelog: **Added / Changed / Fixed / Removed / Deprecated / Security**. See the existing entries for prose-density anchors.
-3. **Reset** `## Unreleased` to `(none)` unless `gh pr list` shows other PRs open-but-not-yet-merged targeting mind-vault.
-4. **Backfill-gap detection**: list recently merged PRs (mind-vault uses squash-merge, so `git log --merges` would miss them — use `gh pr list --state merged --base main --limit 20 --json number,title,mergedAt` as the authoritative source, or grep commit titles for `(#NNN)` patterns: `git log --format='%s' origin/main | grep -oE '\(#[0-9]+\)'`). Cross-reference against CHANGELOG bullet PR-links. If there are merged PRs without matching CHANGELOG bullets, the log has drifted. Judgement call: if the gap is ≤3 PRs, backfill them in this wrap. If larger, surface the gap in the wrap's hand-back message (`"CHANGELOG is missing entries for PRs #N1-#N2 (M PRs). Shall I backfill in this wrap PR or open a separate chore PR?"`) and wait for direction.
+**Preamble — know your PR set.** Before editing, run `gh pr list --state merged --base main --limit 20 --json number,title,mergedAt` (mind-vault uses squash-merge; `git log --merges` alone would miss them) and `gh pr list --state open --base main --json number,title`. The merged list + the just-merged PR determine which Unreleased bullets are eligible to promote; the open list determines which stay. Cross-reference both against existing CHANGELOG bullet PR-links.
 
-The point: after wrap, `Unreleased` is empty, the dated section is current, and no human intervention is needed to "catch up" the log.
+1. **Promote, selectively** — move bullets from `## Unreleased` into the current `## YYYY-MM` section **only when the bullet's PR is merged**. Leave bullets for still-open PRs in Unreleased (this is why they were parked there pre-merge). Place promoted bullets above any existing entries in the month (reverse-chronological within the month). Append `(YYYY-MM-DD, [#N](https://github.com/infohata/mind-vault/pull/N))` to each promoted bullet's tail if the date/PR-link aren't already there.
+2. **Add** any new entries for the just-merged PR directly into the dated section (not Unreleased) if they weren't added pre-merge. Category keys follow Keep a Changelog: **Added / Changed / Fixed / Removed / Deprecated / Security**. See the existing entries for prose-density anchors.
+3. **Reconcile Unreleased**: after Step 1, `## Unreleased` should contain only bullets for still-open PRs (per the preamble's open list). If there are none, reset to `(none)`. If the bullets that remain don't match the current open-PR list, something drifted — surface in the hand-back rather than auto-delete.
+4. **Backfill-gap detection**: using the merged-PR list from the preamble, identify any merged PRs without matching CHANGELOG bullets. Judgement call: if the gap is ≤3 PRs, backfill them in this wrap. If larger, surface the gap in the wrap's hand-back message (`"CHANGELOG is missing entries for PRs #N1-#N2 (M PRs). Shall I backfill in this wrap PR or open a separate chore PR?"`) and wait for direction.
+
+The point: after wrap, `Unreleased` reflects only actually-open PRs, the dated section is current, and no human intervention is needed to "catch up" the log.
 
 Step 5 (worktree teardown) almost never applies because mind-vault has no docker stack, but the guards are branch-agnostic — run them if they fire.
 
@@ -86,13 +88,12 @@ Edit `docs/ideas/README.md`:
 
 ### Step 4 — Devlog entry
 
-Locate the current month's devlog: `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md`. If the month just rolled over and the file for the current month doesn't exist yet, create it with the standard header (see any prior month's top lines for the template).
+**First, resolve the target file (month-rollover check).** Compute today's `YYYY-MM`. If `docs/archive/<YYYY-MM>-DEVELOPMENT_LOG.md` doesn't exist yet (first write of the month), create it with the standard header — see any prior month's top lines for the template. **Do not append to last month's file even if it still exists.** This check precedes every edit below; all "append" / "backfill" actions target the file path resolved here.
 
-**Maintain end-to-end** — the same discipline that applies to CHANGELOG in self-mode applies here. The wrap's responsibility for the monthly devlog is:
+**Maintain end-to-end** — the same discipline that applies to CHANGELOG in self-mode applies here. Once the target file is resolved, the wrap's responsibility for the monthly devlog is:
 
-1. **Add** the entry for the just-merged PR (template below).
-2. **Backfill-gap detection**: list recently merged PRs via `gh pr list --state merged --base <main-or-production> --limit 20 --json number,title,mergedAt` (squash-merge-friendly; `git log --merges` alone would miss squash-merged PRs). Cross-reference against devlog bullets. If prior PRs merged without devlog entries (drift happens — manual merges, rushed wraps on other PRs, etc.), judgement call on scope: ≤3 gaps → backfill in this wrap with minimal bullets. Larger gap → surface in the wrap's hand-back (`"DEVELOPMENT_LOG has M missing entries from PRs #N1-#N2 — backfill in this wrap or separate chore PR?"`) and wait for direction.
-3. **Month rollover**: if today's date is in a new month relative to the file's filename-encoded month, create the new month's file before appending. Don't append to last month's.
+1. **Add** the entry for the just-merged PR at the top of the chronological section (newest first) — template below.
+2. **Backfill-gap detection**: list recently merged PRs via `gh pr list --state merged --base <main-or-production> --limit 20 --json number,title,mergedAt` (squash-merge-friendly; `git log --merges` alone would miss squash-merged PRs). Cross-reference against devlog bullets (this month's file plus last month's, so month-boundary drift is caught). If prior PRs merged without devlog entries (drift happens — manual merges, rushed wraps on other PRs, etc.), judgement call on scope: ≤3 gaps → backfill in this wrap with minimal bullets in the month-of-merge's file. Larger gap → surface in the wrap's hand-back (`"DEVELOPMENT_LOG has M missing entries from PRs #N1-#N2 — backfill in this wrap or separate chore PR?"`) and wait for direction.
 
 Append a new entry at the **top** of the chronological section (newest first). Template:
 
