@@ -16,20 +16,27 @@ idea: IDEA-NNN
 slug: <slug>
 run_started: 2026-04-20T22:14:03Z
 run_finished: 2026-04-20T22:51:40Z
-outcome: success          # success | plan_rejected | verification_failed | bootstrap_failed | budget_exceeded | aborted
+outcome: success          # success | bugbot_clean | bugbot_unresolved | plan_rejected | verification_failed | bootstrap_failed | budget_exceeded | aborted
 pr_url: https://github.com/<owner>/<repo>/pull/<n>   # null if no PR opened
 worktree_path: ~/projects/<project>-auto-<slug>
 branch: auto/<slug>
 port_offset: +15000
+bugbot_outcome: clean     # clean | unresolved | budget_exceeded | skipped_no_pr
+escalation_attempts: 0    # integer 0-3; max 3 per SKILL §2 step 5
+compound_candidates_queued:
+  - type: recurrence
+    category: "missing context-processor null-guard"
+    notes: "same category surfaced in IDEA-050 earlier in batch"
+docker_teardown: stopped  # stopped | skipped_bootstrap_failure | skipped_work_crash
 ---
 
 # sprint-auto run — IDEA-NNN <slug>
 
-**Outcome**: ✅ PR opened at <pr_url>
+**Outcome**: ✅ PR opened at <pr_url> · bugbot: clean
 
 ## Summary
 
-<one paragraph — what shipped, or why it didn't>
+<one paragraph — what shipped, bugbot outcome, how many escalation cycles>
 
 ## Timeline
 
@@ -41,12 +48,27 @@ port_offset: +15000
 - 22:21:10Z — /work invoked
 - 22:48:33Z — Verification passed
 - 22:51:40Z — PR opened at <pr_url>
+- 22:51:45Z — /bugbot-loop invoked
+- 22:58:12Z — bugbot posted review, 1 T2 finding
+- 22:58:45Z — Escalation attempt 1 (sha abc1234) — added null-check
+- 23:02:00Z — bugbot re-triggered; BUGBOT_CLEAN_SIGNAL received
+- 23:02:30Z — docker compose down (containers stopped, volumes kept)
+- 23:02:45Z — compound candidates harvested (1 recurrence)
 
 ## Commits (on auto/<slug>)
 
 - `abc1234` — feat(ui): ...
 - `def5678` — test(ui): ...
 - `ghi9abc` — docs(archive): IDEA-NNN mark in-progress
+- `jkl0123` — fix(ui): escalation attempt 1 — null-guard context-processor (bugbot #M)
+
+## Escalation attempts
+
+(see [`references/escalation-policy.md`](../../skills/sprint-auto/references/escalation-policy.md))
+
+| # | SHA | Approach | Bugbot outcome |
+|---|---|---|---|
+| 1 | jkl0123 | null-guard in context-processor | clean |
 
 ## Diagnostic excerpt
 
@@ -54,14 +76,21 @@ port_offset: +15000
   - plan_rejected → the architect's verdict section
   - verification_failed → tail of pytest / build output
   - bootstrap_failed → tail of tools/sprint-auto-bootstrap.sh stderr
+  - bugbot_unresolved → final attempt's diff + bugbot's remaining finding
   - budget_exceeded → last activity before timeout>
 
 ## Cleanup
 
 ```bash
-# Once you've reviewed + merged (or abandoned):
+# Sprint-auto already stopped the containers; remaining chore after merge:
+/wrap NNN     # flips frontmatter to complete, removes volumes, removes worktree
+```
+
+Manual cleanup (if not running `/wrap`):
+
+```bash
 cd ~/projects/<project>-auto-<slug>
-docker compose down -v          # -v removes volumes; drop -v to keep DB state for inspection
+docker compose down -v          # -v removes volumes
 cd -
 git worktree remove ~/projects/<project>-auto-<slug>
 git branch -D auto/<slug>        # only after PR merged or explicitly abandoned
@@ -81,30 +110,42 @@ batch_finished: 2026-04-21T02:17:55Z
 invocation: "/sprint-auto IDEA-050 IDEA-051 IDEA-052 IDEA-053"
 batch_budget_minutes: 240
 ideas_attempted: 4
-ideas_succeeded: 2
-ideas_failed: 2
+ideas_bugbot_clean: 1
+ideas_bugbot_unresolved: 1
+ideas_failed_pre_pr: 2
 batch_aborted: false
+compound_prs_opened: 2
+compound_prs_bugbot_clean: 1
+compound_prs_bugbot_unresolved: 1
 ---
 
 # sprint-auto batch — 2026-04-20 overnight run
 
 Invocation: `/sprint-auto IDEA-050 IDEA-051 IDEA-052 IDEA-053`
 
-## Results
+## IDEA results (project PRs)
 
-| IDEA | Slug | Outcome | PR | Worktree |
-|---|---|---|---|---|
-| 050 | sync-retry-backoff | ✅ PR open | #123 | `../<project>-auto-sync-retry-backoff` |
-| 051 | modal-dismiss-focus | ✅ PR open | #124 | `../<project>-auto-modal-dismiss-focus` |
-| 052 | alpine-event-bus | ⚠️ plan REJECTED | — | `../<project>-auto-alpine-event-bus` |
-| 053 | cache-invalidation | ❌ verification fail | — | `../<project>-auto-cache-invalidation` |
+| IDEA | Slug | Outcome | PR | Bugbot | Escalation | Worktree |
+|---|---|---|---|---|---|---|
+| 050 | sync-retry-backoff | ✅ PR open | #123 | clean | 0 attempts | `../<project>-auto-sync-retry-backoff` (stack down) |
+| 051 | modal-dismiss-focus | ⚠️ PR open, bugbot unresolved | #124 | 1 T3 remaining | 3/3 attempts used | `../<project>-auto-modal-dismiss-focus` (stack down) |
+| 052 | alpine-event-bus | ⚠️ plan REJECTED | — | skipped (no PR) | — | `../<project>-auto-alpine-event-bus` (stack down) |
+| 053 | cache-invalidation | ❌ verification fail | — | skipped (no PR) | — | `../<project>-auto-cache-invalidation` (stack down) |
+
+## Compound (mind-vault PRs)
+
+| Destination | PR | Bugbot | Branch |
+|---|---|---|---|
+| `skills/bugbot/references/null-guard-patterns.md` (new) | https://github.com/.../pull/78 | clean | `compound/2026-04-20-null-guard-patterns` |
+| `AGENT_architect.md` pass-2 addendum | https://github.com/.../pull/79 | 1 T3 remaining | `compound/2026-04-20-architect-pass-2-hoisting` |
 
 ## Morning checklist
 
-1. Review + merge (or request changes) on #123, #124.
-2. Read the per-IDEA log for IDEA-052 — architect's rejection is usually a plan-revision signal, not a "this can't be done" signal.
-3. Read the per-IDEA log for IDEA-053 — check which test failed; decide whether to fix-forward on the same worktree branch or route back through `/plan`.
-4. Once done with each worktree, run the cleanup block from its auto-run log.
+1. Review + merge (or request changes) on project PRs #123, #124. IDEA-051 has an unresolved T3 finding — check the auto-run log's escalation-attempts table to see what sprint-auto tried.
+2. Review + merge (or close) mind-vault PRs #78, #79. PR #79 has an unresolved bugbot finding; decide merge-anyway / fix-forward / close.
+3. Read the per-IDEA log for IDEA-052 — architect's rejection is usually a plan-revision signal.
+4. Read the per-IDEA log for IDEA-053 — check which test failed; decide fix-forward / plan revision.
+5. For each PR merged: run `/wrap NNN` to finalise (frontmatter flip to complete, volumes removed, worktree removed, downstream docs swept). Sprint-auto already stopped containers; `/wrap` does the rest.
 
 ## Per-IDEA logs
 
@@ -118,6 +159,7 @@ Invocation: `/sprint-auto IDEA-050 IDEA-051 IDEA-052 IDEA-053`
 - Host: <hostname>
 - Docker: `<docker version one-liner>`
 - Git HEAD (primary): `<sha>` (`<message>`)
+- Git HEAD (mind-vault): `<sha>` (`<message>`)
 - Disk free at start: <GB>
 - Disk free at end: <GB>
 ```
