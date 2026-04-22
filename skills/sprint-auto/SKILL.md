@@ -104,12 +104,12 @@ When the loop ends (all IDEAs processed, or batch aborted mid-way):
 - **Sequential in v1.** Parallel IDEA execution on a VPS invites host contention (CPU, disk, RAM, parallel pip installs) and makes failure-log attribution harder. Add concurrency later if the overnight throughput demands it.
 - **Respect the architect.** If the plan-time architect review comes back `REJECTED`, that IDEA is done for this batch. The plan is wrong; do not fall into "well the agent thought it was safe" — trust the review.
 - **Abort-the-batch triggers** (not just skip-the-IDEA): docker daemon lost, disk full, the bootstrap script exits with a class of error flagged unrecoverable (see [`references/safety-gates.md`](references/safety-gates.md)), token/minute budget blown at batch scope.
+- **Priority is queue order, not a safety gate.** `priority: high` / `medium` / `low` affects the order in which the human schedules ideas — it does not imply "how dangerous to automate". `auto_safe: true` is the authoritative safety signal. A High-priority idea tagged `auto_safe: true` by the human runs without special ceremony; a Low-priority idea without `auto_safe` stays out of every batch. Don't stack redundant gates.
 
 ## When NOT to use these patterns
 
 - **Single IDEA with supervision available.** Use `/plan` + `/work` directly — less ceremony.
 - **Any IDEA without `auto_safe: true`.** Tag it first via `/idea <slug>` update, with an explicit `auto_safe_reason` in frontmatter explaining why the human cleared it. Don't bypass the gate.
-- **Priority: high IDEAs.** High-priority work deserves human attention during execution. The skill refuses `priority: high` even with `auto_safe: true` (if the user really means it, they can explicitly override via `--include-high`, not the default path).
 - **IDEAs touching sensitive paths.** See [`references/safety-gates.md`](references/safety-gates.md) for the default-deny list (migrations that drop tables, anything under `.env*`, `docker-compose.yml` base file, CI/CD pipelines, auth middleware). Override only via explicit `sensitive_paths_cleared: true` in the IDEA frontmatter.
 - **First run on a new project.** Run one IDEA manually through `/plan` and `/work` first, confirm the bootstrap script works end-to-end, then trust the batch runner.
 

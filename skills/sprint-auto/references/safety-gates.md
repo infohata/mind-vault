@@ -29,7 +29,6 @@ Run these checks at preflight. Any fail → IDEA dropped from the batch with a l
 |---|---|
 | `auto_safe` not true OR `auto_safe_reason` missing | Opt-in not declared |
 | Body has fewer than ~3 substantive prose paragraphs | `/plan`'s thin-input bootstrap would fire and block on interactive questions — autopilot cannot answer |
-| `priority: high` | High-priority work deserves human attention during execution. Override path: caller passes `--include-high` explicitly |
 | `status` is not `idea` | Already in-progress / complete / superseded — nothing to run |
 | `depends_on` references an IDEA that is not `status: complete` | Pipeline not ready; don't run work that will need to rebase onto unmerged prerequisites |
 | IDEA body lists a file path under a sensitive-paths default-deny list | See below — override with explicit frontmatter acknowledgement |
@@ -92,7 +91,11 @@ sensitive_paths_cleared_reason: "Touches auth middleware only to rename a loggin
 ---
 ```
 
-The invocation-level flags (`--include-high`, `--budget-minutes=N`) exist for batch-wide concerns (budget) or transient exceptions (one high-priority IDEA the human is confident about this one time), not as a bypass for frontmatter gates.
+The invocation-level flags (`--budget-minutes=N`) exist for batch-wide concerns (budget), not as a bypass for frontmatter gates.
+
+### Priority is queue order, not a safety gate
+
+`priority: high` / `medium` / `low` affects the order in which the human schedules IDEAs — it does not imply "how dangerous to automate". The authoritative automation-safety signal is `auto_safe: true`, full stop. Stacking priority on top of `auto_safe` as a second gate was confusing (what would a `priority: high` + `auto_safe: true` IDEA even mean — "safe but the human refuses to let the machine touch it"?) and got in the way of the common case where the human deliberately sprint-auto-dogfoods their most-wanted items. Dropped 2026-04-22.
 
 ## When the human reviews in the morning
 
