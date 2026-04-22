@@ -32,7 +32,14 @@ Detection (first match wins):
 - `git remote get-url origin` → URL contains `mind-vault`.
 - Repo root has `skills/`, `rules/`, `commands/`, and **no** `docs/ideas/README.md` — the mind-vault signature.
 
-In self-mode, Step 4 targets `CHANGELOG.md` at the repo root (not `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md`, which is the per-project convention). Prepend a bullet under **## Unreleased** while the PR is open; promote it into the current `## YYYY-MM` section on merge. Category keys follow Keep a Changelog: **Added / Changed / Fixed / Removed / Deprecated / Security**. See the existing entries for prose-density anchors.
+In self-mode, Step 4 targets `CHANGELOG.md` at the repo root (not `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md`, which is the per-project convention). **End-to-end maintenance is the wrap's job** — not split between "add to Unreleased pre-merge" and "promote to dated section manually later":
+
+1. **Promote** every bullet currently under `## Unreleased` into the current `## YYYY-MM` section. These are typically entries for the just-merged PR that were added pre-merge; promote them above any existing entries in the month (reverse-chronological within the month). Append `(YYYY-MM-DD, [#N](https://github.com/infohata/mind-vault/pull/N))` to each bullet's tail if the date/PR-link aren't already there.
+2. **Add** any new entries for the just-merged PR directly into the dated section (not Unreleased) if they weren't added pre-merge. Category keys follow Keep a Changelog: **Added / Changed / Fixed / Removed / Deprecated / Security**. See the existing entries for prose-density anchors.
+3. **Reset** `## Unreleased` to `(none)` unless `gh pr list` shows other PRs open-but-not-yet-merged targeting mind-vault.
+4. **Backfill-gap detection**: diff the CHANGELOG against `git log --oneline --merges origin/main` since the last dated entry. If there are merged PRs without matching CHANGELOG bullets, the log has drifted. Judgement call: if the gap is ≤3 PRs, backfill them in this wrap. If larger, surface the gap in the wrap's hand-back message (`"CHANGELOG is missing entries for PRs #N1-#N2 (M PRs). Shall I backfill in this wrap PR or open a separate chore PR?"`) and wait for direction.
+
+The point: after wrap, `Unreleased` is empty, the dated section is current, and no human intervention is needed to "catch up" the log.
 
 Step 5 (worktree teardown) almost never applies because mind-vault has no docker stack, but the guards are branch-agnostic — run them if they fire.
 
@@ -80,6 +87,12 @@ Edit `docs/ideas/README.md`:
 ### Step 4 — Devlog entry
 
 Locate the current month's devlog: `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md`. If the month just rolled over and the file for the current month doesn't exist yet, create it with the standard header (see any prior month's top lines for the template).
+
+**Maintain end-to-end** — the same discipline that applies to CHANGELOG in self-mode applies here. The wrap's responsibility for the monthly devlog is:
+
+1. **Add** the entry for the just-merged PR (template below).
+2. **Backfill-gap detection**: compare the devlog against `git log --oneline --merges origin/main` since the previous entry's PR number. If prior PRs merged without devlog entries (drift happens — manual merges, rushed wraps on other PRs, etc.), judgement call on scope: ≤3 gaps → backfill in this wrap with minimal bullets. Larger gap → surface in the wrap's hand-back (`"DEVELOPMENT_LOG has M missing entries from PRs #N1-#N2 — backfill in this wrap or separate chore PR?"`) and wait for direction.
+3. **Month rollover**: if today's date is in a new month relative to the file's filename-encoded month, create the new month's file before appending. Don't append to last month's.
 
 Append a new entry at the **top** of the chronological section (newest first). Template:
 
