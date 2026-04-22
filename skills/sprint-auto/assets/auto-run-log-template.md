@@ -15,28 +15,35 @@ Written inside the worktree (which is where the archive dir lives for this run),
 idea: IDEA-NNN
 slug: <slug>
 run_started: 2026-04-20T22:14:03Z
-run_finished: 2026-04-20T22:51:40Z
+run_finished: 2026-04-20T23:51:40Z
 outcome: success          # success | bugbot_clean | bugbot_unresolved | plan_rejected | verification_failed | bootstrap_failed | budget_exceeded | aborted
 pr_url: https://github.com/<owner>/<repo>/pull/<n>   # null if no PR opened
 worktree_path: ~/projects/<project>-auto-<slug>
 branch: auto/<slug>
 port_offset: +15000
-bugbot_outcome: clean     # clean | unresolved | budget_exceeded | skipped_no_pr
-escalation_attempts: 0    # integer 0-3; max 3 per SKILL §2 step 5
+
+# Deliverables-pass bugbot (state S3+S4 in post-pr-sequence.md)
+deliverables_bugbot_outcome: clean     # clean | unresolved | budget_exceeded | skipped_no_pr
+deliverables_escalation_attempts: 1    # integer 0-20; cap is 20 per escalation-policy.md
+
+# Docs-pass bugbot (state S6+S7; runs after /wrap-docs commits docs to the same branch)
+docs_bugbot_outcome: clean             # clean | unresolved | budget_exceeded | skipped_no_pr | skipped_failure_pre_pr
+docs_escalation_attempts: 0            # integer 0-5; cap is 5 per escalation-policy.md
+
 compound_candidates_queued:
   - type: recurrence
     category: "missing context-processor null-guard"
     notes: "same category surfaced in IDEA-050 earlier in batch"
-docker_teardown: stopped  # stopped | skipped_bootstrap_failure | skipped_work_crash
+docker_teardown: stopped               # stopped | skipped_bootstrap_failure | skipped_work_crash
 ---
 
 # sprint-auto run — IDEA-NNN <slug>
 
-**Outcome**: ✅ PR opened at <pr_url> · bugbot: clean
+**Outcome**: ✅ PR opened at <pr_url> · bugbot: deliverables clean (1 attempt) / docs clean (0 attempts)
 
 ## Summary
 
-<one paragraph — what shipped, bugbot outcome, how many escalation cycles>
+<one paragraph — what shipped, bugbot outcome on each pass, how many escalation cycles per pass>
 
 ## Timeline
 
@@ -48,12 +55,16 @@ docker_teardown: stopped  # stopped | skipped_bootstrap_failure | skipped_work_c
 - 22:21:10Z — /work invoked
 - 22:48:33Z — Verification passed
 - 22:51:40Z — PR opened at <pr_url>
-- 22:51:45Z — /bugbot-loop invoked
+- 22:51:45Z — /bugbot-loop invoked (deliverables pass, state S3)
 - 22:58:12Z — bugbot posted review, 1 T2 finding
-- 22:58:45Z — Escalation attempt 1 (sha abc1234) — added null-check
-- 23:02:00Z — bugbot re-triggered; BUGBOT_CLEAN_SIGNAL received
-- 23:02:30Z — docker compose down (containers stopped, volumes kept)
-- 23:02:45Z — compound candidates harvested (1 recurrence)
+- 22:58:45Z — Deliverables escalation attempt 1 (sha jkl0123) — added null-check
+- 23:02:00Z — bugbot re-triggered; BUGBOT_CLEAN_SIGNAL on deliverables pass
+- 23:02:10Z — /wrap-docs started (state S5) — devlog entry + downstream docs scan
+- 23:04:30Z — docs commit pushed (sha mno4567)
+- 23:04:35Z — /bugbot-loop invoked (docs pass, state S6)
+- 23:11:20Z — BUGBOT_CLEAN_SIGNAL on docs pass
+- 23:11:30Z — docker compose down (containers stopped, volumes kept; state S8)
+- 23:11:45Z — compound candidates harvested (1 recurrence; state S9)
 
 ## Commits (on auto/<slug>)
 
@@ -61,14 +72,21 @@ docker_teardown: stopped  # stopped | skipped_bootstrap_failure | skipped_work_c
 - `def5678` — test(ui): ...
 - `ghi9abc` — docs(archive): IDEA-NNN mark in-progress
 - `jkl0123` — fix(ui): escalation attempt 1 — null-guard context-processor (bugbot #M)
+- `mno4567` — docs(archive): IDEA-NNN pre-merge documentation sweep
 
-## Escalation attempts
+## Deliverables-pass escalation attempts (cap: 20)
 
 (see [`references/escalation-policy.md`](../../skills/sprint-auto/references/escalation-policy.md))
 
 | # | SHA | Approach | Bugbot outcome |
 |---|---|---|---|
 | 1 | jkl0123 | null-guard in context-processor | clean |
+
+## Docs-pass escalation attempts (cap: 5)
+
+| # | SHA | Approach | Bugbot outcome |
+|---|---|---|---|
+| — | — | (no escalation needed — clean on first bugbot pass after /wrap-docs) | — |
 
 ## Diagnostic excerpt
 
@@ -106,9 +124,9 @@ Written to the **primary checkout**, not a worktree. Committed on a throwaway br
 ```markdown
 ---
 batch_started: 2026-04-20T22:14:03Z
-batch_finished: 2026-04-21T02:17:55Z
+batch_finished: 2026-04-21T05:17:55Z
 invocation: "/sprint-auto IDEA-050 IDEA-051 IDEA-052 IDEA-053"
-batch_budget_minutes: 240
+batch_budget_minutes: 1200          # len(ideas) * 300 default; --budget-minutes overrides
 ideas_attempted: 4
 ideas_bugbot_clean: 1
 ideas_bugbot_unresolved: 1
@@ -125,27 +143,31 @@ Invocation: `/sprint-auto IDEA-050 IDEA-051 IDEA-052 IDEA-053`
 
 ## IDEA results (project PRs)
 
-| IDEA | Slug | Outcome | PR | Bugbot | Escalation | Worktree |
-|---|---|---|---|---|---|---|
-| 050 | sync-retry-backoff | ✅ PR open | #123 | clean | 0 attempts | `../<project>-auto-sync-retry-backoff` (stack down) |
-| 051 | modal-dismiss-focus | ⚠️ PR open, bugbot unresolved | #124 | 1 T3 remaining | 3/3 attempts used | `../<project>-auto-modal-dismiss-focus` (stack down) |
-| 052 | alpine-event-bus | ⚠️ plan REJECTED | — | skipped (no PR) | — | `../<project>-auto-alpine-event-bus` (stack down) |
-| 053 | cache-invalidation | ❌ verification fail | — | skipped (no PR) | — | `../<project>-auto-cache-invalidation` (stack down) |
+Escalation column shows `deliverables/docs` attempts against caps `20/5`.
+
+| IDEA | Slug | Outcome | PR | Deliverables bugbot | Docs bugbot | Escalation (D/d) | Worktree |
+|---|---|---|---|---|---|---|---|
+| 050 | sync-retry-backoff | ✅ PR open | #123 | clean | clean | 0/0 | `../<project>-auto-sync-retry-backoff` (stack down) |
+| 051 | modal-dismiss-focus | ⚠️ PR open, bugbot unresolved | #124 | 2 T3 remaining | clean | 20/0 (deliverables cap hit) | `../<project>-auto-modal-dismiss-focus` (stack down) |
+| 052 | alpine-event-bus | ⚠️ plan REJECTED | — | skipped (no PR) | skipped (no PR) | — | `../<project>-auto-alpine-event-bus` (stack down) |
+| 053 | cache-invalidation | ❌ verification fail | — | skipped (no PR) | skipped (no PR) | — | `../<project>-auto-cache-invalidation` (stack down) |
 
 ## Compound (mind-vault PRs)
 
-| Destination | PR | Bugbot | Branch |
-|---|---|---|---|
-| `skills/bugbot/references/null-guard-patterns.md` (new) | https://github.com/.../pull/78 | clean | `compound/2026-04-20-null-guard-patterns` |
-| `AGENT_architect.md` pass-2 addendum | https://github.com/.../pull/79 | 1 T3 remaining | `compound/2026-04-20-architect-pass-2-hoisting` |
+Escalation cap for mind-vault compound PRs is 5 (same as docs pass — compound PRs are documentation by nature).
+
+| Destination | PR | Bugbot | Escalation | Branch |
+|---|---|---|---|---|
+| `skills/bugbot/references/null-guard-patterns.md` (new) | https://github.com/.../pull/78 | clean | 0/5 | `compound/2026-04-20-null-guard-patterns` |
+| `AGENT_architect.md` pass-2 addendum | https://github.com/.../pull/79 | 1 T3 remaining | 5/5 (cap hit) | `compound/2026-04-20-architect-pass-2-hoisting` |
 
 ## Morning checklist
 
-1. Review + merge (or request changes) on project PRs #123, #124. IDEA-051 has an unresolved T3 finding — check the auto-run log's escalation-attempts table to see what sprint-auto tried.
-2. Review + merge (or close) mind-vault PRs #78, #79. PR #79 has an unresolved bugbot finding; decide merge-anyway / fix-forward / close.
+1. Review + merge (or request changes) on project PRs #123, #124. IDEA-051 has an unresolved T3 finding on deliverables (cap hit at 20 attempts) — check the auto-run log's deliverables-pass table to see what sprint-auto tried.
+2. Review + merge (or close) mind-vault PRs #78, #79. PR #79 has an unresolved bugbot finding (cap hit at 5); decide merge-anyway / fix-forward / close.
 3. Read the per-IDEA log for IDEA-052 — architect's rejection is usually a plan-revision signal.
 4. Read the per-IDEA log for IDEA-053 — check which test failed; decide fix-forward / plan revision.
-5. For each PR merged: run `/wrap NNN` to finalise (frontmatter flip to complete, volumes removed, worktree removed, downstream docs swept). Sprint-auto already stopped containers; `/wrap` does the rest.
+5. For each PR merged: run `/wrap NNN` to finalise (frontmatter flip to complete, volumes removed, worktree removed). The pre-merge docs work (devlog entry + downstream docs scan) already ran at each IDEA's state S5, so `/wrap NNN` post-merge is cleanup + frontmatter tail.
 
 ## Per-IDEA logs
 
@@ -166,4 +188,4 @@ Invocation: `/sprint-auto IDEA-050 IDEA-051 IDEA-052 IDEA-053`
 
 ---
 
-**Last Updated**: 2026-04-20 (initial)
+**Last Updated**: 2026-04-22 (split deliverables_bugbot_outcome / docs_bugbot_outcome, split escalation_attempts lists with per-pass caps 20/5, new timeline includes S5 /wrap-docs + S6 docs bugbot-pass events, batch table shows both passes side-by-side)
