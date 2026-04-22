@@ -116,6 +116,37 @@ If the parent uses `172.20.0.0/16`, use a non-overlapping block like `172.30.0.0
 | Fresh image built but container still old behaviour | `docker compose restart` was used — doesn't recreate | `docker compose up -d --force-recreate <svc>` |
 | `botocore.errorfactory.NoSuchBucket` flood when running tests in a fresh worktree | MinIO volume is empty; the primary checkout created the bucket once via `tools/setup_minio.sh` and never re-runs it. The worktree's MinIO container has never seen that script. | Run the project's MinIO setup script (or `mc mb` inside the container) as a post-up step — add to the Bootstrap Recipe. Tests that PutObject silently fail and cascade into hundreds of unrelated test failures (views that render image thumbnails, permission tests that seed attachments, etc.). Symptom is large failure count clustered in `test_views` / `test_api` / `test_permissions` in apps that use file storage. |
 | Agent keeps prompting for permission on every cross-tree operation | Agent was started in the primary tree, reaching in via absolute paths | Start a fresh agent session from inside the worktree directory |
+| `git worktree remove` fails with `Permission denied` on teardown, but the files look gitignored | Container ran as root against the bind-mounted worktree dir, wrote `__pycache__/*.pyc` (or `.po` / `.mo` / pytest cache) owned by UID 0. Git treats them as gitignored so no warning; host user can't unlink them. | Chown the tree back before teardown. Use `docker run --rm -v <absolute-worktree-path>:/work alpine chown -R "$(id -u):$(id -g)" /work` when host sudo isn't available; the daemon's root UID maps through the bind mount. See the "Docker as privileged-fileops escape hatch" note below for security considerations before leaning on this. |
+
+**Out of scope for this rule:** container DNS / NSS resolution anomalies (`getaddrinfo` returning loopback for public domains, `/etc/hosts` and `myhostname` NSS shadowing public DNS, cert-issuance silent drops on fresh VPS bootstrap) — those live in [`skills/deployment/references/CONTAINER_DNS_NSS.md`](../skills/deployment/references/CONTAINER_DNS_NSS.md). That reference loads on demand when the deployment skill activates; this rule is for patterns that need to be in context every parallel-worktree session.
+
+### Docker as privileged-fileops escape hatch (use deliberately, don't build tools around it)
+
+The docker-chown trick in the gotchas table above is a specific application of a more general pattern: when host sudo isn't available but the docker daemon is, any root-level filesystem operation can be done via a disposable container with the target path bind-mounted. Container root is host root for that mount.
+
+Applications in the workflow:
+- `chown -R <uid>:<gid>` to fix container-as-root residue (the motivating case)
+- `rm -rf` a root-owned tree when `git worktree remove` can't reach it
+- `tar -xf` into a restricted target dir (install-bundle scenarios)
+
+Canonical shape:
+
+```bash
+docker run --rm \
+    -v <absolute-host-path>:/work \
+    alpine \
+    <command> /work[/subpath...]
+```
+
+The image choice isn't meaningful — any minimal Linux image whose default user is root works (`alpine`, `busybox`, `debian:slim`). Alpine is the default here only because it's small and ubiquitous.
+
+**Security considerations before using this pattern** — these are why it stays a documented technique, not a shipped helper script:
+
+- Docker group membership is effectively **root-equivalent on the host filesystem**. A wrapper that takes arbitrary commands (`./docker-as-root.sh chown ...`) is one `docker-as-root.sh --image ubuntu -- rm -rf /etc` away from a footgun masquerading as a convenience tool. Keep the pattern as a recipe; type the flags each time.
+- **Hardened setups deliberately prevent this**: rootless docker, user-namespace remapping (`userns-remap`), and SELinux/AppArmor labels on bind mounts all refuse the trick by design. A team that relied on a helper script would be blocked the day they adopted any of those — better to have the recipe in docs than a tool that silently stops working.
+- **Audit trail is weaker than sudo**: sudo logs to syslog; `docker run` logs to the daemon's journal, which is both noisier and easier to filter out. In environments with compliance requirements, prefer sudo where available and treat this as a last resort.
+
+When in doubt, prefer host sudo. The docker-chown pattern is a fresh-VPS-without-sudo escape hatch, not a blessed workflow — which is also why it lives in a Common Gotchas row, not a top-level bootstrap step.
 
 ### Coordination Across Parallel Streams
 

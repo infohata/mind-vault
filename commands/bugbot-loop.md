@@ -42,6 +42,18 @@ This is the **only** authorised place to create `.env` — see exception clause 
 
    - Comments: `./tools/find_bugbot_comments.sh [PR_NUMBER]` (preferred — includes the `BUGBOT_CLEAN_SIGNAL` marker), or equivalent `gh api repos/.../pulls/<N>/comments` + `.../issues/<N>/comments` + `.../pulls/<N>/reviews`, filtering `user.login == "cursor[bot]"`.
    - Parse unresolved review comments on code lines (findings) separately from reviews (clean-signal source).
+   - **Dual-signal enumeration — mandatory output shape every cycle.** Always present both signals explicitly in your cycle summary, even when one of them is absent. The two GitHub resources (`/reviews` for the bugbot review-body clean flag, `/comments` for inline line-anchored findings) are **independent and can coexist for the same commit** — bugbot may post an overall "found no new issues" review AND one or more inline LOW-severity style/structure hints on the same push. Inline comments from prior reviews also persist in `/comments` until a reviewer manually clicks "Resolve conversation" on GitHub, so a stale-by-fix finding can linger alongside a fresh clean signal. Required shape:
+
+     ```
+     - /reviews  : ✅ CLEAN signal <review-id> @ <sha> OR ❌ no signal for current head
+     - /comments : <N> inline finding(s) [list them if > 0, with ids + L# ranges]
+     ```
+
+     Then apply Phase 4's decision tree to resolve these two enumerations into an action. **Never collapse the two signals into a single "is the PR clean?" conclusion at Phase 1 output time.** The Phase 4 decision tree will handle the collapse correctly (new-findings branch precedes clean-signal branch), but only if Phase 1's output surfaces both resources independently. Context-rot during `ScheduleWakeup` sleeps tends to re-merge the two signals into one; the explicit dual presentation is what survives compaction.
+
+     Staleness rule for persistent inline comments: a finding is genuinely stale (not a blocker) only when **both** (a) bugbot's most-recent `/reviews` entry is clean AND (b) the finding's comment id is ≤ `last_seen_comment_id` (so it predates the current trigger, not created by the latest review pass). If either condition is missing, treat as an active finding.
+
+     **Line-number drift is NOT a new-finding signal.** GitHub line-anchored review comments track code position across commits — the same inline comment id will reappear at *different* line numbers on each fetch as the file is edited around it. Example from mind-vault PR #55: after the fix push, bugbot's unresolved comment 3119819571 shifted from `install-gcloud-cli.sh:88` to `:97`, and comment 3119819578 from `:135` to `:144`. The finding title and file stayed identical; only the line moved. The `comment id` (not `file:line`) is the identity for the staleness comparison above. Never compare on title+line and conclude "still flagged" — compare the id.
 
 2. **Zero bugbot activity for `last_push_sha`?** Either the PR is fresh and bugbot hasn't auto-triggered, or auto-trigger is off for this repo. **Post the trigger comment once, then go to Phase 4** — do NOT fall through to "no findings, hand back":
 
