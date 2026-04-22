@@ -148,6 +148,33 @@ The image choice isn't meaningful — any minimal Linux image whose default user
 
 When in doubt, prefer host sudo. The docker-chown pattern is a fresh-VPS-without-sudo escape hatch, not a blessed workflow — which is also why it lives in a Common Gotchas row, not a top-level bootstrap step.
 
+### Dev-tool install + config placement in a worktree stack
+
+Two recurring paper-cuts when adding developer-only tooling (linters, static analyzers, security scanners — anything not in the production image) that needs to run inside the worktree's container.
+
+**Problem 1 — Installing dev-only pip deps on demand.** The production image's `requirements-web.txt` is baked in; `requirements-dev.txt` on the host is **not** bind-mounted into the standard compose services. A naïve Makefile target that `pip install -r requirements-dev.txt` inside `docker compose exec` fails with `No such file or directory`. The drift-prone "fix" is to inline the version pins in the Makefile — now the same versions live in two places and will diverge on the next bump.
+
+Canonical shape (single source of truth, zero bind-mount gymnastics):
+
+```make
+security-scan:
+	@docker compose exec -T web pip install --quiet -r /dev/stdin < requirements-dev.txt
+	@docker compose exec -T web bandit -r . -c /tools/.bandit.yml ...
+```
+
+The `< requirements-dev.txt` reads the file from the host, the pipe becomes the container's stdin, and `pip install -r /dev/stdin` reads the pins from there. `requirements-dev.txt` stays the authoritative pin list for both host venvs and the docker-exec path.
+
+**Problem 2 — Where to put the tool's config file.** Bandit and most Python linters look for config at the project root (`.bandit.yml`, `pyproject.toml`, `.flake8`, `mypy.ini`). But inside a worktree docker stack, the container's `/app` is typically `web/` (the Python source), not the project root. Project-root files aren't reachable from the container unless they're explicitly bind-mounted. `tools/` **is** commonly bind-mounted (`/tools/`), so config files that need to be read *by a container-resident tool* belong there, not at the project root:
+
+```text
+.bandit.yml          ← host convention, but unreachable from the container
+tools/.bandit.yml    ← reachable as /tools/.bandit.yml, container can read it
+```
+
+Passing `-c /tools/.bandit.yml` to the tool makes the dependency explicit and survives worktree-project renames. The convention also keeps the project root clean of per-tool dotfiles that aren't actually used by host-side workflows.
+
+**When this applies**: Any dev-only tool (bandit, pip-audit, ruff, mypy, pytest plugins, pre-commit hooks that shell out to Python scripts) that (a) isn't in the production image and (b) needs to read source code or a config file from inside a running worktree container. Baseline rules: pin once in `requirements-dev.txt`, install via stdin pipe from that file, park configs under `tools/` if a container-resident tool will read them.
+
 ### Coordination Across Parallel Streams
 
 The only coordination seams between parallel worktrees are:
@@ -171,4 +198,4 @@ Everything else — branch state, docker state, database state, redis state, fil
 
 ---
 
-**Last Updated**: 2026-04-18 (initial — captured from IDEA-042 B2c/B3 parallel-worktree experiment)
+**Last Updated**: 2026-04-22 (added "Dev-tool install + config placement in a worktree stack" — stdin-pipe install pattern + config-file-under-tools/ convention; compounded from teisutis IDEA-012 sprint-auto run, PR [infohata/teisutis#342](https://github.com/infohata/teisutis/pull/342))
