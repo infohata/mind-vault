@@ -8,9 +8,9 @@ Full state machine for the per-IDEA loop, starting the moment `/work` opens the 
 ┌────────────────────────────────────────────────────────────────────────────┐
 │ S0  worktree + stack up                                                    │
 │      ↓                                                                     │
-│ S1  /plan                  ─┬─ architect REJECTED → log, S5 → S8          │
+│ S1  /plan                  ─┬─ architect REJECTED → jump to S5           │
 │      ↓ ok                   │                                              │
-│ S2  /work                  ─┼─ verification failed, no PR → log, S5 → S8 │
+│ S2  /work                  ─┼─ verification failed, no PR → jump to S5   │
 │      ↓ PR opened            │                                              │
 │ S3  /bugbot-loop PR        ─┼─ BUGBOT_CLEAN_SIGNAL         ─→  S5          │
 │      ↓ handback with T2/T3  │                                              │
@@ -40,7 +40,9 @@ Full state machine for the per-IDEA loop, starting the moment `/work` opens the 
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-This order (teardown S5 → harvest S6 → log S7) matches `SKILL.md` §2 steps 6 → 7 → 8. The clean-bugbot path (S3 → S5) does still flow through S6 for harvest; compound-candidate collection is cheap and always runs regardless of bugbot outcome, because infrastructure-gap candidates (bootstrap-script gaps, missing hooks, test-env fragility) surface even on "clean" runs.
+This order (teardown S5 → harvest S6 → log S7) matches `SKILL.md` §2 steps 6 → 7 → 8. The clean-bugbot path (S3 → S5) still flows through S6 for harvest; compound-candidate collection is cheap and always runs regardless of bugbot outcome, because infrastructure-gap candidates (bootstrap-script gaps, missing hooks, test-env fragility) surface even on "clean" runs.
+
+**Failure paths rejoin the happy path at S5.** The "jump to S5" arrows from S1 REJECTED / S2 work-failed are re-entry points, not short-circuits: once at S5, the IDEA flows through S5 → S6 → S7 → S8 normally. Per-IDEA logs (S7) are always written — including failure outcomes (`plan_rejected`, `verification_failed`, `bootstrap_failed`) — because the log IS the diagnostic artefact. Harvest (S6) runs too; on failure it may queue fewer candidates, but plan-rejection patterns or verification-failure patterns are themselves valuable compound signals.
 
 ## Per-state contract
 
@@ -114,13 +116,15 @@ Inputs: consolidated candidate list. For each candidate:
 
 If mind-vault becomes unreachable (fetch / push fails, GitHub API errors), halt S9: record candidates that didn't promote into the batch summary so the human can hand-promote them later, then proceed to S10.
 
-## State transitions that short-circuit to the next IDEA
+## State transitions that re-enter at S5 (not skip states)
 
-- S0 bootstrap failed → log, clean up partial stack if possible, S8.
-- S1 architect REJECTED → log, tear down stack (S5), S8.
-- S2 work failed without opening PR → log, tear down stack (S5), S8.
+Failure paths don't skip later states — they re-enter the happy-path at S5 (teardown), then flow through S6 (harvest) and S7 (log finalize) like every other IDEA. The only thing that changes is the `outcome:` field written at S7 and what's queueable at S6:
 
-In all three cases, no PR means no bugbot-loop and no compound candidates. Log the failure class so the batch summary reflects where in the pipeline each IDEA stopped.
+- **S0 bootstrap failed** → S6 (harvest limited — no stack means no bugbot data; infrastructure-gap candidates still possible) → S7 (outcome: `bootstrap_failed`, `docker_teardown: skipped_bootstrap_failure`) → S8. Skips S5 because there's no complete stack to tear down.
+- **S1 architect REJECTED** → S5 (teardown) → S6 (harvest — plan-rejection patterns are valuable compound signals; the IDEA may have exposed an architect blind-spot or template gap) → S7 (outcome: `plan_rejected`) → S8.
+- **S2 /work failed without opening PR** → S5 (teardown) → S6 (harvest — verification failures are also valuable; the test that failed may reveal a test-env gap or fragile pattern) → S7 (outcome: `verification_failed`) → S8.
+
+Rationale for always writing the log (S7) on failure: the log IS the diagnostic artefact the morning reviewer needs. Skipping S7 would silently drop the failure from the paper trail. A rejected or failed IDEA with a rich per-IDEA log is strictly more useful than a successful-but-silent drop.
 
 ## State transitions that abort the entire batch
 
@@ -136,4 +140,4 @@ On abort, jump directly to S10 with whatever partial state exists. Do NOT retroa
 
 ---
 
-**Last Updated**: 2026-04-22 (initial — codifies the nine-state machine post-`/work` for sprint-auto; state labels aligned to SKILL.md §2 step order: S5 = teardown, S6 = harvest, reflecting that teardown runs before harvest to ensure harvest works against the final, stable repo state)
+**Last Updated**: 2026-04-22 (initial — codifies the nine-state machine post-`/work` for sprint-auto; state labels aligned to SKILL.md §2 step order: S5 = teardown, S6 = harvest, reflecting that teardown runs before harvest to ensure harvest works against the final, stable repo state; failure paths re-enter at S5 rather than short-circuiting to S8 so S6/S7 always run — the per-IDEA log is the diagnostic artefact and must always be written, including for plan-rejected / verification-failed / bootstrap-failed outcomes)
