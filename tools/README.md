@@ -275,38 +275,32 @@ Backups saved: *.backup (for cleaned files only)
 
 ### Conventions for installer scripts (`install-*.sh`)
 
-This class of script has a recurring set of traps that keep leaking into each new installer — bugbot or my own drill has had to re-flag the same issues across PRs #55 / #58 / #59. The `agents/AGENT_bugbot.md` §9 checklist codifies them for the drill side; **authoring side, the short list**:
+This class of script has a recurring set of traps that keep leaking into each new installer — bugbot or my own drill has had to re-flag the same issues across PRs #55 / #58 / #59. The canonical catalog lives in [`../skills/deployment/references/SHELL_INSTALLERS.md`](../skills/deployment/references/SHELL_INSTALLERS.md) — read it before authoring a new `install-X.sh`. It covers 15 patterns with bad/good examples and the PR cycle that surfaced each one.
 
-> **Sweep-don't-point-fix.** When you fix any one of the patterns below, grep the entire script for other sites with the same shape and fix them in the same commit. Point-fixes are the most common way these issues leak — each pattern tends to appear 2–5 times in a file of this size. Example: fixing `ufw status | head -1` for UFW while leaving `mosh-server --version | head -1` for the verify section untouched, then surfacing the second one on the next bugbot review.
+Short summary for contributor muscle-memory (details + examples live in the reference):
 
-- **Use `set -eo pipefail`, never bare `set -e`.** Installers pipe curl into gpg, jq, tee — a failing head of the pipe must abort the script, not write an empty / truncated file downstream.
-- **`set -eo pipefail` interacts badly with pipeline-in-assignment.** `VAR=$(cmd | filter)` inherits the pipeline's exit status; a failing `cmd` kills the script *before* the `if [ -z "$VAR" ]` friendly-error block runs. Guard the precondition (`id -u "$USER" >/dev/null 2>&1`) before the pipeline, or split `VAR=$(cmd)` / `echo "$VAR" | filter` across two lines with explicit checks between. Symptom: script exits with no output when the user passes a bad `--target-user`.
-- **`set -eo pipefail` + `head -N` closes the pipe early.** `producer | head -1 | grep …` in an `if` condition: if `producer` outputs many lines, `head` closes stdin after reading one, `producer` gets SIGPIPE on the next write, pipeline exit status becomes 141, pipefail treats the whole thing as failure, `if` is false even when grep matched. Often `head -N` is redundant with a downstream anchored regex — drop it. Otherwise split the pipeline (`VAR=$(producer); echo "$VAR" | head -1 | grep …`).
-- **`chown` uses `user:` (trailing colon), not `user:user`.** The trailing colon asks chown to use the user's primary group from `/etc/passwd`; `user:user` assumes the group name equals the username, which is a Debian default but not a universal guarantee. `user:user` has now leaked into two PRs in a row — fix it once, write it right next time.
-- **Validate args with required values before consuming.** `--flag VALUE` must `[ -z "${2:-}" ] && die` before `VAR="$2"; shift 2`; otherwise a dangling flag silently sets VAR to empty and `shift 2` misbehaves. See `install-gcloud-cli.sh` `--with-components` for the right shape.
-- **Idempotency must respect all flags.** A "gcloud already installed → exit 0" check that ignores `--with-components` silently drops the user's request. Structure the early-exit to skip only when the additional flags are also absent.
-- **Marker blocks use fixed-string matching.** `BEGIN mind-vault-foo (managed by install-foo.sh)` contains `(`, `)`, `.` — regex metacharacters. Grep it with `-qF`, not bare. Sed's `/MARK/,/MARK/d` still treats metacharacters as regex; either use fixed alt-delimiters (`\|MARK|,\|MARK|d`) or strip the metacharacters from the marker string. **Equally important**: gate the sed on BOTH BEGIN *and* END being present, and refuse early (clear error) if an orphan BEGIN-without-END is detected — otherwise `/BEGIN/,/END/d` opens an unclosed range and deletes from BEGIN to EOF, wiping unrelated user content.
-- **Validate security-sensitive string input with `case`, not `grep -E`.** `grep` matches per-line; a newline-containing input passes anchored-regex validation because *some* line matches, yet the newline still injects. Use `case "$value" in *[!allowed-chars]*) fail ;; esac` to match the full string.
-- **Opt-out flags cross-cut the whole script — sweep end-to-end.** When you add `--no-X`, every place that references feature X needs the `[ "$DO_X" = "1" ]` gate: state check (is it installed/wired?), state display (✅/❌/n/a?), `--check` exit code, orphan/precondition refusal, install block, verify summary after install, post-install-hints trailer. Adding a flag at one site and moving on is the most common way incomplete opt-outs leak into review. Grep the file for every reference to the feature name before committing the flag.
-- **HEREDOC quoting is a minefield.** `<<TAG` expands `$`-refs in the body (script-time); `<<'TAG'` does not. When the body has both kinds (wants `$BEGIN_MARK` expanded, wants `$SSH_CONNECTION` kept literal), keep the tag unquoted and backslash-escape the runtime vars (`\$SSH_CONNECTION`). Whichever choice you make, document it — a comment that says "single-quoted" above an unquoted HEREDOC is worse than no comment.
-- **Target-user resolution.** Under `sudo`, honour `$SUDO_USER` and write to that user's `$HOME`; fall back with care. `getent passwd "$user"` is the portable lookup. Warn (don't silently continue) if resolution lands on root when a non-root user was intended.
-- **Managed blocks over append-only.** Configuration touched by the installer goes inside `# BEGIN mind-vault-NAME (managed by install-NAME.sh)` / `# END mind-vault-NAME` markers so re-runs replace cleanly instead of appending duplicates.
+1. **Sweep-don't-point-fix** — when you touch a pattern below, grep the whole script for other sites with the same shape.
+2. **`set -eo pipefail`** (never bare `set -e`); mind its interactions with pipeline-in-assignment and `head -N`.
+3. **`chown "user:"`**, not `"user:user"` — group name ≠ username everywhere.
+4. **Arg validation** before consuming `$2`; **idempotency respects all flags**; **opt-out flags need end-to-end gate sweep**.
+5. **Marker blocks** — `grep -qF` + BRE-escaped sed, plus orphan-detection for unclosed-range safety.
+6. **`case` not `grep -E`** for security-sensitive string validation (grep's line-splitting is a newline bypass).
 
-**Template for new tools** (follows the conventions above):
+**Worked examples in-repo:** `install-gcloud-cli.sh`, `install-docker.sh`, `install-oh-my-posh.sh`, `install-mosh-tmux.sh`. Copy the closest one and adapt — the pattern coverage comes for free.
+
+**Template for new tools** (see the reference for the fully annotated version):
 
 ```bash
 #!/bin/bash
 # Description: What this tool does (one line — shown by --help)
-# Usage: How to run it (sudo? flags?)
+# Usage: sudo ./tools/install-X.sh [--check] [--flag VALUE]
 #
-# Why: the 2–3 sentence rationale. Skip "author" and "date" — git blame
+# Why: the 2–3 sentence rationale. Skip "author" / "date" — git blame
 # has both and they rot when anyone else edits the file.
 
 set -eo pipefail
-
-# parse flags, resolve target user, check state, do work — see
-# tools/install-gcloud-cli.sh or tools/install-mosh-tmux.sh for the
-# shape.
+# … flags, target-user, state-check, install, verify. See the reference
+# for the full skeleton with opt-out gating baked in.
 ```
 
 ## Maintenance

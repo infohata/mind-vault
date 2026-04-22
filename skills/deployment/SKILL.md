@@ -30,6 +30,7 @@ Production deployment pattern for containerised web applications using Docker Co
 - [Django Deployment](references/DJANGO_DEPLOYMENT.md) — Django-specific optimisations
 - [Server Hardening](references/HARDENING.md) — SSH, UFW, fail2ban, unattended upgrades (run before first deploy)
 - [Container DNS / NSS](references/CONTAINER_DNS_NSS.md) — `getaddrinfo` shadowing public DNS inside containers; anchor case: `sync_domains` silent drop on fresh Debian VPS when hostname matches domain
+- [Shell Installers](references/SHELL_INSTALLERS.md) — authoring + review patterns for `tools/install-*.sh`; 15 patterns (pipefail family, chown, marker blocks, opt-out sweep, case-vs-grep security validation, etc.) distilled from bugbot review cycles across PRs #55/#58/#59
 
 ## When to use
 

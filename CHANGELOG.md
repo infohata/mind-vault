@@ -10,7 +10,10 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 PRs open and not yet merged to main.
 
-(none)
+- **Added** `tools/install-mosh-tmux.sh` — resilient-SSH installer for spotty links. Installs mosh + tmux on Debian/Ubuntu, writes a marker-bounded `~/.tmux.conf` with truecolor + scrollback + mouse defaults, adds an SSH-only auto-attach snippet to `~/.bashrc`, opens UDP 60000:61000 in UFW when active. `--check` / `--no-ufw` / `--no-autoattach` / `--no-tmux-config` / `--session-name` / `--target-user` flags. ([#59](https://github.com/infohata/mind-vault/pull/59))
+- **Added** `skills/deployment/references/SHELL_INSTALLERS.md` — canonical authoring + review reference for `tools/install-*.sh` scripts. 15 patterns distilled from bugbot review cycles across PRs #55 (install-gcloud-cli), #58 (wrap SKILL chown fallback), #59 (install-mosh-tmux): the `set -eo pipefail` family (pipeline-in-assignment silent abort, `head -N` SIGPIPE race), `chown 'user:'` vs `'user:user'`, marker-block regex-metacharacter hazards + unclosed-sed-range EOF truncation, `case` vs `grep -E` for security-sensitive validation (newline bypass), opt-out flag cross-cutting sweep, substring-match traps, HEREDOC quoting discipline, target-user resolution, idempotency-respects-flags, post-install session-restart requirement. Each pattern has bad/good examples + provenance. ([#59](https://github.com/infohata/mind-vault/pull/59))
+- **Changed** `agents/AGENT_bugbot.md` §9 — slimmed from inline pattern list to a quick-index pointing at `SHELL_INSTALLERS.md` for details. Reduces duplication between drill-side and author-side references; single source of truth going forward. ([#59](https://github.com/infohata/mind-vault/pull/59))
+- **Changed** `tools/README.md` "Adding New Tools" — slimmed to a 6-item contributor muscle-memory list + pointer to `SHELL_INSTALLERS.md`. Replaced inline template with an annotated skeleton. ([#59](https://github.com/infohata/mind-vault/pull/59))
 
 ## 2026-04
 
