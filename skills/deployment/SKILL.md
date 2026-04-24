@@ -193,8 +193,8 @@ Full recipe book — naming conventions, monitoring, attaching/detaching, cleanu
 Record each production deploy in the repo for later forensics:
 
 - **Path:** `docs/deployment/sessions/{host}_yyyymmdd-hhmm.md` (e.g. `myapp_com_20260417-1415.md`)
-- **One file per deploy run.** Include: screen session name, log-file path, pre-deploy checklist, rollback plan, post-deploy verification results.
-- **Template:** maintain `docs/deployment/sessions/_template.md` and copy per run.
+- **One file per deploy run, covering the whole lifecycle** — pre-rollout plan, execution record, post-deploy verification, rollback target. Create the file with `status: PENDING` before the run and flip to ✅ / ❌ at the end. **Do not fork the plan into a separate `ROLLOUT_PLAN_*.md`** — the session file is the single artefact and the PENDING status handles the pre-rollout phase. A plan-doc-plus-session-file split produces the two-narrative drift every release; the single file stays in sync by construction.
+- **Template:** maintain `docs/deployment/sessions/_template.md` with `PENDING` / `SUCCESSFUL` / `FAILED` status slots; copy per run.
 
 This is the paper trail humans need when something goes wrong three months later and they're reconstructing the release timeline.
 
@@ -248,12 +248,12 @@ Renewal runs on a cron/timer or via `docker compose run --rm certbot renew` — 
 
 ### Health checks and verification
 
-After every deploy, verify:
+After every deploy, verify. `HEALTH_URL` below is a project-supplied variable that points at a cheap JSON health endpoint when one exists (`/api/health`, `/healthz`, etc.) and falls back to `/` (landing page 200) when the project doesn't expose a dedicated probe. Never hard-code `/api/health` into a project's verify script without confirming the endpoint actually exists — a 404 from the liveness probe masks real signal.
 
 ```bash
 docker compose ps                                       # containers healthy
 curl -fsI https://${DOMAIN}                             # external HTTPS reachable
-curl -fsS https://${DOMAIN}/api/health                  # app-level health endpoint
+curl -fsS https://${DOMAIN}${HEALTH_URL:-/}             # project health endpoint (JSON if available; else landing page)
 docker compose exec -T web python manage.py check       # framework-level sanity
 ```
 
@@ -376,7 +376,7 @@ For automated pipelines (GitHub Actions, GitLab CI), see [references/CICD.md](re
 ### Health check fails post-deploy
 
 - Service logs: `docker compose logs <service>`.
-- App reachable from inside the container network? `docker compose exec web curl -f localhost:8000/api/health`.
+- App reachable from inside the container network? `docker compose exec web curl -f localhost:8000${HEALTH_URL:-/}`.
 - OOM? `docker stats` and `dmesg | tail` on the host.
 
 ### `.env` changes don't take effect

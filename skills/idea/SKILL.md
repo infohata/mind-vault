@@ -35,6 +35,14 @@ Auto-increment, two-phase capture.
 2. Ask the user for **title**, **priority** (high / medium / low), and an optional **depends_on** / **related** list referencing existing IDEA ids.
 3. Use the platform's blocking question tool when available (`AskUserQuestion` in Claude Code, `request_user_input` in Codex) for the priority choice. Ask one question at a time.
 4. Derive the slug from the title: lowercase, kebab-case, strip stopwords (`a`, `the`, `for`, `into`), truncate to ~40 chars. Confirm with the user if the slug is ambiguous.
+5. **Evaluate sprint-auto eligibility** and set the two gate fields with explicit reasoning. Default both to `false` at capture — the question isn't "can we eventually automate this?" but "can sprint-auto run this **tonight, unattended, with no human in the loop**?" A `/plan` pass later can upgrade `false → true` once the unknowns are resolved. Rubric:
+
+   | Gate | Ask yourself | Default at capture |
+   | --- | --- | --- |
+   | `auto_safe` | Are there **judgment calls** (path naming, middleware scope, algorithm choice, UX decisions) that sprint-auto would have to make blindly? **Migrations + reversibility known?** **Test coverage path clear?** If any `no` / `unknown` — leave `false`. | `false` unless obviously additive + reversible + no design unknowns |
+   | `sensitive_paths_cleared` | Does the scope touch **auth / permission / schema / infra (nginx, docker-compose) / secrets / payment paths**? Broad regex matches like `*auth*`, `*billing*`, `*core*` bias toward `false` even when the actual change is benign — the gate exists so a human eyeballs it. | `false` unless the files touched are entirely outside those zones |
+
+   Write a 1-2 sentence reason for each, naming the specific blocker (or the specific reason it's safe) — never leave the reason empty. The reason is what a future sprint-auto reviewer reads when deciding whether to flip the gate during `/plan`.
 
 Reference command for the number scan (agent may adapt to project specifics):
 
