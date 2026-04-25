@@ -105,10 +105,12 @@ cp dist/<library>-bundle.js \
 
 # Architect F9 pattern: write BUILD_INFO.txt for drift detection
 LOCK_HASH=$(sha256sum package-lock.json | cut -d' ' -f1)
+BUNDLE_HASH=$(sha256sum ../../web/<app>/static/vendor/<library>/<library>-bundle.js | cut -d' ' -f1)
 SIZE=$(wc -c < ../../web/<app>/static/vendor/<library>/<library>-bundle.js)
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 cat > ../../web/<app>/static/vendor/<library>/BUILD_INFO.txt <<EOF
 package_lock_sha256=${LOCK_HASH}
+bundle_sha256=${BUNDLE_HASH}
 built_at=${TS}
 bundle_bytes=${SIZE}
 EOF
@@ -142,20 +144,27 @@ The `BUILD_INFO.txt` hash trick (architect F9 pattern from teisutis IDEA-123 pla
 import hashlib
 from pathlib import Path
 
-def test_bundle_matches_lockfile():
+def test_bundle_matches_lockfile_and_build_info():
     lock_path = Path("tools/build-<library>-bundle/package-lock.json")
+    bundle_path = Path("web/<app>/static/vendor/<library>/<library>-bundle.js")
     info_path = Path("web/<app>/static/vendor/<library>/BUILD_INFO.txt")
 
-    expected = hashlib.sha256(lock_path.read_bytes()).hexdigest()
+    expected_lock = hashlib.sha256(lock_path.read_bytes()).hexdigest()
+    expected_bundle = hashlib.sha256(bundle_path.read_bytes()).hexdigest()
     info = dict(line.strip().split("=", 1) for line in info_path.read_text().splitlines() if "=" in line)
 
-    assert info["package_lock_sha256"] == expected, (
-        f"Bundle out of sync with lockfile. "
-        f"Run `bash tools/build-<library>-bundle.sh` and commit the output."
+    assert info["package_lock_sha256"] == expected_lock, (
+        "Lockfile out of sync with BUILD_INFO. "
+        "Run `bash tools/build-<library>-bundle.sh` and commit the output."
+    )
+    assert info["bundle_sha256"] == expected_bundle, (
+        "Bundle file has been modified outside the build script (hand-edit, "
+        "merge resolution, IDE auto-format, or partial rebuild). "
+        "Run `bash tools/build-<library>-bundle.sh` and commit the output."
     )
 ```
 
-Catches: someone hand-edits the bundle, or rebuilds without committing the new lockfile, or upgrades the library and forgets to rebuild.
+Catches: someone hand-edits the bundle (bundle_sha256 mismatch), rebuilds without committing the new lockfile (lockfile mismatch), or upgrades the library and forgets to rebuild (lockfile mismatch). Does not catch a coordinated forgery that rewrites both the bundle and BUILD_INFO.txt to match — that's a code-review concern, not a unit-test concern.
 
 ## Integration-glue contract
 
