@@ -164,7 +164,10 @@ sudo ./tools/install-mosh-tmux.sh --no-ufw --no-tmux-config
 - `default-terminal "tmux-256color"` + truecolor overrides
 - `escape-time 10ms` (default 500ms breaks vim-style navigation)
 - `focus-events on`, pane/window indices from 1
-- `Ctrl-b r` reloads config
+- Prefix remapped `C-b` → `C-a` — IDE-embedded terminals (Antigravity, VS Code, Cursor) grab `C-b` for the sidebar; reload with `C-a r`, detach with `C-a d`
+- OSC 52 clipboard (`set-clipboard on`) — tmux selections land in the host clipboard, passing through mosh unchanged
+- Prefix-less Alt-bindings for IDE coexistence: `Alt-\` / `Alt--` splits, `Alt-h/j/k/l` pane navigation, `Alt-w` kill-pane
+- Right-click menus disabled — IDE terminals fire their own context menu; tmux's would overlap
 - Minimal status bar: `[session] hostname · YYYY-MM-DD HH:MM`
 
 **Bashrc snippet** (BEGIN/END marker-bounded):

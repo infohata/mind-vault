@@ -506,7 +506,8 @@ echo "     (or keep ssh — tmux alone still survives ssh drops, mosh just adds"
 echo "      seamless roaming on top)."
 if [ "$DO_AUTOATTACH" = "1" ]; then
     echo "  3. First login auto-attaches to session '$SESSION_NAME'. Detach with"
-    echo "     Ctrl-b d; re-attach manually with: tmux attach -t $SESSION_NAME"
+    echo "     Ctrl-a d; re-attach manually with: tmux attach -t $SESSION_NAME"
+    echo "     (prefix is C-a, remapped from C-b — IDE terminals grab C-b for sidebar)"
 else
     echo "  3. Auto-attach was skipped (--no-autoattach). Start tmux manually:"
     echo "       tmux new -s $SESSION_NAME"
