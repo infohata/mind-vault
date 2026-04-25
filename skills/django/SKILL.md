@@ -479,6 +479,40 @@ def test_error_message(self):
 
 Without this, tests pass locally but fail in CI when the container locale differs, or when translations are incomplete. See [references/TESTING.md](references/TESTING.md).
 
+### `verbose_name` discipline for AI-driven CRUD models
+
+When a model is exposed to an AI agent (via DRF + a tool harness — see `claude-api` skill / Anthropic-style tool use), the `verbose_name` of every field becomes part of the model's surface vocabulary visible to the agent through:
+
+- Form labels rendered into HTML the agent reads.
+- Django admin column headers.
+- `serializer.is_valid()` error messages echoed back into the agent's context.
+- Translation `.po` catalogues if the agent is multilingual.
+
+If `verbose_name` text drifts from the field name, the agent sees one vocabulary in labels and another in JSON keys. Result: hallucinated field names in tool-call payloads. Common shape:
+
+```python
+# DRIFT-PRONE — model has `contents` field but the human-friendly label says "Body":
+contents = models.TextField(verbose_name=_("Body"))
+```
+
+The agent reads "Body" in form labels + admin + error text and may emit `{"body": "..."}` in the next tool call. The DRF serializer's `Meta.fields = ['contents', ...]` then 400s because `body` isn't a registered key. Worse, the agent's failure-recovery loop may keep guessing variants (`text`, `description`, `body_text`) without ever finding `contents`.
+
+**The rule**: for any model that the AI can write to via tool calls, `verbose_name` text exact-matches the field name (capitalisation aside).
+
+```python
+# SAFE — label, JSON key, and field name align:
+contents = models.TextField(verbose_name=_("Contents"))
+notes = models.TextField(verbose_name=_("Notes"), blank=True)
+```
+
+Translations keep matching: lt → "Turinys" / "Pastabos", ru → "Содержание" / "Заметки", etc. — the per-language label tracks the canonical English term.
+
+**Exceptions that don't apply**: fields the AI never reads or writes (internal-only configuration, hidden audit fields, opaque foreign keys with `_id` suffix). For those, label freely.
+
+**Detection during code review**: grep the model file — for each `verbose_name=_("X")`, verify `X.lower().replace(' ', '_')` is the field name (modulo language). Mismatches are review fodder.
+
+Worked example — teisutis IDEA-127 collapsed `Article` / `Event` content fields. The Q5 decision picked `verbose_name=_("Contents")` and `verbose_name=_("Notes")` exactly because of this drift hazard; the alternative ("Body" / "Internal notes") was rejected on the same grounds. See [PR #371](https://github.com/infohata/teisutis/pull/371) for the field-by-field reasoning.
+
 ## When NOT to use these patterns
 
 - **Non-Django Python projects** (FastAPI, Flask, Starlette) — different idioms; the BaseModel / DRF / ORM patterns map poorly.
@@ -505,5 +539,5 @@ Without this, tests pass locally but fail in CI when the container locale differ
 - [Django REST Framework](https://www.django-rest-framework.org/)
 - [Django ORM Query Optimisation](https://docs.djangoproject.com/en/stable/topics/db/optimization/)
 
-**Last Updated**: 2026-04-17
-**Version**: 5.0
+**Last Updated**: 2026-04-25 — added "verbose_name discipline for AI-driven CRUD models" section under i18n; compounded from teisutis IDEA-127 Q5 decision ([PR #371](https://github.com/infohata/teisutis/pull/371)). Previous: 2026-04-17.
+**Version**: 5.1
