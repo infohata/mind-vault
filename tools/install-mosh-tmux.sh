@@ -297,21 +297,26 @@ if [ "$DO_TMUX_CONFIG" = "1" ]; then
         sed -i "/$BEGIN_MARK_RE/,/$END_MARK_RE/d" "$TMUX_CONF"
     fi
 
-    # Append the fresh managed block. HEREDOC is intentionally unquoted
-    # so $BEGIN_MARK and $END_MARK expand; the tmux config body happens
-    # to have no $-variables. If you add any tmux-format strings that
-    # contain literal $ (e.g. #{s/foo/$bar/}), escape them as \$ or
-    # switch to a single-quoted HEREDOC (<<'TMUXCONF') and inline the
-    # marker strings literally.
-    cat >> "$TMUX_CONF" <<TMUXCONF
-$BEGIN_MARK
+    # Append the fresh managed block. HEREDOC is single-quoted so the
+    # body is literal — tmux's `bind r ... \;` and `bind -n M-\\` patterns
+    # contain backslashes that would otherwise need double-escaping, and
+    # any future #{s/foo/$bar/} format string would need a `\$` workaround.
+    # The marker strings are inlined here; if you change BEGIN_MARK /
+    # END_MARK above, mirror the literals below.
+    cat >> "$TMUX_CONF" <<'TMUXCONF'
+# BEGIN mind-vault-mosh-tmux (managed by install-mosh-tmux.sh)
 # Minimal quality-of-life defaults. Anything outside the BEGIN/END block is
 # yours — this script will not touch it on re-runs.
 
+# --- Display ---
 # Colour + terminal compatibility (truecolor inside tmux, 256 outside).
 set -g default-terminal "tmux-256color"
 set -ga terminal-overrides ",xterm-256color:Tc,*256col*:Tc"
 
+# Focus events on — helps tools like vim detect lost focus.
+set -g focus-events on
+
+# --- Behaviour ---
 # Mouse: scroll + click-to-select-pane + drag-to-resize — make tmux
 # feel like the IDE terminal even on a flaky SSH link.
 set -g mouse on
@@ -323,22 +328,69 @@ set -g history-limit 50000
 # Fast Esc response (default 500ms breaks vim-style navigation in tools).
 set -g escape-time 10
 
-# Focus events on — helps tools like vim detect lost focus.
-set -g focus-events on
-
 # Start window + pane indices at 1 (0 is a pinky-stretch on most keyboards).
 set -g base-index 1
 setw -g pane-base-index 1
 
-# One-key config reload after tweaks.
-bind r source-file ~/.tmux.conf \\; display "tmux.conf reloaded"
+# --- Prefix ---
+# Remap prefix from C-b to C-a — IDE-embedded terminals (Antigravity,
+# VS Code, Cursor) grab C-b for the sidebar toggle. C-a was GNU screen's
+# default and most terminal users have muscle memory for it; the rare
+# conflict with bash readline's beginning-of-line is an acceptable trade
+# for terminal-IDE coexistence.
+unbind C-b
+set -g prefix C-a
+bind C-a send-prefix
 
+# One-key config reload after tweaks.
+bind r source-file ~/.tmux.conf \; display "tmux.conf reloaded"
+
+# --- Clipboard (mosh + IDE terminals) ---
+# Emit OSC 52 on every tmux copy so selections land in the host clipboard.
+# Modern terminals (Antigravity / Chromium-based xterm.js, iTerm2, kitty,
+# wezterm, recent gnome-terminal) honour OSC 52 and the sequence passes
+# through mosh unchanged. Mouse drag-select copies to the tmux buffer via
+# default bindings; with this on, it ALSO pushes to the host clipboard.
+# Hold Shift while dragging to bypass tmux entirely (native terminal copy).
+set -g set-clipboard on
+
+# --- Prefix-less splits + navigation (when the IDE eats prefix keys) ---
+# Alt is almost always passed through to the terminal by Electron-based IDEs.
+# Alt-\ splits vertical (new pane to the right), Alt-- splits horizontal.
+bind -n M-\\ split-window -h -c "#{pane_current_path}"
+bind -n M--  split-window -v -c "#{pane_current_path}"
+
+# Alt-h/j/k/l moves between panes without the prefix (vim-style).
+# (Antigravity intercepts Alt-Arrow for its own navigation; Alt+letter passes through.)
+bind -n M-h select-pane -L
+bind -n M-j select-pane -D
+bind -n M-k select-pane -U
+bind -n M-l select-pane -R
+
+# Alt-w closes the current pane (mirrors Ctrl-w-like tab-close in IDEs).
+bind -n M-w kill-pane
+
+# --- Right-click ---
+# Disable tmux's right-click menus — IDE terminals (Antigravity, VS Code)
+# fire their own menu on right-click at the same time, producing two
+# overlapping menus with no useful action. Unbinding tmux's leaves only
+# the IDE's menu.
+unbind -n MouseDown3Pane
+unbind -n MouseDown3Status
+unbind -n MouseDown3StatusLeft
+unbind -n MouseDown3StatusRight
+unbind -n M-MouseDown3Pane
+unbind -n M-MouseDown3Status
+unbind -n M-MouseDown3StatusLeft
+unbind -n M-MouseDown3StatusRight
+
+# --- Status bar ---
 # Minimal status bar — session name, hostname, ISO-ish clock.
 set -g status-style "bg=black,fg=cyan"
 set -g status-left  " [#S] "
 set -g status-right " #h · %Y-%m-%d %H:%M "
 set -g status-right-length 40
-$END_MARK
+# END mind-vault-mosh-tmux
 TMUXCONF
     chown "$TARGET_USER:" "$TMUX_CONF"
     echo "✅ $TMUX_CONF written."
