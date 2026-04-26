@@ -352,6 +352,7 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [HTMX Widgets](references/HTMX_WIDGETS.md) — autocomplete, file upload, colour/icon pickers
 - [Advanced Components](references/ADVANCED_COMPONENTS.md) — theme store, notifications, utilities
 - [HTMX Patterns](references/HTMX_PATTERNS.md) — detailed HTMX implementation patterns
+- [Vendoring JS Bundles](references/VENDORING_JS_BUNDLES.md) — vendor pre-built JS to `static/vendor/`, zero Node toolchain in CI/Docker; disposable container build for ESM-only libraries (precedent: EasyMDE; planned: TipTap)
 - [django](../django/SKILL.md) — backend pairing (BaseModel, DRF, ORM optimisation, permissions)
 - [surgical-tdd](../surgical-tdd/SKILL.md) — testing approach for Django apps
 - [`RULE_i18n-workflow`](../../rules/RULE_i18n-workflow.md) — translation hard rules
