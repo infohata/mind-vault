@@ -354,6 +354,59 @@ DATABASES = {
 
 For URL-encoded `DATABASE_URL` parsing and typed casting, use `django-environ` or `python-decouple` — see [references/DEVELOPMENT_WORKFLOW.md](references/DEVELOPMENT_WORKFLOW.md).
 
+### Env-driven allowlists / denylists as `frozenset`
+
+Allowlists and denylists (blocked MIME types, blocked file extensions, IP allowlists, feature flags keyed by tenant) want three properties at once:
+
+1. **Per-deployment override without a code change** — sysop changes the policy via env var.
+2. **O(1) membership lookup** at request-handling hot paths.
+3. **Immutability** so a request handler can't accidentally mutate the global set.
+
+`frozenset` parsed from a comma-separated env var with a sane default in code gives all three:
+
+```python
+# settings.py
+ATTACHMENT_BLOCKED_UPLOAD_MIMES = frozenset(filter(None, (
+    m.strip().lower() for m in os.getenv(
+        'ATTACHMENT_BLOCKED_UPLOAD_MIMES',
+        'application/x-msdownload,application/x-msdos-program,'
+        'application/vnd.microsoft.portable-executable,application/x-dosexec,'
+        'application/x-msi,application/x-executable,application/x-elf,'
+        'application/x-mach-binary,application/x-sh,application/x-shellscript,'
+        'application/java-archive'
+    ).split(',')
+)))
+ATTACHMENT_BLOCKED_UPLOAD_EXTENSIONS = frozenset(filter(None, (
+    e.strip().lower().lstrip('.') for e in os.getenv(
+        'ATTACHMENT_BLOCKED_UPLOAD_EXTENSIONS',
+        'exe,dll,msi,bat,com,scr,cpl,so,dylib,class,jar,war,ear'
+    ).split(',')
+)))
+```
+
+```python
+# usage
+def is_blocked(mime: str, filename: str) -> bool:
+    norm = (mime or '').split(';', 1)[0].strip().lower()
+    if norm and norm in settings.ATTACHMENT_BLOCKED_UPLOAD_MIMES:
+        return True
+    if filename and '.' in filename:
+        ext = filename.rsplit('.', 1)[-1].lower()
+        if ext and ext in settings.ATTACHMENT_BLOCKED_UPLOAD_EXTENSIONS:
+            return True
+    return False
+```
+
+Notes that earn their keep:
+
+- **Replace, not extend, semantics.** The env var **replaces** the default list, not extends it. Document this in `.env.template` next to the example so an operator who uncomments a partial example doesn't silently weaken the policy. The `.env.template` example must list the full default — not a subset.
+- **Normalise on read, not on write.** Lower-case + strip on the parse side, not at every call site. The hot path stays a clean `if x in settings.X`.
+- **`filter(None, ...)` drops empty strings** from trailing commas / accidental blank entries. Cheaper than re-validating each entry.
+- **`frozenset` (not `set`)** so accidental `.add()` / `.discard()` from request handlers raises immediately instead of mutating shared global state.
+- **Extensionless guard.** When checking by extension, gate on `'.' in filename` first — `'Makefile'.rsplit('.', 1)[-1]` returns `'Makefile'`, which can collide with denylist entries by sheer coincidence.
+
+When NOT to use: small-cardinality static lists that never need per-deployment override (use a literal `frozenset(...)` constant), or lists that need per-tenant override (use a model + cached lookup, not a settings constant).
+
 ### Docker-generated migrations — ownership bypass
 
 `docker compose exec web python manage.py makemigrations` creates files owned by `root` (the container user), blocking host-side edits and AI-agent rewrites. Chown from inside the container using the host's UID/GID:
@@ -513,6 +566,45 @@ Translations keep matching: lt → "Turinys" / "Pastabos", ru → "Содерж�
 
 Worked example — teisutis IDEA-127 collapsed `Article` / `Event` content fields. The Q5 decision picked `verbose_name=_("Contents")` and `verbose_name=_("Notes")` exactly because of this drift hazard; the alternative ("Body" / "Internal notes") was rejected on the same grounds. See [PR #371](https://github.com/infohata/teisutis/pull/371) for the field-by-field reasoning.
 
+### LLM output post-processing — strip-and-trust pattern
+
+When an LLM's system prompt asks for verbatim output (transcribe this audio, translate this string, summarise to one line), the model still occasionally hallucinates a preamble — `Here is the transcription:`, `The translation is:`, `Sure, here you go.` — even when the prompt explicitly forbids it. The prompt is the first line of defence; a regex post-strip on the response is the second.
+
+```python
+class AIService:
+
+    _TRANSCRIBE_PREAMBLE_RE = re.compile(
+        # Order matters — longest alternative first so ``Transcription`` is
+        # matched fully instead of stopping at ``Transcript``.
+        r'^(Here is the transcription|The transcription is|I have transcribed|Transcription|Transcript)[:\s]*',
+        re.IGNORECASE,
+    )
+
+    def _strip_transcript_preamble(self, text: str) -> str:
+        """Drop common LLM transcript preambles + outer matched quotes.
+
+        Defence-in-depth even when the system prompt forbids preambles —
+        models occasionally hallucinate "Here is the transcription:" anyway.
+        Idempotent and cheap enough to run on every transcription return.
+        """
+        if not text:
+            return ""
+        cleaned = self._TRANSCRIBE_PREAMBLE_RE.sub('', text).strip()
+        if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in ('"', "'"):
+            cleaned = cleaned[1:-1].strip()
+        return cleaned
+```
+
+Three trapdoors worth naming explicitly:
+
+1. **Regex alternation order — longest alternative first.** Python's `re` is leftmost-first, not longest-match: `(Transcript|Transcription)` matches `Transcript` from `Transcription:` and leaves `ion:` behind. Always order the alternation longest-first; a single unit test that asserts a known long-preamble shape strips entirely catches reorder regressions.
+2. **Idempotent + cheap.** The function should be safe to call on already-clean output (no preamble = pass-through) and should not allocate per call beyond the regex match. Compile the regex once at class scope.
+3. **Outer matched quotes.** Models often wrap the verbatim payload in quotes that weren't in the source. Strip them after the preamble strip — only when both ends match (`"foo"` → `foo`, `"foo'` stays `"foo'`).
+
+Pair this pattern with a per-message resource cap when the LLM accepts attachments — the prompt asks for one transcript, but a buggy upload UI could submit twenty audio clips and the model will dutifully transcribe all of them, blowing the token budget. Enforce the cap at the WebSocket consumer / view layer (where `request.user` and the org are visible), not deeper — input validation belongs at the boundary.
+
+When NOT to use: free-form generation tasks (chat replies, brainstorming) where the preamble IS legitimate output. Strip-and-trust is for verbatim-output tasks specifically.
+
 ## When NOT to use these patterns
 
 - **Non-Django Python projects** (FastAPI, Flask, Starlette) — different idioms; the BaseModel / DRF / ORM patterns map poorly.
@@ -539,5 +631,5 @@ Worked example — teisutis IDEA-127 collapsed `Article` / `Event` content field
 - [Django REST Framework](https://www.django-rest-framework.org/)
 - [Django ORM Query Optimisation](https://docs.djangoproject.com/en/stable/topics/db/optimization/)
 
-**Last Updated**: 2026-04-25 — added "verbose_name discipline for AI-driven CRUD models" section under i18n; compounded from teisutis IDEA-127 Q5 decision ([PR #371](https://github.com/infohata/teisutis/pull/371)). Previous: 2026-04-17.
-**Version**: 5.1
+**Last Updated**: 2026-04-26 — added "Env-driven allowlists / denylists as `frozenset`" under Settings (compounded from teisutis IDEA-126 [PR #377](https://github.com/infohata/teisutis/pull/377)) and "LLM output post-processing — strip-and-trust pattern" under AI patterns (compounded from teisutis IDEA-125 [PR #376](https://github.com/infohata/teisutis/pull/376) — regex alternation longest-first as the primary trapdoor). Previous: 2026-04-25.
+**Version**: 5.2
