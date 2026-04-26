@@ -601,7 +601,7 @@ Three trapdoors worth naming explicitly:
 2. **Idempotent + cheap.** The function should be safe to call on already-clean output (no preamble = pass-through) and should not allocate per call beyond the regex match. Compile the regex once at class scope.
 3. **Outer matched quotes.** Models often wrap the verbatim payload in quotes that weren't in the source. Strip them after the preamble strip — only when both ends match (`"foo"` → `foo`, `"foo'` stays `"foo'`).
 
-Pair this pattern with a per-message resource cap when the LLM accepts attachments — the prompt asks for one transcript, but a buggy upload UI could submit twenty audio clips and the model will dutifully transcribe all of them, blowing the token budget. Enforce the cap at the WebSocket consumer / view layer (where `request.user` and the org are visible), not deeper — input validation belongs at the boundary.
+Pair this pattern with a per-message resource cap when the LLM accepts attachments — the prompt asks for one transcript, but a buggy upload UI could submit twenty audio clips and the model will dutifully transcribe all of them, blowing the token budget. Enforce the cap at the WebSocket consumer / view layer (where `request.user` and the org are visible), not deeper — input validation belongs at the boundary. See [references/ASYNC_WEBSOCKET.md § Per-Message Resource Caps](references/ASYNC_WEBSOCKET.md#per-message-resource-caps) for the consumer-side pattern.
 
 When NOT to use: free-form generation tasks (chat replies, brainstorming) where the preamble IS legitimate output. Strip-and-trust is for verbatim-output tasks specifically.
 
@@ -631,5 +631,5 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [Django REST Framework](https://www.django-rest-framework.org/)
 - [Django ORM Query Optimisation](https://docs.djangoproject.com/en/stable/topics/db/optimization/)
 
-**Last Updated**: 2026-04-26 — added "Env-driven allowlists / denylists as `frozenset`" under Settings (compounded from teisutis IDEA-126 [PR #377](https://github.com/infohata/teisutis/pull/377)) and "LLM output post-processing — strip-and-trust pattern" under AI patterns (compounded from teisutis IDEA-125 [PR #376](https://github.com/infohata/teisutis/pull/376) — regex alternation longest-first as the primary trapdoor). Previous: 2026-04-25.
-**Version**: 5.2
+**Last Updated**: 2026-04-26 — added "Env-driven allowlists / denylists as `frozenset`" under Settings (compounded from teisutis IDEA-126 [PR #377](https://github.com/infohata/teisutis/pull/377)), "LLM output post-processing — strip-and-trust pattern" under AI patterns (compounded from teisutis IDEA-125 [PR #376](https://github.com/infohata/teisutis/pull/376) — regex alternation longest-first as the primary trapdoor), and "Per-Message Resource Caps" in [references/ASYNC_WEBSOCKET.md](references/ASYNC_WEBSOCKET.md) covering the Channels-specific consumer-boundary cap pattern that pairs with the LLM post-strip. Previous: 2026-04-25.
+**Version**: 5.3
