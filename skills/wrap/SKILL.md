@@ -1,6 +1,6 @@
 ---
 name: wrap
-description: Documentation sweep — flip idea frontmatter to complete, re-sort the ideas index, append a devlog entry, and scan project docs (guides, reference, README) for references that need updating. Default is PRE-merge on the feature branch so merge lands the final docs state in one shot; post-merge fallback handles PRs that shipped without a wrap. Destructive worktree/volume teardown is strictly post-merge. Runs between /bugbot-loop's pass 1 (deliverables) and pass 2 (docs) in sprint-auto mode.
+description: Documentation sweep — flip idea frontmatter to complete, re-sort the ideas index, append a devlog entry, and scan project docs (guides, reference, README) for references that need updating. Default is PRE-merge on the feature branch so merge lands the final docs state in one shot; post-merge fallback handles PRs that shipped without a wrap. Destructive worktree/volume teardown is strictly post-merge — extended in v3.1 sprint-auto mode to detect last-of-batch and tear down the integration worktree + branch. New --scope=idea-only mode narrows the wrap to frontmatter + downstream-docs only (devlog + ideas-index deferred to sprint-auto's batch wrap on the integration branch); used by sprint-auto S5 to eliminate the structural N-way line-conflict on devlog/index that every parallel /wrap produces. Runs between /bugbot-loop's pass 1 (deliverables) and pass 2 (docs) in sprint-auto mode.
 license: MIT
 metadata:
   author: mind-vault
@@ -15,7 +15,11 @@ The sprint-workflow step that closes the loop from code-shipped back to docs-coh
 
 **Post-merge is the fallback.** If a PR landed without a wrap pass (human merged directly, wrap was forgotten, a hotfix went in on the fly), invoking `/wrap NNN` after the fact creates a small `docs/idea-NNN-wrap` branch with the same outputs and opens a cleanup PR. The skill auto-detects PR state (`gh pr view <N> --json state`) and branches accordingly.
 
-**Destructive worktree teardown** (`docker compose down -v` removing volumes, `git worktree remove`, `git branch -d`) is *always* post-merge — the worktree's diagnostic value is only fully spent once the PR is in. Non-destructive container shutdown (`docker compose down` keeping volumes) can run pre-merge and is handled by `/sprint-auto`'s S5 teardown step; see the sprint-auto skill for that contract.
+**Destructive worktree teardown** (`docker compose down -v` removing volumes, `git worktree remove`, `git branch -d`) is *always* post-merge — the worktree's diagnostic value is only fully spent once the PR is in. Non-destructive container shutdown (`docker compose down` keeping volumes) on the integration worktree happens in `/sprint-auto`'s S11.13 step; see the sprint-auto skill for that contract.
+
+**`--scope=idea-only` mode (v3.1 sprint-auto)** narrows the wrap to per-IDEA-local work (frontmatter flip + downstream-docs scan); skips ideas-index re-sort and devlog entry append. Used at sprint-auto's S5 to defer those batch-wide writes to S11.7's batch wrap on the integration branch — eliminates the N-way line-conflict that every parallel `/wrap` would otherwise produce on `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md` and `docs/ideas/README.md`. Outside sprint-auto, the flag has no effect (the conflict only arises with parallel branches).
+
+**Last-of-batch integration cleanup (v3.1 sprint-auto post-merge)**: when `/wrap NNN` post-merge detects the IDEA was part of a sprint-auto batch AND no other `auto/<batch-mate-slug>` worktrees still exist locally (i.e. the human has merged + wrapped them all), Step 5 additionally tears down the integration worktree + branch. See Step 5 § "Last-of-batch integration cleanup" below.
 
 ## When to use
 
@@ -35,6 +39,29 @@ The sprint-workflow step that closes the loop from code-shipped back to docs-coh
 ## Pattern
 
 Six steps in order. Most are guards — skip silently if the state is already correct. The skill is safe to re-run; it produces the same final state regardless of which steps an earlier run completed.
+
+### Scope detection (alongside mode detection)
+
+Before any step, parse the `--scope=idea-only` flag (or its alias `--no-batch-writes` if encountered):
+
+```bash
+SCOPE_IDEA_ONLY=false
+for arg in "$@"; do
+    case "$arg" in
+        --scope=idea-only|--no-batch-writes) SCOPE_IDEA_ONLY=true ;;
+    esac
+done
+```
+
+When `SCOPE_IDEA_ONLY=true`:
+- Step 1 (Resolve idea): RUN
+- Step 2 (Frontmatter flip): RUN
+- Step 3 (Re-sort ideas index): **SKIP** — deferred to sprint-auto S11.7 batch wrap on integration branch
+- Step 4 (Devlog entry): **SKIP** — deferred to sprint-auto S11.7
+- Step 5 (Worktree teardown): RUN (per usual mode-detection rules — post-merge only)
+- Step 6 (Downstream docs scan): RUN
+
+The flag is a no-op outside sprint-auto context (manual `/wrap NNN` invocations don't need it; the parallel-conflict problem only arises when N branches' `/wrap`s collide).
 
 ### Mode detection (first action each invocation)
 
@@ -216,6 +243,54 @@ Only after every untracked/modified path has been explicitly classified and hand
 
 In `sprint-auto` mode, teardown remains **deferred**: per the sprint-auto skill, worktrees stay up for morning review. The `/wrap` reminder block in the sprint-auto batch summary now includes teardown as a post-review action per IDEA, same list as the frontmatter flip.
 
+#### Last-of-batch integration cleanup (v3.1 sprint-auto post-merge)
+
+When `/wrap NNN` runs post-merge and the IDEA was part of a sprint-auto v3.1 batch, additionally tear down the **integration worktree + branch** if this is the last-of-batch IDEA. Detection:
+
+```bash
+# 1. Was this IDEA part of a sprint-auto batch? Check the per-IDEA archive
+#    dir for an auto-run-YYYY-MM-DD.md log with a batch_iso reference.
+batch_iso=$(grep -hoP 'sprint_auto_integration_worktree:.*-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z)' \
+    "<project>/docs/archive/<YYYY-MM-idea-NNN-slug>/auto-run-"*.md \
+    | head -1 | grep -oP '\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z')
+[[ -n "$batch_iso" ]] || return 0  # not a sprint-auto v3.1 batch
+
+# 2. Are there other batch-mate worktrees still on disk?
+#    Sprint-auto's batch-mate worktrees share the integration_worktree_path
+#    in their auto-run logs, OR equivalently their auto/<slug> branches all
+#    point at commits that include the same integration/sprint-auto-<batch-iso>
+#    branch. Cheaper detection: enumerate existing local auto/* worktrees,
+#    check each one's auto-run log for the same batch_iso.
+remaining=0
+for wt in $(git worktree list --porcelain | awk '/^worktree /{print $2}' | grep -E '/<project>-auto-[^/]+$' | grep -v '/<project>-auto-integration-'); do
+    other_log=$(find "$wt/docs/archive" -name 'auto-run-*.md' 2>/dev/null | head -1)
+    [[ -z "$other_log" ]] && continue
+    grep -q "$batch_iso" "$other_log" 2>/dev/null && (( remaining++ ))
+done
+
+# 3. If this is the last-of-batch (remaining == 0 after teardown of THIS worktree),
+#    tear down the integration worktree too.
+if (( remaining == 0 )); then
+    integration_path="$HOME/projects/<project>-auto-integration-${batch_iso}"
+    if [[ -d "$integration_path" ]]; then
+        cd "$integration_path"
+        docker compose down -v 2>/dev/null || true
+        cd -
+        git worktree remove "$integration_path" 2>/dev/null \
+            || log_warn "git worktree remove $integration_path failed; manual cleanup needed"
+        git branch -d "integration/sprint-auto-${batch_iso}" 2>/dev/null \
+            || log_warn "git branch -d integration/sprint-auto-${batch_iso} failed (unmerged?); use -D after confirming"
+        # Optional: also delete the remote integration branch
+        git push origin --delete "integration/sprint-auto-${batch_iso}" 2>/dev/null || true
+        echo "Last-of-batch integration cleanup complete: removed worktree + branch + volumes for batch ${batch_iso}"
+    fi
+fi
+```
+
+The detection is **conservative**: if any sibling `auto/<batch-mate-slug>` worktree is still on disk, we don't tear down the integration worktree. The reviewer is presumed to still be working through the batch's PRs in some order.
+
+When this firing fails (network down for remote-branch delete, the integration worktree was manually moved, etc.): log the failure, continue with the per-IDEA wrap normally. The integration worktree's leftover state is recoverable by hand and isn't a blocker for completing this IDEA's wrap.
+
 ### Step 6 — Downstream docs scan
 
 The highest-value and most-skipped step. Everything that referenced the pre-merge state may now be stale. Grep is the workhorse.
@@ -250,7 +325,7 @@ Commit the documentation edits on the same branch that carries the IDEA-completi
 - **Never skip Step 6** just because it reports zero findings — the grep itself is the value; its output is the audit trail.
 - **Never auto-patch architectural docs** (reference `/architecture.md`, high-level guides). Human review required; list findings, let the author decide.
 - **Documentation catch-up is wrap-scope, never new-IDEA.** If a pattern exists in code but has no docs, the wrap pass that surfaces the gap is where it gets documented — not a future IDEA, not a separate PR. "Document existing thing" tickets never ship; wrap's docs-pass bugbot review is what keeps the project's reference material honest.
-- **In `sprint-auto` mode** (unattended orchestrator): the wrap runs as sprint-auto's `/wrap-docs` step between the two bugbot passes. Steps 1–4 + 6 commit onto the `auto/<slug>` branch; the second bugbot pass reviews those commits against the codebase; Step 5 stays deferred to the morning-review `/wrap` invocation after merge.
+- **In `sprint-auto` mode** (unattended orchestrator): the wrap runs as sprint-auto's S5 step between the two bugbot passes, invoked with `--scope=idea-only`. Steps 1, 2, 6 commit onto the `auto/<slug>` branch; the second bugbot pass reviews those commits against the codebase; Steps 3 + 4 are deferred to sprint-auto's S11.7 batch wrap on the integration branch (eliminates the structural N-way line-conflict every parallel `/wrap` would otherwise produce); Step 5 stays deferred to the morning-review `/wrap NNN` invocation after merge — including the v3.1 last-of-batch integration worktree cleanup when applicable.
 - **Don't merge** — every `/wrap` output is on a branch; the human merges it (same HITL gate as `/work`'s feature branch).
 
 ## When NOT to use these patterns
@@ -267,4 +342,6 @@ Commit the documentation edits on the same branch that carries the IDEA-completi
 
 ---
 
-**Last Updated**: 2026-04-22 — reframed pre-merge-is-default (was post-merge-only), added mode-detection preamble, pinned destructive teardown to post-merge, added the "documentation catch-up is wrap-scope, never new-IDEA" rule to Step 6 and Interaction rules. Compounded from teisutis PRs [#338](https://github.com/infohata/teisutis/pull/338) (sprint-auto IDEA-061 dogfood — the run that exposed the stale-on-main window) and [#340](https://github.com/infohata/teisutis/pull/340) (post-merge wrap follow-up that shouldn't have been needed).
+**Last Updated**: 2026-04-27 — added `--scope=idea-only` flag for sprint-auto v3.1 (Steps 3 + 4 skipped; deferred to sprint-auto's S11.7 batch wrap on the integration branch — eliminates the structural N-way line-conflict every parallel `/wrap` produces on devlog/index lines). Added scope-detection preamble alongside mode-detection. Step 5 extended with last-of-batch integration cleanup (detection via auto-run log's `sprint_auto_integration_worktree` field; conditional teardown of integration worktree + branch + volumes when no batch-mate `auto/<slug>` worktrees remain). Interaction rule updated to reflect S5 + S11.7 split. See PR #76's `IDEA_integration_branch.md` v3.1 for the full design context.
+
+**Previous**: 2026-04-22 — reframed pre-merge-is-default (was post-merge-only), added mode-detection preamble, pinned destructive teardown to post-merge, added the "documentation catch-up is wrap-scope, never new-IDEA" rule to Step 6 and Interaction rules. Compounded from teisutis PRs [#338](https://github.com/infohata/teisutis/pull/338) (sprint-auto IDEA-061 dogfood — the run that exposed the stale-on-main window) and [#340](https://github.com/infohata/teisutis/pull/340) (post-merge wrap follow-up that shouldn't have been needed).
