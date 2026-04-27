@@ -265,6 +265,104 @@ rg "functionName\(" static/
 
 Remove callers before removers. Silent function deletes are a common AI-refactor regression.
 
+### Audio playback feature-detection — `<audio>` `error` event, not `canPlayType`
+
+`HTMLMediaElement.canPlayType(mime)` returns one of `''`, `'maybe'`, `'probably'`. With a **bare MIME** (no codec parameters — e.g. `audio/webm`, `audio/ogg`), browsers disagree on what `'maybe'` means: Safari treats `'maybe'` as "I might fail to decode this", Chrome and Firefox treat it as "I will probably play this." Pick either interpretation and you false-negative on the other set of browsers. The teisutis IDEA-124 audio-playback fallback oscillated through four bugbot cycles trying to land a `canPlayType` thresholding rule that worked everywhere; none of them did.
+
+Replace feature-detection with **the actual decode result** via the `<audio>` element's native `error` event:
+
+```html
+<div x-data="{ failed: false }">
+    <audio controls preload="metadata"
+           src="{{ url }}"
+           x-show="!failed"
+           @error="failed = true"></audio>
+    <a x-show="failed" x-cloak href="{{ url }}" download>{% trans "Download to play" %}</a>
+</div>
+```
+
+The browser tries to decode; if it can't, it fires `error`; the listener flips state and the fallback link replaces the player. No browser-difference guessing, no per-MIME thresholding, no oscillation between cycles.
+
+For JS-rendered audio attachments use the same shape with `addEventListener('error', ..., { once: true })` and replace the `<audio>` element with a fallback `<a>` in the handler. Mirror the template partial's DOM shape exactly so live-echo and refresh produce identical chips.
+
+When NOT to use: codec-aware probes (`audio/webm; codecs="opus"`) where `canPlayType` is reliable because the codec is fully specified. The trap is bare MIMEs only.
+
+### Alpine.js reactivity — reassign objects, don't `delete` keys
+
+Alpine wraps `x-data` state in a Proxy. Mutations the Proxy intercepts (`obj.foo = bar`, array `push` / `splice`) trigger reactive updates; mutations it cannot intercept (`delete obj[key]`, raw `Map.delete`) silently fail to fire reactive bindings. A getter that reads `Object.keys(obj).length` will return the correct number on the next access — but `x-show` / `:disabled` bindings derived from that getter will not re-evaluate, so the UI freezes in the pre-delete state until something else triggers a render.
+
+Symptom: a derived flag (e.g. `get transcribing() { return Object.keys(this.controllers).length > 0; }`) stays `true` forever after the last in-flight controller is removed; UI stays disabled.
+
+Fix: rebuild and reassign the whole object instead of deleting a key:
+
+```javascript
+// ❌ delete — Proxy doesn't fire, dependent getters look stuck
+delete this.controllers[id];
+
+// ✅ reassign — Proxy fires; getters re-evaluate
+const next = {};
+for (const key in this.controllers) {
+    if (key !== String(id)) {
+        next[key] = this.controllers[key];
+    }
+}
+this.controllers = next;
+```
+
+Same trap applies anywhere Alpine derives reactive state from object identity rather than the values themselves: `x-for` keyed by `obj`, computed getters over `Object.keys`/`Object.values`/`Object.entries`. When in doubt, treat Alpine state objects as immutable from the outside — clone and reassign rather than mutate-in-place.
+
+### Animation loops — pause `requestAnimationFrame` on `visibilitychange`
+
+A `requestAnimationFrame` loop fed off audio analyser data (or canvas charts, scroll effects, anything continuous) keeps doing the work even when the tab is backgrounded. Modern browsers reduce rAF tick rate on hidden tabs but do not pause arbitrary work on the listener side, and analyser nodes / WebSocket subscriptions / camera streams keep producing data. Result: drained battery on mobile, hot fans on laptops.
+
+Wire a `visibilitychange` listener that suspends and resumes the loop in lockstep with tab visibility:
+
+```javascript
+this.rafId = window.requestAnimationFrame(renderFrame);
+
+this._visibilityHandler = () => {
+    if (document.visibilityState === 'hidden') {
+        if (this.rafId) {
+            window.cancelAnimationFrame(this.rafId);
+            this.rafId = null;
+        }
+    } else if (!this.rafId && this.analyser) {
+        this.rafId = window.requestAnimationFrame(renderFrame);
+    }
+};
+document.addEventListener('visibilitychange', this._visibilityHandler);
+```
+
+On teardown remove the listener (`document.removeEventListener('visibilitychange', this._visibilityHandler)`) before disconnecting the source — orphan listeners keep references alive and prevent the audio context / analyser from being garbage-collected.
+
+Pair with: `audioContext.close()` returning a Promise — wrap in `.catch(() => {})` because `close()` rejects when already closed (e.g. fast stop-then-stop) and an unhandled rejection from a teardown path will surface in production logs.
+
+### Server template + JS render-helper sharing a DOM shape
+
+When the same UI element is rendered both server-side (Django partial — first paint, history reload) and client-side (JS `renderXxx(item)` helper — live append, optimistic echo), the two render paths are a contract: any change to the partial's DOM must land in the JS helper in the same commit, and vice versa. Drift between them shows up at runtime as "the chip looks different after refresh than it did when it was just sent" — visible to users, not caught by tests unless you specifically assert DOM equality.
+
+Concrete shape: write a one-line "mirror partner" docstring at the top of each side pointing at the other:
+
+```django
+{# Mirror partner (live-echo path):
+ #     web/<app>/static/<app>/js/chat.js :: renderAudioAttachment(att)
+ # Both sides share the same DOM contract — keep them in lockstep.
+ #}
+```
+
+```javascript
+/**
+ * Mirror of templates/partials/_audio_attachment.html.
+ * Same DOM shape, same Alpine bindings, same fallback behaviour.
+ * Edits land here AND in the partial; tests assert both produce identical chips.
+ */
+function renderAudioAttachment(att) { ... }
+```
+
+Tests: render both sides with the same input and `assertEqual` on the result, OR snapshot the partial output and assert the JS helper's `outerHTML` matches. The drift-detection test is the load-bearing piece — if the contract is invisible to CI, it will rot.
+
+When NOT to apply: one-direction-only renderers (server-only partial, or JS-only client-side helper for a feature that doesn't refresh-survive). The pattern is for the both-paths case specifically.
+
 ## Bulma template standards
 
 Compact reference for consistency across projects. Full discussion in [references/ADVANCED_COMPONENTS.md](references/ADVANCED_COMPONENTS.md).
@@ -361,5 +459,5 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [Bulma CSS Documentation](https://bulma.io/documentation/)
 - [Django Crispy Forms](https://django-crispy-forms.readthedocs.io/)
 
-**Last Updated**: 2026-04-17
-**Version**: 2.0
+**Last Updated**: 2026-04-26 — added four "Pattern" sections compounded from teisutis sprint-auto batch 2026-04-26 ([PRs #375, #376, #379](https://github.com/infohata/teisutis/pull/375)): `<audio>` `error` event over `canPlayType` for browser-portable playback fallback (IDEA-124); Alpine.js reactivity reassign-vs-delete (IDEA-125); `requestAnimationFrame` + `visibilitychange` battery hygiene (IDEA-129); server-template + JS-render-helper shared DOM shape contract (IDEA-124). Previous: 2026-04-17.
+**Version**: 2.1

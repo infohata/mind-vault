@@ -412,3 +412,44 @@ async def receive(self, text_data):
     except Exception as exc:
         await self.send(json.dumps({'error': 'Processing failed'}))
 ```
+
+## Per-Message Resource Caps
+
+When a WebSocket message accepts client-supplied lists (attachments, tool calls, batched events) and feeds them into a paid downstream — LLM tokens, transcription minutes, third-party API quota — the consumer is the right place to enforce the cap. Clients can submit lists of any length; the model / service will dutifully process all of them; the bill arrives later.
+
+The boundary rule: validate at the consumer (where `request.user`, `org`, and `client_ip` are visible), not deeper. Models, serializers, and tool executors are too far inside — by the time a list reaches them you've already paid for the iteration.
+
+```python
+# settings.py — env-overridable, frozen, documented
+AI_MAX_ATTACHMENTS_PER_MESSAGE = int(os.getenv('AI_MAX_ATTACHMENTS_PER_MESSAGE', '5'))
+```
+
+```python
+# consumer
+class ChatConsumer(AsyncJsonWebsocketConsumer):
+
+    async def receive_json(self, content, **kwargs):
+        attachment_ids = content.get('attachment_ids') or []
+
+        # Cap before any DB / model / LLM work.
+        if len(attachment_ids) > settings.AI_MAX_ATTACHMENTS_PER_MESSAGE:
+            await self.send_json({
+                'type': 'error',
+                'error': 'TOO_MANY_ATTACHMENTS',
+                'limit': settings.AI_MAX_ATTACHMENTS_PER_MESSAGE,
+                'received': len(attachment_ids),
+            })
+            return  # do NOT proceed to the LLM call
+
+        # ... normal flow
+```
+
+Three reasons the cap belongs here, not at the model layer:
+
+1. **Cost control happens before the spend.** Validating after the LLM call has already streamed tokens means the user is billed for the over-cap request. The cap is preventive, not corrective.
+2. **The `org` / `user` / `client_ip` context is right here.** Per-tenant or per-user overrides (a paid tier that allows 20 attachments while free is capped at 5) are a one-line lookup at the consumer; pushed deeper, every internal helper would need to know about plan tier.
+3. **Failure mode is surface-able.** A consumer-level rejection sends a structured error frame the JS client can render as a UX message ("you can attach up to 5 files per message"); a model-level `ValidationError` raised three layers in surfaces as a generic 500 or a swallowed exception.
+
+For HTTP endpoints (DRF views), apply the same rule: cap in the view's `validate()` / `clean()` / `perform_create` *before* calling out to the LLM client. The principle is shape-of-input check at the boundary, not after the spend.
+
+Pairs with: env-driven settings parsed once into typed values (see [django/SKILL.md → Env-driven allowlists / denylists as `frozenset`](../SKILL.md)) and LLM output post-processing (see [django/SKILL.md → LLM output post-processing — strip-and-trust pattern](../SKILL.md)) — three pieces of the same hot-path discipline: cap input at the boundary, post-strip the output, frozen settings so the policy can't drift mid-request.
