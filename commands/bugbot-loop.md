@@ -118,8 +118,11 @@ if [[ -n "${SPRINT_AUTO_INTEGRATION_WORKTREE:-}" ]]; then
     # mid-cycle. The cleanest contract for v1 of v3.1: just bind-mount or
     # rsync the per-IDEA worktree's source into the integration worktree's
     # web container — most projects already do this via docker compose's
-    # volume mount, so `cd $integration_wt && git checkout <branch>` after
-    # any commits in Phase 3 is sufficient for the post-Phase-3 retest.
+    # volume mount, so `cd $integration_wt && git fetch origin <branch> &&
+    # git checkout --detach origin/<branch>` (NOT plain `git checkout
+    # <branch>` — that errors with "already checked out" because the
+    # per-IDEA worktree claims the branch ref) after any commits in Phase 3
+    # is sufficient for the post-Phase-3 retest.
     #
     # Until Phase 3 commits, run the targeted test using the per-IDEA
     # worktree's source by bind-mounting it into the integration worktree's

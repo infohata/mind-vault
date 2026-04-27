@@ -49,7 +49,7 @@ Three skills detect it and reroute their verification step:
 
 ### `/work` (S2)
 
-Default behaviour: run `pytest` against the current worktree's stack. Sprint-auto override: `cd $SPRINT_AUTO_INTEGRATION_WORKTREE && git checkout auto/<slug> && docker compose up -d --force-recreate web celery && pytest <targeted paths>`.
+Default behaviour: run `pytest` against the current worktree's stack. Sprint-auto override: `cd $SPRINT_AUTO_INTEGRATION_WORKTREE && git fetch origin auto/<slug> && git checkout --detach origin/auto/<slug> && docker compose up -d --force-recreate web celery && pytest <targeted paths>`. The `--detach` is required: `auto/<slug>` is already checked out in the per-IDEA worktree, and git refuses to claim the same branch ref in two worktrees. Detaching reads the commits without claiming the ref — exactly what verification needs (no commits happen in the integration worktree).
 
 The `--force-recreate web celery` refreshes the Python services with the per-IDEA branch's mounted code. Stateful services (db, redis, minio, elasticsearch) keep their state from the IDEA-entry reset — no need to recreate them.
 
@@ -193,13 +193,20 @@ Then `gh pr close <N>`. The PR closes without merging; the comment is the audit 
 
 ## Forward-sync (S11.11) — propagate back to per-PR PRs
 
-After S11.10 clears (or caps), each `auto/<slug>` branch needs the integration's resolutions and batch-wrap commits propagated back, so each per-PR PR merges cleanly to main:
+After S11.10 clears (or caps), each `auto/<slug>` branch needs the integration's resolutions and batch-wrap commits propagated back, so each per-PR PR merges cleanly to main.
+
+**Run the merge inside the per-IDEA worktree, NOT the integration worktree.** Reason: `auto/<slug>` is already checked out in `<project>-auto-<slug>/`, and git refuses to claim the same branch ref in two worktrees. The integration worktree pushes the integration branch first; per-IDEA worktrees fetch + merge from there.
 
 ```bash
+# Step 1 — integration worktree pushes its branch so per-IDEA worktrees can fetch.
+cd "$SPRINT_AUTO_INTEGRATION_WORKTREE"
+git push origin "integration/sprint-auto-<batch-iso>"
+
+# Step 2 — for each per-IDEA branch, run merge inside its OWN worktree.
 for slug in $batch_slugs; do
-    cd "$SPRINT_AUTO_INTEGRATION_WORKTREE"  # any worktree works; using integration's
-    git checkout "auto/$slug"
-    git merge --no-ff "integration/sprint-auto-<batch-iso>" \
+    cd "$HOME/projects/<project>-auto-${slug}"  # the per-IDEA worktree (auto/<slug> is checked out here)
+    git fetch origin "integration/sprint-auto-<batch-iso>"
+    git merge --no-ff "origin/integration/sprint-auto-<batch-iso>" \
         -m "merge: forward-sync from integration/sprint-auto-<batch-iso>"
     git push origin "auto/$slug"
 done
@@ -213,7 +220,7 @@ done
 
 After forward-sync, each per-PR PR's head is a new SHA. GitHub auto-fires Cursor Bugbot when the head moves; sprint-auto invokes `/bugbot-loop <per-PR PR>` to drive the review-fix-rerun cycle.
 
-Verification routes to the integration worktree as in S2/S3 — `git checkout auto/<slug>`, reset DB, run targeted tests one final time. Cap **5 attempts** per PR. Most clean-signal immediately because the new commits are wrap + resolutions, not deliverables work.
+Verification routes to the integration worktree as in S2/S3 — `cd $SPRINT_AUTO_INTEGRATION_WORKTREE && git fetch origin auto/<slug> && git checkout --detach origin/auto/<slug>` (post-forward-sync state; `--detach` because the per-IDEA worktree still claims the branch ref), reset DB, run targeted tests one final time. Cap **5 attempts** per PR. Most clean-signal immediately because the new commits are wrap + resolutions, not deliverables work.
 
 ## Integration teardown (S11.13)
 

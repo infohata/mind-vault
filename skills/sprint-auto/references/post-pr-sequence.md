@@ -39,7 +39,10 @@ Full state machine for the sprint-auto loop: pre-batch (S(-1)), per-IDEA (S0–S
 │      - migrate + seed (post_up_init from hooks)                              │
 │      ↓                                                                       │
 │ S2  /work — verification routes to integration worktree                      │
-│      - cd $SPRINT_AUTO_INTEGRATION_WORKTREE && git checkout auto/<slug>     │
+│      - cd $SPRINT_AUTO_INTEGRATION_WORKTREE && git fetch origin auto/<slug> │
+│        && git checkout --detach origin/auto/<slug> (--detach: per-IDEA      │
+│        worktree already has the branch checked out; cross-worktree branch   │
+│        collision otherwise)                                                  │
 │      - docker compose up -d --force-recreate web celery (refresh code)      │
 │      - run targeted tests                                                    │
 │      │                                                                       │
@@ -115,8 +118,13 @@ After all per-IDEA loops complete:
 │        - /bugbot-loop <draft-pr-number>                                      │
 │      ↓                                                                       │
 │ S11.11 Forward-sync integration into each auto/<slug>                        │
-│        - foreach slug: git checkout auto/<slug> && git merge --no-ff        │
-│          integration/sprint-auto-<batch-iso> && git push origin auto/<slug> │
+│        - integration worktree pushes integration/sprint-auto-<batch-iso>    │
+│        - foreach slug: cd PER-IDEA worktree (auto/<slug> already checked    │
+│          out there) && git fetch origin && git merge --no-ff                │
+│          origin/integration/sprint-auto-<batch-iso> && git push origin      │
+│          auto/<slug>                                                         │
+│        - merge runs in per-IDEA worktree to avoid cross-worktree branch     │
+│          collision (cannot check out auto/<slug> in integration worktree)   │
 │        - feature-branch tip moves; integration branch stays put             │
 │        - NO force-push; RULE_git-safety compliant                           │
 │      ↓                                                                       │
@@ -264,7 +272,9 @@ Wall-clock: ~5 min depending on seed size. This is the per-IDEA reset that makes
 ```bash
 cd "$SPRINT_AUTO_INTEGRATION_WORKTREE"
 git fetch origin "auto/<slug>"
-git checkout "auto/<slug>"
+git checkout --detach "origin/auto/<slug>"   # --detach: per-IDEA worktree
+                                              # already has the branch ref;
+                                              # claiming it twice errors out
 docker compose up -d --force-recreate web celery  # refresh mounted code
 # Run targeted tests as listed in the plan's Verification section
 docker compose exec -T web pytest <targeted paths>
@@ -388,9 +398,25 @@ Cap **20** attempts. Same escalation discipline as S4.
 
 Per `RULE_git-safety`: forward-sync = merging integration branch INTO each `auto/<slug>`. The feature branch tip moves; the integration branch stays put. No force-push. PR auto-updates on push.
 
+**Run inside the per-IDEA worktree, not the integration worktree.** Reason: `auto/<slug>` is already checked out in `<project>-auto-<slug>/`, and git refuses to claim the same branch ref in two worktrees. The integration worktree pushes its branch first; per-IDEA worktrees fetch and merge from there:
+
+```bash
+# integration worktree → push its branch
+cd "$SPRINT_AUTO_INTEGRATION_WORKTREE"
+git push origin "integration/sprint-auto-<batch-iso>"
+
+# per-IDEA worktrees → merge in their own checkouts
+for slug in $batch_slugs; do
+    cd "$HOME/projects/<project>-auto-${slug}"
+    git fetch origin "integration/sprint-auto-<batch-iso>"
+    git merge --no-ff "origin/integration/sprint-auto-<batch-iso>"
+    git push origin "auto/${slug}"
+done
+```
+
 ### S11.12 — per-PR PR re-bugbot + verification
 
-Per per-PR PR: `cd $SPRINT_AUTO_INTEGRATION_WORKTREE && git checkout auto/<slug>` (now post-forward-sync state), reset DB, run targeted tests, `/bugbot-loop`. Cap **5**.
+Per per-PR PR: `cd $SPRINT_AUTO_INTEGRATION_WORKTREE && git fetch origin auto/<slug> && git checkout --detach origin/auto/<slug>` (post-forward-sync state; `--detach` because the per-IDEA worktree still claims the branch ref), reset DB, run targeted tests, `/bugbot-loop`. Cap **5**.
 
 ### S11.13 — integration teardown
 

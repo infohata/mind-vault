@@ -102,14 +102,20 @@ if [[ -n "${SPRINT_AUTO_INTEGRATION_WORKTREE:-}" ]]; then
     integration_wt="$SPRINT_AUTO_INTEGRATION_WORKTREE"
     feature_branch=$(git branch --show-current)  # e.g. auto/<slug>
 
-    # Switch the integration worktree to the per-IDEA branch and refresh code.
-    # docker compose up -d --force-recreate refreshes Python services with the
-    # mounted source from this branch; stateful services (db, redis, minio,
-    # elasticsearch) keep their state from the per-IDEA DB reset that
-    # sprint-auto ran at S1.5 (entry to S2).
+    # Switch the integration worktree to the per-IDEA branch's tip and refresh
+    # code. IMPORTANT: use `--detach` because `auto/<slug>` is already checked
+    # out in the per-IDEA worktree — git refuses to check out the same branch
+    # in two worktrees ("'auto/<slug>' is already checked out at '<path>'").
+    # `--detach origin/auto/<slug>` reads the commits without claiming the
+    # branch ref, which is exactly right: we don't commit in the integration
+    # worktree (commits happen in the per-IDEA worktree). docker compose
+    # up -d --force-recreate refreshes Python services with the mounted source
+    # from this commit; stateful services (db, redis, minio, elasticsearch)
+    # keep their state from the per-IDEA DB reset that sprint-auto ran at
+    # S1.5 (entry to S2).
     pushd "$integration_wt" >/dev/null
     git fetch origin "$feature_branch"
-    git checkout "$feature_branch"
+    git checkout --detach "origin/$feature_branch"
     docker compose up -d --force-recreate web celery
     # Run plan's Verification commands here (pytest, etc.) inside the
     # integration worktree's stack.
