@@ -11,7 +11,7 @@
 The integration worktree is **the only docker stack for the entire batch**. Per-IDEA worktrees become pure code surfaces (no `.env`, no `docker compose up`, no port offsets). All verification — per-IDEA targeted tests, per-IDEA bugbot fix-cycles, integration union, integration full suite, integration bugbot, post-propagation re-bugbot — runs on the single shared integration stack with DB resets between IDEAs.
 
 This is a "CI-runner-style" sprint-auto:
-- One docker stack at port offset `+70000`, the entire batch
+- One docker stack at port offset `+30000` (see "Port-offset math" below), the entire batch
 - Primary dev stack on default ports never touched
 - Per-IDEA worktrees on disk for code-surface isolation only
 - Results-oriented: full DB reset between IDEAs guarantees each PR is tested against a main-equivalent DB → genuinely independently deliverable
@@ -26,6 +26,21 @@ This is a "CI-runner-style" sprint-auto:
 | Architecture | Single test-runner stack on integration worktree (NOT N+1 stacks) | v3 redirect (hardware) |
 | DB reset cadence | Full reset between IDEAs (Option A) | v3 redirect (results-oriented) |
 | Bugbot coverage | Per-PR (deliverables + docs) AND integration AND post-propagation re-bugbot | v3 redirect (results-oriented) |
+
+## Port-offset math (why `+30000`, not `+70000`)
+
+TCP port space is 16-bit: 1–65535. Linux ephemeral range (default): 32768–60999. For a stack offset `N`, the highest service port we typically remap is Elasticsearch transport at 9300, so the binding port is `9300 + N`. Constraints:
+
+- `9300 + N ≤ 65535` → `N ≤ 56235` (hard ceiling)
+- `9300 + N ≤ 49151` → `N ≤ 39851` (stay in registered-port range — recommended)
+- `9300 + N ≤ 32768` → `N ≤ 23468` (stay below ephemeral range — most defensive)
+
+**Recommend `+30000`** for the integration stack:
+- Max remapped port = 9300 + 30000 = 39300 → in registered range, room to grow if a service adds a port
+- Defensive against your possible ad-hoc parallel-worktree stack at the conventional `+10000` from `RULE_parallel-worktree-docker`
+- Well below the hard ceiling so a future service port addition (e.g. flower 5555 → 35555) doesn't approach a limit
+
+**Latent bug exposed (out of scope, worth follow-up)**: existing sprint-auto v1's per-IDEA `+10000, +20000, ..., +60000` scheme is broken for batches with 6+ IDEAs — IDEA-6's ES transport at 9300 + 60000 = 69300 overflows. v3's collapse to a single stack sidesteps the bug entirely; the existing rule note "+10000 is a safe starting point" should grow a ceiling caveat in a separate `RULE_parallel-worktree-docker` PR.
 
 ## Wall-clock budget reality check (6-IDEA batch)
 
@@ -48,7 +63,7 @@ The per-IDEA loop's S0 narrows; new pre-batch state S(-1) for integration bootst
 
 | State | What |
 |---|---|
-| **S(-1)** | **Integration bootstrap** — `git worktree add ../<project>-auto-integration-<batch-iso> -b staging/sprint-auto-<batch-iso> origin/main`; run `tools/sprint-auto-bootstrap.sh` with port offset `+70000`. This is the ONLY docker stack the batch will use. Failure here = abort batch (no per-IDEA work proceeds). |
+| **S(-1)** | **Integration bootstrap** — `git worktree add ../<project>-auto-integration-<batch-iso> -b staging/sprint-auto-<batch-iso> origin/main`; run `tools/sprint-auto-bootstrap.sh` with port offset `+30000` (see "Port-offset math" below). This is the ONLY docker stack the batch will use. Failure here = abort batch (no per-IDEA work proceeds). |
 
 ### Per-IDEA loop (modified — NO docker per IDEA)
 
@@ -153,7 +168,7 @@ DB reset is **per-IDEA, NOT per-bugbot-commit**. Within a bugbot session, the DB
 
 Pick a small acid-test batch (2 IDEAs, ideally with known shared file edits) before doing a full 6-IDEA overnight run. Pass criteria:
 
-- [ ] Single docker stack visible during the batch (port offset `+70000` only)
+- [ ] Single docker stack visible during the batch (port offset `+30000` only)
 - [ ] Primary dev stack untouched (verifies `docker ps` shows your normal containers + the integration stack only)
 - [ ] Per-IDEA verification runs on integration worktree (visible via the auto-run log's verification location field)
 - [ ] DB reset confirmed between IDEAs (the integration worktree's `docker logs db` shows fresh init twice)
