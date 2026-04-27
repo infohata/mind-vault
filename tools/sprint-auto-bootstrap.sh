@@ -77,7 +77,11 @@ if [[ -n "$port_offset_override" ]]; then
     # overflow or collision with the ephemeral-port range (Linux default
     # 32768-60999). The integration phase's +30000 fits cleanly: max remapped
     # port becomes 9300+30000 = 39300, well in registered range.
-    if (( port_offset_override > 39851 )); then
+    # 10# prefix forces base-10 interpretation; bash arithmetic treats a
+    # leading-zero string as octal otherwise (so --port-offset 030000 would
+    # compare 12288 not 30000, and 09000 would error). Mirrors the
+    # 10#$idea_number pattern in the offset formula below.
+    if (( 10#$port_offset_override > 39851 )); then
         die "--port-offset $port_offset_override is too high; max remapped port (9300+offset) must stay <= 49151. See skills/sprint-auto/references/integration-stage.md § Port-offset math."
     fi
 fi
