@@ -9,7 +9,8 @@ Full state machine for the sprint-auto loop: pre-batch (S(-1)), per-IDEA (S0–S
 │ S(-1) Integration bootstrap (the ONLY docker stack of the batch)             │
 │        - git worktree add ../<project>-auto-integration-<batch-iso>         │
 │          -b integration/sprint-auto-<batch-iso> origin/main                  │
-│        - tools/sprint-auto-bootstrap.sh integration-runner 30                │
+│        - tools/sprint-auto-bootstrap.sh integration-runner 0 \              │
+│              --port-offset 30000                                             │
 │          (port offset +30000; sentinel .env; full stack up; post_up_init)    │
 │        - export SPRINT_AUTO_INTEGRATION_WORKTREE=<path>                      │
 │      │                                                                       │
@@ -168,7 +169,7 @@ After all per-IDEA loops complete:
 | S11.12 | re-bugbot per-PR PR after forward-sync | **5** attempts | Small surface — wrap + resolutions only on already-clean PR |
 | S14 | mind-vault compound PR | **5** attempts | Documentation by nature; same logic as docs pass |
 
-Each cap is **independent**. A single IDEA may use up to 30 attempts (20 deliverables + 5 docs + 5 re-bugbot). The integration phase adds another 50 (10 union + 10 full + 20 bugbot + 5 × N re-bugbots — last is per IDEA). A batch of N IDEAs plus M compound PRs has theoretical maximum `N × 30 + 50 + M × 5` attempts; real runs consume a small fraction.
+Each cap is **independent**. A single IDEA may use up to **30 attempts** (20 deliverables + 5 docs + 5 re-bugbot). The integration phase adds **40 fixed** attempts (10 union + 10 full + 20 bugbot) — the re-bugbot 5 attempts are per-IDEA (S11.12) and already counted in the per-IDEA 30. So a batch of N IDEAs plus M compound PRs has theoretical maximum `N × 30 + 40 + M × 5` attempts; real runs consume a small fraction.
 
 See [`escalation-policy.md`](escalation-policy.md) for the rollback discipline and ship-non-clean contract that surrounds these caps.
 
