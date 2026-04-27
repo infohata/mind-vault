@@ -424,6 +424,56 @@ makemigrations:
 	docker compose exec web chown -R $$(id -u):$$(id -g) /app
 ```
 
+### `ManifestStaticFilesStorage` — `collectstatic` is not enough, restart the app server
+
+Django's `ManifestStaticFilesStorage` (the recommended production-mode static backend) hash-fingerprints every URL: `theme.css` is served as `theme.dd52cbcbcdb6.css`, the hash changes on every content change, browsers auto-bust cache on every deploy. This is the right default. The trapdoor: the hash → URL mapping lives in `staticfiles.json`, which **the app server reads once at process startup and caches in-memory for the worker's lifetime**.
+
+After `collectstatic` runs:
+
+- ✅ new hashed file exists on disk
+- ✅ `staticfiles.json` has the new entry
+- ❌ **but** the running app server's `{% static %}` template tag still resolves to the OLD hash
+
+Result: the user reloads, the rendered HTML still references the old `theme.<oldhash>.css`, the browser fetches that URL successfully (it's still on disk under the old hash), and the user sees no change no matter how hard they refresh. A "hard refresh" (Cmd/Ctrl+Shift+R) doesn't help — the URL emitted in HTML is the cached one, not the new one.
+
+```python
+# settings.py — typical config
+_STATICFILES_BACKEND = (
+    'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+    if not DEBUG
+    else 'django.contrib.staticfiles.storage.StaticFilesStorage'
+)
+STORAGES = {
+    'staticfiles': {'BACKEND': _STATICFILES_BACKEND},
+}
+```
+
+```makefile
+# ❌ insufficient: leaves the app server emitting the old hashed URL
+static:
+	docker compose exec web python manage.py compile_scss
+	docker compose exec web python manage.py collectstatic --noinput
+
+# ✅ correct: pair the rebuild with a restart so {% static %} re-reads the manifest
+static:
+	docker compose exec web python manage.py compile_scss
+	docker compose exec web python manage.py collectstatic --noinput
+
+restart-web:
+	docker compose restart web
+```
+
+The contract: every static-file change requires `make static && make restart-web` to land for users. This is the same shape as the env-var change-then-recreate pattern (`docker compose restart` doesn't pick up new ENV; you need `up -d --force-recreate`) — both are "the disk changed but the process is still on the old view."
+
+**Symptom shape during debug**:
+
+1. User reports "I refreshed and don't see my CSS / JS change."
+2. Dev tools shows the page loaded `theme.<oldhash>.css`.
+3. `curl https://example.com/static/.../theme.<oldhash>.css` returns the OLD content (because that's what's at the old-hash URL — the new content is at the new hash).
+4. Restart the app server → next page load emits the NEW hashed URL → browser fetches NEW file → user sees the change.
+
+Applies the same way to JS / image / font / any post-processed asset. Does not apply when `DEBUG=True` because `StaticFilesStorage` (no manifest) just resolves URLs to plain filenames at request time. The staging / production gotcha only.
+
 ### ORM optimisation — N+1 prevention
 
 ```python
@@ -631,5 +681,5 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [Django REST Framework](https://www.django-rest-framework.org/)
 - [Django ORM Query Optimisation](https://docs.djangoproject.com/en/stable/topics/db/optimization/)
 
-**Last Updated**: 2026-04-27 — see [`django-frontend` SKILL.md → Template comment syntax](../django-frontend/SKILL.md) for the multi-line `{# … #}` content-leak gotcha (single-line-only syntax; multi-line must use `{% comment %} … {% endcomment %}`); compounded from teisutis IDEA-124 [PR #375](https://github.com/infohata/teisutis/pull/375). Cross-listed here because the failure mode (rendered text leaking into the page) bridges both backend rendering and frontend display. Previous: 2026-04-26.
-**Version**: 5.4
+**Last Updated**: 2026-04-27 — added "`ManifestStaticFilesStorage` — `collectstatic` is not enough, restart the app server" under Settings (compounded from teisutis IDEA-124 [PR #375](https://github.com/infohata/teisutis/pull/375) test loop — three iterations of "edit SCSS / make static / refresh" failed silently because daphne's cached manifest kept emitting the OLD hashed URL); plus a cross-link to [`django-frontend` SKILL.md → Template comment syntax](../django-frontend/SKILL.md) for the multi-line `{# … #}` content-leak gotcha. Previous: 2026-04-26.
+**Version**: 5.5
