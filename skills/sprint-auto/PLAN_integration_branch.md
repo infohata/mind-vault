@@ -6,6 +6,17 @@
 **Driver**: teisutis 2026-04-26 batch — surface conflict (12 files) + structural conflict (every parallel `/wrap` writes the same devlog/index lines) + hardware constraint (cannot run N+1 docker stacks)
 **Revision**: v1 superseded by v2 (Q4/Q5/Q6 redirects); v2 superseded by v3 (test-triage worktree architecture). Git history preserves all three.
 
+## Naming clarification — "integration" worktree vs. existing "staging" worktree
+
+These are two **distinct** artefacts and the plan keeps them strictly separate:
+
+| Artefact | Purpose | Lifecycle | Owner |
+|---|---|---|---|
+| **Existing `staging` worktree** (project-level, predates sprint-auto) | Tracks `main`; human stacks manual experiments / pre-merge testing on top during human-present sessions | Long-lived; never owned by sprint-auto | Human |
+| **`integration/sprint-auto-<batch-iso>` worktree** (NEW, created by this plan) | Disposable per-batch sprint-auto integrator + test-runner; never receives manual edits | Created at S(-1); torn down post-merge by `/wrap NNN` of last-of-batch IDEA | Sprint-auto |
+
+Sprint-auto must never `git checkout` the human's staging branch, never bring up its docker stack, never write to its filesystem. The integration worktree is on its own branch, its own port offset (`+30000`), its own filesystem path. Earlier drafts of this plan called the new branch `staging/sprint-auto-...` — renamed throughout to `integration/sprint-auto-...` to eliminate the naming collision.
+
 ## Headline change in v3
 
 The integration worktree is **the only docker stack for the entire batch**. Per-IDEA worktrees become pure code surfaces (no `.env`, no `docker compose up`, no port offsets). All verification — per-IDEA targeted tests, per-IDEA bugbot fix-cycles, integration union, integration full suite, integration bugbot, post-propagation re-bugbot — runs on the single shared integration stack with DB resets between IDEAs.
@@ -20,9 +31,9 @@ This is a "CI-runner-style" sprint-auto:
 
 | Decision | Choice | Source |
 |---|---|---|
-| Q4 (conflict) | Resolve on staging → validate → forward-sync into each `auto/<slug>` | v2 redirect |
+| Q4 (conflict) | Resolve on integration branch → validate → forward-sync into each `auto/<slug>` | v2 redirect |
 | Q5 (test scope) | Union during integration **+ full suite at sprint-end** | v2 redirect |
-| Q6 (bugbot) | Fire on staging via `[INTEGRATION]` draft PR | v2 redirect |
+| Q6 (bugbot) | Fire on integration branch via `[INTEGRATION]` draft PR | v2 redirect |
 | Architecture | Single test-runner stack on integration worktree (NOT N+1 stacks) | v3 redirect (hardware) |
 | DB reset cadence | Full reset between IDEAs (Option A) | v3 redirect (results-oriented) |
 | Bugbot coverage | Per-PR (deliverables + docs) AND integration AND post-propagation re-bugbot | v3 redirect (results-oriented) |
@@ -63,7 +74,7 @@ The per-IDEA loop's S0 narrows; new pre-batch state S(-1) for integration bootst
 
 | State | What |
 |---|---|
-| **S(-1)** | **Integration bootstrap** — `git worktree add ../<project>-auto-integration-<batch-iso> -b staging/sprint-auto-<batch-iso> origin/main`; run `tools/sprint-auto-bootstrap.sh` with port offset `+30000` (see "Port-offset math" below). This is the ONLY docker stack the batch will use. Failure here = abort batch (no per-IDEA work proceeds). |
+| **S(-1)** | **Integration bootstrap** — `git worktree add ../<project>-auto-integration-<batch-iso> -b integration/sprint-auto-<batch-iso> origin/main`; run `tools/sprint-auto-bootstrap.sh` with port offset `+30000` (see "Port-offset math" below). This is the ONLY docker stack the batch will use. Failure here = abort batch (no per-IDEA work proceeds). |
 
 ### Per-IDEA loop (modified — NO docker per IDEA)
 
@@ -74,7 +85,7 @@ The per-IDEA loop's S0 narrows; new pre-batch state S(-1) for integration bootst
 | **S2** | `/work` writes code + commits + opens PR. **Verification routes to integration worktree**: cd to integration worktree, `git checkout auto/<slug>`, `docker compose down -v && docker compose up -d` (full reset), wait for healthchecks, `migrate + seed`, run targeted tests. Pass → continue. Fail → back to /work step. |
 | **S3** | Deliverables bugbot-loop on per-PR PR. Bugbot fixes the agent commits go into the per-IDEA worktree's checkout. **Each fix's verification routes to integration worktree** with the same checkout-and-test cycle (no DB reset within an IDEA's bugbot session — fix commits don't typically migrate; reset cost would explode). One reset at IDEA entry, fix-cycle uses that reset baseline. |
 | **S4** | Deliverables escalation (T2/T3) — same contract as v1, max 20 attempts. |
-| **S5** | `/wrap --scope=idea-only` (NEW MODE) — frontmatter flip + downstream-docs scan ONLY. Skips devlog + ideas-index writes. Those move to S11.7 (batch wrap on staging). |
+| **S5** | `/wrap --scope=idea-only` (NEW MODE) — frontmatter flip + downstream-docs scan ONLY. Skips devlog + ideas-index writes. Those move to S11.7 (batch wrap on integration branch). |
 | **S6** | Docs bugbot-loop on per-PR PR. Verification: route to integration worktree, no DB reset (docs commits don't change runtime behavior). |
 | **S7** | Docs escalation (T2/T3) — max 5 attempts. |
 | **S8** | **Per-IDEA teardown — N/A in v3.** No per-IDEA stack to tear down. The integration stack stays up for the next IDEA. Skip this state; it remains in the doc only as a no-op marker for backward-compat with v1's state numbers. |
@@ -87,14 +98,14 @@ The per-IDEA loop's S0 narrows; new pre-batch state S(-1) for integration bootst
 | State | What |
 |---|---|
 | **S11.5** | **Verify integration worktree state** — already up since S(-1). Final pre-merge reset: `docker compose down -v && docker compose up -d`, migrate + seed (back to clean main-equivalent state). |
-| **S11.6** | **Sequential merge** — `git checkout staging/sprint-auto-<batch-iso>`. For each `auto/<slug>` in batch-arg order: `git merge --no-ff auto/<slug>`. On conflict: resolve on staging using the algorithm catalogue ([`references/integration-conflict-resolutions.md`](references/integration-conflict-resolutions.md) — NEW), commit as separate `resolve: integrate auto/<X>` commit. |
-| **S11.7** | **Batch wrap on staging** — compose all N devlog entries (chronological/numerical concat); apply all N ideas-index moves in one commit. ONE `wrap-batch: devlog + index for sprint-auto-<batch-iso>` commit. |
-| **S11.8** | **Integration tests — union** — read each merged-in IDEA's plan-doc Verification section, union test paths, run pytest. Migrate up if migrations were merged. Failure → fix on staging, cap of 10 attempts (fresh commits, revert between attempts). |
+| **S11.6** | **Sequential merge** — `git checkout integration/sprint-auto-<batch-iso>`. For each `auto/<slug>` in batch-arg order: `git merge --no-ff auto/<slug>`. On conflict: resolve on integration branch using the algorithm catalogue ([`references/integration-conflict-resolutions.md`](references/integration-conflict-resolutions.md) — NEW), commit as separate `resolve: integrate auto/<X>` commit. |
+| **S11.7** | **Batch wrap on integration branch** — compose all N devlog entries (chronological/numerical concat); apply all N ideas-index moves in one commit. ONE `wrap-batch: devlog + index for sprint-auto-<batch-iso>` commit. |
+| **S11.8** | **Integration tests — union** — read each merged-in IDEA's plan-doc Verification section, union test paths, run pytest. Migrate up if migrations were merged. Failure → fix on integration branch, cap of 10 attempts (fresh commits, revert between attempts). |
 | **S11.9** | **Full test suite** (sprint-end gate per Q5) — full pytest on the integrated state. Same fix discipline, cap of 10. |
-| **S11.10** | **Bugbot-loop on staging via [INTEGRATION] draft PR** — open draft PR titled `[INTEGRATION] sprint-auto-<batch-iso>` from staging targeting main. Body: `Auto-generated integration validation. NOT FOR MERGE. Auto-closed at sprint-auto teardown.` Run `/bugbot-loop` against it. Cap 5 attempts. |
-| **S11.11** | **Forward-sync staging into each `auto/<slug>`** — `git checkout auto/<slug>; git merge --no-ff staging`. Force-push not needed (forward-sync only fast-forwards or adds merge commits). PR auto-updates; bugbot fires automatically. |
+| **S11.10** | **Bugbot-loop on integration branch via [INTEGRATION] draft PR** — open draft PR titled `[INTEGRATION] sprint-auto-<batch-iso>` from the integration branch targeting main. Body: `Auto-generated integration validation. NOT FOR MERGE. Auto-closed at sprint-auto teardown.` Run `/bugbot-loop` against it. Cap 5 attempts. |
+| **S11.11** | **Forward-sync integration branch into each `auto/<slug>`** — `git checkout auto/<slug>; git merge --no-ff integration/sprint-auto-<batch-iso>`. Force-push not needed (forward-sync only fast-forwards or adds merge commits). PR auto-updates; bugbot fires automatically. |
 | **S11.12** | **Per-PR PR re-bugbot + verification** — for each per-PR PR: route to integration worktree, `git checkout auto/<slug>` (now post-forward-sync state), reset DB, run targeted tests one final time, run `/bugbot-loop`. Cap 5 attempts each. Most will clean-signal immediately because the new commits are wrap + resolutions, not deliverables work. |
-| **S11.13** | **Integration teardown** — `docker compose down` (NOT `down -v`; volumes preserved for inspection). Worktree filesystem stays. Close `[INTEGRATION]` draft PR with comment `auto-closed by sprint-auto teardown; integration validation complete. See auto-run summary at <path>.` Staging branch lingers locally; cleaned up by human's `/wrap NNN` post-merge teardown for the LAST IDEA of the batch (extend `/wrap` to detect last-of-batch and `git branch -d staging/sprint-auto-<batch-iso>`). |
+| **S11.13** | **Integration teardown** — `docker compose down` (NOT `down -v`; volumes preserved for inspection). Worktree filesystem stays. Close `[INTEGRATION]` draft PR with comment `auto-closed by sprint-auto teardown; integration validation complete. See auto-run summary at <path>.` Integration branch lingers locally; cleaned up by human's `/wrap NNN` post-merge teardown for the LAST IDEA of the batch (extend `/wrap` to detect last-of-batch and `git branch -d integration/sprint-auto-<batch-iso>`). |
 
 Then S12 (compound) runs unchanged.
 
@@ -146,7 +157,7 @@ DB reset is **per-IDEA, NOT per-bugbot-commit**. Within a bugbot session, the DB
 
 ### Wrap-skill changes (unchanged from v2)
 
-- `skills/wrap/SKILL.md` — add `--scope=idea-only` mode + extend post-merge to detect last-of-batch and clean up `staging/sprint-auto-*` branch + integration worktree
+- `skills/wrap/SKILL.md` — add `--scope=idea-only` mode + extend post-merge to detect last-of-batch and clean up `integration/sprint-auto-*` branch + integration worktree
 
 ## Files NOT touched (out of scope)
 
@@ -173,9 +184,9 @@ Pick a small acid-test batch (2 IDEAs, ideally with known shared file edits) bef
 - [ ] Per-IDEA verification runs on integration worktree (visible via the auto-run log's verification location field)
 - [ ] DB reset confirmed between IDEAs (the integration worktree's `docker logs db` shows fresh init twice)
 - [ ] [INTEGRATION] draft PR opened, bugbot ran, draft PR closed without merge at end
-- [ ] Per-PR PRs forward-synced from staging (verifiable via `git log auto/<slug>` showing the merge commit)
+- [ ] Per-PR PRs forward-synced from integration branch (verifiable via `git log auto/<slug>` showing the merge commit)
 - [ ] Re-bugbot fired automatically on per-PR PRs after forward-sync
-- [ ] Devlog and ideas-index updated EXACTLY ONCE on staging (not N times across N branches)
+- [ ] Devlog and ideas-index updated EXACTLY ONCE on integration branch (not N times across N branches)
 - [ ] Both per-PR PRs merge cleanly to main without conflict (THE acid test for the wrap-stage fix)
 - [ ] Wall-clock under 90 minutes for 2-IDEA batch
 
