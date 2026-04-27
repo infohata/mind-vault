@@ -363,6 +363,49 @@ Tests: render both sides with the same input and `assertEqual` on the result, OR
 
 When NOT to apply: one-direction-only renderers (server-only partial, or JS-only client-side helper for a feature that doesn't refresh-survive). The pattern is for the both-paths case specifically.
 
+### Template comment syntax — `{# inline #}` is single-line only
+
+Django has two comment syntaxes and they are not interchangeable:
+
+| Syntax | Multi-line? | Use for |
+| --- | --- | --- |
+| `{# … #}` | **No** — single-line only | A short inline note on one line |
+| `{% comment %} … {% endcomment %}` | Yes | Anything spanning multiple lines |
+
+The failure mode when the wrong one is used: **content leak**. If a `{#` opens and a newline appears before the closing `#}`, Django's tokeniser fails to recognise the construct as a comment and emits the entire block as plain text into the rendered output. No template error, no test failure — just literal "comment" text shown to end users.
+
+```django
+{# This is fine — opens and closes on the same line. #}
+
+{# THIS IS BROKEN — multi-line {# #} renders as visible
+   text on the page because Django's tokeniser only matches
+   {# … #} when both delimiters are on the same line. #}
+
+{% comment %}
+    This works for any number of lines. Use this whenever
+    the comment doesn't fit on a single line, especially
+    documentation comments above template blocks.
+{% endcomment %}
+```
+
+Worked example — teisutis IDEA-124 PR #375 ([fix commit](https://github.com/infohata/teisutis/commit/c68905ab)): a multi-line `{# … #}` block documenting the audio-fallback behavior leaked its contents onto the rendered chat-input area. Visible to every user picking a voice file pre-send. Bugbot didn't catch it because the regression suite tested the partial in isolation and the comment was in chat.html itself, not the partial. Surfaced immediately on first manual browser hit on staging.
+
+**Detection during review**: grep for `{#` followed by a newline before `#}`:
+
+```python
+import re, pathlib
+for path in pathlib.Path('.').rglob('*.html'):
+    text = path.read_text(errors='replace')
+    for m in re.finditer(r'\{#', text):
+        rest = text[m.start():]
+        nl, end = rest.find('\n'), rest.find('#}')
+        if end == -1 or (nl != -1 and nl < end):
+            line_no = text[:m.start()].count('\n') + 1
+            print(f'{path}:{line_no}: multi-line {{# #}} — convert to {{% comment %}}')
+```
+
+CI hook this as a pre-commit lint when the templates surface starts to grow.
+
 ## Bulma template standards
 
 Compact reference for consistency across projects. Full discussion in [references/ADVANCED_COMPONENTS.md](references/ADVANCED_COMPONENTS.md).
@@ -459,5 +502,5 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [Bulma CSS Documentation](https://bulma.io/documentation/)
 - [Django Crispy Forms](https://django-crispy-forms.readthedocs.io/)
 
-**Last Updated**: 2026-04-26 — added four "Pattern" sections compounded from teisutis sprint-auto batch 2026-04-26 ([PRs #375, #376, #379](https://github.com/infohata/teisutis/pull/375)): `<audio>` `error` event over `canPlayType` for browser-portable playback fallback (IDEA-124); Alpine.js reactivity reassign-vs-delete (IDEA-125); `requestAnimationFrame` + `visibilitychange` battery hygiene (IDEA-129); server-template + JS-render-helper shared DOM shape contract (IDEA-124). Previous: 2026-04-17.
-**Version**: 2.1
+**Last Updated**: 2026-04-27 — added "Template comment syntax — `{# inline #}` is single-line only" under Pattern; compounded from teisutis IDEA-124 [PR #375](https://github.com/infohata/teisutis/pull/375) ([fix commit](https://github.com/infohata/teisutis/commit/c68905ab)). The failure mode is a content leak (literal comment text shown to end users), not a template error — no CI signal until someone hits the page. Previous: 2026-04-26.
+**Version**: 2.2
