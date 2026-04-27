@@ -21,6 +21,10 @@ Drive a Cursor Bugbot review-fix-rerun cycle on the current PR (or specified PR 
 
 ## Phase 0: Worktree environment bootstrap
 
+**Sprint-auto v3.1 mode (new) — short-circuit**: if `SPRINT_AUTO_INTEGRATION_WORKTREE` is set in the environment, **skip Phase 0 entirely**. Per-IDEA worktrees under sprint-auto v3.1 are pure code surfaces — no `.env`, no docker compose stack. Bugbot-loop's role in this mode narrows to (a) reading Cursor Bugbot's findings via the GitHub API and (b) committing fixes to the per-IDEA branch. Neither activity needs a runtime in the per-IDEA worktree. When fix-verification runs in Phase 2 / Phase 3, it routes to the integration worktree (see Phase 2 § "v3.1 fix-verification routing"). See [`skills/sprint-auto/references/integration-stage.md`](../skills/sprint-auto/references/integration-stage.md) for the full env-var contract.
+
+**Standalone mode (default)**: if `SPRINT_AUTO_INTEGRATION_WORKTREE` is unset, fall through to the existing worktree-bootstrap logic below.
+
 If `git rev-parse --git-common-dir` differs from `.git` (i.e. running inside a worktree):
 
 1. If `.env` already exists → skip to step 3 (containers only).
@@ -87,10 +91,45 @@ This is the **only** authorised place to create `.env` — see exception clause 
 For each Tier 1 finding (no prompt) and each Tier 2 finding (after explicit `yes` from user):
 
 1. Apply the edit.
-2. Run targeted test (`make test-fresh ARGS="app.tests.ClassName"` or project equivalent) — class scope only.
+2. Run targeted test (`make test-fresh ARGS="app.tests.ClassName"` or project equivalent) — class scope only. **Verification routing — see § "v3.1 fix-verification routing" below for the env-var-driven mode.**
 3. If test fails: revert edit, log to scratch file, move to next finding (do not retry-fix in the same cycle).
 
 Tier 3 findings: skip the fix, log to the scratch file, and continue processing other findings in this cycle. List all Tier 3 escalations in the final hand-back for human decision. This is a *per-finding* escalation, not a whole-loop abort.
+
+### v3.1 fix-verification routing
+
+Under sprint-auto v3.1 (`SPRINT_AUTO_INTEGRATION_WORKTREE` is set), step 2's targeted test does NOT run in the per-IDEA worktree (which is code-surface only with no `.env` or docker stack). Instead:
+
+```bash
+if [[ -n "${SPRINT_AUTO_INTEGRATION_WORKTREE:-}" ]]; then
+    integration_wt="$SPRINT_AUTO_INTEGRATION_WORKTREE"
+    feature_branch=$(git branch --show-current)  # e.g. auto/<slug>
+
+    # Apply the edit in the per-IDEA worktree, commit, push.
+    git add <files> && git commit -m "fix: address bugbot review N (PR #M)"
+    git push origin "$feature_branch"
+
+    # Then route the targeted test to the integration worktree.
+    pushd "$integration_wt" >/dev/null
+    git fetch origin "$feature_branch"
+    git checkout "$feature_branch"
+    docker compose up -d --force-recreate web celery   # refresh mounted code
+    docker compose exec -T web pytest <targeted path>
+    test_exit=$?
+    popd >/dev/null
+
+    if (( test_exit != 0 )); then
+        # Test failed: revert the commit (NOT git reset — preserve audit
+        # trail per RULE_git-safety + sprint-auto's escalation discipline)
+        git revert HEAD --no-edit
+        git push origin "$feature_branch"
+    fi
+fi
+```
+
+DB state on the integration worktree is preserved across fix-cycle commits within an IDEA's bugbot session — sprint-auto only resets between IDEAs (S1.5), not between bugbot commits. Fix commits typically don't migrate, so the DB state at this-IDEA's-baseline is consistent for the duration of the session.
+
+When `SPRINT_AUTO_INTEGRATION_WORKTREE` is unset (standalone bugbot-loop), step 2 runs the targeted test against the current worktree's stack as before — no behaviour change.
 
 ## Phase 3: Commit + push + re-trigger
 
@@ -127,3 +166,5 @@ Always end with:
 4. PR URL.
 
 Do not merge. Do not push to main. The loop hands the PR back to the user for final review and merge.
+
+Under sprint-auto v3.1, the "user" the loop hands back to is sprint-auto itself (the orchestrator), which uses the Tier-3 list to drive its escalation cycle (S4 deliverables / S7 docs / S11.10 integration / S11.12 re-bugbot). The hand-back semantics are unchanged — bugbot-loop produces the same Tier-3 hand-back regardless of caller.
