@@ -79,7 +79,7 @@ Commit per logical unit, not per file. One commit per completed Execution Sequen
 
 After all Execution Sequence items land:
 
-1. Run the commands listed in the plan's Verification section. Capture output.
+1. Run the commands listed in the plan's Verification section. Capture output. **Verification routing — see § "Sprint-auto v3.1 verification routing" below for the env-var-driven mode.**
 2. If verification passes, open a PR: `gh pr create --title "<type>(<scope>): <plan.slug>" --body <plan-derived-body>`. Include the plan path in the PR body so the reviewer has the full context.
 3. Mark the plan `status: shipped` in frontmatter.
 4. Print the PR URL and suggest the next stage: `/bugbot-loop <pr-url>`.
@@ -89,6 +89,47 @@ If verification fails:
 1. Do NOT open a PR. Do NOT mark the plan shipped.
 2. Document the failure in the plan's Open Questions section (append, don't overwrite).
 3. Route to the user for a decision: fix in place, roll back the latest commit, or return to `/plan` for a revised approach.
+
+### 5a. Sprint-auto v3.1 verification routing
+
+Under sprint-auto v3.1, per-IDEA worktrees are pure code surfaces — no `.env`, no docker stack. The integration worktree's stack (at port offset `+30000`) is the only docker stack of the batch, and all verification routes there.
+
+Detect by checking `SPRINT_AUTO_INTEGRATION_WORKTREE`:
+
+```bash
+if [[ -n "${SPRINT_AUTO_INTEGRATION_WORKTREE:-}" ]]; then
+    # v3.1 sprint-auto mode — route verification commands to the integration worktree
+    integration_wt="$SPRINT_AUTO_INTEGRATION_WORKTREE"
+    feature_branch=$(git branch --show-current)  # e.g. auto/<slug>
+
+    # Switch the integration worktree to the per-IDEA branch and refresh code.
+    # docker compose up -d --force-recreate refreshes Python services with the
+    # mounted source from this branch; stateful services (db, redis, minio,
+    # elasticsearch) keep their state from the per-IDEA DB reset that
+    # sprint-auto ran at S1.5 (entry to S2).
+    pushd "$integration_wt" >/dev/null
+    git fetch origin "$feature_branch"
+    git checkout "$feature_branch"
+    docker compose up -d --force-recreate web celery
+    # Run plan's Verification commands here (pytest, etc.) inside the
+    # integration worktree's stack.
+    docker compose exec -T web pytest <unioned paths from plan>
+    popd >/dev/null
+else
+    # Standalone mode — run verification in the current worktree (default).
+    # Existing behaviour: pytest / make test / project-equivalent against
+    # the worktree's own stack (RULE_parallel-worktree-docker contract).
+    pytest <paths>  # or make test, etc.
+fi
+```
+
+When `SPRINT_AUTO_INTEGRATION_WORKTREE` is set:
+- The agent never runs `docker compose` against the per-IDEA worktree (there's no `.env`, no override file — would fail).
+- The agent never creates a `.env` in the per-IDEA worktree (the env-var contract guarantees verification happens elsewhere).
+- The DB state on the integration worktree is the **main-equivalent baseline** for this IDEA (sprint-auto reset it at S1.5 before invoking `/work`); the verification runs against that baseline.
+- Within an IDEA's session (this `/work` invocation + subsequent bugbot-loop fix-cycles), the DB state is preserved between commands. Sprint-auto only resets between IDEAs.
+
+The full env-var contract is in [`../sprint-auto/references/integration-stage.md`](../sprint-auto/references/integration-stage.md). If verification commands are documented elsewhere (project Makefile, `tools/test.sh`), the same routing applies — `cd $SPRINT_AUTO_INTEGRATION_WORKTREE` first, then run.
 
 ### 6. Flip status on merge — frontmatter only (with `/plan`-bypass fallback)
 
@@ -170,4 +211,6 @@ This is the canonical landing page for anyone discovering the idea via grep/inde
 
 ---
 
-**Last Updated**: 2026-04-20 (second revision — step 6 is now frontmatter-only on merge; the single lifecycle move happened at `/plan` time per revised RULE_ideas-location-status)
+**Last Updated**: 2026-04-27 — added § 5a "Sprint-auto v3.1 verification routing" describing the `SPRINT_AUTO_INTEGRATION_WORKTREE` env-var contract. When the env var is set, all verification commands route to the integration worktree (per-IDEA worktrees are code-surface-only with no `.env` and no docker stack); when unset, default behaviour against the current worktree's stack is unchanged. See PR #76's `IDEA_integration_branch.md` v3.1 for the design context.
+
+**Previous**: 2026-04-20 (second revision — step 6 is now frontmatter-only on merge; the single lifecycle move happened at `/plan` time per revised RULE_ideas-location-status)
