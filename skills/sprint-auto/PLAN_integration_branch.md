@@ -165,38 +165,43 @@ DB reset is **per-IDEA, NOT per-bugbot-commit**. Within a bugbot session, the DB
 - Compound stage S12+ — unchanged
 - The PR-creation contract (per-PR PRs against main) — unchanged
 
-## Open questions (down to 3, plus 1 calibration)
+## Resolved decisions (all four open questions answered)
 
-1. **Env var name**: `SPRINT_AUTO_INTEGRATION_WORKTREE` — verbose but explicit. Alternative: `SPRINT_AUTO_INTEG_PATH` shorter, harder to grep. Preference?
+1. **Env var name**: `SPRINT_AUTO_INTEGRATION_WORKTREE` (verbose-explicit, greppable). Locked.
 
-2. **Bugbot-loop Phase 0 detection**: when env var is set, skip current-worktree stack bootstrap. But bugbot-loop also currently does `.env` template-rewrite if missing — under v3 the per-IDEA worktree has NO `.env` and shouldn't get one. Add a second guard: skip `.env` creation in per-IDEA worktrees during sprint-auto. Confirm or adjust.
+2. **Bugbot-loop in per-IDEA worktrees — no `.env`, no docker.** Bugbot is a code-review service: Cursor Bugbot reviews the PR remotely; bugbot-loop locally reads its findings and commits fixes to the per-IDEA branch. Neither activity needs `.env` or running containers in the per-IDEA worktree. Verification of fixes (the only step that needs a runtime) routes to the integration worktree via the env var. **Therefore**: when `SPRINT_AUTO_INTEGRATION_WORKTREE` is set, bugbot-loop's Phase 0 skips entirely in the per-IDEA worktree — no `.env` creation, no `docker compose up`. Per-IDEA worktrees stay strictly code-surface-only. Locked.
 
-3. **Worktree forensic loss**: post-batch, per-IDEA worktrees are dead-code-only — the morning reviewer can read code but can't `cd` in and run anything live. Only the integration worktree retains state. Acceptable given the resource savings (the integration state IS the relevant inspection artifact), but flagging explicitly so it's not a surprise.
+3. **Per-IDEA worktrees are not maintained as forensic artefacts.** Confirmed: never preserved post-batch as live artefacts. The integration worktree is the only post-batch live state; per-IDEA worktrees are pure code surfaces and can be cleaned up freely (existing `/wrap NNN` post-merge teardown handles it). Locked.
 
-4. **Cap calibration** (calibrated v3 → v3.1):
+4. **Cap budgets accepted as-is**, calibrate over time:
    - S4 deliverables escalation: **20** (carried from v1; long T2/T3 tail on per-IDEA work)
    - S7 docs escalation: **5** (stylistic / reference-drift; converges fast or it doesn't)
-   - S11.8/S11.9 integration tests: **10** each (cross-cutting failures have shorter tails than per-IDEA)
-   - S11.10 integration bugbot: **20** ← raised from 5 in v3.0 per "elephants" redirect — integration branches have N-times-larger review surface than any per-PR PR; symmetric with S4 deliverables cap; this is deliverables-class review, not docs-class
-   - S11.12 post-propagation re-bugbot per-PR PR: **5** (small post-propagation surface; just resolution + wrap commits on top of already-clean PR; should clean-signal immediately or with 1-2 fixes)
-   First real batch confirms or adjusts.
+   - S11.8 / S11.9 integration tests: **10** each (cross-cutting failures have shorter tails than per-IDEA)
+   - S11.10 integration bugbot: **20** (elephants — N-times-larger review surface; deliverables-class, not docs-class)
+   - S11.12 post-propagation re-bugbot per-PR PR: **5** (small post-propagation surface)
 
-## Acid test — first-batch validation criteria
+   First batches will calibrate; numbers above are starting points, not contracts.
 
-Pick a small acid-test batch (2 IDEAs, ideally with known shared file edits) before doing a full 6-IDEA overnight run. Pass criteria:
+## Stakes context
 
-- [ ] Single docker stack visible during the batch (port offset `+30000` only)
-- [ ] Primary dev stack untouched (verifies `docker ps` shows your normal containers + the integration stack only)
-- [ ] Per-IDEA verification runs on integration worktree (visible via the auto-run log's verification location field)
-- [ ] DB reset confirmed between IDEAs (the integration worktree's `docker logs db` shows fresh init twice)
-- [ ] [INTEGRATION] draft PR opened, bugbot ran, draft PR closed without merge at end
-- [ ] Per-PR PRs forward-synced from integration branch (verifiable via `git log auto/<slug>` showing the merge commit)
-- [ ] Re-bugbot fired automatically on per-PR PRs after forward-sync
-- [ ] Devlog and ideas-index updated EXACTLY ONCE on integration branch (not N times across N branches)
-- [ ] Both per-PR PRs merge cleanly to main without conflict (THE acid test for the wrap-stage fix)
-- [ ] Wall-clock under 90 minutes for 2-IDEA batch
+There is no "low-stakes night" for this workflow. Teisutis has grown massive pre-release; the budget/timeline pressure is what makes sprint-auto necessary in the first place — every batch is high-risk-high-reward, and the workflow exists because the alternative is shipping slower than the project can afford. v3's design leans into that: results-oriented over performance, bugbot-everything, full DB reset between IDEAs. The framing throughout this plan ("acid test", "validation") is about the **first batch under v3 mechanics**, not about choosing a safe IDEA list — the IDEAs in any given batch will be whatever's next in the queue.
 
-If acid test passes, run a 6-IDEA batch on a low-stakes night.
+## First-batch monitoring — what to watch on signal
+
+The first sprint-auto run with v3 mechanics is a real batch (every batch is). Watch these signals during and after; they're how you'll catch v3 implementation bugs early before they corrupt batch state:
+
+- [ ] Single docker stack visible during the batch (port offset `+30000` only) — `docker compose ls` should show one project, not N
+- [ ] Existing staging worktree's stack untouched throughout — your manual-testing surface stays clean
+- [ ] Per-IDEA verification routes to integration worktree (visible in the auto-run log's `verification_location` field; should be the integration worktree path, never a per-IDEA worktree path)
+- [ ] DB reset between IDEAs (`docker logs db` for the integration worktree shows N fresh init events for an N-IDEA batch, not one)
+- [ ] `[INTEGRATION]` draft PR opened, bugbot ran on it, draft PR closed without merge at S11.13
+- [ ] Per-PR PRs forward-synced from integration branch — `git log auto/<slug>` shows the merge commit at the tip
+- [ ] Re-bugbot fired automatically on per-PR PRs after forward-sync (visible in PR comment timeline)
+- [ ] **Devlog and ideas-index updated EXACTLY ONCE on integration branch**, not N times across N `auto/<slug>` branches — this is the wrap-stage-conflict acid test; if you see N devlog edits across N branches, the `--scope=idea-only` flag isn't being honored
+- [ ] Per-PR PRs merge to main without conflict (THE structural acid test — if any PR conflicts at human merge time, v3's premise is broken)
+- [ ] Wall-clock within budget (~5–6.5h for 6 IDEAs; flag if outside)
+
+If these signals hold on the first batch, v3 is working. If a signal breaks, the auto-run log gives the diagnostic point — no need to recreate state.
 
 ## Concrete next step
 
@@ -223,6 +228,8 @@ If you green-light v3:
 - [`../../rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — confirms forward-sync (S11.11) is agent-allowed; the [INTEGRATION] draft PR is a non-merging artefact
 
 ---
+
+**Last Updated**: 2026-04-27 v3.1 (open Qs all resolved: env var name locked, bugbot per-IDEA worktrees no-`.env`/no-docker, per-IDEA worktrees not maintained as forensic artefacts, cap budgets accepted; stakes context added — no low-stakes nights, every batch is real). v3 mechanics ready for implementation.
 
 **Last Updated**: 2026-04-27 v3 (post-redirect on hardware constraint + results-oriented call). Single integration stack as the test-runner; per-IDEA worktrees code-surface-only; full DB reset between IDEAs guarantees independently deliverable PRs.
 
