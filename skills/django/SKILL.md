@@ -631,5 +631,5 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [Django REST Framework](https://www.django-rest-framework.org/)
 - [Django ORM Query Optimisation](https://docs.djangoproject.com/en/stable/topics/db/optimization/)
 
-**Last Updated**: 2026-04-26 — added "Env-driven allowlists / denylists as `frozenset`" under Settings (compounded from teisutis IDEA-126 [PR #377](https://github.com/infohata/teisutis/pull/377)), "LLM output post-processing — strip-and-trust pattern" under AI patterns (compounded from teisutis IDEA-125 [PR #376](https://github.com/infohata/teisutis/pull/376) — regex alternation longest-first as the primary trapdoor), and "Per-Message Resource Caps" in [references/ASYNC_WEBSOCKET.md](references/ASYNC_WEBSOCKET.md) covering the Channels-specific consumer-boundary cap pattern that pairs with the LLM post-strip. Previous: 2026-04-25.
-**Version**: 5.3
+**Last Updated**: 2026-04-27 — see [`django-frontend` SKILL.md → Template comment syntax](../django-frontend/SKILL.md) for the multi-line `{# … #}` content-leak gotcha (single-line-only syntax; multi-line must use `{% comment %} … {% endcomment %}`); compounded from teisutis IDEA-124 [PR #375](https://github.com/infohata/teisutis/pull/375). Cross-listed here because the failure mode (rendered text leaking into the page) bridges both backend rendering and frontend display. Previous: 2026-04-26.
+**Version**: 5.4
