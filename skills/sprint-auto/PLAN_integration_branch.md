@@ -59,10 +59,10 @@ TCP port space is 16-bit: 1–65535. Linux ephemeral range (default): 32768–60
 |---|---|---|
 | Preflight + integration bootstrap | ~5 min | One-time at batch start |
 | Per-IDEA × 6: reset + work + targeted tests + bugbot | ~30 min × 6 = 180 min | Reset ~5 min; work ~10 min; tests ~3 min; bugbot ~12 min avg |
-| Integration: merge + union + full suite + bugbot via [INTEGRATION] PR | ~60 min | Sequential merge, union ~10 min, full suite ~25 min, bugbot ~20 min |
+| Integration: merge + union + full suite + bugbot via [INTEGRATION] PR | ~60–120 min | Sequential merge ~5 min, union ~10 min, full suite ~25 min, bugbot avg ~30 min / worst-case ~80 min (cap 20 attempts — see S11.10 reasoning) |
 | Forward-sync × 6 + per-PR re-bugbot × 6 | ~30 min | Forward-sync ~1 min each; re-bugbot ~4 min each (mostly clean against unchanged code) |
 | Teardown | ~3 min | `docker compose down`, close [INTEGRATION] draft PR |
-| **Total** | **~5 hours** | Acceptable for overnight runs starting 1-2 AM |
+| **Total** | **~5–6.5 hours** (avg ~5 / elephant-batch worst case ~6.5) | Acceptable for overnight runs starting midnight–1 AM. Bugbot-loop's own internal bound (180 min active, 20 idle polls) caps S11.10 worst case independently of attempt count. |
 
 Compare to current v1 sprint-auto (no integration): ~3 hours for 6 IDEAs. **+2 hours for guaranteed-no-conflict-at-merge + integration validation + result-quality gains.** Trade accepted.
 
@@ -102,7 +102,7 @@ The per-IDEA loop's S0 narrows; new pre-batch state S(-1) for integration bootst
 | **S11.7** | **Batch wrap on integration branch** — compose all N devlog entries (chronological/numerical concat); apply all N ideas-index moves in one commit. ONE `wrap-batch: devlog + index for sprint-auto-<batch-iso>` commit. |
 | **S11.8** | **Integration tests — union** — read each merged-in IDEA's plan-doc Verification section, union test paths, run pytest. Migrate up if migrations were merged. Failure → fix on integration branch, cap of 10 attempts (fresh commits, revert between attempts). |
 | **S11.9** | **Full test suite** (sprint-end gate per Q5) — full pytest on the integrated state. Same fix discipline, cap of 10. |
-| **S11.10** | **Bugbot-loop on integration branch via [INTEGRATION] draft PR** — open draft PR titled `[INTEGRATION] sprint-auto-<batch-iso>` from the integration branch targeting main. Body: `Auto-generated integration validation. NOT FOR MERGE. Auto-closed at sprint-auto teardown.` Run `/bugbot-loop` against it. Cap 5 attempts. |
+| **S11.10** | **Bugbot-loop on integration branch via [INTEGRATION] draft PR** — open draft PR titled `[INTEGRATION] sprint-auto-<batch-iso>` from the integration branch targeting main. Body: `Auto-generated integration validation. NOT FOR MERGE. Auto-closed at sprint-auto teardown.` Run `/bugbot-loop` against it. **Cap 20 attempts** — integration branches are elephants (N-times-larger review surface than any per-PR PR; T2/T3 findings have proportionally longer tails). Symmetric with the per-IDEA deliverables cap (S4) — integration is deliverables-class review of the integrated state, not docs-class. |
 | **S11.11** | **Forward-sync integration branch into each `auto/<slug>`** — `git checkout auto/<slug>; git merge --no-ff integration/sprint-auto-<batch-iso>`. Force-push not needed (forward-sync only fast-forwards or adds merge commits). PR auto-updates; bugbot fires automatically. |
 | **S11.12** | **Per-PR PR re-bugbot + verification** — for each per-PR PR: route to integration worktree, `git checkout auto/<slug>` (now post-forward-sync state), reset DB, run targeted tests one final time, run `/bugbot-loop`. Cap 5 attempts each. Most will clean-signal immediately because the new commits are wrap + resolutions, not deliverables work. |
 | **S11.13** | **Integration teardown** — `docker compose down` (NOT `down -v`; volumes preserved for inspection). Worktree filesystem stays. Close `[INTEGRATION]` draft PR with comment `auto-closed by sprint-auto teardown; integration validation complete. See auto-run summary at <path>.` Integration branch lingers locally; cleaned up by human's `/wrap NNN` post-merge teardown for the LAST IDEA of the batch (extend `/wrap` to detect last-of-batch and `git branch -d integration/sprint-auto-<batch-iso>`). |
@@ -173,7 +173,13 @@ DB reset is **per-IDEA, NOT per-bugbot-commit**. Within a bugbot session, the DB
 
 3. **Worktree forensic loss**: post-batch, per-IDEA worktrees are dead-code-only — the morning reviewer can read code but can't `cd` in and run anything live. Only the integration worktree retains state. Acceptable given the resource savings (the integration state IS the relevant inspection artifact), but flagging explicitly so it's not a surprise.
 
-4. **Cap calibration** (carried from v2): 10 (tests) and 5 (bugbot) are educated guesses. First real batch will calibrate.
+4. **Cap calibration** (calibrated v3 → v3.1):
+   - S4 deliverables escalation: **20** (carried from v1; long T2/T3 tail on per-IDEA work)
+   - S7 docs escalation: **5** (stylistic / reference-drift; converges fast or it doesn't)
+   - S11.8/S11.9 integration tests: **10** each (cross-cutting failures have shorter tails than per-IDEA)
+   - S11.10 integration bugbot: **20** ← raised from 5 in v3.0 per "elephants" redirect — integration branches have N-times-larger review surface than any per-PR PR; symmetric with S4 deliverables cap; this is deliverables-class review, not docs-class
+   - S11.12 post-propagation re-bugbot per-PR PR: **5** (small post-propagation surface; just resolution + wrap commits on top of already-clean PR; should clean-signal immediately or with 1-2 fixes)
+   First real batch confirms or adjusts.
 
 ## Acid test — first-batch validation criteria
 
