@@ -45,10 +45,10 @@ Run once, before any per-IDEA work. If **any** check fails, abort with an action
    git worktree add "../<project>-auto-integration-${batch_iso}" \
        -b "integration/sprint-auto-${batch_iso}" origin/main
    cd "../<project>-auto-integration-${batch_iso}"
-   tools/sprint-auto-bootstrap.sh integration-runner 30  # port-offset arg = 30 → +30000
+   tools/sprint-auto-bootstrap.sh integration-runner 0 --port-offset 30000
    export SPRINT_AUTO_INTEGRATION_WORKTREE="$PWD"
    ```
-   The `tools/sprint-auto-bootstrap.sh` invocation creates `.env` from the template (sentinel-replaced credentials), emits the docker-compose override at port offset `+30000`, brings up the stack, runs project-local `post_up_init` if defined. Failure here = abort the batch (no per-IDEA work proceeds; record `integration_outcome: bootstrap_failed`). See [`references/integration-stage.md`](references/integration-stage.md) for full mechanics.
+   The `tools/sprint-auto-bootstrap.sh` invocation creates `.env` from the template (sentinel-replaced credentials), emits the docker-compose override at the explicit `--port-offset 30000` (the legacy idea-number-derived formula caps at `+19900`, so the explicit flag is required), brings up the stack, runs project-local `post_up_init` if defined. Failure here = abort the batch (no per-IDEA work proceeds; record `integration_outcome: bootstrap_failed`). See [`references/integration-stage.md`](references/integration-stage.md) for full mechanics.
 
 ### 2. Per-IDEA execution loop (S0–S11)
 

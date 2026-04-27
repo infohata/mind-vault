@@ -14,6 +14,7 @@
 #
 # Invocation (from inside a git worktree, via the wrapper):
 #   ./tools/sprint-auto-bootstrap.sh <slug> <idea_number>
+#   ./tools/sprint-auto-bootstrap.sh <slug> <idea_number> --port-offset N
 #
 # Exit 0 only when the stack is up, all services are running, and the optional
 # project-local smoke test has passed. The /sprint-auto skill keys off exit code.
@@ -21,11 +22,40 @@
 # Project-local customisation goes in tools/sprint-auto-hooks.sh (optional).
 # Declare bash functions `post_up_init` and/or `smoke_test` there — this script
 # sources the file and calls them after `docker compose up` if present.
+#
+# The --port-offset N override is used by the v3.1 integration phase: the
+# integration worktree always uses +30000, regardless of what the per-batch
+# slug's idea-number-derived offset would have been. See
+# skills/sprint-auto/references/integration-stage.md for the integration
+# worktree's lifecycle and the +30000 convention. Without --port-offset,
+# the legacy per-IDEA formula `10000 + (idea_number % 100) * 100` is used
+# (capped at +19900; the integration phase's +30000 is unreachable via
+# that formula, hence the explicit flag).
 
 set -euo pipefail
 
-slug="${1:?usage: sprint-auto-bootstrap.sh <slug> <idea_number>}"
-idea_number="${2:?usage: sprint-auto-bootstrap.sh <slug> <idea_number>}"
+slug="${1:?usage: sprint-auto-bootstrap.sh <slug> <idea_number> [--port-offset N]}"
+idea_number="${2:?usage: sprint-auto-bootstrap.sh <slug> <idea_number> [--port-offset N]}"
+shift 2
+
+# Optional flags
+port_offset_override=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --port-offset)
+            port_offset_override="${2:?usage: --port-offset N}"
+            shift 2
+            ;;
+        --port-offset=*)
+            port_offset_override="${1#--port-offset=}"
+            shift
+            ;;
+        *)
+            echo "[sprint-auto-bootstrap] ERROR: unknown flag: $1" >&2
+            exit 1
+            ;;
+    esac
+done
 
 log() { echo "[sprint-auto-bootstrap] $*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
@@ -39,6 +69,18 @@ die() { log "ERROR: $*"; exit 1; }
     || die "slug must match ^[a-z0-9][a-z0-9-]*$ (got: $slug)"
 [[ "$idea_number" =~ ^[0-9]+$ ]] \
     || die "idea_number must be all-digits (got: $idea_number)"
+if [[ -n "$port_offset_override" ]]; then
+    [[ "$port_offset_override" =~ ^[0-9]+$ ]] \
+        || die "--port-offset must be all-digits (got: $port_offset_override)"
+    # 9300 (ES transport) + offset must stay below the registered-port ceiling
+    # 49151 (recommended) for safety; refuse offsets that risk port-space
+    # overflow or collision with the ephemeral-port range (Linux default
+    # 32768-60999). The integration phase's +30000 fits cleanly: max remapped
+    # port becomes 9300+30000 = 39300, well in registered range.
+    if (( port_offset_override > 39851 )); then
+        die "--port-offset $port_offset_override is too high; max remapped port (9300+offset) must stay <= 49151. See skills/sprint-auto/references/integration-stage.md § Port-offset math."
+    fi
+fi
 
 # Default smoke: every configured service must be in running state.
 # Defined early so both the hooks path and the no-hooks path can call it.
@@ -114,8 +156,13 @@ log ".env generated (credentials sentinel-replaced)"
 # 2. Generate docker-compose.override.yml with port offset
 # ---------------------------------------------------------------------------
 
-port_offset=$(( 10000 + (10#$idea_number % 100) * 100 ))
-log "Computing port offset: +$port_offset"
+if [[ -n "$port_offset_override" ]]; then
+    port_offset="$port_offset_override"
+    log "Using explicit port offset: +$port_offset (--port-offset)"
+else
+    port_offset=$(( 10000 + (10#$idea_number % 100) * 100 ))
+    log "Computing port offset from idea_number: +$port_offset"
+fi
 
 # `docker compose config --format json` resolves variable substitution and
 # merges any existing project-owned overrides into the final spec.

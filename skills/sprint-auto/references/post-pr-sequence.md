@@ -220,13 +220,13 @@ batch_iso=$(date -u +%Y-%m-%dT%H-%M-%SZ)
 git worktree add "../<project>-auto-integration-${batch_iso}" \
     -b "integration/sprint-auto-${batch_iso}" origin/main
 cd "../<project>-auto-integration-${batch_iso}"
-tools/sprint-auto-bootstrap.sh integration-runner 30
+tools/sprint-auto-bootstrap.sh integration-runner 0 --port-offset 30000
 export SPRINT_AUTO_INTEGRATION_WORKTREE="$PWD"
 ```
 
-The `30` second arg becomes port offset `+30000` per the bootstrap script's offset formula (`10000 + (idea_number % 100) * 100` would give `+13000` for arg `30`; but a future patch should add explicit port-offset support — see "Implementation note" below).
+The `--port-offset 30000` flag (added to `tools/sprint-auto-bootstrap.sh` in this branch) explicitly sets the integration stack at `+30000`. The legacy idea-number-derived formula (`10000 + (idea_number % 100) * 100`) caps at `+19900`, so the explicit flag is required for the v3.1 integration phase. The script enforces a safety ceiling at `+39851` (the recommended bound from `IDEA_integration_branch.md` § Port-offset math, keeping max remapped port `9300+offset` ≤ `49151`).
 
-**Implementation note**: `tools/sprint-auto-bootstrap.sh` currently computes `port_offset` from `idea_number` via `10000 + (idea_number % 100) * 100`. To get the integration stack at exactly `+30000`, either pass `idea_number=200` (yields `10000 + 0 * 100 = 10000` — wrong) or extend the bootstrap script to accept an explicit `--port-offset` flag. The cleanest path is the explicit flag; a follow-up commit on this branch should add it. Until then, calling with arg `30` actually gives `10000 + 30 * 100 = 13000` — close enough to dodge default-port collisions but not at the documented `+30000`. **Treat this as a known issue resolved by a follow-up tooling commit.**
+The `0` second arg is a placeholder `idea_number` (the integration runner isn't a per-IDEA worktree — it's the batch-level runtime — but the script's signature still expects an idea_number). When `--port-offset` is set, the idea_number's only role is in input validation; its computed offset is overridden.
 
 Maps to `SKILL.md` §1 step 8.
 
