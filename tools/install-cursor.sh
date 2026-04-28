@@ -90,6 +90,21 @@ if command -v cursor >/dev/null 2>&1; then
     IDE_INSTALLED=1
 fi
 
+# Apt-source health check: cursor may be installed from a stray .deb (old path)
+# or AppImage and have no apt source registered. In that state `apt upgrade`
+# would never bump it. Running the source-add step (which is idempotent and
+# fast) brings the host into a managed state.
+APT_SOURCE_OK=0
+if [ -f /etc/apt/sources.list.d/cursor.list ] \
+   && grep -q 'downloads\.cursor\.com/aptrepo' /etc/apt/sources.list.d/cursor.list \
+   && [ -f /etc/apt/keyrings/cursor.gpg ]; then
+    APT_SOURCE_OK=1
+fi
+IDE_DIRTY=0
+if [ "$IDE_INSTALLED" = "1" ] && [ "$APT_SOURCE_OK" = "0" ]; then
+    IDE_DIRTY=1
+fi
+
 CLI_INSTALLED=0
 CLI_VER=""
 if [ -x "$CLI_BIN_PATH" ]; then
@@ -106,7 +121,11 @@ if [ -x "$CLI_BIN_PATH" ]; then
 fi
 
 if [ "$IDE_INSTALLED" = "1" ]; then
-    echo "✅ Cursor IDE: ${IDE_VER:-installed}"
+    if [ "$IDE_DIRTY" = "1" ]; then
+        echo "⚠️  Cursor IDE: ${IDE_VER:-installed} — but no apt source registered (\`apt upgrade\` won't bump it; will fix below)"
+    else
+        echo "✅ Cursor IDE: ${IDE_VER:-installed} (apt source registered)"
+    fi
 else
     echo "ℹ️  Cursor IDE: not installed"
 fi
@@ -119,8 +138,9 @@ if [ "$INSTALL_CLI" = "1" ] || [ "$CLI_INSTALLED" = "1" ]; then
 fi
 
 if [ "$CHECK_ONLY" = "1" ]; then
-    # Exit 0 only when everything required is present.
-    if [ "$IDE_INSTALLED" = "1" ] && { [ "$INSTALL_CLI" = "0" ] || [ "$CLI_INSTALLED" = "1" ]; }; then
+    # Exit 0 only when everything required is present AND clean.
+    if [ "$IDE_INSTALLED" = "1" ] && [ "$IDE_DIRTY" = "0" ] \
+       && { [ "$INSTALL_CLI" = "0" ] || [ "$CLI_INSTALLED" = "1" ]; }; then
         exit 0
     fi
     exit 1
@@ -129,7 +149,11 @@ fi
 # --- Decide what work to do ---
 DO_IDE=0
 DO_CLI=0
+# IDE work fires when: cursor is missing, OR cursor is present but apt source
+# isn't (dirty — re-running source-add brings the host into a managed state;
+# apt-get install of already-correct-version is a no-op).
 [ "$IDE_INSTALLED" = "0" ] && DO_IDE=1
+[ "$IDE_DIRTY" = "1" ] && DO_IDE=1
 [ "$INSTALL_CLI" = "1" ] && [ "$CLI_INSTALLED" = "0" ] && DO_CLI=1
 
 if [ "$DO_IDE" = "0" ] && [ "$DO_CLI" = "0" ]; then
@@ -184,8 +208,83 @@ if [ "$DO_IDE" = "1" ]; then
     esac
 fi
 
+# --- Dirty-state cleanup before IDE install ---
+# Runs unconditionally on the IDE path. Each step is independently safe to
+# re-run — cleanup is idempotent.
+cleanup_dirty_ide_state() {
+    local cleaned=0
+
+    # 1. Stale apt source files for cursor that DON'T point at the official repo.
+    #    (Could come from older versions of this script, vendor docs that pinned
+    #    a different URL shape, or experimental sources the user added by hand.)
+    #    Sources that DO point at downloads.cursor.com/aptrepo are left alone —
+    #    the canonical source-add step below will overwrite cursor.list anyway.
+    local stale_lists
+    stale_lists="$(grep -L 'downloads\.cursor\.com/aptrepo' /etc/apt/sources.list.d/cursor*.list 2>/dev/null || true)"
+    if [ -n "$stale_lists" ]; then
+        echo "🧹 Removing stale cursor apt source(s) (none point at downloads.cursor.com/aptrepo):"
+        echo "$stale_lists" | sed 's/^/      /'
+        # shellcheck disable=SC2086
+        rm -f $stale_lists
+        cleaned=1
+    fi
+
+    # 2. Stale keyrings in non-standard old paths. Some vendor recipes used
+    #    /usr/share/keyrings — we always write to /etc/apt/keyrings now, so an
+    #    old key file in the legacy path is at best dead weight, at worst it
+    #    pairs with a `signed-by=` line we no longer write.
+    local k
+    for k in /usr/share/keyrings/cursor.gpg /usr/share/keyrings/anysphere.gpg /usr/share/keyrings/cursor-archive-keyring.gpg; do
+        if [ -e "$k" ]; then
+            echo "🧹 Removing stale cursor keyring at $k"
+            rm -f "$k"
+            cleaned=1
+        fi
+    done
+
+    # 3. Detect AppImage installs that bypass the apt-managed binary entirely.
+    #    Don't auto-delete — those live in the user's home and may have
+    #    user-customised launchers / desktop entries. Just warn.
+    if [ -n "${CLI_USER_HOME:-}" ] && [ -d "$CLI_USER_HOME/Applications" ]; then
+        local appimages
+        appimages="$(find "$CLI_USER_HOME/Applications" -maxdepth 2 -iname 'cursor*.AppImage' 2>/dev/null || true)"
+        if [ -n "$appimages" ]; then
+            echo "⚠️  Found AppImage install(s) under $CLI_USER_HOME/Applications:"
+            echo "$appimages" | sed 's/^/      /'
+            echo "    These can shadow the apt-managed cursor on PATH (whichever appears first wins)."
+            echo "    Remove manually if you want apt to be the sole source: rm <path>"
+        fi
+    fi
+
+    # 4. Snap install: separate package manager, doesn't conflict with apt
+    #    file-wise but ends up with two `cursor` binaries on PATH. Worth flagging.
+    if command -v snap >/dev/null 2>&1 && snap list cursor >/dev/null 2>&1; then
+        echo "⚠️  Cursor is also installed as a snap. The apt install will be independent."
+        echo "    Run 'sudo snap remove cursor' if you want apt to be the only source."
+    fi
+
+    # 5. Non-standard binary at /opt/cursor (some users untar there manually).
+    if [ -e /opt/cursor ] || [ -e /opt/Cursor ]; then
+        echo "⚠️  Found cursor at /opt — this may shadow /usr/bin/cursor on PATH."
+        echo "    Remove manually if you want apt to be the sole source."
+    fi
+
+    if [ "$cleaned" = "0" ] && [ "$IDE_DIRTY" = "0" ]; then
+        :  # Nothing was dirty; staying quiet to avoid clutter on a fresh install.
+    elif [ "$cleaned" = "1" ]; then
+        echo '    (apt source + keyring will be re-added below — apt update runs after.)'
+    fi
+}
+
 # --- IDE install ---
 if [ "$DO_IDE" = "1" ]; then
+    echo ""
+    if [ "$IDE_DIRTY" = "1" ]; then
+        echo "🔧 Cursor is installed but apt source is missing/wrong — bringing it under apt management..."
+    fi
+
+    cleanup_dirty_ide_state
+
     echo ""
     echo "📥 Installing apt prerequisites..."
     apt-get update -qq
