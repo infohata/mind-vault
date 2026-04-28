@@ -140,10 +140,13 @@ Hand back to the user for live verification. Per `RULE_git-safety` the human rev
 When the first PR merges, the remaining isolated PRs are now behind. Forward-sync each:
 
 ```bash
+git fetch origin main                        # critical — without this, origin/main is stale and the merge silently misses the just-landed squash-merge commit
 git checkout <next-pr-branch>
 git merge --no-edit origin/main
 git push origin <next-pr-branch>             # regular push, no force — additive merge commit
 ```
+
+The `git fetch origin main` step is non-optional. The remote ref `origin/main` is local cache that only updates on fetch; web-UI merges on GitHub do not propagate to your local view automatically. Skip the fetch and the merge becomes a no-op (or worse: a partial sync against a stale snapshot that masks a real conflict you'll only discover at merge time).
 
 Forward-sync is **always allowed** by `RULE_git-safety` (the feature branch's tip moves; main's doesn't). A regular `git push` keeps PR review threads intact; only `--force-with-lease` would invalidate them.
 
