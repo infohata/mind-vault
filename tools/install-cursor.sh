@@ -122,7 +122,11 @@ fi
 
 if [ "$IDE_INSTALLED" = "1" ]; then
     if [ "$IDE_DIRTY" = "1" ]; then
-        echo "⚠️  Cursor IDE: ${IDE_VER:-installed} — but no apt source registered (\`apt upgrade\` won't bump it; will fix below)"
+        if [ "$CHECK_ONLY" = "1" ]; then
+            echo "⚠️  Cursor IDE: ${IDE_VER:-installed} — but no apt source registered (\`apt upgrade\` won't bump it; re-run without --check to fix)"
+        else
+            echo "⚠️  Cursor IDE: ${IDE_VER:-installed} — but no apt source registered (\`apt upgrade\` won't bump it; will fix below)"
+        fi
     else
         echo "✅ Cursor IDE: ${IDE_VER:-installed} (apt source registered)"
     fi
@@ -392,26 +396,33 @@ if [ "$INSTALL_CLI" = "1" ] && [ -x "$CLI_BIN_PATH" ]; then
     AGENT_VER_LINE="${AGENT_VER_RAW%%$'\n'*}"
     echo "   CLI: ${AGENT_VER_LINE:-installed} at ${CLI_BIN_PATH}"
 
-    # PATH hint for the target user — vendor installer prints its own hints,
-    # but running via sudo suppresses interactive shell-detection so we re-state.
-    # When CLI_USER == $USER (script invoked directly, no sudo), reading $PATH
-    # via `sudo -u $USER` would gratuitously prompt for a password (or fail
-    # silently with no sudo privs), produce empty TARGET_PATH, and fire a
-    # false-positive "not on PATH" warning. Branch like the version check above.
+    # PATH hint for the target user. Cannot rely on `$PATH` here because:
+    #   - When run via sudo, `sudo -u $CLI_USER -H bash -c 'echo $PATH'`
+    #     spawns a non-interactive non-login shell whose PATH is set by
+    #     sudo's `secure_path` from /etc/sudoers (never includes ~/.local/bin),
+    #     so the warning would fire on every sudo install regardless of the
+    #     user's real config.
+    #   - When run directly, the script's own $PATH was inherited at invocation
+    #     and may not yet reflect a freshly-edited rc file.
+    # Instead: scan the user's shell rc files for any reference to .local/bin —
+    # that's what determines PATH on the next login. False positive only if
+    # the user uses a non-standard rc file we don't check; vendor installer
+    # also prints its own PATH hints as a backstop.
     if [ -n "$CLI_USER_HOME" ]; then
-        if [ "$CLI_USER" = "$USER" ]; then
-            TARGET_PATH="$PATH"
-        else
-            TARGET_PATH="$(sudo -u "$CLI_USER" -H bash -c 'echo $PATH' 2>/dev/null || echo "")"
+        # NOTE: `local` is illegal here — this block runs at the top level of the
+        # script, not inside cleanup_dirty_ide_state() (which ends near line 306).
+        HAS_PATH_SETUP=0
+        for rc in "$CLI_USER_HOME/.bashrc" "$CLI_USER_HOME/.zshrc" "$CLI_USER_HOME/.profile" "$CLI_USER_HOME/.config/fish/config.fish"; do
+            if [ -f "$rc" ] && grep -q '\.local/bin' "$rc" 2>/dev/null; then
+                HAS_PATH_SETUP=1
+                break
+            fi
+        done
+        if [ "$HAS_PATH_SETUP" = "0" ]; then
+            echo "   ⚠️  ${CLI_USER_HOME}/.local/bin may not be on ${CLI_USER}'s PATH (no reference found in ~/.bashrc, ~/.zshrc, ~/.profile, or fish config)."
+            echo "       Add to ~/.bashrc / ~/.zshrc:"
+            echo "         export PATH=\"\$HOME/.local/bin:\$PATH\""
         fi
-        case ":${TARGET_PATH}:" in
-            *":${CLI_USER_HOME}/.local/bin:"*) ;;
-            *)
-                echo "   ⚠️  ${CLI_USER_HOME}/.local/bin is not on ${CLI_USER}'s PATH."
-                echo "       Add to ~/.bashrc / ~/.zshrc:"
-                echo "         export PATH=\"\$HOME/.local/bin:\$PATH\""
-                ;;
-        esac
     fi
 fi
 echo ""
