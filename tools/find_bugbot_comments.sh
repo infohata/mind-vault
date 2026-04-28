@@ -68,7 +68,42 @@ ISSUE_COMMENTS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments
 REVIEWS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews?per_page=100" 2>/dev/null || echo "[]")
 
 # ------------------------------------------------------------------------------
-# Pass 1 — Reviews: clean-signal detection (and any review-level bugbot summary)
+# Pass 1 — Reviews: three Python sub-passes against $REVIEWS
+# ------------------------------------------------------------------------------
+# Three near-identical python3 blocks below all parse $REVIEWS, filter for
+# cursor[bot], and sort by submitted_at — but each answers a different question
+# and emits a different marker:
+#
+#   1. CLEAN_SIGNAL_LINE   — "is bugbot saying HEAD is clean right now?"
+#                            Emits BUGBOT_CLEAN_SIGNAL only on positive match.
+#                            Empty otherwise. Drives /bugbot-loop's Phase 4
+#                            fast-path hand-back.
+#
+#   2. LATEST_REVIEW_LINE  — "what is the most recent bugbot review, regardless
+#                            of clean state?" Emits BUGBOT_LATEST_REVIEW
+#                            unconditionally with a CLEAN=true|false flag.
+#                            Drives the active/stale finding filter from PR #81.
+#
+#   3. OTHER_REVIEWS       — "what non-clean reviews against earlier SHAs are
+#                            still in history?" Emits a small human-readable
+#                            list (capped at 5).
+#
+# Bugbot PR #81 review (3156265252, LOW) flagged the duplication as a
+# maintenance smell — same filter + sort + field-extract in three places.
+# Kept three blocks intentionally:
+#
+#   - Each block answers ONE question and is independently readable (~15 lines
+#     vs ~40 for a consolidated emit-three-markers block).
+#   - The line-by-line stdout shape (independently empty-able markers in their
+#     existing order) IS a contract — `/bugbot-loop` Phase 4 greps the
+#     `^BUGBOT_CLEAN_SIGNAL=` anchor; consolidating risks reordering or
+#     emitting empty placeholders that subtly change consumer behaviour.
+#   - Three python3 spawns is ~150ms total — invisible at the loop's 270s
+#     polling cadence. Performance is not the load-bearing argument here.
+#
+# Drift risk: if cursor[bot] becomes a different bot login or the API field
+# names change, all THREE blocks need updating. Worth consolidating IF a fourth
+# marker is added or the maintenance pain actually shows up.
 # ------------------------------------------------------------------------------
 CLEAN_SIGNAL_LINE=$(echo "$REVIEWS" | python3 -c "
 import json, sys
