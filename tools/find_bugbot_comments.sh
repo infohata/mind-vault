@@ -104,6 +104,41 @@ if [ -n "$CLEAN_SIGNAL_LINE" ]; then
     echo ""
 fi
 
+# ------------------------------------------------------------------------------
+# Latest-review marker — used by the loop's Phase 1 to filter stale-vs-HEAD findings
+# ------------------------------------------------------------------------------
+# Inline review comments persist visually across pushes until "Resolve conversation"
+# is clicked on the GitHub UI, so /comments will surface findings from EVERY prior
+# review, not just the latest one. Without a way to tell which review a finding
+# belongs to, the loop processes already-fixed findings as if they were active and
+# burns cycles. Surface the latest bugbot review id (whether clean or not) so the
+# loop can compare each comment's `pull_request_review_id` field against it and
+# treat anything-but-the-latest as stale persistent threads, not active findings.
+LATEST_REVIEW_LINE=$(echo "$REVIEWS" | python3 -c "
+import json, sys
+try:
+    reviews = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+bugbot = [r for r in reviews if (r.get('user') or {}).get('login') == 'cursor[bot]']
+if not bugbot:
+    sys.exit(0)
+bugbot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
+latest = bugbot[0]
+rid = latest.get('id')
+commit = latest.get('commit_id') or ''
+at = latest.get('submitted_at') or ''
+body = (latest.get('body') or '').strip()
+clean = 'true' if 'found no new issues' in body else 'false'
+print(f'BUGBOT_LATEST_REVIEW={rid} COMMIT={commit} AT={at} CLEAN={clean}')
+" 2>/dev/null || true)
+
+if [ -n "$LATEST_REVIEW_LINE" ]; then
+    # Same plain-text contract as BUGBOT_CLEAN_SIGNAL — no ANSI codes.
+    echo "$LATEST_REVIEW_LINE"
+    echo ""
+fi
+
 # Any other bugbot reviews with substantive bodies (umbrella summaries, partial clean,
 # older clean signals for prior SHAs). Surface them so the loop can see non-clean
 # review history — useful when bugbot is iterating across pushes.
@@ -185,6 +220,11 @@ for i, comment in enumerate(comments, 1):
     body = comment.get('body', '')
     url = comment.get('html_url', '')
     cid = comment.get('id', '')
+    # The pull_request_review_id field ties a comment to a specific bugbot review.
+    # /bugbot-loop Phase 1 compares this against the BUGBOT_LATEST_REVIEW marker
+    # to distinguish active findings (latest-review) from stale persistent threads
+    # (older reviews kept by GitHub UI until manually Resolve-conversation-clicked).
+    rev_id = comment.get('pull_request_review_id', '')
 
     # Extract severity
     severity = 'Info'
@@ -213,7 +253,7 @@ for i, comment in enumerate(comments, 1):
 
     separator = '━' * 80
     print(f'{severity_color}{separator}\033[0m')
-    print(f'{severity_color}[{i}/{len(comments)}] Severity: {severity} (comment id {cid})\033[0m')
+    print(f'{severity_color}[{i}/{len(comments)}] Severity: {severity} (comment id {cid}, review {rev_id})\033[0m')
     print(f'\033[0;34m**File:**\033[0m {path}:{line}')
     print(f'\033[0;34m**Title:**\033[0m {title}')
 
