@@ -225,9 +225,9 @@ for i, comment in enumerate(comments, 1):
     # to distinguish active findings (latest-review) from stale persistent threads
     # (older reviews kept by GitHub UI until manually Resolve-conversation-clicked).
     # GitHub documents the field as integer-or-null. .get(key, default) returns the
-    # null/None value when the key EXISTS, not the default — so use `or` to coalesce
-    # both absent-key and null-value cases (matches the pattern used elsewhere in
-    # this script, e.g. latest.get('commit_id') or '').
+    # null/None value when the key EXISTS, not the default — so use Python's "or"
+    # operator to coalesce both absent-key and null-value cases (matches the pattern
+    # used elsewhere in this script, e.g. latest.get on commit_id immediately above).
     rev_id = comment.get('pull_request_review_id') or ''
 
     # Extract severity
