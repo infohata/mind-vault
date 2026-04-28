@@ -102,6 +102,13 @@ Order low-to-high risk so the riskiest commit is on top — if a regression surf
 
 The PR description lists every closed PR — `gh pr merge` honours `Closes` lines from any commit message in the PR.
 
+**Merge-strategy gotcha — non-negotiable.** Per-dep commits only preserve `git bisect` resolution if the merge into `main` keeps them as separate commits. GitHub's default *Squash and merge* collapses every commit in the PR into a single squash-commit, defeating the entire bisect benefit. For a bundled dep PR specifically, the operator must:
+
+- Use **Create a merge commit** (branch's commits land on `main` verbatim, plus a merge commit), OR
+- Use **Rebase and merge** (branch's commits land on `main` linearly, no merge commit).
+
+`gh pr merge --merge` (merge commit) or `gh pr merge --rebase` (rebase) — never `gh pr merge --squash` for dep-bundle PRs. If the repo is configured to allow only squash-merge, change the per-PR setting via the GitHub web UI dropdown before clicking merge, or escalate to a maintainer who can. The bisect benefit and the per-dep commit discipline are coupled; if the merge strategy can't be controlled, the per-dep commits are theatre — fall back to a single squashed commit and accept the loss of post-merge bisect.
+
 ### 6. Worktree-isolated verification (per RULE_parallel-worktree-docker)
 
 Each PR (bundle and isolated-high-risk) gets its own worktree:
@@ -140,7 +147,7 @@ Hand back to the user for live verification. Per `RULE_git-safety` the human rev
 When the first PR merges, the remaining isolated PRs are now behind. Forward-sync each:
 
 ```bash
-git fetch origin main                        # critical — without this, origin/main is stale and the merge silently misses the just-landed squash-merge commit
+git fetch origin main                        # critical — without this, origin/main is stale and the merge silently misses the just-landed merge commit (or rebased / squashed lineage, depending on which strategy the bundle PR used)
 git checkout <next-pr-branch>
 git merge --no-edit origin/main
 git push origin <next-pr-branch>             # regular push, no force — additive merge commit
@@ -164,7 +171,7 @@ If only one isolated PR remains and its review window is short, fold the docs co
 
 - **Title-based duplicate triage.** "Same package, same version → duplicate" is wrong when ecosystems differ. Diff comparison is the only valid test.
 - **Mass-bundle including version-scheme jumps.** Bisect ambiguity wipes out the audit trail when the high-risk bump regresses.
-- **Single-commit bundle PR.** Squash-merge to main collapses bisect to the bundle commit. Per-dep commits preserve resolution.
+- **Single-commit bundle PR.** Per-dep commits preserve `git bisect` resolution post-merge — but **only** if the operator picks merge-commit or rebase-merge as the merge strategy. GitHub's default *Squash and merge* collapses per-dep commits into one squash-commit and silently negates the entire bisect benefit (see step 5's merge-strategy gotcha). The two pieces — per-dep commits *and* non-squash merge — are coupled; doing one without the other is theatre.
 - **Real `.env` copy into a worktree.** Worktree must use sentinels (per `RULE_parallel-worktree-docker`); only the credentials file backing a specific SDK smoke gets copied bytewise — and only into the worktree where that smoke runs.
 - **Skipping live-staging for SDK bumps.** Test suites typically mock SDK clients. Real-API smoke against the upgraded floor is the only signal that the new SDK shape works in production.
 - **Force-pushing the dep PR mid-review.** Forward-sync via `git merge origin/main` + regular push, not rebase + force-push. Review threads survive.
