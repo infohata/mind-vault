@@ -314,7 +314,7 @@ fi
 # ------------------------------------------------------------------------------
 # Summary
 # ------------------------------------------------------------------------------
-if [ -z "$CLEAN_SIGNAL_LINE" ] && [ -z "$BUGBOT_INLINE" ] && [ -z "$BUGBOT_ISSUE" ] && [ -z "$OTHER_REVIEWS" ]; then
+if [ -z "$CLEAN_SIGNAL_LINE" ] && [ -z "$LATEST_REVIEW_LINE" ] && [ -z "$BUGBOT_INLINE" ] && [ -z "$BUGBOT_ISSUE" ] && [ -z "$OTHER_REVIEWS" ]; then
     echo "⏳ No bugbot activity yet for PR #$PR_NUMBER."
     echo "   Trigger a review with: ./tools/bugbot_retrigger.sh $PR_NUMBER"
     exit 0
