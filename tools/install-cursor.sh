@@ -41,9 +41,13 @@
 # that re-run idempotent (no download if already current).
 #
 # Flags:
-#   --check      Report current install state and exit. No writes, no network beyond
-#                a HEAD on the update endpoint (only when reporting whether an
-#                upgrade is available).
+#   --check      Report current install state and exit. No writes, no network.
+#                Exit 0 when cursor is installed, 1 when missing. Overrides
+#                --upgrade — `--check --upgrade` reports state and exits without
+#                touching the system. To actually probe upstream for a newer
+#                version, run `--upgrade` (the redirect-resolution + version-
+#                compare in the install path is idempotent — no download if
+#                already current).
 #   --upgrade    Re-fetch the latest .deb and reinstall if the upstream version is
 #                newer than the installed one. Equivalent to a fresh install when
 #                cursor isn't yet present.
@@ -113,28 +117,48 @@ esac
 # --- Idempotency check ---
 INSTALLED_VERSION=""
 if command -v cursor >/dev/null 2>&1; then
-    # `cursor --version` prints three lines: version, commit, electron — first line is what we want.
-    INSTALLED_VERSION="$(cursor --version 2>/dev/null | head -1 | tr -d '[:space:]')"
+    # `cursor --version` prints three lines (version, commit, electron) — first
+    # line is the version. Capture full output then take first line via bash
+    # parameter expansion: piping into `head -1` under `set -eo pipefail` can
+    # produce SIGPIPE (exit 141) when head closes stdin before the producer
+    # finishes, which would silently empty INSTALLED_VERSION and re-trigger a
+    # fresh install on an already-installed host. Mirrors install-mosh-tmux.sh:484-491.
+    CURSOR_VER_RAW="$(cursor --version 2>/dev/null || true)"
+    INSTALLED_VERSION="${CURSOR_VER_RAW%%$'\n'*}"
+    INSTALLED_VERSION="${INSTALLED_VERSION//[[:space:]]/}"
 fi
 
 echo "🔍 Checking current Cursor install state..."
 if [ -n "$INSTALLED_VERSION" ]; then
     echo "✅ Cursor already installed: ${INSTALLED_VERSION}"
-    if [ "$CHECK_ONLY" = "1" ] && [ "$UPGRADE" = "0" ]; then
-        exit 0
-    fi
-    if [ "$UPGRADE" = "0" ]; then
-        echo ""
-        echo "Nothing to do. Re-run with --upgrade to fetch the latest version,"
-        echo "or with --check to confirm state without changes."
-        exit 0
-    fi
 else
-    if [ "$CHECK_ONLY" = "1" ]; then
-        echo "❌ Cursor not installed. Run without --check to install."
-        exit 1
+    echo "ℹ️  Cursor not installed."
+fi
+
+# --- --check is a hard no-writes contract; overrides --upgrade ---
+# Always exits before any network or apt call, regardless of --upgrade.
+# Combine `--check --upgrade` to confirm install state without touching the
+# system; to actually probe upstream for a newer version, run `--upgrade`
+# alone (the redirect-resolution + version-compare in the install path is
+# idempotent and skips the download if already current).
+if [ "$CHECK_ONLY" = "1" ]; then
+    if [ -n "$INSTALLED_VERSION" ]; then
+        exit 0
     fi
-    echo "ℹ️  Cursor not installed — proceeding with fresh install."
+    echo "   Run without --check to install."
+    exit 1
+fi
+
+# --- Idempotent skip when already installed and no upgrade requested ---
+if [ -n "$INSTALLED_VERSION" ] && [ "$UPGRADE" = "0" ]; then
+    echo ""
+    echo "Nothing to do. Re-run with --upgrade to fetch the latest version,"
+    echo "or with --check to confirm state without changes."
+    exit 0
+fi
+
+if [ -z "$INSTALLED_VERSION" ]; then
+    echo "ℹ️  Proceeding with fresh install."
 fi
 
 # --- Root check (needed for apt-get install) ---
