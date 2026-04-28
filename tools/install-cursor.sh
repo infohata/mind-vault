@@ -327,11 +327,19 @@ if [ "$DO_CLI" = "1" ]; then
         # change shape (the installer body itself hard-codes the version pin).
         if [ "$CLI_USER" = "$USER" ]; then
             # Running directly as a non-root user; no privilege drop needed.
+            # The outer shell's `set -eo pipefail` is in effect, so a curl
+            # failure in the pipe surfaces as a script abort.
             curl -fsSL https://cursor.com/install | bash
         else
             # Running as root via sudo; drop to invoking user.
             # `-H` so $HOME is the user's home, not preserved-root-$HOME.
-            sudo -u "$CLI_USER" -H bash -c 'curl -fsSL https://cursor.com/install | bash'
+            # `set -eo pipefail` INSIDE the inner shell — `bash -c` starts a
+            # fresh shell that does NOT inherit the outer shell's option flags,
+            # so a curl failure in `curl ... | bash` would otherwise be
+            # swallowed (the pipe's exit status defaults to the last command's,
+            # and a bash with empty stdin exits 0). Match the direct-user path's
+            # error behaviour explicitly.
+            sudo -u "$CLI_USER" -H bash -c 'set -eo pipefail; curl -fsSL https://cursor.com/install | bash'
         fi
     fi
 fi
