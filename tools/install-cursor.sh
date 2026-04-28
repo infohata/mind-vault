@@ -221,7 +221,10 @@ rm -f "$DEB_PATH"
 echo ""
 echo "🎉 Install complete:"
 if command -v cursor >/dev/null 2>&1; then
-    cursor --version 2>/dev/null | sed 's/^/   /'
+    # `|| true` so a non-zero exit from cursor (headless host, no display) doesn't
+    # propagate through `set -eo pipefail` and abort the script before "Next steps"
+    # prints. Mirrors the same guard on the idempotency-check pipeline above.
+    { cursor --version 2>/dev/null || true; } | sed 's/^/   /'
 else
     echo "   ⚠️  'cursor' command not on PATH. Check /usr/share/cursor or re-login to refresh PATH."
 fi
