@@ -340,9 +340,15 @@ fi
 echo ""
 echo "🎉 Install complete:"
 if command -v cursor >/dev/null 2>&1; then
-    # `|| true` so a non-zero exit from cursor (headless host, no display) doesn't
-    # propagate through `set -eo pipefail` and abort the script before "Next steps".
-    { cursor --version 2>/dev/null || true; } | sed 's/^/   IDE: /' | head -1
+    # Capture full output then take first line via parameter expansion. Piping
+    # `cursor --version` through `sed | head -1` under `set -eo pipefail` would
+    # SIGPIPE sed (exit 141) when head closes stdin after the first of cursor's
+    # three output lines, propagating through pipefail and aborting the script
+    # before "Next steps" prints. Same pattern as the idempotency check above
+    # and install-mosh-tmux.sh:484-491.
+    POSTINSTALL_VER_RAW="$(cursor --version 2>/dev/null || true)"
+    POSTINSTALL_VER_LINE="${POSTINSTALL_VER_RAW%%$'\n'*}"
+    echo "   IDE: ${POSTINSTALL_VER_LINE:-installed}"
 else
     echo "   IDE: ⚠️  'cursor' command not on PATH."
 fi
@@ -357,8 +363,16 @@ if [ "$INSTALL_CLI" = "1" ] && [ -x "$CLI_BIN_PATH" ]; then
 
     # PATH hint for the target user — vendor installer prints its own hints,
     # but running via sudo suppresses interactive shell-detection so we re-state.
+    # When CLI_USER == $USER (script invoked directly, no sudo), reading $PATH
+    # via `sudo -u $USER` would gratuitously prompt for a password (or fail
+    # silently with no sudo privs), produce empty TARGET_PATH, and fire a
+    # false-positive "not on PATH" warning. Branch like the version check above.
     if [ -n "$CLI_USER_HOME" ]; then
-        TARGET_PATH="$(sudo -u "$CLI_USER" -H bash -c 'echo $PATH' 2>/dev/null || echo "")"
+        if [ "$CLI_USER" = "$USER" ]; then
+            TARGET_PATH="$PATH"
+        else
+            TARGET_PATH="$(sudo -u "$CLI_USER" -H bash -c 'echo $PATH' 2>/dev/null || echo "")"
+        fi
         case ":${TARGET_PATH}:" in
             *":${CLI_USER_HOME}/.local/bin:"*) ;;
             *)
