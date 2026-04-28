@@ -68,7 +68,42 @@ ISSUE_COMMENTS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments
 REVIEWS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews?per_page=100" 2>/dev/null || echo "[]")
 
 # ------------------------------------------------------------------------------
-# Pass 1 — Reviews: clean-signal detection (and any review-level bugbot summary)
+# Pass 1 — Reviews: three Python sub-passes against $REVIEWS
+# ------------------------------------------------------------------------------
+# Three near-identical python3 blocks below all parse $REVIEWS, filter for
+# cursor[bot], and sort by submitted_at — but each answers a different question
+# and emits a different marker:
+#
+#   1. CLEAN_SIGNAL_LINE   — "is bugbot saying HEAD is clean right now?"
+#                            Emits BUGBOT_CLEAN_SIGNAL only on positive match.
+#                            Empty otherwise. Drives /bugbot-loop's Phase 4
+#                            fast-path hand-back.
+#
+#   2. LATEST_REVIEW_LINE  — "what is the most recent bugbot review, regardless
+#                            of clean state?" Emits BUGBOT_LATEST_REVIEW
+#                            unconditionally with a CLEAN=true|false flag.
+#                            Drives the active/stale finding filter from PR #81.
+#
+#   3. OTHER_REVIEWS       — "what non-clean reviews against earlier SHAs are
+#                            still in history?" Emits a small human-readable
+#                            list (capped at 5).
+#
+# Bugbot PR #81 review (3156265252, LOW) flagged the duplication as a
+# maintenance smell — same filter + sort + field-extract in three places.
+# Kept three blocks intentionally:
+#
+#   - Each block answers ONE question and is independently readable (~15 lines
+#     vs ~40 for a consolidated emit-three-markers block).
+#   - The line-by-line stdout shape (independently empty-able markers in their
+#     existing order) IS a contract — `/bugbot-loop` Phase 4 greps the
+#     `^BUGBOT_CLEAN_SIGNAL=` anchor; consolidating risks reordering or
+#     emitting empty placeholders that subtly change consumer behaviour.
+#   - Three python3 spawns is ~150ms total — invisible at the loop's 270s
+#     polling cadence. Performance is not the load-bearing argument here.
+#
+# Drift risk: if cursor[bot] becomes a different bot login or the API field
+# names change, all THREE blocks need updating. Worth consolidating IF a fourth
+# marker is added or the maintenance pain actually shows up.
 # ------------------------------------------------------------------------------
 CLEAN_SIGNAL_LINE=$(echo "$REVIEWS" | python3 -c "
 import json, sys
@@ -101,6 +136,41 @@ if [ -n "$CLEAN_SIGNAL_LINE" ]; then
     # exact failure mode this script exists to prevent.
     echo "$CLEAN_SIGNAL_LINE"
     echo -e "${GREEN}✅ Bugbot reviewed the PR head and found no new issues.${NC}"
+    echo ""
+fi
+
+# ------------------------------------------------------------------------------
+# Latest-review marker — used by the loop's Phase 1 to filter stale-vs-HEAD findings
+# ------------------------------------------------------------------------------
+# Inline review comments persist visually across pushes until "Resolve conversation"
+# is clicked on the GitHub UI, so /comments will surface findings from EVERY prior
+# review, not just the latest one. Without a way to tell which review a finding
+# belongs to, the loop processes already-fixed findings as if they were active and
+# burns cycles. Surface the latest bugbot review id (whether clean or not) so the
+# loop can compare each comment's `pull_request_review_id` field against it and
+# treat anything-but-the-latest as stale persistent threads, not active findings.
+LATEST_REVIEW_LINE=$(echo "$REVIEWS" | python3 -c "
+import json, sys
+try:
+    reviews = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+bugbot = [r for r in reviews if (r.get('user') or {}).get('login') == 'cursor[bot]']
+if not bugbot:
+    sys.exit(0)
+bugbot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
+latest = bugbot[0]
+rid = latest.get('id')
+commit = latest.get('commit_id') or ''
+at = latest.get('submitted_at') or ''
+body = (latest.get('body') or '').strip()
+clean = 'true' if 'found no new issues' in body else 'false'
+print(f'BUGBOT_LATEST_REVIEW={rid} COMMIT={commit} AT={at} CLEAN={clean}')
+" 2>/dev/null || true)
+
+if [ -n "$LATEST_REVIEW_LINE" ]; then
+    # Same plain-text contract as BUGBOT_CLEAN_SIGNAL — no ANSI codes.
+    echo "$LATEST_REVIEW_LINE"
     echo ""
 fi
 
@@ -185,6 +255,15 @@ for i, comment in enumerate(comments, 1):
     body = comment.get('body', '')
     url = comment.get('html_url', '')
     cid = comment.get('id', '')
+    # The pull_request_review_id field ties a comment to a specific bugbot review.
+    # /bugbot-loop Phase 1 compares this against the BUGBOT_LATEST_REVIEW marker
+    # to distinguish active findings (latest-review) from stale persistent threads
+    # (older reviews kept by GitHub UI until manually Resolve-conversation-clicked).
+    # GitHub documents the field as integer-or-null. .get(key, default) returns the
+    # null/None value when the key EXISTS, not the default — so use Python's "or"
+    # operator to coalesce both absent-key and null-value cases (matches the pattern
+    # used elsewhere in this script, e.g. latest.get on commit_id immediately above).
+    rev_id = comment.get('pull_request_review_id') or ''
 
     # Extract severity
     severity = 'Info'
@@ -213,7 +292,7 @@ for i, comment in enumerate(comments, 1):
 
     separator = '━' * 80
     print(f'{severity_color}{separator}\033[0m')
-    print(f'{severity_color}[{i}/{len(comments)}] Severity: {severity} (comment id {cid})\033[0m')
+    print(f'{severity_color}[{i}/{len(comments)}] Severity: {severity} (comment id {cid}, review {rev_id})\033[0m')
     print(f'\033[0;34m**File:**\033[0m {path}:{line}')
     print(f'\033[0;34m**Title:**\033[0m {title}')
 
@@ -270,7 +349,7 @@ fi
 # ------------------------------------------------------------------------------
 # Summary
 # ------------------------------------------------------------------------------
-if [ -z "$CLEAN_SIGNAL_LINE" ] && [ -z "$BUGBOT_INLINE" ] && [ -z "$BUGBOT_ISSUE" ] && [ -z "$OTHER_REVIEWS" ]; then
+if [ -z "$CLEAN_SIGNAL_LINE" ] && [ -z "$LATEST_REVIEW_LINE" ] && [ -z "$BUGBOT_INLINE" ] && [ -z "$BUGBOT_ISSUE" ] && [ -z "$OTHER_REVIEWS" ]; then
     echo "⏳ No bugbot activity yet for PR #$PR_NUMBER."
     echo "   Trigger a review with: ./tools/bugbot_retrigger.sh $PR_NUMBER"
     exit 0
