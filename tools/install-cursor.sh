@@ -57,6 +57,11 @@ set -eo pipefail
 CHECK_ONLY=0
 UPGRADE=0
 
+# Snapshot original args before the parser loop consumes them — the root-check
+# error message below re-prints the invocation, and `shift`-ed positional
+# parameters can't be reconstructed after the loop.
+ORIGINAL_ARGS=("$@")
+
 while [ $# -gt 0 ]; do
     case "$1" in
         --check) CHECK_ONLY=1; shift ;;
@@ -163,7 +168,7 @@ fi
 
 # --- Root check (needed for apt-get install) ---
 if [ "$(id -u)" -ne 0 ]; then
-    echo "❌ This script must be run as root. Re-run with: sudo $0 $*" >&2
+    echo "❌ This script must be run as root. Re-run with: sudo $0 ${ORIGINAL_ARGS[*]}" >&2
     exit 1
 fi
 
