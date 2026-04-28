@@ -224,7 +224,11 @@ for i, comment in enumerate(comments, 1):
     # /bugbot-loop Phase 1 compares this against the BUGBOT_LATEST_REVIEW marker
     # to distinguish active findings (latest-review) from stale persistent threads
     # (older reviews kept by GitHub UI until manually Resolve-conversation-clicked).
-    rev_id = comment.get('pull_request_review_id', '')
+    # GitHub documents the field as integer-or-null. .get(key, default) returns the
+    # null/None value when the key EXISTS, not the default — so use `or` to coalesce
+    # both absent-key and null-value cases (matches the pattern used elsewhere in
+    # this script, e.g. latest.get('commit_id') or '').
+    rev_id = comment.get('pull_request_review_id') or ''
 
     # Extract severity
     severity = 'Info'
