@@ -214,20 +214,43 @@ fi
 cleanup_dirty_ide_state() {
     local cleaned=0
 
-    # 1. ALL pre-existing cursor / anysphere apt source files. Even ones that
-    #    happen to point at downloads.cursor.com/aptrepo can be broken (e.g. an
-    #    older `signed-by=/usr/share/keyrings/anysphere.gpg` line whose keyring
-    #    we delete in step 2 — `apt-get update` would then fail with NO_PUBKEY
-    #    before we write the canonical replacement). Always remove and rewrite
-    #    from a known-good template.
-    local list_files
-    # shellcheck disable=SC2012
-    list_files="$(ls /etc/apt/sources.list.d/cursor*.list /etc/apt/sources.list.d/anysphere*.list 2>/dev/null || true)"
-    if [ -n "$list_files" ]; then
-        echo "🧹 Removing pre-existing cursor/anysphere apt source(s) (will be rewritten below):"
-        echo "$list_files" | sed 's/^/      /'
-        # shellcheck disable=SC2086
-        rm -f $list_files
+    # 1. Find ALL apt source files referencing downloads.cursor.com — by URL
+    #    content, not filename pattern. Earlier versions of this script only
+    #    globbed cursor*.list / anysphere*.list; that misses sources installed
+    #    under any other filename (vscode-cursor.list, anysphere-stable.list,
+    #    plain cursor.sources in deb822 format, etc.). Even sources that
+    #    happen to point at the official URL get removed: their `signed-by=`
+    #    line may reference a keyring we delete in step 2 below — `apt-get
+    #    update` would then fail with NO_PUBKEY before the canonical
+    #    replacement is written. Always remove and rewrite.
+    local stale_files=""
+    if compgen -G '/etc/apt/sources.list.d/*.list' >/dev/null 2>&1; then
+        stale_files+="$(grep -l 'downloads\.cursor\.com' /etc/apt/sources.list.d/*.list 2>/dev/null || true)"$'\n'
+    fi
+    if compgen -G '/etc/apt/sources.list.d/*.sources' >/dev/null 2>&1; then
+        stale_files+="$(grep -l 'downloads\.cursor\.com' /etc/apt/sources.list.d/*.sources 2>/dev/null || true)"$'\n'
+    fi
+    # Strip empty lines + dedup. `printf %s` avoids echo-induced newline noise.
+    stale_files="$(printf '%s' "$stale_files" | grep -v '^$' | sort -u || true)"
+    if [ -n "$stale_files" ]; then
+        echo "🧹 Removing pre-existing apt source file(s) referencing downloads.cursor.com (will be rewritten below):"
+        echo "$stale_files" | sed 's/^/      /'
+        while IFS= read -r f; do
+            [ -n "$f" ] && rm -f "$f"
+        done <<< "$stale_files"
+        cleaned=1
+    fi
+
+    # 1b. Inline sources inside /etc/apt/sources.list itself (rare — most
+    #     vendor docs put each repo under sources.list.d/ — but worth handling).
+    #     Don't auto-delete the master sources.list; comment the offending
+    #     lines out instead, with a one-shot .bak backup so the user can
+    #     revert if anything looks off.
+    if [ -f /etc/apt/sources.list ] && grep -q 'downloads\.cursor\.com' /etc/apt/sources.list 2>/dev/null; then
+        echo "🧹 Found cursor source line(s) inside /etc/apt/sources.list — commenting out:"
+        grep -n 'downloads\.cursor\.com' /etc/apt/sources.list | sed 's/^/      /'
+        sed -i.bak-cursor 's|^\(deb .*downloads\.cursor\.com.*\)$|# \1  # disabled by install-cursor.sh|' /etc/apt/sources.list
+        echo "    (backup at /etc/apt/sources.list.bak-cursor)"
         cleaned=1
     fi
 
