@@ -214,25 +214,27 @@ fi
 cleanup_dirty_ide_state() {
     local cleaned=0
 
-    # 1. Stale apt source files for cursor that DON'T point at the official repo.
-    #    (Could come from older versions of this script, vendor docs that pinned
-    #    a different URL shape, or experimental sources the user added by hand.)
-    #    Sources that DO point at downloads.cursor.com/aptrepo are left alone —
-    #    the canonical source-add step below will overwrite cursor.list anyway.
-    local stale_lists
-    stale_lists="$(grep -L 'downloads\.cursor\.com/aptrepo' /etc/apt/sources.list.d/cursor*.list 2>/dev/null || true)"
-    if [ -n "$stale_lists" ]; then
-        echo "🧹 Removing stale cursor apt source(s) (none point at downloads.cursor.com/aptrepo):"
-        echo "$stale_lists" | sed 's/^/      /'
+    # 1. ALL pre-existing cursor / anysphere apt source files. Even ones that
+    #    happen to point at downloads.cursor.com/aptrepo can be broken (e.g. an
+    #    older `signed-by=/usr/share/keyrings/anysphere.gpg` line whose keyring
+    #    we delete in step 2 — `apt-get update` would then fail with NO_PUBKEY
+    #    before we write the canonical replacement). Always remove and rewrite
+    #    from a known-good template.
+    local list_files
+    # shellcheck disable=SC2012
+    list_files="$(ls /etc/apt/sources.list.d/cursor*.list /etc/apt/sources.list.d/anysphere*.list 2>/dev/null || true)"
+    if [ -n "$list_files" ]; then
+        echo "🧹 Removing pre-existing cursor/anysphere apt source(s) (will be rewritten below):"
+        echo "$list_files" | sed 's/^/      /'
         # shellcheck disable=SC2086
-        rm -f $stale_lists
+        rm -f $list_files
         cleaned=1
     fi
 
     # 2. Stale keyrings in non-standard old paths. Some vendor recipes used
     #    /usr/share/keyrings — we always write to /etc/apt/keyrings now, so an
     #    old key file in the legacy path is at best dead weight, at worst it
-    #    pairs with a `signed-by=` line we no longer write.
+    #    pairs with a `signed-by=` line in a stale source.list entry.
     local k
     for k in /usr/share/keyrings/cursor.gpg /usr/share/keyrings/anysphere.gpg /usr/share/keyrings/cursor-archive-keyring.gpg; do
         if [ -e "$k" ]; then
