@@ -345,6 +345,9 @@ if [ "$DO_CLI" = "1" ]; then
         echo "   The CLI lives in ~/.local/bin and would land in /root, not the user's home."
         echo "   Re-run as a regular user via sudo (e.g. \`sudo ./tools/install-cursor.sh\`)" \
              "or run the vendor installer yourself: \`curl https://cursor.com/install -fsS | bash\`"
+        # Flip the flag so the verify + Next-steps blocks below don't print
+        # CLI usage/upgrade hints for a command that wasn't actually installed.
+        INSTALL_CLI=0
     else
         echo ""
         echo "⬇️  Installing Cursor Agent CLI for ${CLI_USER} (user-scope, no sudo)..."
