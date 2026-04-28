@@ -186,6 +186,34 @@ fi
 **Supported**: Debian 11+ (bullseye, bookworm, trixie), Ubuntu 20.04+ (focal, jammy, noble, later).
 **Not supported**: RHEL / Fedora / Arch (each needs a different package manager — left for a later PR).
 
+### install-cursor.sh
+**Purpose**: Install [Cursor IDE](https://cursor.com) on Debian/Ubuntu by downloading the official `.deb` and letting `apt` drive the install (so transitive shared-lib deps resolve in one transaction).
+
+**Problem Solved**:
+- Cursor doesn't publish an apt repository — only a downloadable `.deb` and an AppImage
+- Manual download + `dpkg -i cursor.deb` half-installs on fresh hosts (libnss3 / libxkbfile1 / libsecret-1-0 / libgtk-3-0 / libasound2 missing) and leaves the user running `apt-get install -f` to clean up
+- Knowing the *latest* download URL from the vendor's docs is fiddly — they don't publish a stable "latest" URL on the marketing page
+
+**Usage**:
+```bash
+sudo ./tools/install-cursor.sh                # fresh install
+sudo ./tools/install-cursor.sh --check        # report current state, no writes
+sudo ./tools/install-cursor.sh --upgrade      # fetch latest, skip if already current
+```
+
+**Features**:
+- ✅ Idempotent: exits early if `cursor --version` already reports a version (unless `--upgrade`)
+- ✅ `--check` reports install state with exit code (0 = installed, 1 = missing)
+- ✅ `--upgrade` parses upstream version from the redirect filename and skips the download if local matches
+- ✅ Resolves the latest `.deb` via Cursor's own update endpoint (`api2.cursor.sh/.../cursor/0.0.0` → 302 to `downloads.cursor.com/.../cursor_<ver>_<arch>.deb`) — no hardcoded version
+- ✅ Uses `apt-get install ./cursor.deb` — every transitive lib (libnss3, libxkbfile1, libsecret-1-0, libgtk-3-0, libasound2, …) installed in a single apt transaction; no `dpkg -i` half-state
+- ✅ Auto-detects arch (`amd64` / `arm64`) and accepts Debian/Ubuntu derivatives via `ID_LIKE`
+
+**Caveat**: Cursor's `.deb` does NOT register an apt source — `apt upgrade` will never bump Cursor. Re-run `sudo ./tools/install-cursor.sh --upgrade` to fetch a newer version.
+
+**Supported**: Debian 11+ (bullseye, bookworm, trixie), Ubuntu 20.04+ (focal, jammy, noble, later); amd64 + arm64. Derivatives (Mint, Pop!_OS, Zorin, Kali) accepted via `ID_LIKE`.
+**Not supported**: RHEL / Fedora / Arch (Cursor publishes a `.rpm` for those; left for a later PR).
+
 ### cleanup-contamination.sh
 **Purpose**: Detect and remove grok-code-fast-1 tool response contamination from files
 
