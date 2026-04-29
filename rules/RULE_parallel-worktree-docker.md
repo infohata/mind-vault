@@ -186,6 +186,90 @@ The only coordination seams between parallel worktrees are:
 
 Everything else — branch state, docker state, database state, redis state, filesystem — is independently isolated by the worktree + per-project compose pattern. That's what makes the pattern a performance lever: zero wait for branch-switch, zero collision on container state, zero context rot across sessions.
 
+### Single-stack staging server: smoke-testing un-merged PRs in-place
+
+Some projects designate the staging machine as a *single-stack* environment: the primary checkout is on `main` by default and serves real-ish traffic, but the operator (or AI agent) sometimes wants to test an un-merged PR against the same DB and the same external services. No second stack involved. This is **not** the parallel-worktree pattern above — it's a single-stack swap-and-revert workflow against shared state.
+
+The hybrid bind-mount-vs-COPY layer split matters here. Many projects bind-mount the application source (so code changes propagate to the running container without a rebuild) but `COPY` other services' source at image-build time (microservices, sidecars, ML workers — wherever a slimmer image is desired). When a PR touches both layers, the smoke-test workflow has to update them differently:
+
+- **Bind-mounted services** (typically the main Django/Rails/Node app): just `docker compose restart <svc>` after `git checkout` — the bind-mount carries the new code automatically.
+- **COPY-baked services** (typically the smaller helper microservices): the running container's source was baked at last build time. Either rebuild the image (slow but clean), or `docker compose cp` the new file into the running container + restart (fast but leaves cp'd state that needs to be flushed on revert).
+
+The full happy-path workflow:
+
+```bash
+# 1. Save current state assumptions: primary should be on main, clean tree.
+cd ~/projects/<project>
+git status --short                      # expect clean
+git log --oneline -1                     # expect main HEAD
+
+# 2. Detach to the un-merged PR's HEAD. --detach avoids claiming the branch
+#    (so the PR's own worktree, if any, isn't affected; also avoids the
+#    "already used by worktree at /path" error if a per-IDEA worktree exists).
+git fetch origin
+git checkout --detach origin/<feature-branch>
+git log --oneline -1                     # confirm new HEAD
+
+# 3. For each COPY-baked service the PR touches: cp the new source +
+#    restart. This is fast (~5s) and avoids a full rebuild for a smoke test.
+docker compose cp <service>/main.py <service>:/app/main.py
+docker compose restart <service>
+
+# 4. Apply any new migrations. The web container's bind-mounted /app
+#    immediately sees the new migration files; `migrate_schemas` is a fresh
+#    Python process so it picks up new models without needing a restart yet.
+docker compose exec -T web python manage.py migrate_schemas
+
+# 5. Restart bind-mounted services so the long-running daphne/gunicorn/
+#    celery process loads the new code.
+docker compose restart web celery
+
+# 6. Run the smoke test (project-specific).
+docker compose exec -T web python manage.py <smoke-command>
+```
+
+**Reverting cleanly back to main**:
+
+```bash
+# 1. Roll back any migrations applied during the test (if the PR added new
+#    migrations and you want to leave the DB matching main's state). For
+#    additive-only migrations, this is `migrate_schemas <app> <prev-num>`.
+#    SKIP this step if the user explicitly said "don't roll back" — see
+#    the migration-tracking gotcha below.
+docker compose exec -T web python manage.py migrate_schemas <app> <prev-migration-number>
+
+# 2. git checkout main.
+git checkout main
+
+# 3. Force-recreate COPY-baked services to discard the cp'd state. A plain
+#    restart would NOT discard it — the cp'd file lives in the container's
+#    filesystem layer and survives restart. Force-recreate spins up a new
+#    container from the image, which has the original (main's) source.
+docker compose up -d --force-recreate <service>
+
+# 4. Restart bind-mounted services to drop any in-memory state that came
+#    from the PR's code (cached imports, in-flight worker tasks, etc.).
+docker compose restart web celery
+```
+
+**Migration tracking persists across code-tree changes — and `showmigrations` lies about it.** If the smoke-test session applies a migration (say `0038_*`) but then reverts to main without rolling back, the DB still has migration `0038` tracked in `django_migrations` AND the columns it added. But `showmigrations` only iterates files in the current code's `migrations/` directory — main doesn't have `0038_*.py`, so `showmigrations` won't show it at all (not as applied, not as unapplied — invisible). The DB state and Django's view of migrations diverge. The orthogonal additive columns sit unused on the tables (Django's ORM doesn't know about them, so writes don't include them) — benign while you wait for the PR to land, but worth knowing.
+
+**Verifying actual DB-tracked migrations** when `showmigrations` is hiding things:
+
+```python
+# python manage.py shell
+from django.db import connection
+with connection.cursor() as c:
+    c.execute("SELECT name, applied FROM <tenant_schema>.django_migrations "
+              "WHERE app=%s ORDER BY id DESC LIMIT 5;", ["<app_name>"])
+    for row in c.fetchall():
+        print(row)
+```
+
+The `<tenant_schema>` is `public` for non-multi-tenant projects, or the per-tenant schema name for django-tenants setups. Multi-tenant projects: query BOTH `public.django_migrations` (shared apps) and `<tenant_schema>.django_migrations` (tenant apps) — they're separate tables with separate state.
+
+**The state-mutating chain trap**: a single chained tool call like `migrate_schemas <prev> && git checkout main && docker compose up -d --force-recreate <svc> && docker compose restart web celery` can partially execute on user rejection (the harness blocks LATER links but EARLIER ones may have already run). Split state-mutating ops into separate tool calls so rejection has a clean intercept. See `~/.claude/projects/<project>/memory/feedback_chained_command_destructive_ops.md` for the full pattern.
+
 ### Referenced from
 
 - Global `~/.claude/CLAUDE.md` — the `.env` worktree exception clause.
@@ -199,4 +283,6 @@ Everything else — branch state, docker state, database state, redis state, fil
 
 ---
 
-**Last Updated**: 2026-04-25 (added InvalidAccessKeyId Common Gotcha row — the `MINIO_ROOT_USER` vs `AWS_ACCESS_KEY_ID` template-defaults mismatch that survives a generic sentinel-rewrite regex and only surfaces after the bucket is set up; mid-sprint reinforcement during teisutis IDEA-127 worktree bootstrap. Previous: 2026-04-22, dev-tool install + config placement.)
+**Last Updated**: 2026-04-29 (added "Single-stack staging server: smoke-testing un-merged PRs in-place" section covering the bind-mount-vs-COPY hybrid update workflow, the revert-to-main path with `up -d --force-recreate` on COPY services to drop cp'd state, the migration-tracking-persists gotcha (`showmigrations` hides migrations whose files aren't on the current branch but the DB still has them tracked + columns present), and the multi-tenant `django_migrations` query pattern for verifying actual DB state. Cross-references the `feedback_chained_command_destructive_ops.md` auto-memory entry for state-mutating chain discipline. Compounded from teisutis IDEA-131 PR #397 + PR #400 staging smoke-test sessions.)
+
+**Previous**: 2026-04-25 (added InvalidAccessKeyId Common Gotcha row — the `MINIO_ROOT_USER` vs `AWS_ACCESS_KEY_ID` template-defaults mismatch that survives a generic sentinel-rewrite regex and only surfaces after the bucket is set up; mid-sprint reinforcement during teisutis IDEA-127 worktree bootstrap.) 2026-04-22: dev-tool install + config placement.
