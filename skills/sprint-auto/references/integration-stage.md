@@ -214,17 +214,25 @@ done
 
 **Forward-sync, not force-push**: the feature-branch tip moves; `integration/sprint-auto-<batch-iso>` stays put. Per `RULE_git-safety` this is "merging `main`-equivalent state into a feature branch" — agent-allowed without force-push. No review threads invalidated.
 
-**Co-dependent PRs — the load-bearing morning-reviewer warning**
+**Atomic-batch merging — feature, not bug (with one escalation escape hatch)**
 
-After forward-sync, **every per-PR PR carries the entire batch's content**. This is the design intent — each PR represents "the post-batch state if all of these merge in any order" — but it has three concrete consequences the morning reviewer must understand before merging anything:
+After forward-sync, every per-PR PR carries the entire batch's content. This is the design intent — each PR represents "the post-batch state if any one of these merges first" — and on the happy path (the whole batch is good and the reviewer wants to ship it) **this is a time-saver**: the reviewer merges ONE PR and main absorbs the whole batch in a single click. The remaining PRs auto-collapse to zero diff against the new main and can be closed with a one-liner ("absorbed by #<first-merged>").
 
-1. **The first merge brings the whole batch into main.** Whichever per-PR PR is merged first absorbs all other batch IDEAs via the integration commits. There is no "merge IDEA-A only, defer IDEA-B" option once forward-sync has run. If the reviewer wants to ship one IDEA but reject another, that decision must happen pre-merge — by `git revert`-ing the unwanted commits on the integration branch before forward-sync, OR by re-running sprint-auto with the unwanted IDEA dropped. **Once forward-sync lands, the batch is atomic.**
+So the framing is **not** "co-dependent PRs are a problem to warn about." It's "atomic-batch merging is a win the reviewer should know is happening, plus an escape hatch when they want to defer ONE IDEA."
 
-2. **Subsequent PRs' diffs collapse to zero after the first merge.** GitHub computes each PR's diff against the *current* base. After PR-A merges to main, PR-B's HEAD becomes a strict ancestor of main, so GitHub reports the diff as empty / "already merged." The PR can be closed without further action — it carried no unique content. This is a strong signal of correct forward-sync; if the second PR's diff doesn't collapse, something is wrong (likely PR-B had post-forward-sync commits that weren't propagated back into the integration branch + re-forward-synced).
+What the reviewer needs to know before merging:
 
-3. **Pre-first-merge UI confusion.** Before any PR merges, GitHub computes each PR's diff against OLD main (the pre-batch base). All N PRs in the batch show the same ~combined-additions number against that base. A reviewer scanning the size labels sees N PRs with implausibly-large diffs that all overlap. The auto-run summary's morning-checklist must call this out explicitly so the reviewer doesn't waste time hunting for "what's unique to PR-B" — the answer is "nothing, by design."
+1. **Happy path (most batches): merge ONE PR, the rest collapse.** Pick whichever PR you want to be "the merge commit author" — the other PRs are equivalent. After the merge, refresh the others; their diff drops to zero; close them with `gh pr close --comment "absorbed by #<n>"`. **This saves N-1 merges per batch.** Time-savings compound on larger batches.
 
-The cure for confusion is documentation, not architecture. The auto-run summary template (`assets/auto-run-log-template.md` § Morning checklist) carries the explicit warning. Per-PR PR descriptions get a co-dependent-batch banner injected at S11.11 push time. No mechanical change to forward-sync itself — the trade-off is intentional (atomic-batch merging is the win; co-dependent diffs are the cost) — only the notification surface needs to be load-bearing enough that the reviewer doesn't get surprised the way the teisutis 2026-04-29 batch reviewer did.
+2. **Pre-first-merge UI quirk (cosmetic): all PRs show similar large diffs.** GitHub computes each PR's diff against pre-batch main, so the size labels all look ~the same combined-additions number. Don't hunt for "what's unique to PR-B" before merging — the answer is "nothing, by design." This is not a bug; it's the natural consequence of forward-sync. The auto-run summary's morning checklist points this out.
+
+3. **Escalation path (rare): you want to ship some IDEAs but defer others.** This is the only friction case. Forward-sync has bound the batch atomically; deferring one IDEA after S11.11 has landed requires un-binding it. Three options, in order of clean-to-surgical:
+
+   - **Close-and-rerun (cleanest).** `gh pr close` the PRs you want to defer, then re-run sprint-auto with just the IDEAs you want to ship. The previous batch's worktrees can be reused as code-surface scratch (no re-bootstrap needed); only the integration worktree gets a fresh batch-iso. Cost: re-running the integration phase + bugbot loops. Time: ~30-60 min unattended.
+   - **Surgical revert on the integration branch.** Locally on the integration branch (or its origin tip), `git revert` the unwanted IDEA's commits, push, then re-run S11.11 forward-sync into the per-PR branches. Cost: bugbot re-fires on each PR, you wait for clean signals, then merge. Risk: if the unwanted IDEA's changes interleave with another IDEA's changes in the same files, the revert produces conflicts you have to resolve manually. Time: 15-30 min if no conflicts.
+   - **Accept atomic.** If the deferred IDEA is "low-cost to ship anyway" (additive, reversible by `git revert` post-merge if needed), merge the whole batch and revert the unwanted IDEA later as a follow-up PR. Cost: one extra PR's worth of churn. Risk: only acceptable if the deferred IDEA is genuinely low-cost — if it's high-risk, take option (a) or (b).
+
+The cure for confusion is naming the time-saver explicitly + having the escalation escape hatches documented. No mechanical change to forward-sync — the architecture is correct.
 
 ## Re-bugbot per-PR PRs (S11.12)
 
@@ -302,6 +310,6 @@ Three reasons:
 
 ---
 
-**Last Updated**: 2026-04-29 (strengthened the Forward-sync section's "Cosmetic acknowledged trade" paragraph into "Co-dependent PRs — the load-bearing morning-reviewer warning" with three concrete consequences: first-merge atomicity, subsequent-PRs-diff-collapse, pre-first-merge UI confusion. Cure is documentation, not architecture. Compounded from teisutis 2026-04-29 batch reviewer feedback on PR #398's collapsed diff post-#397-merge.)
+**Last Updated**: 2026-04-29 (reframed the Forward-sync section from "Cosmetic acknowledged trade" / "warning" tone to "Atomic-batch merging — feature, not bug (with one escalation escape hatch)" — names the time-save explicitly on the happy path (one merge ships N IDEAs), documents the cosmetic UI quirk pre-first-merge, and enumerates three escape hatches for the rare defer-one-IDEA escalation case (close-and-rerun / surgical revert / accept atomic). Compounded from teisutis 2026-04-29 batch reviewer feedback: "atomic-batch is saving me time, only escalation is the issue.")
 
 **Previous**: 2026-04-27 (initial — implements `IDEA_integration_branch.md` v3.1)
