@@ -107,6 +107,44 @@ class BaseModel(models.Model):
 
 **When NOT to soft-delete:** audit logs (never delete), temporary/cache data (hard delete), FK-integrity-critical records (soft deletes break cascades and `on_delete=PROTECT`).
 
+### Blankable CharField — `null=True` over `default=""`
+
+**The rule**: any `CharField` / `TextField` declared with `blank=True` should also declare `null=True`, **not** `default=""`. Two reasons, both load-bearing:
+
+1. **No empty-string sentinel ambiguity.** With `default=""`, an unset row stores `""`, and every read site has to decide whether to treat `""` and `None` as the same case. With `null=True` the unset case is unambiguously `NULL` — `is None` is the one truthful check. (Django's official advice "avoid `null=True` on string fields" was good in 2007 when callers freely passed `None` to `len()`; it's outweighed today by the readability cost of the empty-string sentinel.)
+2. **Additive migrations need no default value.** A new `CharField(blank=True, null=True)` column can be added with `AddField` and zero existing-row mutation — `NULL` is a valid value for every existing row. With `blank=True, default=""`, the migration either ships `default=""` (extra column-level overhead Django carries forward in the DDL) or asks the operator interactively for a one-off default. Neither matters at small scale; both bite in big-table migrations or in CI / cron environments where interactive prompts hang the deploy.
+
+```python
+# ✅ Recommended — symmetric blank/null, no default required.
+embed_failure_reason = models.CharField(
+    max_length=64, blank=True, null=True,
+    verbose_name=_("Embed failure reason"),
+)
+
+# ❌ Avoid — empty-string sentinel + default-value baggage.
+embed_failure_reason = models.CharField(
+    max_length=64, blank=True, default="",
+    verbose_name=_("Embed failure reason"),
+)
+```
+
+**Exception — when `default=""` IS the right call**: the field is populated synchronously by `save()` or a signal *before* the row is ever read, so the brief unset window is never observed by application code. The `Attachment.mime_type` example below is one such case (`save()` derives the MIME from the upload, no reader sees `NULL`). For everything else — operator-set fields, optional admin metadata, descriptive notes, last-error messages, soft-delete reasons — go `null=True`.
+
+**On serializer / API surface**: DRF's `CharField` defaults to `allow_null=False`. If the model is `null=True`, the corresponding serializer field needs `allow_null=True` *and* `required=False` to honour the model contract. Forgetting either means the API rejects valid `None` payloads with a 400 — silently breaking what the model permits.
+
+```python
+# Serializer for a model with embed_failure_reason: CharField(blank=True, null=True)
+class IndexableSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Article
+        fields = ["id", "title", "embed_failure_reason"]
+        extra_kwargs = {
+            "embed_failure_reason": {"allow_null": True, "required": False},
+        }
+```
+
+**Compounded from**: teisutis IDEA-131 Phase B (PR #400) — `IndexableMixin.embed_failure_reason` was the worked example. The user articulated the convention during code review: *"I'm always making fields nullable if blankable to avoid forcing empty string value, also if it's not nullable, field requires default value for additive migration."* That sentence is the rule.
+
 ### Multi-tenancy vs. ForeignKey boundaries
 
 For projects using schema-based isolation (`django-tenants`):
@@ -681,5 +719,5 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [Django REST Framework](https://www.django-rest-framework.org/)
 - [Django ORM Query Optimisation](https://docs.djangoproject.com/en/stable/topics/db/optimization/)
 
-**Last Updated**: 2026-04-27 — added "`ManifestStaticFilesStorage` — `collectstatic` is not enough, restart the app server" under Settings (compounded from teisutis IDEA-124 [PR #375](https://github.com/infohata/teisutis/pull/375) test loop — three iterations of "edit SCSS / make static / refresh" failed silently because daphne's cached manifest kept emitting the OLD hashed URL); plus a cross-link to [`django-frontend` SKILL.md → Template comment syntax](../django-frontend/SKILL.md) for the multi-line `{# … #}` content-leak gotcha. Previous: 2026-04-26.
+**Last Updated**: 2026-04-29 — added "Blankable CharField — `null=True` over `default=\"\"`" section right after BaseModel abstraction. Compounded from teisutis IDEA-131 Phase B (PR #400) where `IndexableMixin.embed_failure_reason` first crystallised the convention; the user's articulation during code review is the canonical rule. Covers two load-bearing reasons (no empty-string sentinel ambiguity + additive migrations need no default), one explicit exception (synchronous `save()`-populated fields), and the DRF-side serializer implication (`allow_null=True` + `required=False` to honour the model contract). Previous: 2026-04-27, ManifestStaticFilesStorage restart.
 **Version**: 5.5
