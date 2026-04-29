@@ -214,7 +214,17 @@ done
 
 **Forward-sync, not force-push**: the feature-branch tip moves; `integration/sprint-auto-<batch-iso>` stays put. Per `RULE_git-safety` this is "merging `main`-equivalent state into a feature branch" — agent-allowed without force-push. No review threads invalidated.
 
-**Cosmetic acknowledged trade**: each per-PR PR's diff against main now contains commits from every other PR in the batch (transitively, via the merge commit). The morning reviewer's mental model becomes: "this PR represents the post-batch state if the batch is merged in any order." When the reviewer merges PR-A, PR-B's diff against main shrinks (PR-A is now common ancestor); bugbot re-fires automatically; eventually all merge. Weirdness has bounded duration (until the batch is fully merged).
+**Co-dependent PRs — the load-bearing morning-reviewer warning**
+
+After forward-sync, **every per-PR PR carries the entire batch's content**. This is the design intent — each PR represents "the post-batch state if all of these merge in any order" — but it has three concrete consequences the morning reviewer must understand before merging anything:
+
+1. **The first merge brings the whole batch into main.** Whichever per-PR PR is merged first absorbs all other batch IDEAs via the integration commits. There is no "merge IDEA-A only, defer IDEA-B" option once forward-sync has run. If the reviewer wants to ship one IDEA but reject another, that decision must happen pre-merge — by `git revert`-ing the unwanted commits on the integration branch before forward-sync, OR by re-running sprint-auto with the unwanted IDEA dropped. **Once forward-sync lands, the batch is atomic.**
+
+2. **Subsequent PRs' diffs collapse to zero after the first merge.** GitHub computes each PR's diff against the *current* base. After PR-A merges to main, PR-B's HEAD becomes a strict ancestor of main, so GitHub reports the diff as empty / "already merged." The PR can be closed without further action — it carried no unique content. This is a strong signal of correct forward-sync; if the second PR's diff doesn't collapse, something is wrong (likely PR-B had post-forward-sync commits that weren't propagated back into the integration branch + re-forward-synced).
+
+3. **Pre-first-merge UI confusion.** Before any PR merges, GitHub computes each PR's diff against OLD main (the pre-batch base). All N PRs in the batch show the same ~combined-additions number against that base. A reviewer scanning the size labels sees N PRs with implausibly-large diffs that all overlap. The auto-run summary's morning-checklist must call this out explicitly so the reviewer doesn't waste time hunting for "what's unique to PR-B" — the answer is "nothing, by design."
+
+The cure for confusion is documentation, not architecture. The auto-run summary template (`assets/auto-run-log-template.md` § Morning checklist) carries the explicit warning. Per-PR PR descriptions get a co-dependent-batch banner injected at S11.11 push time. No mechanical change to forward-sync itself — the trade-off is intentional (atomic-batch merging is the win; co-dependent diffs are the cost) — only the notification surface needs to be load-bearing enough that the reviewer doesn't get surprised the way the teisutis 2026-04-29 batch reviewer did.
 
 ## Re-bugbot per-PR PRs (S11.12)
 
@@ -292,4 +302,6 @@ Three reasons:
 
 ---
 
-**Last Updated**: 2026-04-27 (initial — implements `IDEA_integration_branch.md` v3.1)
+**Last Updated**: 2026-04-29 (strengthened the Forward-sync section's "Cosmetic acknowledged trade" paragraph into "Co-dependent PRs — the load-bearing morning-reviewer warning" with three concrete consequences: first-merge atomicity, subsequent-PRs-diff-collapse, pre-first-merge UI confusion. Cure is documentation, not architecture. Compounded from teisutis 2026-04-29 batch reviewer feedback on PR #398's collapsed diff post-#397-merge.)
+
+**Previous**: 2026-04-27 (initial — implements `IDEA_integration_branch.md` v3.1)
