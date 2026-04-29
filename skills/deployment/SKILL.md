@@ -172,8 +172,16 @@ CURRENT=$(compute_embedding_shape)
 PREVIOUS=$([ -f "$SHAPE_FILE" ] && cat "$SHAPE_FILE" || echo "")
 
 if [ "$FORCE_REINDEX" = "1" ] || [ -z "$PREVIOUS" ] || [ "$CURRENT" != "$PREVIOUS" ]; then
-    run_expensive_reindex
-    echo "$CURRENT" > "$SHAPE_FILE"   # only after success
+    # Gate the marker write on the op's exit status so a failed reindex
+    # leaves the PREVIOUS marker intact — next deploy retries. Without
+    # explicit gating (or `set -e`), `echo > $SHAPE_FILE` on the next
+    # line would run unconditionally and silently mask the failure.
+    if run_expensive_reindex; then
+        echo "$CURRENT" > "$SHAPE_FILE"
+    else
+        echo "❌ reindex failed — marker NOT written; next deploy will retry." >&2
+        exit 1
+    fi
 else
     echo "🔍 Shape unchanged — skipping reindex."
 fi
@@ -181,7 +189,7 @@ fi
 
 **Anti-pattern this teaches against**: gating an expensive post-deploy op on raw dependency-file diff (`grep -qE "<subsystem>/" diff`). The *subsystem* changed (new endpoint, refactor, test added) but the *thing the op depends on* didn't. Running anyway burns whatever the op costs — for a vector-index rebuild against a pay-per-token embedding API, that can be a rate-limit cliff and a real bill. The gate moves the decision from "did any file in the subsystem change?" to "did the op's actual contract change?", which is a much smaller surface.
 
-**Failure-mode discipline**: write the marker **only after** the op succeeds. A failed reindex must leave the previous marker intact so the next deploy retries. If the op is non-atomic (multi-stage), only write the marker after the final stage completes.
+**Failure-mode discipline**: write the marker **only after** the op succeeds. The `if run_expensive_reindex; then ... fi` shape above does this explicitly — without it (`run_expensive_reindex; echo "$CURRENT" > "$SHAPE_FILE"`), a failed reindex would still write the marker, and the next deploy would skip the retry, silently masking the failure. If the op is non-atomic (multi-stage), wrap only the final stage in the `if` so partial-success doesn't poison the marker.
 
 ### Backup strategy
 

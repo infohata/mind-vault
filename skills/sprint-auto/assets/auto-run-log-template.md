@@ -231,9 +231,21 @@ Escalation cap for mind-vault compound PRs is 5 (same as docs pass — compound 
 | `skills/bugbot/references/null-guard-patterns.md` (new) | https://github.com/.../pull/78 | clean | 0/5 | `compound/2026-04-20-null-guard-patterns` |
 | `AGENT_architect.md` pass-2 addendum | https://github.com/.../pull/79 | 1 T3 remaining | 5/5 (cap hit) | `compound/2026-04-20-architect-pass-2-hoisting` |
 
+## ✅ Atomic-batch merging — pick ONE PR to merge, the rest auto-collapse
+
+This batch ran **forward-sync (S11.11)**, which means every per-PR PR carries the entire batch's content. **On the happy path this saves you merges**: pick any one of the project PRs below, merge it, and main absorbs the whole batch in one click. The remaining PRs' diffs collapse to zero against the new main — close them with a one-liner (`gh pr close <n> --comment "absorbed by #<first-merged>"`).
+
+Cosmetic UI quirk you'll see before the first merge: every PR in the batch shows a similarly-large diff against pre-batch main. That's expected — forward-sync gave them all the same content. Don't hunt for "what's unique to PR-B"; the answer is "nothing, by design."
+
+**If you want to ship some IDEAs but defer others** (the escalation case — rare, but real):
+
+- **(a) Close-and-rerun (cleanest).** `gh pr close` the PRs to defer, then re-run sprint-auto with only the IDEAs to ship. Re-runs the integration phase + bugbot; ~30-60 min unattended.
+- **(b) Surgical revert on the integration branch.** `git revert` the unwanted IDEA's commits on integration, push, re-run S11.11 forward-sync. Faster than (a) (~15-30 min) if reverts don't conflict with neighbouring IDEAs' changes.
+- **(c) Accept atomic.** Merge the whole batch, revert the unwanted IDEA as a post-merge follow-up PR. Only acceptable if the deferred IDEA is additive + low-risk; never use this path for high-risk deferrals.
+
 ## Morning checklist
 
-1. Review + merge (or request changes) on project PRs #123, #124. IDEA-051 has an unresolved T3 finding on deliverables (cap hit at 20 attempts) — check the auto-run log's deliverables-pass table to see what sprint-auto tried.
+1. Review project PRs #123, #124. **Merge ONE; the others auto-collapse to zero diff and can be closed.** IDEA-051 has an unresolved T3 finding on deliverables (cap hit at 20 attempts) — check the auto-run log's deliverables-pass table to see what sprint-auto tried.
 2. Review + merge (or close) mind-vault PRs #78, #79. PR #79 has an unresolved bugbot finding (cap hit at 5); decide merge-anyway / fix-forward / close.
 3. Read the per-IDEA log for IDEA-052 — architect's rejection is usually a plan-revision signal.
 4. Read the per-IDEA log for IDEA-053 — check which test failed; decide fix-forward / plan revision.
@@ -262,6 +274,8 @@ Escalation cap for mind-vault compound PRs is 5 (same as docs pass — compound 
 
 ---
 
-**Last Updated**: 2026-04-27 (v3.1 — added Integration check section in batch summary covering S11.5–S11.13: sequential merge results, union/full test outcomes, [INTEGRATION] draft PR bugbot, forward-sync, re-bugbot per-PR. Per-IDEA log gains `verification_location`, `db_reset_at_idea_entry`, `sprint_auto_integration_worktree`, `re_bugbot_outcome`, `re_bugbot_attempts` fields. `docker_teardown` field default is now `skipped_v3_no_per_idea_stack`. Re-bugbot escalation table added per IDEA. Morning checklist updated for last-of-batch integration cleanup chore.)
+**Last Updated**: 2026-04-29 (reframed the forward-sync notice from a ⚠️ "warning" to a ✅ "Atomic-batch merging" time-save callout. Names the win on the happy path (merge ONE, others auto-collapse — saves N-1 merges per batch), documents the cosmetic pre-first-merge UI quirk, and enumerates the three escape hatches for the escalation case (defer one IDEA from the batch). Compounded from teisutis 2026-04-29 batch reviewer feedback that atomic-merging is actually saving time and only escalation is friction.)
+
+**Previous**: 2026-04-27 (v3.1 — added Integration check section in batch summary covering S11.5–S11.13: sequential merge results, union/full test outcomes, [INTEGRATION] draft PR bugbot, forward-sync, re-bugbot per-PR. Per-IDEA log gains `verification_location`, `db_reset_at_idea_entry`, `sprint_auto_integration_worktree`, `re_bugbot_outcome`, `re_bugbot_attempts` fields. `docker_teardown` field default is now `skipped_v3_no_per_idea_stack`. Re-bugbot escalation table added per IDEA. Morning checklist updated for last-of-batch integration cleanup chore.)
 
 **Previous**: 2026-04-22 (split deliverables_bugbot_outcome / docs_bugbot_outcome, split escalation_attempts lists with per-pass caps 20/5, new timeline includes S5 /wrap-docs + S6 docs bugbot-pass events, batch table shows both passes side-by-side)
