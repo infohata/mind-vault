@@ -144,6 +144,45 @@ fi
 [ "$HAS_DEPENDENCIES" = "true" ] && HAS_STATIC=true
 ```
 
+#### Two layers: file diff + config fingerprint for expensive ops
+
+File-diff change detection is **necessary but not sufficient** when an expensive post-deploy operation (full corpus reindex, CDN purge, search-engine wipe-and-rebuild, vector-index rebuild, ML-model warm-up) depends on a *subset* of the files that flip the diff. The first layer answers "did anything in this area change?"; you need a second layer to answer "did the thing the expensive op actually depends on change?"
+
+Pattern:
+
+1. Identify the inputs the expensive op truly depends on — usually env vars and a small set of config knobs, **not** the source files of the subsystem implementing it.
+2. Compute a deterministic fingerprint over those inputs at deploy time (sourced from `.env` already in scope).
+3. Persist the fingerprint to a marker file (`.deploy_<topic>_shape`) **after** the op succeeds.
+4. On next deploy, compare current vs. stored fingerprint. If unchanged → skip the expensive op. If changed → run it. **If marker is missing → run it** (treat first-time / lost-marker as "run", since silently skipping is much worse than running unnecessarily).
+5. Provide a `FORCE_<TOPIC>=1` env override for the operator-driven cases the gate can't predict (env-only fixes, manual recovery).
+
+```bash
+SHAPE_FILE="$PROJECT_ROOT/.deploy_embedding_shape"
+compute_embedding_shape() {
+    # Fingerprint the inputs the expensive op depends on — provider, model,
+    # dimension, API base, index version. Empty values included verbatim so
+    # unset → set transitions register as a change.
+    printf '%s|%s|%s|%s|%s|%s\n' \
+        "${EMBEDDING_PROVIDER:-}" "${EMBEDDING_DIMENSION:-}" \
+        "${EMBEDDING_MODEL_NAME:-}" "${GEMINI_EMBEDDING_MODEL:-}" \
+        "${EMBEDDING_API_BASE_URL:-}" "${INDEX_VERSION:-}"
+}
+
+CURRENT=$(compute_embedding_shape)
+PREVIOUS=$([ -f "$SHAPE_FILE" ] && cat "$SHAPE_FILE" || echo "")
+
+if [ "$FORCE_REINDEX" = "1" ] || [ -z "$PREVIOUS" ] || [ "$CURRENT" != "$PREVIOUS" ]; then
+    run_expensive_reindex
+    echo "$CURRENT" > "$SHAPE_FILE"   # only after success
+else
+    echo "🔍 Shape unchanged — skipping reindex."
+fi
+```
+
+**Anti-pattern this teaches against**: gating an expensive post-deploy op on raw dependency-file diff (`grep -qE "<subsystem>/" diff`). The *subsystem* changed (new endpoint, refactor, test added) but the *thing the op depends on* didn't. Running anyway burns whatever the op costs — for a vector-index rebuild against a pay-per-token embedding API, that can be a rate-limit cliff and a real bill. The gate moves the decision from "did any file in the subsystem change?" to "did the op's actual contract change?", which is a much smaller surface.
+
+**Failure-mode discipline**: write the marker **only after** the op succeeds. A failed reindex must leave the previous marker intact so the next deploy retries. If the op is non-atomic (multi-stage), only write the marker after the final stage completes.
+
 ### Backup strategy
 
 Database backup is **mandatory** before any schema change:
