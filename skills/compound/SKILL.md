@@ -83,10 +83,32 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
    - If the current branch is any feature branch (e.g. `ce-inspired-evolution`): stay on it. No new branch. No branch spam.
    - Never modify `production` / `deployment` branches; refuse if on one.
 4. **Emit the file(s).** Write the target files per step 3.
-5. **Commit.** One commit per invocation, using the standard commit-message format (type(scope): description).
-6. **Push.** `git push --set-upstream origin <branch>`.
-7. **Ensure open PR.** `gh pr view <branch>` to check existence. If no PR exists, `gh pr create --title "..." --body "..."`. If one exists, append a short note to the PR body describing what this `/compound` invocation added — keeps the PR description current.
-8. **Report back.** Print the branch, commit SHA, and PR URL. Never suggest the human merge — that's theirs to do.
+5. **Customer-data scrub gate — MANDATORY.** Mind-vault is a cross-project knowledge store and must contain **zero project/customer-identifying data**: no real tenant slugs, customer names, account / conversation / record ids, customer-supplied filenames, customer domain hostnames, internal URLs that could identify a deployment, or any other data that wouldn't be safe in a public repo (mind-vault may be private today and public tomorrow). Run a scrub pass on the staged diff before commit:
+
+   ```bash
+   cd <mind-vault-path>
+   git diff --no-color --staged | grep -iE \
+       '<tenant-slug-pattern>|conversation [0-9]+|record [0-9]+|account [0-9]+|/Users/[^/]+/Downloads/|customer.specific.filename|<deployment-domain>'
+   # Project-specific: also grep for customer brand names, product nicknames,
+   # internal hostnames, anything in `<project>/.gitignore` that hints at
+   # secrets-adjacent paths.
+   ```
+
+   Scrub policy:
+   - **Tenant identifiers** → drop entirely or replace with generic "production tenant".
+   - **Customer record ids / conversation ids / message ids** → drop.
+   - **Customer-supplied filenames** → drop or replace with `<filename>`.
+   - **Local filesystem paths** (`/Users/<name>/...`, `/home/<name>/...`) → drop.
+   - **Customer domain hostnames** → drop or replace with `<tenant-host>`.
+   - **PR / IDEA / commit references** → KEEP (these are project provenance, expected in mind-vault per existing convention; matches the "Last Updated" footer style in other mind-vault files).
+   - **Module / class / function names** (e.g. `AttachmentSerializer`, `_serialize_batch`, `teisutis_ai/`) → KEEP (these are public-API names that future readers need; they're already grep-able from the cited PR).
+
+   The "would this be safe in a public repo today?" test is the gate. If the answer is "no", scrub before commit.
+
+6. **Commit.** One commit per invocation, using the standard commit-message format (type(scope): description).
+7. **Push.** `git push --set-upstream origin <branch>`.
+8. **Ensure open PR.** `gh pr view <branch>` to check existence. If no PR exists, `gh pr create --title "..." --body "..."`. If one exists, append a short note to the PR body describing what this `/compound` invocation added — keeps the PR description current.
+9. **Report back.** Print the branch, commit SHA, and PR URL. Never suggest the human merge — that's theirs to do.
 
 ### 5. Cross-link and index
 
@@ -117,6 +139,7 @@ See [`references/bugbot-finding-ingest.md`](references/bugbot-finding-ingest.md)
 
 ## Interaction rules
 
+- **No project / customer data leaks into mind-vault — ever.** Mind-vault is a cross-project knowledge store and must contain only generic, reusable patterns. Run the customer-data scrub gate (step 5 above) on every mind-vault commit, regardless of the destination (skill / rule / agent / command / tool). The gate is mandatory, not advisory; a leak in a private repo today is a leak in a public repo tomorrow. Identifiers and IDs are out; PR / IDEA / commit references and module names are in.
 - **Shape-C narrative probe asks three questions max.** If the user's still unsure after three, fall back to the taxonomy quiz rather than asking a fourth.
 - **Never silently promote to mind-vault.** Every mind-vault-destination write is explicit and confirmed.
 - **Never auto-merge the mind-vault PR.** `RULE_git-safety` is not negotiable.
@@ -144,4 +167,6 @@ See [`references/bugbot-finding-ingest.md`](references/bugbot-finding-ingest.md)
 
 ---
 
-**Last Updated**: 2026-04-19
+**Last Updated**: 2026-04-30 — added mandatory customer-data scrub gate (Step 5 in mind-vault promotion + interaction rule). Compounded meta-from teisutis [IDEA-133 / PR #403](https://github.com/infohata/teisutis/pull/403) (2026-04-30) where the first compound pass leaked a tenant slug + conversation id into a mind-vault skill provenance footer; user caught it pre-push and the gate now codifies the scrub. The "would this be safe in a public repo today?" test is the explicit gate — mind-vault is private today but treating it as eventually-public eliminates the data-leak class entirely.
+
+**Previous**: 2026-04-19
