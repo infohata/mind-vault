@@ -719,5 +719,4 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [Django REST Framework](https://www.django-rest-framework.org/)
 - [Django ORM Query Optimisation](https://docs.djangoproject.com/en/stable/topics/db/optimization/)
 
-**Last Updated**: 2026-04-29 — added "Blankable CharField — `null=True` over `default=\"\"`" section right after BaseModel abstraction. Compounded from teisutis IDEA-131 Phase B (PR #400) where `IndexableMixin.embed_failure_reason` first crystallised the convention; the user's articulation during code review is the canonical rule. Covers two load-bearing reasons (no empty-string sentinel ambiguity + additive migrations need no default), one explicit exception (synchronous `save()`-populated fields), and the DRF-side serializer implication (`allow_null=True` + `required=False` to honour the model contract). Previous: 2026-04-27, ManifestStaticFilesStorage restart.
-**Version**: 5.5
+**Last Updated**: 2026-04-29

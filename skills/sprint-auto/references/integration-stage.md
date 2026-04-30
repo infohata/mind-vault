@@ -310,6 +310,4 @@ Three reasons:
 
 ---
 
-**Last Updated**: 2026-04-29 (reframed the Forward-sync section from "Cosmetic acknowledged trade" / "warning" tone to "Atomic-batch merging — feature, not bug (with one escalation escape hatch)" — names the time-save explicitly on the happy path (one merge ships N IDEAs), documents the cosmetic UI quirk pre-first-merge, and enumerates three escape hatches for the rare defer-one-IDEA escalation case (close-and-rerun / surgical revert / accept atomic). Compounded from teisutis 2026-04-29 batch reviewer feedback: "atomic-batch is saving me time, only escalation is the issue.")
-
-**Previous**: 2026-04-27 (initial — implements `IDEA_integration_branch.md` v3.1)
+**Last Updated**: 2026-04-29

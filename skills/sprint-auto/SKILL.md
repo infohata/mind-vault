@@ -259,10 +259,4 @@ No `/compound` reminder here — compound ran in section 4 above.
 
 ---
 
-**Last Updated**: 2026-04-29 (interaction rule + 3-place doc update reframed: forward-sync makes per-PR PRs atomic-batch-mergeable — that's a TIME-SAVER on the happy path (one merge ships N IDEAs; others auto-collapse to zero and close with a one-liner). The friction is only when the reviewer wants to defer ONE IDEA from the batch — escalation case — for which we enumerate three escape hatches (close-and-rerun / surgical revert / accept atomic). Auto-run template's "Atomic-batch merging" section celebrates the time-save AND lists the escape hatches. Compounded from teisutis 2026-04-29 batch where the reviewer merged PR #397, asked "PR #398's diff looked weird" (because it had collapsed to zero — a feature, not a bug), and then articulated "atomic-batch is actually saving me time, only escalation is the issue." Reframed to match.)
-
-**Previous**: 2026-04-27 v3.1 (test-triage worktree architecture — single docker stack on integration worktree at port offset `+30000`; per-IDEA worktrees are code surfaces routed via `SPRINT_AUTO_INTEGRATION_WORKTREE` env var; full DB reset between IDEAs guarantees independently deliverable PRs; new integration phase S(-1) + S11.5–S11.13 with sequential merge, batch wrap on integration branch, union + full suite tests, bugbot via `[INTEGRATION]` draft PR, forward-sync propagation, per-PR re-bugbot; per-IDEA `/wrap` narrowed to `--scope=idea-only` to defer devlog + index writes to S11.7 batch wrap; eliminates the wrap-stage line-conflict that every parallel sprint-auto batch produced silently. See PR #76 for the design doc and the resolved decision history.)
-
-**Previous**: 2026-04-26 (tightened the bugbot-loop rule pair: shipping non-clean is a fallback after attempt, not an upfront opt-out; auto-run log signal `deferred to morning review` is a tell that no attempt was made).
-
-**Previous**: 2026-04-22 (structural reconciliation: S0–S15 state numbering shared with `references/post-pr-sequence.md`; two-pass bugbot-loop inserted; canonical failure-path invariant; escalation caps 20/5/5).
+**Last Updated**: 2026-04-29

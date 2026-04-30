@@ -159,4 +159,4 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
 
 ---
 
-**Last Updated**: 2026-04-20 (second revision — single-move lifecycle per revised RULE_ideas-location-status; `docs/execution/` retired from glob / transition table)
+**Last Updated**: 2026-04-20

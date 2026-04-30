@@ -130,4 +130,4 @@ Every attempt's commit is in git history; the log is just the human-readable nar
 
 ---
 
-**Last Updated**: 2026-04-22 (per-pass attempt caps: 20 deliverables / 5 docs / 5 mind-vault compound, each independent; rationale calibrated to observed tail length — deliverables have genuinely long fix-and-retry chains on cross-file invariants, docs and compound PRs converge fast or reveal genuine ambiguity)
+**Last Updated**: 2026-04-22

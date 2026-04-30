@@ -458,6 +458,4 @@ On abort, jump directly to S15 with whatever partial state exists. Do NOT retroa
 
 ---
 
-**Last Updated**: 2026-04-27 (v3.1 — added S(-1) integration bootstrap, S1.5 DB reset, S11.5–S11.13 integration phase; S0 narrowed to code-surface-only; S2/S3/S6 verification routes to integration worktree via `SPRINT_AUTO_INTEGRATION_WORKTREE` env var; S5 narrowed to `--scope=idea-only`; S8 marked N/A in v3.1; failure-path invariant updated — now re-enters at S9 instead of S8 since there's no per-IDEA stack to tear down; integration-phase failure-mode table added; canonical port-offset implementation note flagged for follow-up tooling commit.)
-
-**Previous**: 2026-04-22 (structural reconciliation: S0–S15 state numbering shared with SKILL.md; two-pass bugbot-loop inserted; canonical failure-path invariant; escalation caps 20/5/5).
+**Last Updated**: 2026-04-27

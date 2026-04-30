@@ -109,4 +109,4 @@ The per-IDEA auto-run log makes review mechanical. Expected fields:
 
 ---
 
-**Last Updated**: 2026-04-20 (initial)
+**Last Updated**: 2026-04-20

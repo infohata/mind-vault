@@ -189,4 +189,4 @@ Compounded from the teisutis 2026-04-28 dependabot sweep — 9 open PRs triaged 
 
 ---
 
-**Last Updated**: 2026-04-28 (initial — compounded from teisutis 2026-04-28 dependabot sweep, [PR #390](https://github.com/infohata/teisutis/pull/390) merged + [PR #391](https://github.com/infohata/teisutis/pull/391) pending. The "diff-not-titles" duplicate-detection rule was named during the sweep when a root-ecosystem PR turned out to be a strict superset of its workspace-ecosystem twin; the worked example confirmed multi-ecosystem `dependabot.yml` is common enough to deserve its own playbook.)
+**Last Updated**: 2026-04-28

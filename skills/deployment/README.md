@@ -88,5 +88,5 @@ Core patterns work with any Docker Compose application; service names differ, th
 - [`scripts/README.md`](scripts/README.md) — per-script usage and customisation
 - [`rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — rollback procedure authority
 
-**Last Updated**: 2026-04-17
+**Last Updated**: 2026-04-29
 **Version**: 2.0

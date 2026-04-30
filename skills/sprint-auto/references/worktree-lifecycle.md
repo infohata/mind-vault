@@ -208,6 +208,4 @@ For v3.1, the inline fallback only applies to the integration worktree (per-IDEA
 
 ---
 
-**Last Updated**: 2026-04-27 (v3.1 — documented single-stack architecture, integration worktree naming, `+30000` port offset, per-IDEA-worktrees-are-code-surface-only, teardown policy split into v3.1 vs v1 sections, latent v1 multi-stack bug flagged for future ceiling check)
-
-**Previous**: 2026-04-20 (initial — wrapper pattern, not symlinks; wrappers fail gracefully)
+**Last Updated**: 2026-04-27

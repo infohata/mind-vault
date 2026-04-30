@@ -217,6 +217,4 @@ This is the canonical landing page for anyone discovering the idea via grep/inde
 
 ---
 
-**Last Updated**: 2026-04-27 — added § 5a "Sprint-auto v3.1 verification routing" describing the `SPRINT_AUTO_INTEGRATION_WORKTREE` env-var contract. When the env var is set, all verification commands route to the integration worktree (per-IDEA worktrees are code-surface-only with no `.env` and no docker stack); when unset, default behaviour against the current worktree's stack is unchanged. See PR #76's `IDEA_integration_branch.md` v3.1 for the design context.
-
-**Previous**: 2026-04-20 (second revision — step 6 is now frontmatter-only on merge; the single lifecycle move happened at `/plan` time per revised RULE_ideas-location-status)
+**Last Updated**: 2026-04-27
