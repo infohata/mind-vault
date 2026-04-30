@@ -274,8 +274,4 @@ Cosmetic UI quirk you'll see before the first merge: every PR in the batch shows
 
 ---
 
-**Last Updated**: 2026-04-29 (reframed the forward-sync notice from a ⚠️ "warning" to a ✅ "Atomic-batch merging" time-save callout. Names the win on the happy path (merge ONE, others auto-collapse — saves N-1 merges per batch), documents the cosmetic pre-first-merge UI quirk, and enumerates the three escape hatches for the escalation case (defer one IDEA from the batch). Compounded from teisutis 2026-04-29 batch reviewer feedback that atomic-merging is actually saving time and only escalation is friction.)
-
-**Previous**: 2026-04-27 (v3.1 — added Integration check section in batch summary covering S11.5–S11.13: sequential merge results, union/full test outcomes, [INTEGRATION] draft PR bugbot, forward-sync, re-bugbot per-PR. Per-IDEA log gains `verification_location`, `db_reset_at_idea_entry`, `sprint_auto_integration_worktree`, `re_bugbot_outcome`, `re_bugbot_attempts` fields. `docker_teardown` field default is now `skipped_v3_no_per_idea_stack`. Re-bugbot escalation table added per IDEA. Morning checklist updated for last-of-batch integration cleanup chore.)
-
-**Previous**: 2026-04-22 (split deliverables_bugbot_outcome / docs_bugbot_outcome, split escalation_attempts lists with per-pass caps 20/5, new timeline includes S5 /wrap-docs + S6 docs bugbot-pass events, batch table shows both passes side-by-side)
+**Last Updated**: 2026-04-29

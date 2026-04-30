@@ -182,4 +182,4 @@ The plan's philosophy stays the same at every scope; the depth scales.
 
 ---
 
-**Last Updated**: 2026-04-20 (third revision — plans emit INTO the idea's archive dir, not a separate `docs/plans/` tree; step 6 does the single-move-then-never-again move, step 7 emits the plan; curator parity pass corrected step-number drift from the 6↔7 renumbering)
+**Last Updated**: 2026-04-20

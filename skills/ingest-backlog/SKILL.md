@@ -211,4 +211,4 @@ Teisutis IDEA-112 is the first real consumer. Validation gate for this skill's v
 
 ---
 
-**Last Updated**: 2026-04-20 (second revision — two-destination routing per revised RULE_ideas-location-status; `docs/execution/` retired during brownfield takeover in step 5a)
+**Last Updated**: 2026-04-20

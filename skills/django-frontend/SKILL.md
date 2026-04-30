@@ -529,5 +529,4 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [Bulma CSS Documentation](https://bulma.io/documentation/)
 - [Django Crispy Forms](https://django-crispy-forms.readthedocs.io/)
 
-**Last Updated**: 2026-04-27 — extended "Template comment syntax" with the sibling trap "Django tag literals inside JS `//` comments" (compile-time `TemplateSyntaxError`). Same root cause as the multi-line `{# #}` case (Django parser ignores host-language comment syntax), different symptom (compile-time error vs render-time content leak). Earlier same day: added "Template comment syntax — `{# inline #}` is single-line only" under Pattern. Previous: 2026-04-26.
-**Version**: 2.2
+**Last Updated**: 2026-04-27

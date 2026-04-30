@@ -153,4 +153,4 @@ This catalogue is **project-agnostic**. Patterns 1–8 cover the structural conf
 
 ---
 
-**Last Updated**: 2026-04-27 (initial — implements `IDEA_integration_branch.md` v3.1's S11.6 resolution-algorithm catalogue requirement)
+**Last Updated**: 2026-04-27

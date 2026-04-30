@@ -94,7 +94,7 @@ Canonical `SKILL.md` body, in order:
 3. `## Pattern` — the actual conventions, numbered or named subsections.
 4. `## When NOT to use these patterns` — counter-cases that prevent over-application.
 5. `## References` — links to `./references/*.md`, external docs, related skills.
-6. Trailing `**Last Updated**: YYYY-MM-DD` line.
+6. Trailing `**Last Updated**: YYYY-MM-DD` line — **bare date only**. No parenthetical narrative, no `**Previous**:` lines. History lives in `CHANGELOG.md`.
 
 ## The additive-only rule
 
@@ -177,7 +177,7 @@ The failure mode surfaced as double slash-menu entries across 8 mind-vault names
 
 ## Maintaining skills
 
-- Bump the trailing `**Last Updated**` line on every substantive change.
+- **Update the trailing `**Last Updated**: YYYY-MM-DD` line to today's date** — bare date only. Do not append parenthetical narrative ("...— added X"), and do not stack `**Previous**:` lines. The skill body is loaded into context on every activation; revision history is bloat there. Narrative belongs in [`CHANGELOG.md`](../../CHANGELOG.md), keyed by the merging PR, where it costs zero context budget.
 - If an example drifts out of sync with real code, fix it or delete it — stale examples are worse than none.
 - When merging two skills, keep `metadata.replaces` so agents recognise old names.
 - When deprecating a skill, leave a tombstone `SKILL.md` that points to the successor rather than deleting silently.
@@ -235,4 +235,4 @@ SKIP: <conditions>
 - [Git Safety Rule](../../rules/RULE_git-safety.md) — applies to commits produced while authoring skills
 - Anthropic's Claude Code Agent Skills documentation (`docs.claude.com`) — the official `SKILL.md` spec this skill aligns with
 
-**Last Updated**: 2026-04-21 (added "Skills vs commands — no thin wrappers" guardrail after PR #51 dedup)
+**Last Updated**: 2026-04-30

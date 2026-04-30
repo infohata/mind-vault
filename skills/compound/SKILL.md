@@ -167,6 +167,4 @@ See [`references/bugbot-finding-ingest.md`](references/bugbot-finding-ingest.md)
 
 ---
 
-**Last Updated**: 2026-04-30 — added mandatory customer-data scrub gate (Step 5 in mind-vault promotion + interaction rule). Compounded meta-from teisutis [IDEA-133 / PR #403](https://github.com/infohata/teisutis/pull/403) (2026-04-30) where the first compound pass leaked a tenant slug + conversation id into a mind-vault skill provenance footer; user caught it pre-push and the gate now codifies the scrub. The "would this be safe in a public repo today?" test is the explicit gate — mind-vault is private today but treating it as eventually-public eliminates the data-leak class entirely.
-
-**Previous**: 2026-04-19
+**Last Updated**: 2026-04-30

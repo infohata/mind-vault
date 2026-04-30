@@ -470,5 +470,4 @@ The deploy shape is identical for Django, Rails, Express, FastAPI, Phoenix — o
 - [RULE_git-safety](../../rules/RULE_git-safety.md) — rollback is a human-operated procedure
 - [Docker Compose docs](https://docs.docker.com/compose/)
 
-**Last Updated**: 2026-04-17
-**Version**: 2.0
+**Last Updated**: 2026-04-29
