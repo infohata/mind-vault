@@ -182,6 +182,30 @@ The failure mode surfaced as double slash-menu entries across 8 mind-vault names
 - When merging two skills, keep `metadata.replaces` so agents recognise old names.
 - When deprecating a skill, leave a tombstone `SKILL.md` that points to the successor rather than deleting silently.
 
+### Versioning (optional, sidecar file)
+
+Anthropic's official Agent Skills spec defines no `version` field, and Anthropic's published skills (`github.com/anthropics/skills`) carry no version metadata. Most skills therefore don't need a version at all — `CHANGELOG.md` + `git log` is the system of record.
+
+For feature-dense skills where a version handle is genuinely useful (a quick "are we on the same edition?" reading at a glance), use a **sidecar `VERSION` file** in the skill's directory:
+
+```text
+skills/django/
+├── SKILL.md
+├── VERSION          ← single line, e.g. "5.5\n"
+├── references/
+└── …
+```
+
+Why a sidecar:
+
+- **Zero SKILL.md context cost.** The host loads `SKILL.md` (and references on demand), not arbitrary sibling files. A `VERSION` file is invisible to the host agent and free at activation time.
+- **Easy to grep, easy to bump.** `cat skills/*/VERSION` shows the matrix; a pre-commit hook can read it.
+- **Spec-neutral.** Adding a frontmatter `version:` field would conflict with the official spec the day Anthropic standardises one; a sidecar is plain ad-hoc tooling.
+
+Bumping discipline: monotonic, project-defined (SemVer-ish or just `MAJOR.MINOR`). Bump on substantive pattern additions, not docs polish — the version handle should mean something.
+
+Don't add a `VERSION` file to every skill. Add it only where the question "what edition am I reading?" actually arises — that's the threshold.
+
 ## Minimal skeleton
 
 Copy this as the starting point for any new skill:
