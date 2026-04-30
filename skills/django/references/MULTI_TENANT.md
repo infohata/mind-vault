@@ -205,6 +205,145 @@ def get_queryset(self):
 
 **Why**: `get_current_tenant()` properly handles `FakeTenant` instances used internally by django-tenants and ensures consistent behavior across all execution contexts.
 
+### Pass explicit tenant over ambient connection state
+
+`get_current_tenant()` reads `connection.tenant` — set by tenant-resolution middleware on the request thread, OR by an explicit `tenant_context(...)` / `set_tenant(...)` wrapper in background code. **When a function already holds the `Org` instance locally, pass it explicitly rather than relying on the ambient read.**
+
+The ambient call works "today" because some caller upstream set it. The bug surfaces silently the day someone refactors that caller — the ambient state isn't there anymore, `get_current_tenant()` returns `None`, and your fallback path silently degrades (returns empty results, builds a wrong-host URL, writes to the wrong schema). No exception, no log entry; just wrong output.
+
+**❌ FRAGILE**: depends on caller's tenant-context wrapper, defeats local reasoning
+```python
+def _load_attachments_by_ids(self, org_id: int, ids: List[int]) -> List[Dict]:
+    with schema_context("public"):
+        org = Org.objects.get(id=org_id)
+    db_connection.set_tenant(org)
+    qs = Attachment.objects.filter(id__in=ids)
+
+    # Helper looks up tenant via ambient connection.tenant — works because
+    # `set_tenant(org)` above set it. But if a future refactor moves the
+    # set_tenant into a wrapper that this method no longer calls, the
+    # helper silently falls back to {} and returns broken URLs.
+    return AttachmentSerializer(
+        qs, many=True, context=tenant_aware_serializer_context(),
+    ).data
+```
+
+**✅ EXPLICIT**: function holds `org` locally — pass it through
+```python
+def _load_attachments_by_ids(self, org_id: int, ids: List[int]) -> List[Dict]:
+    with schema_context("public"):
+        org = Org.objects.get(id=org_id)
+    db_connection.set_tenant(org)
+    qs = Attachment.objects.filter(id__in=ids)
+
+    # Helper signature: tenant_aware_serializer_context(tenant=None, ...).
+    # When the tenant is already in scope, pass it. The helper stops
+    # depending on whatever upstream set the ambient state.
+    return AttachmentSerializer(
+        qs, many=True, context=tenant_aware_serializer_context(tenant=org),
+    ).data
+```
+
+**The principle generalises**: any helper that reads thread-local / connection-local / contextvar state has the same fragility class. If the caller already holds the canonical object (a tenant, a user, a request), pass it. The "ambient" read is the last-resort default for callers that genuinely don't know.
+
+**When ambient is the right call**: at the boundary where the request first arrives — middleware, view, consumer's `connect()`. By the time you're three function calls deep, the boundary already resolved the value; pass it.
+
+## DRF serializer context for request-less callers
+
+DRF serializers commonly read `self.context['request']` to build URLs that depend on the request domain — `SerializerMethodField` for presigned S3 / MinIO URLs, `FileField.to_representation` calling `request.build_absolute_uri(file.url)`, custom hyperlink fields. **When a non-HTTP caller invokes the same serializer (WebSocket consumer, Celery task, AI tool executor, management command), `request` is missing — and the URL silently falls back to an internal Docker hostname.**
+
+The failure shape:
+
+1. `AttachmentSerializer.get_file_url(obj)` calls `generate_presigned_url(obj.file, request=self.context.get('request'))`.
+2. Caller didn't pass context → `request` is `None`.
+3. `generate_presigned_url(file, request=None)` falls through to `settings.AWS_S3_ENDPOINT_URL = 'http://minio:9000'`.
+4. URL signed against internal hostname; `/storage/` nginx-proxy prefix step is skipped.
+5. Browser receives `http://minio:9000/...?X-Amz-...` → `DNS_PROBE_FINISHED_NXDOMAIN`.
+6. The bug is invisible in dev (single-tenant, `minio:9000` happens to be in `/etc/hosts` for the docker network) and surfaces only when a multi-tenant production user clicks the link.
+
+The same bug class bites any project that:
+
+- Uses DRF serializers, AND
+- Has at least one non-HTTP caller path (WebSocket consumer, Celery task, AI tool executor, management command, signal handler), AND
+- Returns URLs to clients (S3 presigned URLs, absolute hyperlinks for emails, tenant-aware redirects).
+
+### The fix shape
+
+Build a **request stub** at the call site that carries the four attributes DRF actually reads — `.scheme`, `.get_host()`, `.user`, `.build_absolute_uri()` — and put it in serializer context. The stub is duck-typed; DRF doesn't introspect the type, only attribute access.
+
+```python
+# teisutis_core/utils.py (or equivalent in your project)
+
+def make_request_for_host(public_host: str, user=None):
+    """Duck-typed HTTP request for callers without a real one.
+
+    Returns an object satisfying the four DRF / generate_presigned_url
+    contracts:
+    - .scheme            ('http' or 'https', derived from public_host)
+    - .get_host()         host portion of public_host
+    - .user               (forwarded if caller has one)
+    - .build_absolute_uri(location)  Django-compatible absolute-URL builder
+    """
+    scheme = "https" if public_host.startswith("https") else "http"
+    host = public_host.replace("https://", "").replace("http://", "").split("/")[0]
+
+    class _Request:
+        def __init__(self, s, h, u):
+            self.scheme = s
+            self._host = h
+            self.user = u
+
+        def get_host(self):
+            return self._host
+
+        def build_absolute_uri(self, location=None):
+            if location is None:
+                return f"{self.scheme}://{self._host}/"
+            if location.startswith(("http://", "https://", "//")):
+                return location
+            if not location.startswith("/"):
+                location = "/" + location
+            return f"{self.scheme}://{self._host}{location}"
+
+    return _Request(scheme, host, user)
+
+
+def tenant_aware_serializer_context(tenant=None, user=None) -> dict:
+    """DRF serializer context dict carrying a tenant-aware request stub.
+
+    Returns {'request': <stub>} when a tenant primary domain can be
+    resolved, else {}. Use this whenever DRF serializers must produce
+    browser-reachable URLs but no HttpRequest is available.
+    """
+    t = tenant or get_current_tenant()
+    if not t:
+        return {}
+    public_url = get_tenant_primary_domain_url(t)
+    if not public_url:
+        logger.warning(
+            "tenant_aware_serializer_context: no primary domain for tenant id=%s",
+            getattr(t, "id", "?"),
+        )
+        return {}
+    return {'request': make_request_for_host(public_url, user=user)}
+```
+
+### Four attributes, not two
+
+A naive stub with only `.scheme` and `.get_host()` will crash on `request.build_absolute_uri(file.url)` — DRF's `FileField.to_representation` calls it on the bare `file` field, separately from any custom `SerializerMethodField`. Likewise `.user` is read by `EventSerializer.to_representation` for permission probes (e.g. notes-stripping) and `ArticleSerializer.create` for `validated_data['author']`. Build the stub with all four upfront — discovering each gap mid-bugbot-loop adds cycles.
+
+### Don't try to "fix it in env"
+
+The temptation is to set `AWS_S3_CUSTOM_DOMAIN` (or equivalent) to a single public hostname in production env. **In multi-tenant, that breaks every other tenant.** The codebase's "URL host derived from request domain" design is intentional; the fix is to thread the request to the serializer, not to hardcode a single host.
+
+### Don't refactor `generate_presigned_url`
+
+It's tempting to make `generate_presigned_url` smart enough to call `get_current_tenant()` itself when `request=None`. Resist — that couples a low-level signing helper to tenant context, fighting separation of concerns. The helper's contract (give me a request, I'll sign for that domain; give me nothing, I'll sign for the internal endpoint) is correct; the bug is callers passing `None` when they shouldn't.
+
+### Origin
+
+Compounded from teisutis [IDEA-133 / PR #403](https://github.com/infohata/teisutis/pull/403) (2026-04-30). A production multi-tenant chat surface returned dead `http://minio:9000/...` links via an AI tool's serializer path. Root cause: 5 serializer call sites (4 semantic-search loaders + a `_serialize_batch` text-fallback in the search adapter) invoking DRF serializers without `context={'request': ...}`. The symmetric bug had been fixed once before on the chat-history-render path (commit `696f7563`, 2026-04-23) where an HttpRequest was available — IDEA-133 closed the request-less side of the same gap.
+
 ## Schema Context Management
 
 **Accessing public schema models** (shared across tenants):
