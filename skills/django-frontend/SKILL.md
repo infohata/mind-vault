@@ -1,6 +1,6 @@
 ---
 name: django-frontend
-description: Apply Django frontend conventions — HTMX partial responses, Alpine.js state, Bulma components, HTMX modal/formset JS contracts, safe query-string generation, and dynamic hx-* attribute handling — pairing with django backend patterns.
+description: Apply Django frontend conventions — HTMX partial responses, Alpine.js state, Bulma components, HTMX modal/formset JS contracts, safe query-string generation, dynamic hx-* attribute handling, and Cotton component primitives — pairing with django backend patterns. Includes hard hazard rules every template edit must respect — multi-line `{# … #}` Django comments leak as visible content (use `{% comment %}…{% endcomment %}` for prose blocks), Django tag literals inside JS `//` comments still compile and 500 the page, and SCSS `@import url('../vendor.css')` is browser-runtime-resolved (relocate-fragile; vendor CSS belongs in a `<link>` tag).
 license: MIT
 metadata:
   author: mind-vault
@@ -38,6 +38,16 @@ Compatibility: Django 4.2+ (tested through 5.2 LTS), any database.
 **TRIGGER when:** editing templates (`*.html`) in a Django project; wiring an HTMX partial endpoint; adding a Bulma modal / form / table / widget; writing an Alpine.js component; debugging `htmx.process` or URL-encoding issues in `hx-*` attributes; converting Django messages to Bulma notifications.
 
 **SKIP for:** backend-only work (use [django](../django/SKILL.md)); real-time collaborative editing (WebSockets + React/Vue territory); offline-first PWAs; heavy client-side data processing; mobile native apps.
+
+## Critical hazards (read these first)
+
+Three high-blast-radius traps that ship as user-visible regressions if you skim past them. Each has a full section below — but you need to know they exist before writing the next template line:
+
+1. **Multi-line `{# … #}` Django comments leak as visible page content.** `{#` is single-line only; multi-line content between `{#` and `#}` is parsed as raw template content. Always use `{% comment %} … {% endcomment %}` for any prose spanning more than one line. Full section: [`### Template comment syntax — `{# inline #}` is single-line only`](#template-comment-syntax--inline-is-single-line-only). *(Compounded twice now — teisutis IDEA-124 [PR #375](https://github.com/infohata/teisutis/pull/375) shipped one to a chat input; teisutis IDEA-136 [PR #409](https://github.com/infohata/teisutis/pull/409) shipped four more in filter-form templates two hours after I authored a cotton-section cross-ref to this rule. The pattern is recurrent enough that cross-refs aren't enough — the rule needs to be in the skill's first 100 lines.)*
+
+2. **Django tags inside JS `//` comments still compile.** `// fallback uses {% trans %}` in a `<script>` block is NOT a JS comment to Django — the `{% trans %}` parses and `'trans' takes at least one argument` 500s the entire template. Full section: [`### Sibling trap — Django tag literals inside JS // comments`](#sibling-trap--django-tag-literals-inside-js--comments).
+
+3. **SCSS `@import url('../vendor.css')` is browser-resolved at runtime, not Sass-compile-time.** If the compiled CSS file's path moves (e.g. relocating a Django app's static folder), the relative URL 404s in the browser even though Sass compiled cleanly. Vendor stylesheets belong in a `<link>` tag in the base template, NEVER in an SCSS `@import url(...)`. Full section: [`### SCSS vendor-import hazard — @import url() is runtime, not compile-time`](#scss-vendor-import-hazard--import-url-is-runtime-not-compile-time).
 
 ## Pattern
 
@@ -564,6 +574,45 @@ re.finditer(r'\{%\s*(trans|blocktrans|url|static)\s*%\}', text)
 
 Both traps are the same family — Django's template engine treats the file as one template; the host language's comment syntax is invisible.
 
+### SCSS vendor-import hazard — `@import url()` is runtime, not compile-time
+
+When a Django project compiles SCSS to CSS via libsass / dart-sass / `compile_scss` and serves the result through `collectstatic`, an `@import url('../vendor/bulma.min.css')` inside the SCSS source is **NOT** resolved by Sass at compile time. Sass copies the `@import url(...)` line verbatim into the compiled `.css`; the **browser** resolves the relative URL at runtime, against the COMPILED CSS file's URL.
+
+Failure mode: the SCSS source lives at a stable repo path (e.g. `myapp/static/myapp/scss/theme.scss`) and the vendor file sits as a sibling (`myapp/static/myapp/vendor/bulma.min.css`), so during dev with the SCSS importer everything looks fine. After `collectstatic` deploys the compiled `theme.css` somewhere else (the destination depends on the app's static config and `STATIC_ROOT`), the `../vendor/bulma.min.css` relative URL points at a different place than where collectstatic put the vendor file. **Sass compiled cleanly**; the **browser logs a 404** for `bulma.min.css`; the page renders unstyled.
+
+The trap recurs whenever:
+- a Django app is renamed (e.g. `app_core` → `app_ui`) and its compiled CSS file's `STATIC_URL` path shifts
+- `STATIC_ROOT` changes between dev and prod
+- `collectstatic --no-default-ignore` flags differ between environments
+- a sibling app's static directory is reorganised
+
+```scss
+// ❌ DON'T — runtime-resolved against compiled CSS path; breaks on relocation.
+@import url('../vendor/bulma.min.css');
+// ... project styles below ...
+
+// ✅ DO — vendor CSS goes in a <link> in base.html (or app-specific base).
+//        SCSS only handles theme + component styles.
+```
+
+```django
+{# base.html — vendor links FIRST so theme CSS can override defaults #}
+<link rel="stylesheet" href="{% static 'myapp/vendor/bulma.min.css' %}">
+<link rel="stylesheet" href="{% static 'myapp/css/theme.css' %}">
+```
+
+Why a `<link>` survives where `@import url()` doesn't: `{% static %}` resolves through Django's staticfiles finders to the correct URL for the current settings, regardless of where collectstatic happens to put the file. The HTML resolution is settings-aware; the CSS resolution is path-relative-to-compiled-output.
+
+Compounded from teisutis IDEA-135 [PR #409](https://github.com/infohata/teisutis/pull/409) where the SCSS lived inside `teisutis_core` originally, the IDEA relocated it to `teisutis_ui` (a new shell app), and the compiled `theme.css`'s URL shifted from `/static/teisutis_core/css/theme.css` to `/static/teisutis_ui/css/theme.css`. The `@import url('../css/bulma.min.css')` line in the SCSS pointed at `../css/bulma.min.css` relative to the compiled CSS — now resolving to `/static/teisutis_ui/css/bulma.min.css`, but `bulma.min.css` was sitting at `/static/teisutis_core/css/bulma.min.css` (didn't move). Browser 404'd; UI rendered unstyled until the `<link>` migration landed.
+
+**Detection during review**: grep SCSS source for `@import url(`:
+
+```bash
+grep -rn '@import url(' --include='*.scss' static/ web/ src/ | grep -v node_modules
+```
+
+Any hit is a candidate for migration to a `<link>` tag. The exception is when the imported file is itself part of the same compiled output (i.e. another SCSS partial bundled by Sass) — in that case it's a Sass-time `@use` / `@import` of a sibling source, not a runtime URL fetch, and the syntax is `@import 'partial';` (no `url()`, no extension). The hazard is specifically `@import url(...)`.
+
 ## Bulma template standards
 
 Compact reference for consistency across projects. Full discussion in [references/ADVANCED_COMPONENTS.md](references/ADVANCED_COMPONENTS.md).
@@ -660,4 +709,6 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [Bulma CSS Documentation](https://bulma.io/documentation/)
 - [Django Crispy Forms](https://django-crispy-forms.readthedocs.io/)
 
-**Last Updated**: 2026-04-27
+**Last Updated**: 2026-05-01 (added "Critical hazards (read these first)" section right after "When to use" — surfaces the three high-blast-radius template traps in the skill's first 100 lines so they hit the agent's context before any template edits, with cross-refs to the existing full sections; description field expanded to mention the three hazards explicitly so the skill description carries them too. New section: "SCSS vendor-import hazard — `@import url()` is runtime, not compile-time" — covers the Sass-doesn't-resolve-vendor-URLs trap with the relocation-breaks-everything failure mode. Both compounded from teisutis sprint/ux-overhaul cohort: the `{# … #}` rule shipped in IDEA-136 PR #409 wrap templates two hours after I authored cotton-section cross-refs to the existing rule (cross-refs aren't enough; rule needs first-100-lines placement); the SCSS hazard fresh from IDEA-135's app rename surfacing it as a UI-completely-broken regression.)
+
+**Previous**: 2026-04-27
