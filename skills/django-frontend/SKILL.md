@@ -86,6 +86,137 @@ HTMX requests to the same URL return only the partial; HTMX swaps it into `#arti
 ✅ DO: One URL, two templates, dispatched on `HX-Request`.
 ❌ DON'T: Separate `/articles/` and `/articles/partial/` endpoints — duplicates the queryset and permission logic.
 
+### Cotton components for prop-shaped UI
+
+Use **[django-cotton](https://github.com/wrabit/django-cotton)** as the component framework when an element has a clear prop shape (object + literal attrs) or multiple call sites. Coexists with `{% include %}` — opportunistic migration only, no big-bang rewrite. `{% include %}` stays fine for single-call-site scaffolding.
+
+**File layout per app:**
+
+```
+<app>/
+├── templates/
+│   ├── <app>/                    # plain Django templates
+│   │   └── partials/
+│   │       └── _scaffolding.html  # single-call-site, fine as-is
+│   └── cotton/                    # cotton components
+│       └── event_row_header.html  # called as <c-event-row-header />
+```
+
+Cotton resolves `<c-foo-bar />` to `<app>/templates/cotton/foo_bar.html` in any `INSTALLED_APPS` entry. Shared primitives (drawer, toast, modal, copy-button, collapsible) live in a dedicated UI-app's `templates/cotton/`; app-specific components live in that app's `templates/cotton/`.
+
+**Settings (one-time setup):**
+
+```python
+SHARED_APPS = [  # or INSTALLED_APPS for non-multi-tenant
+    # ...
+    'django_cotton.apps.SimpleAppConfig',  # NOT 'django_cotton' — avoids
+    # double-config when you want explicit loaders + builtins below.
+]
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        # APP_DIRS=True is mutually exclusive with explicit loaders;
+        # cotton requires its loader to wrap app_directories.Loader.
+        'OPTIONS': {
+            'loaders': [(
+                'django.template.loaders.cached.Loader',  # under DEBUG=False;
+                # Django bypasses cached.Loader automatically under DEBUG=True.
+                [
+                    'django_cotton.cotton_loader.Loader',
+                    'django.template.loaders.filesystem.Loader',
+                    'django.template.loaders.app_directories.Loader',
+                ],
+            )],
+            'builtins': [
+                'django_cotton.templatetags.cotton',
+                # Lets <c-…> work without per-template {% load cotton %}.
+            ],
+        },
+    },
+]
+```
+
+**Call-site syntax:**
+
+```django
+{# Old: silent on missing kwargs, no slot semantics. #}
+{% include 'kb/partials/_event_row_header.html' with event=event %}
+
+{# New: cotton, with explicit prop binding. #}
+<c-event-row-header :event="event" />
+
+{# Literal string vs Python expression — the colon prefix matters: #}
+<c-button label="Save" />              {# label = "Save" (string) #}
+<c-event-card :event="event" />        {# event = the Python object #}
+```
+
+**Component template — props arrive as context variables:**
+
+```django
+{# templates/cotton/event_row_header.html #}
+{% load i18n %}
+<div class="event-row-header">
+    <span>{{ event.date|date:"DATE_FORMAT" }}</span>
+    {% if event.time %}<span>{{ event.time|time:"TIME_FORMAT" }}</span>{% endif %}
+</div>
+```
+
+**Render-and-assert test pattern:**
+
+```python
+# tests/test_components.py
+import re
+from django.template import engines
+from django.test import TestCase
+from django.utils.translation import activate
+
+# Captured ONCE during the migration commit by rendering the legacy
+# include against the same fixture — paste the output verbatim here.
+EXPECTED_EVENT_ROW_HEADER_HTML = """
+<div class="event-row-header"><span>Jun 15, 2099</span><span>09:00</span></div>
+""".strip()
+
+
+def _norm(html: str) -> str:
+    """Whitespace-collapse so cotton's stray newlines don't break equality."""
+    return re.sub(r'\s+', ' ', html).strip()
+
+
+class EventRowHeaderCottonComponentTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        activate('en')
+
+    def test_renders_match_expected(self):
+        event = build_fixture_event()
+        cotton_html = engines['django'].from_string(
+            '<c-event-row-header :event="event" />'
+        ).render({'event': event})
+        self.assertEqual(_norm(cotton_html), _norm(EXPECTED_EVENT_ROW_HEADER_HTML))
+```
+
+Key points:
+
+- `engines['django'].from_string(...)` does **not** auto-process cotton syntax in the template string (cotton's regex transform only runs inside the loader path). For inline test rendering, install cotton's `templatetags.cotton` as a template `builtins` (above) and the `<c-…>` tag is recognised by the parser. If your test still receives the literal `<c-…>` text, fall back to invoking `CottonCompiler().process(template_string)` explicitly before rendering.
+- Whitespace-normalise both sides — cotton may insert/drop a newline between sibling tags relative to the legacy `{% include %}` output. Asserting on structural equality, not byte-equality, keeps the test stable.
+- Pin time-sensitive fixture data to a fixed future date (e.g. `date(2099, 6, 15)`) so renders that include `is_overdue`-derived markup don't drift as wall-clock advances.
+
+**When to write cotton vs `{% include %}`:**
+
+| Use cotton when... | Use `{% include %}` when... |
+|---|---|
+| Element has a clear prop shape (object + literal attrs) | Single-call-site scaffolding (form action row, page header) |
+| 2+ call sites, especially across apps | One call site, never going to be reused |
+| Slot semantics matter (header / body / footer override) | Linear template inclusion |
+| Test pattern needs prop isolation | Test goes through the parent view |
+
+❌ DON'T: bulk-migrate every `{% include %}` to cotton. Migration is opportunistic — when a surface is touched for other reasons, its partials migrate. The lack of prop validation is mitigated by a doc-comment header at the top of each cotton component listing required props.
+
+❌ DON'T: use multi-line `{# … #}` comments **inside cotton component templates**. `{#` is single-line in Django; multi-line content between `{# … #}` is parsed as raw template content, and a literal `{% include %}` word inside the prose crashes the engine. Use `{% comment %}…{% endcomment %}` for prose blocks (already noted in *Template comment syntax* below — same hazard).
+
+❌ DON'T: import vendor CSS via `@import url(...)` from compiled SCSS. Browser resolves relative URLs against the compiled CSS file's URL at runtime — if the compiled CSS path moves (e.g. an app rename like `teisutis_core` → `teisutis_ui`), the import 404s. Link vendor CSS via a sibling `<link>` in `base.html` instead, and let SCSS only handle theme + component styles. (See *SCSS / static-asset relocation* below if added — same blast radius.)
+
 ### Alpine.js global state on `<html>`
 
 Put long-lived UI state (theme, mobile-menu open, global flags) at the top element so any descendant can read it without prop drilling:
