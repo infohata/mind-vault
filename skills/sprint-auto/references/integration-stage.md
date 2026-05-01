@@ -1,6 +1,8 @@
 # sprint-auto — integration stage
 
-The batch-level integration phase (states **S(-1)** + **S11.5–S11.13**) introduced in v3.1 of `IDEA_integration_branch.md`. This doc is the normative reference for: the integration worktree's lifecycle, the env-var-driven verification routing, the `[INTEGRATION]` draft PR mechanic, the sequential-merge protocol, the propagate-back forward-sync, and the teardown contract.
+The batch-level integration phase (states **S(-1)** + **S11.5–S11.13**) introduced in v3.1 of `IDEA_integration_branch.md` and redesigned in v3.2 to make the integration branch the **merge gate** rather than a validation harness. This doc is the normative reference for: the integration worktree's lifecycle, the env-var-driven verification routing, the `[INTEGRATION]` PR (non-draft, the merge gate, in v3.2), the sequential-merge protocol, and the teardown contract.
+
+**v3.2 vs v3.1**: in v3.1 the integration branch was a disposable validation harness — `[INTEGRATION]` PR was draft + auto-closed; per-IDEA PRs targeted parent (main / sprint-*); after S11.10 cleared, S11.11 forward-synced the integrated state into every per-IDEA PR; S11.12 re-bugbotted each per-IDEA PR. In v3.2 the integration branch IS the merge gate — `[INTEGRATION]` PR is non-draft + the human merges it; per-IDEA PRs target the integration branch (kept IDEA-isolated for review); S11.11 + S11.12 deleted (no propagation needed; the integrated state lives only on integration). v3.2 was compounded after the teisutis sprint/ux-overhaul cohort surfaced "now we have 3 identical PRs" UX confusion from v3.1's forward-sync mechanism.
 
 If this doc disagrees with `SKILL.md`, treat the discrepancy as a defect in this doc — `SKILL.md` is the source of behaviour.
 
@@ -31,11 +33,12 @@ The integration stage closes both. Surface conflicts are surfaced and resolved o
 
 **Lifecycle**:
 - Created at **S(-1)** (before any per-IDEA work). Bootstrapped via `tools/sprint-auto-bootstrap.sh` with no special flags (this is the canonical mode — full `.env` + docker stack + post-up init).
+- **v3.2: integration branch published to `origin` immediately at S(-1)** (`git push -u origin integration/sprint-auto-<batch-iso>`) so per-IDEA `/work` invocations in S2 can open PRs with `--base integration/sprint-auto-<batch-iso>`. GitHub requires the base ref to exist on the remote at PR-creation time. (v3.1 deferred this push to S11.10 because the branch was only used as a bugbot anchor at that point.)
 - Stays up the entire batch. All per-IDEA verification (S2/S3/S6) routes here; all integration-phase work (S11.5–S11.13) happens here.
-- Containers stopped (NOT `down -v`) at S11.13. Volumes preserved for inspection. Worktree filesystem stays.
-- Branch + worktree cleaned up by the human's `/wrap NNN` post-merge teardown for the **last-of-batch** IDEA (see `skills/wrap/SKILL.md` § Step 5 last-of-batch detection).
+- Containers stopped (NOT `down -v`) at S11.13. Volumes preserved for inspection. Worktree filesystem stays. **The `[INTEGRATION]` PR is left OPEN at teardown** (v3.2) — it's the merge gate, not auto-closed.
+- Branch + worktree + remote ref cleaned up by the human's post-merge `/wrap --integration <batch-iso>` after merging the integration PR (see `skills/wrap/SKILL.md` § `--integration` mode). The teardown removes the integration worktree, deletes the local + remote integration branch, and removes each per-IDEA worktree + branch (whose PRs auto-closed when the integration PR merged).
 
-If the integration worktree's bootstrap at S(-1) fails: abort the batch. No per-IDEA work proceeds. Record `integration_outcome: bootstrap_failed` in the batch summary; the human investigates the worktree directly.
+If the integration worktree's bootstrap at S(-1) fails (worktree create OR `git push` of integration branch OR `tools/sprint-auto-bootstrap.sh`): abort the batch. No per-IDEA work proceeds. Record `integration_outcome: bootstrap_failed` in the batch summary; the human investigates the worktree directly.
 
 ## Verification routing — `SPRINT_AUTO_INTEGRATION_WORKTREE`
 
@@ -148,117 +151,66 @@ If any IDEA's migration **drops** a column/table that another IDEA's code still 
 
 ## Bugbot on the integration branch (S11.10)
 
-### The `[INTEGRATION]` draft PR mechanic
-
-Cursor Bugbot is anchored to PR URLs. The integration branch is never going to merge to `main`, but bugbot still needs a PR-shaped target. Solution:
+### The `[INTEGRATION]` PR — non-draft, the merge gate (v3.2)
 
 ```bash
 gh pr create \
     --base main \
     --head integration/sprint-auto-<batch-iso> \
-    --draft \
     --title "[INTEGRATION] sprint-auto-<batch-iso>" \
     --body "$(cat <<EOF
-Auto-generated integration validation PR. **NOT FOR MERGE.**
+Integration of $N per-IDEA PRs from sprint-auto batch <batch-iso>.
 
-This PR exists solely so Cursor Bugbot has an anchor for its review of the integrated batch state. It will be auto-closed (without merging) at sprint-auto's S11.13 teardown step.
+**Merging this PR ships the entire batch.** Per-IDEA PRs auto-close as merged ancestors when this merges.
 
 Batch slugs: <slug-A>, <slug-B>, …
-Per-PR PRs: #<A>, #<B>, …
+Per-IDEA PRs (target this branch, IDEA-isolated diffs for review):
+- #<A> — IDEA-NNN <slug-A>
+- #<B> — IDEA-NNN <slug-B>
+- …
+
+Compatibility / conflict-resolution patches: see commits on this branch
+(authored by sprint-auto during S11.6 sequential merge + S11.7 batch wrap +
+S11.8/S11.9 test fixups + S11.10 integration-bugbot fixups, if any).
+
 Auto-run summary: <path>
 EOF
 )"
 ```
 
-Then run `/bugbot-loop` against the draft PR's number. Cap **20 attempts** — integration branches are elephants (N-times-larger review surface than any per-PR PR). Symmetric with the S4 deliverables-pass cap because integration is deliverables-class review of the integrated state, not docs-class.
+Then run `/bugbot-loop` against the PR's number. Cap **20 attempts** — integration branches are elephants (N-times-larger review surface than any per-PR PR). Symmetric with the S4 deliverables-pass cap because integration is deliverables-class review of the integrated state, not docs-class.
 
-### Findings on the integration branch
+(v3.1 used `--draft` because the PR was solely a bugbot anchor; v3.2 drops `--draft` because it's the actual merge gate. The PR is left OPEN at S11.13; the human merges it.)
 
-Two cases:
+### Findings on the integration branch (v3.2)
 
-1. **Finding is integration-state-specific** (only surfaces because of the cross-IDEA combination): fix on the integration branch directly. The fix rides into the forward-sync at S11.11 onto every per-PR branch; the morning reviewer sees it as part of each PR's diff.
+Two cases — both fix directly on the integration branch:
 
-2. **Finding is per-PR-specific that bugbot missed during the deliverables/docs passes**: still fix on the integration branch (don't try to back-port to a single per-PR branch — that would re-open a class of pre-integration coordination problems). The forward-sync handles propagation.
+1. **Finding is integration-state-specific** (only surfaces because of the cross-IDEA combination): fix on the integration branch. The fix becomes part of the integrated diff visible on the [INTEGRATION] PR. Per-IDEA PRs are not touched (they target integration; their diff doesn't include the integrated state).
 
-### Closing the draft PR
+2. **Finding is per-PR-specific that bugbot missed during the deliverables/docs passes**: also fix on the integration branch. Don't back-port to the per-IDEA branch — the per-IDEA PR's review surface is "what the IDEA introduced *before* integration", and re-opening it after S6 would require another bugbot pass on a SHA that's no longer the per-IDEA boundary. The fix on integration is the right surface; the morning reviewer sees it on the [INTEGRATION] PR's combined diff alongside the IDEA's content.
 
-At S11.13, post a comment to the draft PR:
+(v3.1 had this same fix-on-integration discipline but the fix then forward-synced into per-IDEA PRs at S11.11 + re-bugbotted at S11.12. v3.2 deletes both — the fix lives only on integration, and the morning reviewer reads it there as part of the merge-gate diff.)
 
-```text
-auto-closed by sprint-auto teardown; integration validation complete.
-See auto-run summary at <path-to-summary>.
-```
-
-Then `gh pr close <N>`. The PR closes without merging; the comment is the audit trail of what the integration validation did. The closed PR's URL goes into the auto-run summary so the human can read bugbot's integration-state findings without recreating state.
-
-## Forward-sync (S11.11) — propagate back to per-PR PRs
-
-After S11.10 clears (or caps), each `auto/<slug>` branch needs the integration's resolutions and batch-wrap commits propagated back, so each per-PR PR merges cleanly to main.
-
-**Run the merge inside the per-IDEA worktree, NOT the integration worktree.** Reason: `auto/<slug>` is already checked out in `<project>-auto-<slug>/`, and git refuses to claim the same branch ref in two worktrees. The integration worktree pushes the integration branch first; per-IDEA worktrees fetch + merge from there.
-
-```bash
-# Step 1 — integration worktree pushes its branch so per-IDEA worktrees can fetch.
-cd "$SPRINT_AUTO_INTEGRATION_WORKTREE"
-git push origin "integration/sprint-auto-<batch-iso>"
-
-# Step 2 — for each per-IDEA branch, run merge inside its OWN worktree.
-for slug in $batch_slugs; do
-    cd "$HOME/projects/<project>-auto-${slug}"  # the per-IDEA worktree (auto/<slug> is checked out here)
-    git fetch origin "integration/sprint-auto-<batch-iso>"
-    git merge --no-ff "origin/integration/sprint-auto-<batch-iso>" \
-        -m "merge: forward-sync from integration/sprint-auto-<batch-iso>"
-    git push origin "auto/$slug"
-done
-```
-
-**Forward-sync, not force-push**: the feature-branch tip moves; `integration/sprint-auto-<batch-iso>` stays put. Per `RULE_git-safety` this is "merging `main`-equivalent state into a feature branch" — agent-allowed without force-push. No review threads invalidated.
-
-**Atomic-batch merging — feature, not bug (with one escalation escape hatch)**
-
-After forward-sync, every per-PR PR carries the entire batch's content. This is the design intent — each PR represents "the post-batch state if any one of these merges first" — and on the happy path (the whole batch is good and the reviewer wants to ship it) **this is a time-saver**: the reviewer merges ONE PR and main absorbs the whole batch in a single click. The remaining PRs auto-collapse to zero diff against the new main and can be closed with a one-liner ("absorbed by #<first-merged>").
-
-So the framing is **not** "co-dependent PRs are a problem to warn about." It's "atomic-batch merging is a win the reviewer should know is happening, plus an escape hatch when they want to defer ONE IDEA."
-
-What the reviewer needs to know before merging:
-
-1. **Happy path (most batches): merge ONE PR, the rest collapse.** Pick whichever PR you want to be "the merge commit author" — the other PRs are equivalent. After the merge, refresh the others; their diff drops to zero; close them with `gh pr close --comment "absorbed by #<n>"`. **This saves N-1 merges per batch.** Time-savings compound on larger batches.
-
-2. **Pre-first-merge UI quirk (cosmetic): all PRs show similar large diffs.** GitHub computes each PR's diff against pre-batch main, so the size labels all look ~the same combined-additions number. Don't hunt for "what's unique to PR-B" before merging — the answer is "nothing, by design." This is not a bug; it's the natural consequence of forward-sync. The auto-run summary's morning checklist points this out.
-
-3. **Escalation path (rare): you want to ship some IDEAs but defer others.** This is the only friction case. Forward-sync has bound the batch atomically; deferring one IDEA after S11.11 has landed requires un-binding it. Three options, in order of clean-to-surgical:
-
-   - **Close-and-rerun (cleanest).** `gh pr close` the PRs you want to defer, then re-run sprint-auto with just the IDEAs you want to ship. The previous batch's worktrees can be reused as code-surface scratch (no re-bootstrap needed); only the integration worktree gets a fresh batch-iso. Cost: re-running the integration phase + bugbot loops. Time: ~30-60 min unattended.
-   - **Surgical revert on the integration branch.** Locally on the integration branch (or its origin tip), `git revert` the unwanted IDEA's commits, push, then re-run S11.11 forward-sync into the per-PR branches. Cost: bugbot re-fires on each PR, you wait for clean signals, then merge. Risk: if the unwanted IDEA's changes interleave with another IDEA's changes in the same files, the revert produces conflicts you have to resolve manually. Time: 15-30 min if no conflicts.
-   - **Accept atomic.** If the deferred IDEA is "low-cost to ship anyway" (additive, reversible by `git revert` post-merge if needed), merge the whole batch and revert the unwanted IDEA later as a follow-up PR. Cost: one extra PR's worth of churn. Risk: only acceptable if the deferred IDEA is genuinely low-cost — if it's high-risk, take option (a) or (b).
-
-The cure for confusion is naming the time-saver explicitly + having the escalation escape hatches documented. No mechanical change to forward-sync — the architecture is correct.
-
-## Re-bugbot per-PR PRs (S11.12)
-
-After forward-sync, each per-PR PR's head is a new SHA. GitHub auto-fires Cursor Bugbot when the head moves; sprint-auto invokes `/bugbot-loop <per-PR PR>` to drive the review-fix-rerun cycle.
-
-Verification routes to the integration worktree as in S2/S3 — `cd $SPRINT_AUTO_INTEGRATION_WORKTREE && git fetch origin auto/<slug> && git checkout --detach origin/auto/<slug>` (post-forward-sync state; `--detach` because the per-IDEA worktree still claims the branch ref), reset DB, run targeted tests one final time. Cap **5 attempts** per PR. Most clean-signal immediately because the new commits are wrap + resolutions, not deliverables work.
-
-## Integration teardown (S11.13)
+## Integration teardown (S11.13) — v3.2
 
 ```bash
 cd "$SPRINT_AUTO_INTEGRATION_WORKTREE"
 docker compose down  # NOT -v: preserve volumes for inspection
-gh pr close <integration-draft-pr-number> \
-    --comment "auto-closed by sprint-auto teardown; integration validation complete. See auto-run summary at <path>."
+# The [INTEGRATION] PR is NOT closed — it's the merge gate, left OPEN
+# for the human to review and merge. No `gh pr close` here.
 ```
 
 What stays:
 - Worktree filesystem at `~/projects/<project>-auto-integration-<batch-iso>/`
 - Volumes (db, minio, redis, ES — whatever the project uses) on the docker daemon
 - Branch `integration/sprint-auto-<batch-iso>` locally + on origin
+- **The `[INTEGRATION]` PR — open, awaiting human merge** (v3.2 change)
 
 What's gone:
 - Running containers
-- The `[INTEGRATION]` draft PR (closed, not merged)
 
-The worktree + branch + volumes are cleaned up by the **human's `/wrap NNN` for the LAST-OF-BATCH IDEA**. See `skills/wrap/SKILL.md` § Step 5 last-of-batch detection: when the wrap detects this IDEA was part of a sprint-auto batch AND no other `auto/<batch-mate-slug>` worktrees still exist locally (i.e. the human has merged + wrapped them all), additionally tear down the integration worktree:
+The worktree + branch + volumes are cleaned up by the **human's `/wrap --integration <batch-iso>`** post-merge of the integration PR (v3.2). See `skills/wrap/SKILL.md` § `--integration` mode. The teardown:
 
 ```bash
 cd "$SPRINT_AUTO_INTEGRATION_WORKTREE"
@@ -266,23 +218,30 @@ docker compose down -v
 cd -
 git worktree remove "$SPRINT_AUTO_INTEGRATION_WORKTREE"
 git branch -d "integration/sprint-auto-<batch-iso>"
-git push origin --delete "integration/sprint-auto-<batch-iso>"  # optional; remote cleanup
+git push origin --delete "integration/sprint-auto-<batch-iso>"  # remote cleanup
+# Plus, for each per-IDEA branch from the batch manifest (auto-closed on merge):
+for slug in $batch_slugs; do
+    git worktree remove "$HOME/projects/<project>-auto-${slug}"
+    git branch -d "auto/${slug}"
+done
 ```
+
+(v3.1 cleanup ran from the human's `/wrap NNN` of the last-of-batch IDEA and required detecting that no other `auto/*` worktrees remained. v3.2 reverses the trigger: the integration PR's merge is the natural cleanup point, and the integration ref carries the manifest of which per-IDEA branches to tear down.)
 
 ## State-by-state contract summary
 
 | State | Purpose | Failure mode |
 |---|---|---|
-| S(-1) | Bootstrap integration worktree | Bootstrap fails → abort batch entirely |
+| S(-1) | Bootstrap integration worktree + push integration branch to origin | Worktree create OR push OR docker bootstrap fails → abort batch entirely |
 | S11.5 | Final pre-merge DB reset | Reset fails → log + skip integration phase, jump to S15 |
 | S11.6 | Sequential merge of all auto/* into integration | Per-merge resolution fails after best effort → log + continue with what merged |
 | S11.7 | Batch wrap (devlog + index) | Compose fails → log + use the per-IDEA-frontmatter as the truth source for partial composition |
 | S11.8 | Union of per-IDEA target tests | Cap exceeded → log, ship integration-non-clean |
 | S11.9 | Full test suite | Cap exceeded → log, ship integration-non-clean |
-| S11.10 | Bugbot via [INTEGRATION] draft PR | Cap exceeded → log, ship with unresolved findings flagged |
-| S11.11 | Forward-sync into each auto/<slug> | Per-branch sync fails → log + skip that branch's S11.12 |
-| S11.12 | Re-bugbot per-PR PRs | Cap exceeded per branch → log + continue (each PR is independent) |
-| S11.13 | Teardown integration stack + draft PR | Failure → log; the worktree's `/wrap` cleanup will catch any leftover state |
+| S11.10 | Bugbot via [INTEGRATION] non-draft PR (the merge gate) | Cap exceeded → log, ship with unresolved findings flagged; PR still left OPEN |
+| ~~S11.11~~ | ~~Forward-sync~~ — **deleted in v3.2** (per-IDEA PRs already target integration; no propagation needed) | n/a |
+| ~~S11.12~~ | ~~Re-bugbot per-PR PRs~~ — **deleted in v3.2** (per-IDEA PR heads unchanged after S6; no new SHA to review) | n/a |
+| S11.13 | Stop containers; leave [INTEGRATION] PR OPEN as merge gate | Failure → log; the human's post-merge `/wrap --integration` cleanup will catch any leftover state |
 
 ## Auto-run log fields
 
@@ -290,15 +249,16 @@ The per-batch summary at `docs/archive/auto-run-<ISO>-summary.md` gains an Integ
 
 - `integration_branch`: `integration/sprint-auto-<batch-iso>`
 - `integration_worktree_path`
-- `integration_draft_pr_url` (the auto-closed [INTEGRATION] PR)
+- `integration_pr_url` (the OPEN, non-draft [INTEGRATION] PR — the merge gate; v3.2)
+- `per_idea_pr_base`: `integration/sprint-auto-<batch-iso>` (v3.2 — per-IDEA PRs target integration, not parent)
 - `merge_results`: list of `{ slug, outcome ∈ clean | resolved | failed, conflict_files, resolution_sha }`
 - `union_test_outcome` ∈ `clean | unresolved | cap_exceeded`
 - `full_suite_outcome` ∈ `clean | unresolved | cap_exceeded`
 - `integration_bugbot_outcome` ∈ `clean | unresolved | budget_exceeded`
 - `integration_bugbot_attempts` (0–20)
-- `forward_sync_results`: list of `{ slug, outcome ∈ ok | failed }`
-- `re_bugbot_results`: list of `{ slug, outcome, attempts (0–5) }`
-- `teardown` ∈ `stopped_clean | teardown_failed`
+- ~~`forward_sync_results`~~ — removed in v3.2
+- ~~`re_bugbot_results`~~ — removed in v3.2
+- `teardown` ∈ `stopped_clean | teardown_failed` (note: integration PR is NOT auto-closed; left OPEN as merge gate)
 
 ## Why the integration phase is in `sprint-auto`, not its own `/integrate` skill
 
@@ -310,4 +270,6 @@ Three reasons:
 
 ---
 
-**Last Updated**: 2026-04-29
+**Last Updated**: 2026-05-01 (v3.2 — integration-as-merge-gate redesign. Per-IDEA PRs target the integration branch (`--base $SPRINT_AUTO_INTEGRATION_BRANCH`); integration branch published to origin at S(-1) so per-IDEA PR creation works; `[INTEGRATION]` PR becomes non-draft and is the human-merged gate; S11.11 forward-sync + S11.12 per-PR re-bugbot deleted entirely; S11.13 leaves the integration PR open; integration teardown moves to `/wrap --integration <batch-iso>` post-merge. Compounded after teisutis sprint/ux-overhaul PR #407/#408/#409 cohort surfaced "now we have 3 identical PRs" UX confusion from v3.1's forward-sync mechanism.)
+
+**Previous**: 2026-04-29 (v3.1 — single-stack integration worktree; per-IDEA worktrees code-surface-only; verification routed via `SPRINT_AUTO_INTEGRATION_WORKTREE`. Forward-sync at S11.11 + per-PR re-bugbot at S11.12 carried the integrated state back into per-IDEA PRs.)
