@@ -150,6 +150,49 @@ Edit `docs/ideas/README.md`:
 
 - If the idea's frontmatter `related:` points at a complementary idea that also just shipped (batched PR), note it inline in the summary.
 
+#### Decisions Recap section — for multi-IDEA cohorts
+
+When the project is running a multi-IDEA cohort (sprint-auto batch, named sprint branch with N feature-branch PRs targeting it, or any case where the human is going to navigate ≥10 IDEAs that share a context), maintain a **Decisions Recap** section at the top of `docs/ideas/README.md`. Living index that solves the "re-reading 25 plan docs to remember what was decided" problem.
+
+**Placement** — between `## 🚧 In Progress` and `## 💡 High Priority`. Make it the first thing a future agent or human sees when picking up sprint work.
+
+**Shape** (compact, ~50 lines):
+
+```markdown
+## 🧭 <Sprint name> — Decisions Recap
+
+Living recap of the N-IDEA `<sprint-branch>` cohort (NNN→NNN). Read this first when picking up sprint work — it indexes status + key decisions so a fresh session doesn't have to re-read every plan. Updated by `/plan` and `/wrap` as IDEAs progress.
+
+**Sprint progress**
+
+| # | Title (short) | Status | Key decision committed |
+|---|---|---|---|
+| NNN | … | ✅ complete | one-line key decision |
+| NNN | … | 🚧 in-progress | _(see decisions M–N below)_ |
+| NNN | … | 💡 idea | — |
+| … | … | … | … |
+
+**Major architectural decisions (cross-cutting; amended as the sprint progresses)**
+
+1. **<Decision name>** — one-paragraph resolution. Source: link to the artefact / IDEA where it was locked. _Decided IDEA-NNN; amended IDEA-NNN._
+2. …
+
+**Per-topic source-of-truth artefacts** (read for depth)
+
+- [`<artefact-1>.md`](…) — covers decisions N, M.
+- [`<artefact-2>.md`](…) — covers decisions K.
+```
+
+**Maintenance contract**:
+
+- `/plan` for a new IDEA in the cohort: append a row to the sprint-progress table; flip status to 🚧 when the IDEA enters in-progress.
+- `/wrap` for a completing IDEA: flip its row to ✅ with a one-line key decision; if any new cross-cutting decision was locked, append a numbered row to the architectural decisions block.
+- The recap **never duplicates** the per-topic artefacts — it indexes them. Each decision row points at the artefact where the full reasoning lives.
+
+**When to skip**: cohort < ~10 IDEAs, or the IDEAs don't share enough context that re-reading their plans is expensive (typical for opportunistic backlog clearing). The recap pays off when there's a coherent sprint where late-cohort IDEAs need to know what early-cohort IDEAs decided.
+
+**Genesis**: introduced in 2026-05 during the 25-IDEA `sprint/ux-overhaul` cohort (teisutis project) — the context cost of re-reading 25 plan docs to remember decisions had crossed a pain threshold. A small `auto-memory` reference entry pointing at the recap location makes the pattern survive across agent sessions.
+
 ### Step 4 — Devlog entry
 
 **First, resolve the target file for the NEW entry (month-rollover check).** Compute today's `YYYY-MM`. If `docs/archive/<YYYY-MM>-DEVELOPMENT_LOG.md` doesn't exist yet (first write of the month), create it with the standard header — see any prior month's top lines for the template. **The just-merged PR's entry goes in *today's month* file**, even if the PR's own merge timestamp is right at a month boundary; the chronological log is indexed by when the entry is authored, not when the underlying work shipped minutes earlier. Backfill (Step 2) handles its own per-missed-PR file targeting separately from this.

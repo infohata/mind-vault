@@ -126,7 +126,7 @@ After all per-IDEA loops complete, the integration phase runs once. Full mechani
 
 2. **Sequential merge (S11.6).** `git checkout integration/sprint-auto-<batch-iso>`. For each `auto/<slug>` in batch-arg order: `git merge --no-ff auto/<slug>`. On conflict: resolve on integration branch using [`references/integration-conflict-resolutions.md`](references/integration-conflict-resolutions.md), commit the resolution. Continue. Track which branches needed resolution.
 
-3. **Batch wrap on integration branch (S11.7).** Compose ONE devlog commit + ONE ideas-index commit covering all N IDEAs. This is the work that per-IDEA `/wrap --scope=idea-only` (step 6) deferred. Eliminates the N-way wrap-stage conflicts at the source.
+3. **Batch wrap on integration branch (S11.7).** Compose ONE devlog commit + ONE ideas-index commit covering all N IDEAs. This is the work that per-IDEA `/wrap --scope=idea-only` (step 6) deferred. Eliminates the N-way wrap-stage conflicts at the source. **Also maintain the Decisions Recap section** at the top of `docs/ideas/README.md` if the cohort is large (~10+ IDEAs sharing context) — see [`../wrap/SKILL.md`](../wrap/SKILL.md) § "Decisions Recap section". Each IDEA's wrap row + any newly-locked cross-cutting decision is rolled into the same batch-wrap commit.
 
 4. **Integration tests — union (S11.8).** Read each merged-in IDEA's plan-doc Verification section, union test paths, run pytest on the integration stack. Migrate up if migrations were merged. Failure → fix on integration branch, cap **10 attempts**.
 

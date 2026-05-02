@@ -240,6 +240,61 @@ Put long-lived UI state (theme, mobile-menu open, global flags) at the top eleme
 
 Pattern is load-bearing because Alpine's `x-data` scope is lexical; putting it on `<html>` makes every element a consumer. Full `base.html` in [references/BASE_TEMPLATE.md](references/BASE_TEMPLATE.md).
 
+**Caution — list every key any descendant references.** When adding new components that read root-scope keys (e.g. a theme toggle's `<span x-show="show_text">`, a navbar's `mobileMenu`, an analytics flag), the key MUST be declared in the root `x-data` initializer. Missing keys throw `Alpine Expression Error: <key> is not defined` at runtime — not at template-compile time. Easy to ship undetected if the test surface is render-and-assert (server-side HTML) and not a real browser. Grep all consumed templates for the keys they reference before editing the root `x-data`; legacy `base.html`'s root-scope shape is the contract until a new shell template fully replaces it.
+
+### Alpine.js script load order — beware the defer microtask trap
+
+When `alpine.min.js` is loaded `<script defer>`, Alpine auto-starts via `queueMicrotask(() => Alpine.start())` the moment its own defer task finishes — **before** subsequent defer scripts execute. So any `Alpine.data('foo', factory)` registration or `addEventListener('alpine:init', …)` listener in a later defer script registers too late: Alpine has already walked the DOM and tried to evaluate `x-data="foo()"` against an empty registry, and the user sees `Alpine Expression Error: foo is not defined` flooding the console.
+
+**Symptom**: console floods with `Alpine Expression Error: <factory> is not defined` for every `x-data` expression, even though the JS file is on disk and serves correctly.
+
+**Fix**: load shell-bundle JS that registers Alpine factories or `alpine:init` listeners as **blocking** `<script>` tags (no `defer`), placed in the document `<head>`. Blocking script execution interleaves with HTML parse, so the registration runs synchronously **before** alpine's defer task is scheduled. Alpine subsequently dispatches `alpine:init`, our listeners fire, factories register, the DOM walk finds them.
+
+```django
+<head>
+    {# Alpine itself is fine to defer — its IIFE runs after our blocking
+       scripts have already queued their alpine:init listeners. #}
+    <script src="{% static 'core/js/alpine.min.js' %}" defer></script>
+
+    {# Theme.js is blocking because the root <html> x-data calls themeStore()
+       (see "Alpine.js global state on <html>" above). Same justification
+       applies to ANY shell-bundle JS that registers Alpine factories. #}
+    <script src="{% static 'core/js/theme.js' %}"></script>
+    <script src="{% static 'app_ui/js/nav-overflow.js' %}"></script>  {# blocking — Alpine.data #}
+    <script src="{% static 'app_ui/js/drawer.js' %}"></script>        {# blocking — Alpine.data #}
+
+    {# Anything that doesn't register Alpine factories can stay defer. #}
+    <script src="{% static 'core/js/htmx.min.js' %}" defer></script>
+    <script src="{% static 'core/js/utils.js' %}" defer></script>
+</head>
+```
+
+The microtask-vs-defer ordering is **not platform-stable across browsers in all edge cases**, but the symptom is reliably reproducible in Chromium-family browsers when the bundle JS is defer'd after alpine. Don't rely on the order; load shell-essential factories blocking.
+
+### Toggleable containers — `inert` not `aria-hidden`
+
+For drawers / modals / dialogs / dropdowns / off-canvas panels that toggle visibility via CSS: bind the **`inert` HTML attribute** (boolean), not `aria-hidden`. Browser a11y validators (Chromium DevTools, axe-core) flag a focus-trap when `aria-hidden` flips to `"true"` while a descendant button retains keyboard focus — for one frame the focus sits inside an aria-hidden ancestor, which the WAI-ARIA spec forbids:
+
+> `Blocked aria-hidden on an element because its descendant retained focus.`
+
+**The fix**: use `inert` instead. `inert` is a boolean HTML attribute (Chrome 102+, Firefox 112+, Safari 15.5+) that:
+
+1. Removes the entire subtree from the accessibility tree (same as `aria-hidden`).
+2. **Proactively blurs any focused descendant** before applying — closes the race window.
+3. Prevents pointer + focus events into the subtree.
+
+In Alpine:
+
+```django
+{# Wrong — race-window focus-trap when isOpen flips to false #}
+<aside :aria-hidden="(!isOpen).toString()">
+
+{# Right — inert proactively blurs descendants #}
+<aside :inert="!isOpen">
+```
+
+Single-attribute swap; no test fixture changes needed (tests rarely assert on `aria-hidden`). The same rule applies to modal backdrops, dropdown panels, off-canvas drawers, command palettes, lightboxes — anything whose visibility is JS-toggled and that contains focusable children.
+
 ### Modal management with HTMX
 
 Modals load content from an HTMX endpoint — opening a modal is an HTMX GET against a form URL, the response swaps into the modal body.
