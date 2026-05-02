@@ -275,6 +275,4 @@ No `/compound` reminder here — compound ran in section 4 above.
 
 ---
 
-**Last Updated**: 2026-05-01 (v3.2 — integration-as-merge-gate redesign. Per-IDEA PRs target the integration branch instead of parent (main / sprint-*). Integration branch pushed at S(-1) so per-IDEA PRs can target it. S11.10 [INTEGRATION] PR becomes non-draft and is the merge gate; human merges it, per-IDEA PRs auto-close as ancestors. S11.11 forward-sync deleted entirely. S11.12 per-PR re-bugbot deleted entirely. S11.13 teardown no longer auto-closes the integration PR; integration teardown moves to `/wrap --integration <batch-iso>` post-merge of the integration PR. Eliminates v3.1's "N identical PRs after forward-sync" UX confusion observed on teisutis sprint/ux-overhaul batch (PR #407/#408/#409 cohort, where the user explicitly flagged "now we have 3 identical PRs"). Atomic-batch merging property is preserved — the integration PR's single merge ships the whole batch — but the mechanism moves from forward-sync to base-ref. New env var: `SPRINT_AUTO_INTEGRATION_BRANCH` exported at S(-1) alongside `SPRINT_AUTO_INTEGRATION_WORKTREE`; `/work` consumes it for `gh pr create --base` routing.)
-
-**Previous**: 2026-04-29 (v3.1 — single-stack integration worktree at port offset +30000; per-IDEA worktrees code-surface-only; verification routed via `SPRINT_AUTO_INTEGRATION_WORKTREE` env var; full DB reset between IDEAs. Forward-sync at S11.11 + per-PR re-bugbot at S11.12 carried the integrated state back into per-IDEA PRs.)
+**Last Updated**: 2026-05-01

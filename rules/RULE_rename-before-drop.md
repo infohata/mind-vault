@@ -80,4 +80,4 @@ Execution adapted: Commits 1+2 (AddField + RunPython) → Commits 4-13 (rename r
 
 ---
 
-**Last Updated**: 2026-04-25 (initial — compounded from teisutis IDEA-127, [PR #371](https://github.com/infohata/teisutis/pull/371) — collapse Article/Event four-field content shape into `contents + notes`. The principle was named during planning by the user; the worked example confirmed bisectability + per-commit compilability claims when the recurrence.py omission surfaced cleanly mid-sequence.)
+**Last Updated**: 2026-04-25

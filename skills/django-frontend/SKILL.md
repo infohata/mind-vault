@@ -709,6 +709,4 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [Bulma CSS Documentation](https://bulma.io/documentation/)
 - [Django Crispy Forms](https://django-crispy-forms.readthedocs.io/)
 
-**Last Updated**: 2026-05-01 (added "Critical hazards (read these first)" section right after "When to use" — surfaces the three high-blast-radius template traps in the skill's first 100 lines so they hit the agent's context before any template edits, with cross-refs to the existing full sections; description field expanded to mention the three hazards explicitly so the skill description carries them too. New section: "SCSS vendor-import hazard — `@import url()` is runtime, not compile-time" — covers the Sass-doesn't-resolve-vendor-URLs trap with the relocation-breaks-everything failure mode. Both compounded from teisutis sprint/ux-overhaul cohort: the `{# … #}` rule shipped in IDEA-136 PR #409 wrap templates two hours after I authored cotton-section cross-refs to the existing rule (cross-refs aren't enough; rule needs first-100-lines placement); the SCSS hazard fresh from IDEA-135's app rename surfacing it as a UI-completely-broken regression.)
-
-**Previous**: 2026-04-27
+**Last Updated**: 2026-05-01
