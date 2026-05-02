@@ -797,6 +797,4 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [Django REST Framework](https://www.django-rest-framework.org/)
 - [Django ORM Query Optimisation](https://docs.djangoproject.com/en/stable/topics/db/optimization/)
 
-**Last Updated**: 2026-05-01 (added "Cross-entity session-filter state — fan-out invalidation on shared-key change" — covers the two-key cross/entity session split + the trap where a cross-field's value change leaves derived state stale on sibling per-entity entries; concrete `_clear_tags_from_other_entity_sessions` helper shape; both gates (`old_scope_value` truthy + `isinstance(key, str)` defence) explained. Compounded from teisutis IDEA-136 PR #409 smoke-test edge-case where switching scope on /events/ left stale tag IDs from /articles/ — user landed back on /articles/ with no UI to de-select, 0 results.)
-
-**Previous**: 2026-04-29
+**Last Updated**: 2026-05-01
