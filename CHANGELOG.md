@@ -10,7 +10,9 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 PRs open and not yet merged to main.
 
-_(none)_
+- **Changed** five skill/rule footers — second-wave trim of `**Last Updated**` parenthetical narrative + `**Previous**:` lines that accumulated after PR #86's first sweep. `rules/RULE_parallel-worktree-docker.md`, `rules/RULE_rename-before-drop.md`, `rules/RULE_ideas-location-status.md`, `skills/django-frontend/SKILL.md`, `skills/sprint-auto/SKILL.md` each now carry a bare `**Last Updated**: YYYY-MM-DD` line; the incident-narrative content these trailers held was already in the corresponding CHANGELOG entries (PRs #82, #69, #46, #88, #88), so no narrative is lost. Token-cost driver: every line in these files is paid for on each skill/rule activation. New auto-memory entry codifies the rule that future skill/rule edits must route incident detail to CHANGELOG, never inline. (chore/skill-rule-trailer-cleanup)
+
+  Carve-out: `skills/django/SKILL.md`'s 2026-05-01 narrative-trailer is being added by PR #90 (still open) — its trim will land as a follow-up after #90 merges.
 
 ## 2026-05
 

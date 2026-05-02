@@ -284,6 +284,4 @@ The `<tenant_schema>` is `public` for non-multi-tenant projects, or the per-tena
 
 ---
 
-**Last Updated**: 2026-04-29 (later same day — added "Single-stack staging server: smoke-testing un-merged PRs in-place" section covering the bind-mount-vs-COPY hybrid update workflow, the revert-to-main path with `up -d --force-recreate` on COPY services to drop cp'd state, the migration-tracking-persists gotcha (`showmigrations` hides migrations whose files aren't on the current branch but the DB still has them tracked + columns present), and the multi-tenant `django_migrations` query pattern for verifying actual DB state. Cross-references the `feedback_chained_command_destructive_ops.md` auto-memory entry for state-mutating chain discipline. Compounded from teisutis IDEA-131 PR #397 + PR #400 staging smoke-test sessions.)
-
-**Previous**: 2026-04-29 (earlier same day — added "wrong stack down" Common Gotcha row — chained `cd "$VAR" && docker compose down` fell through to primary when `$VAR` was unset in the bash subshell, taking down the wrong project. Witnessed during teisutis sprint-auto 2026-04-28 batch S11.13 teardown when the integration worktree's state-file wasn't sourced in that chain. ~30s primary-stack outage. Defence: always `source` the state file before any chained `cd` to a worktree path, or use absolute paths literally, or gate with `: "${VAR:?...}"`. Compounded from PR #397/#398 sprint-auto post-run.) 2026-04-25: InvalidAccessKeyId row. 2026-04-22: dev-tool install + config placement.
+**Last Updated**: 2026-04-29

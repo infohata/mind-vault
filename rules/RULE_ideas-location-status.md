@@ -209,4 +209,4 @@ Rebuild the index from scratch when out of sync: scan both dirs, read each file'
 
 ---
 
-**Last Updated**: 2026-04-20 (second revision — retired `docs/execution/` as an IDEA location; collapsed the two-move lifecycle into a single ideas→archive move. Rationale captured during teisutis IDEA-112 PR1 review: the link-stability cost of two moves dominates any purity gain from "location = status")
+**Last Updated**: 2026-04-20
