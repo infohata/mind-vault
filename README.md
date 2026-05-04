@@ -36,7 +36,7 @@ mind-vault/
 └── tools/         Utilities (bugbot helpers, emoji support, etc.)
 ```
 
-## Skills (14)
+## Skills (15)
 
 Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each skill has frontmatter `name` + `description` (the probabilistic trigger), stays under ~500 lines, and pushes deep-dive content to `references/`.
 
@@ -62,6 +62,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **deployment** | Docker Compose production deploys — change-aware scripts, pre/post-migration backups, screen-session remote execution, Let's Encrypt SSL. |
 | **surgical-tdd** | Targeted test execution for large Python monoliths (Django runner + pytest nodeids + `--lf` / `-k` / `pytest-xdist` levers). |
 | **artefact-retrieval** | Sweep IDE workspaces (Cursor / Antigravity / Claude Code) for plans and analyses; import into `docs/artefacts/`. |
+| **dependabot-triage** | Multi-ecosystem Dependabot PR triage — content-based dup detection across pip workspaces, risk-tier batching with per-dep commits (preserves `git bisect` post-squash-merge), live-staging smoke for SDK bumps. |
 
 ### Meta
 
@@ -97,8 +98,11 @@ Invoke as `/<command-name>` in any host that supports slash commands. See [docs/
 ## Rules
 
 - **[RULE_git-safety](rules/RULE_git-safety.md)** — HITL gate on `main` and the release branch; feature branches are the agent's sandbox. Governs `/compound`'s branch policy and the bugbot-loop's autonomous-commit permissions.
-- **[RULE_i18n-workflow](rules/RULE_i18n-workflow.md)** — Django translation map-first workflow; `.po` files are generated, never hand-edited.
+- **[RULE_i18n-workflow](rules/RULE_i18n-workflow.md)** — Django translation map-first workflow; `.po` files are generated, never hand-edited. Includes per-app sharded-map ownership rule (the map a string belongs in follows the `.po` file `makemessages` extracts to, not the app the string was authored for).
+- **[RULE_ideas-location-status](rules/RULE_ideas-location-status.md)** — IDEA files live in exactly two places across their life: `docs/ideas/IDEA-NNN-<slug>.md` while in backlog, `docs/archive/YYYY-MM-idea-NNN-<slug>/` thereafter. Single `git mv` at `/plan` time; all subsequent status transitions are frontmatter-only.
 - **[RULE_parallel-worktree-docker](rules/RULE_parallel-worktree-docker.md)** — Worktree + docker-compose isolation contract for parallel work streams. Cited by `/work` when the plan flags parallelism.
+- **[RULE_rename-before-drop](rules/RULE_rename-before-drop.md)** — Refactor commit-sequence discipline: rename references first, full test pass, then drop the legacy symbol, re-test for regressions. Per-commit compilability + bisectability; missed references surface during the rename-only test pass instead of hiding inside post-drop noise.
+- **[RULE_self-sweep-before-push](rules/RULE_self-sweep-before-push.md)** — Pyflakes touched-files sweep + Contract-Change Sweep (grep ALL callers when a shared helper's signature/return type changes) between bugbot-loop's Phase 2 and Phase 3. Saves 5-10 min of bugbot-cycle wall-time per trivial dead-import / unused-local / missed-caller finding.
 
 ## Setup
 
