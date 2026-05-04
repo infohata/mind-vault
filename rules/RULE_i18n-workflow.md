@@ -45,6 +45,40 @@ If the project has a translation map script (e.g. `fill_empty_po.py`):
 - Multi-line msgids cannot be auto-filled; leave them for manual review
 - If a msgid has a non-empty but wrong carryover translation, keep a force-sync list (for example `FORCE_SYNC_MSGIDS`) so curated map values overwrite stale msgstr entries
 
+### Map Ownership Follows Template-Extraction Path
+
+When a project shards its translation maps per-app (`tools/translation_maps/<app>.py` — e.g. `ui.py`, `kb.py`, `auth.py`, `core.py`), the map a string belongs in is determined by **which app's `.po` file `makemessages` extracts the msgid to**, NOT by which app the string "logically" belongs to. The fill script loads each map only for its corresponding app's catalog.
+
+The mistake: putting a string in `<app-A>.py` because the string was authored for an app-A surface, but the string actually appears in a template owned by app-B (e.g. an app-A cotton component renders inside an app-B template; an app-A consumer uses an app-B partial that has its own `{% trans %}` calls; an app-A view's template `{% include %}`s an app-B partial). `makemessages` extracts the msgid into `app-B/locale/*/django.po` (because that's where the template lives in the source tree), but `fill_empty_po.py` for `app-B/locale/...` only loads `B_TRANSLATIONS` from `<app-B>.py` — the entry in `<app-A>.py` is dead. All locales render the source-language fallback.
+
+The diagnostic recipe — run from project root after `make translate-extract`:
+
+```bash
+# For a specific msgid you suspect is in the wrong map:
+grep -l '^msgid "Load older"' web/*/locale/*/LC_MESSAGES/django.po
+# → web/teisutis_kb/locale/lt/LC_MESSAGES/django.po
+#   (etc — every locale of the EXTRACTED-INTO app)
+
+# That output tells you which app's <app>.py the map entry needs to live in.
+```
+
+A second sweep that's cheap to run periodically — looks for strings that ARE in a map but DON'T appear in the corresponding app's `.po`:
+
+```bash
+# Pseudocode — adapt to project's map shape:
+for msgid in $(extract_msgids tools/translation_maps/ui.py); do
+    if ! grep -q -F "msgid \"$msgid\"" web/teisutis_ui/locale/lt/LC_MESSAGES/django.po; then
+        echo "DEAD MAP ENTRY in ui.py: $msgid"
+    fi
+done
+```
+
+The structural fix when you find a wrong-map entry: cut the entry from `<app-A>.py`, paste into `<app-B>.py`, re-run `make translate-fill` — the empty-msgstr regex picks up the previously-untranslated entries and fills them in one pass.
+
+The deeper design tension this surfaces: **shared cotton components / shared partials with embedded `{% trans %}` calls force translations into every consuming app's catalog.** A `<c-foo>` cotton component used by 5 apps has its `{% trans %}` strings extracted to all 5 apps' catalogs (because each consuming app's template is what `makemessages` scans). The map-ownership rule says: maintain the entries in the consuming-app's `<app>.py`, even when the string was authored alongside the cotton component. Duplicate the entries in each app's map if the same component renders across apps. Yes — translation maps are fragile, AI-token/performance optimised over surface elegance, but the duplication is the price.
+
+Surfaced in teisutis: IDEA-138 PR #412 cycle 7 (`ui` strings consumed by `auth` templates), IDEA-139 PR #413 (cotton-default `Copy` / `Copied!` consumed by both `ui` and `auth`), IDEA-140 PR #415 cycle 1 finding `3183742934` (`Load older` / `Beginning of history` extracted to `kb` because `_load_older_pager.html` is a kb partial, but map entry sat in `ui.py`).
+
 ### Audit-First Principle
 
 If the project provides translation auditing (for example `translate-audit`), run it before compile.

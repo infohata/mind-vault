@@ -32,7 +32,8 @@ Compatibility: Django 4.2+ (tested through 5.2 LTS), any database.
 - [HTMX Widgets](references/HTMX_WIDGETS.md) — autocomplete, file upload, colour/icon pickers
 - [Advanced Components](references/ADVANCED_COMPONENTS.md) — theme store, notifications, utilities
 - [HTMX Patterns](references/HTMX_PATTERNS.md) — detailed HTMX implementation patterns
-- [Alpine + HTMX Gotchas](references/ALPINE_HTMX_GOTCHAS.md) — Alpine 3 factory `x-data` auto-init trap, `HX-Trigger` value-wrapping shape, defer-vs-DOMContentLoaded ordering
+- [Alpine + HTMX Gotchas](references/ALPINE_HTMX_GOTCHAS.md) — Alpine 3 factory `x-data` auto-init trap, `HX-Trigger` value-wrapping shape, defer-vs-DOMContentLoaded ordering, `hx-on::*` plain-JS scope (not Alpine), `hx-trigger="click once"` doesn't fire on synthetic state changes
+- [HTMX Scroll Preservation](references/HTMX_SCROLL_PRESERVATION.md) — Load-older / inverse-pagination scroll-position primitive; marker-offsetTop diff math (robust to `display: contents` wrappers + concurrent below-marker mutations)
 
 ## When to use
 
@@ -756,7 +757,8 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [HTMX Widgets](references/HTMX_WIDGETS.md) — autocomplete, file upload, colour/icon pickers
 - [Advanced Components](references/ADVANCED_COMPONENTS.md) — theme store, notifications, utilities
 - [HTMX Patterns](references/HTMX_PATTERNS.md) — detailed HTMX implementation patterns
-- [Alpine + HTMX Gotchas](references/ALPINE_HTMX_GOTCHAS.md) — Alpine 3 factory `x-data` auto-init trap, `HX-Trigger` value-wrapping shape, defer-vs-DOMContentLoaded ordering
+- [Alpine + HTMX Gotchas](references/ALPINE_HTMX_GOTCHAS.md) — Alpine 3 factory `x-data` auto-init trap, `HX-Trigger` value-wrapping shape, defer-vs-DOMContentLoaded ordering, `hx-on::*` plain-JS scope (not Alpine), `hx-trigger="click once"` doesn't fire on synthetic state changes
+- [HTMX Scroll Preservation](references/HTMX_SCROLL_PRESERVATION.md) — Load-older / inverse-pagination scroll-position primitive; marker-offsetTop diff math (robust to `display: contents` wrappers + concurrent below-marker mutations)
 - [Vendoring JS Bundles](references/VENDORING_JS_BUNDLES.md) — vendor pre-built JS to `static/vendor/`, zero Node toolchain in CI/Docker; disposable container build for ESM-only libraries (precedent: EasyMDE; planned: TipTap)
 - [django](../django/SKILL.md) — backend pairing (BaseModel, DRF, ORM optimisation, permissions)
 - [surgical-tdd](../surgical-tdd/SKILL.md) — testing approach for Django apps
