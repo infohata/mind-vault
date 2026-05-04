@@ -134,6 +134,59 @@ These are recurring issues that Bugbot correctly catches. Check for them proacti
 
    Surfaced in teisutis IDEA-138 [PR #412](https://github.com/infohata/teisutis/pull/412) cycle 7 (HIGH, finding 3182104302). The original middleware was unconditionally draining + merging on every HTMX response. Bugbot's static analysis spotted the missing gate; manual smoke would have surfaced it the first time anyone tested an HTMX form-then-redirect flow on the new shell. Caught pre-production by bugbot.
 
+17. **Alpine reactive state assignments inside `hx-on::*` handlers don't propagate** (Alpine + HTMX): when a template sets `<div x-data="{ flag: false }">` and tries to mutate `flag` from `hx-on::after-request="flag = true"`, the assignment doesn't reach Alpine's reactive proxy. HTMX evaluates `hx-on` handlers via `new Function("event", code)` — that runs in plain JS scope. Bare `flag = true` becomes a window global (non-strict mode) or `ReferenceError` (strict). Alpine's `x-text="flag"` / `x-show="flag"` bindings see no state change, never react.
+
+    Symptom is a button bound with `hx-on::after-request` that fires its HTMX request, response comes back, the assignment runs without throwing — but the dependent UI never updates. Render-and-assert tests pass (the `x-data` markup renders fine); bugs surface only in manual smoke that exercises the runtime-dispatch path. Bugbot's per-file static analysis catches the *pattern* (`hx-on` evaluator scope is documented behaviour); manual reviewers usually miss it unless they've been bitten before.
+
+    Drill-side checks while reviewing any HTMX consumer inside an `x-data` scope:
+
+    - **Grep for `hx-on` inside x-data scopes**: `grep -rn 'hx-on' --include="*.html"` then for each match, check the enclosing template structure for an `x-data` wrapper. The combination is the smell.
+    - **Three valid bridge patterns** to suggest in the review comment, in increasing robustness order: (a) `Alpine.$data($el).flag = ...` (Alpine 3.13+ direct write through the proxy — fragile under wrapper-component refactors); (b) `x-on:htmx:after-request.camel="flag = ..."` on the parent `x-data` (evaluates in Alpine scope; the `.camel` modifier is required because HTMX dispatches as camelCase but HTML attributes lowercase); (c) plain DOM bridge — `document.getElementById('source').textContent = ...; document.getElementById('reveal').hidden = false` — sidesteps Alpine entirely. Pattern (c) is right when the consumer just needs to "show this hidden region after the response and let downstream components read its DOM content"; no Alpine state needed.
+
+    Surfaced in teisutis IDEA-139 [PR #413](https://github.com/infohata/teisutis/pull/413) (manual-smoke-caught pre-bugbot, fix `a3344000`). The `organization_detail.html` HMAC-secret + per-user reset-link copy buttons did nothing because the Alpine reactive bridge from `hx-on::after-request` to `x-show`-gated reveal silently no-opped. Replaced with plain-DOM `textContent` + `hidden` toggle. Also covered as gotcha #4 in `skills/django-frontend/references/ALPINE_HTMX_GOTCHAS.md` with full pattern catalogue.
+
+18. **`hx-trigger="click once"` doesn't fire on synthetic state changes** (Alpine + HTMX disclosure widgets): when a UI primitive supports both **user click** AND **synthetic open** (initial expanded state, `location.hash` deep-link, programmatic open), and a side effect (HTMX lazy-fetch, telemetry, focus restoration) needs to fire on first-open regardless of how the open happened — binding the side effect to `click once` silently fails for the synthetic paths. Setting `open = true` from `x-init` is a state mutation, not an input event; no click bubbles, the trigger never fires.
+
+    User-visible symptom: the widget's body shows whatever placeholder the lazy-fetch was meant to replace ("Loading…", an empty container), forever, with no error or console warning. Tests that assert markup pass fine. The bug only surfaces in a manual smoke that reaches the synthetic-open path — usually a hash-deeplink reload, which most test harnesses skip.
+
+    Drill-side checks while reviewing any disclosure primitive (collapsible, accordion, popover, expand-on-hover):
+
+    - **Identify the open-paths matrix** — does the consumer set the state from `x-init`, from `location.hash`, programmatically? If yes to any, the `hx-trigger="click once"` design has a hole.
+    - **Suggested fix shape**: drive the side effect from a state-watcher (`x-effect` in Alpine), not from the input event. The `open && !loaded` exactly-once guard makes it idempotent across all open-paths:
+
+      ```html
+      <div x-data="{ open: false, loaded: false }"
+           x-init="if (window.location.hash === '#' + $el.id) open = true"
+           x-effect="if (open && !loaded) {
+               loaded = true;
+               htmx.ajax('GET', '/lazy-fetch-url/', '#body-content');
+           }">
+          <button @click="open = !open">Toggle</button>
+          <div x-show="open" x-cloak>
+              <div id="body-content"><span class="loading">Loading…</span></div>
+          </div>
+      </div>
+      ```
+
+    - **Test pattern to require**: assert `x-effect` directive present + `open && !loaded` guard text + `htmx.ajax(...)` call; assert button does NOT carry `hx-get` / `hx-trigger` / `hx-target` / `hx-swap` (those would double-fire alongside the x-effect path).
+
+    Surfaced in teisutis IDEA-139 [PR #413](https://github.com/infohata/teisutis/pull/413) cycle 2 (LOW, finding 3182814180, fix `4fcad0a0`). The `c-collapsible` cotton primitive had been published with `hx-trigger="click once"`; bugbot caught the auto-expand-from-hash regression downstream IDEAs would hit. Also covered as gotcha #5 in `skills/django-frontend/references/ALPINE_HTMX_GOTCHAS.md` with the full pattern catalogue.
+
+19. **Contract-change sweep — when a shared helper's return type changes, grep ALL callers in one commit, not just the most-prominent**: when refactoring a public-facing function's return type, parameter signature, or thrown exceptions, the patch surface is "every caller in the project," not just the one motivating the refactor. Common failure mode: change the helper, fix the obvious caller, push. Bugbot reviews the diff, spots a SECOND caller — often in the SAME file — that wasn't updated. Fix that one, push. Bugbot reviews again, spots a third caller in another file. By the time the PR is clean, three bugbot cycles have been spent on what was one self-contained refactor.
+
+    Drill-side guidance for the agent BEFORE pushing the helper-change commit:
+
+    ```bash
+    # In project root, language-appropriate grep:
+    grep -rn '\bfunctionName(' --include="*.js" --include="*.ts" --include="*.py"
+    # Or for Python methods:
+    grep -rn '\.methodName(' --include="*.py"
+    ```
+
+    Every hit is a candidate caller that may need updating for the new contract. Decide per-caller: (a) update in the same commit (most cases for ≤5 callers), (b) add a backwards-compat shim if N is large and per-caller migration is non-trivial.
+
+    Surfaced in teisutis IDEA-139 [PR #413](https://github.com/infohata/teisutis/pull/413) cycles 2 + 3. `copyToClipboardWithFeedback` changed return from `undefined` to `Promise.reject(...)` for the unavailable-clipboard early-exit. Cycle 2 patched `chat.js:2538` with `.catch()`; bugbot caught the symmetric oversight in cycle 3 — the SAME file's `initDataCopyUrlButtons` internal callback called the helper without `.catch()`. One extra cycle, one extra commit, one extra retrigger — all preventable by `grep -rn 'copyToClipboardWithFeedback(' --include="*.js"` before the cycle-2 push. Full discipline catalogued in [`rules/RULE_self-sweep-before-push.md`](../rules/RULE_self-sweep-before-push.md) § "Contract-Change Sweep".
+
 ### PASS 3: The Re-Trigger Loop
 
 - **Skip PASS 3 *and* the wait-and-wake state if zero fixes were applied in PASS 2** (all findings Tier 3, or all edits reverted on test failure). Hand back to the user immediately with all unfixed findings surfaced as Tier 3 escalations. Rationale: no fixes → no push → bugbot has nothing new to review; polling would only rediscover the same unfixable findings and waste the active-work budget. Never commit empty, never re-trigger bugbot on unchanged code.
