@@ -1,11 +1,13 @@
-# Alpine 3 + HTMX bridge — three subtle gotchas
+# Alpine 3 + HTMX bridge — five subtle gotchas
 
-A trio of behaviours that bite when wiring Alpine 3 components to HTMX events (custom-event bridges, OOB swaps with Alpine state, deferred handler binding). Each is silent — no error, no warning — and only manifests after manual smoke or a corner-case input.
+A set of behaviours that bite when wiring Alpine 3 components to HTMX events (custom-event bridges, OOB swaps with Alpine state, deferred handler binding, HX-on as a state-mutation seam, lazy-fetch on synthetic state changes). Each is silent — no error, no warning — and only manifests after manual smoke or a corner-case input.
 
 Load this reference when:
 - Writing an `Alpine.data('foo', () => ({...}))` factory that owns event listeners.
 - Bridging server events to client state via `HX-Trigger` headers.
 - Deciding where to bind global handlers for HTMX events (`htmx:responseError`, `htmx:sendError`, `htmx:load`).
+- Using `hx-on::after-request` (or any `hx-on::*`) inside an Alpine `x-data` scope to mutate Alpine state.
+- Building disclosure widgets / collapsibles with optional first-expand HTMX lazy-fetch.
 
 ## 1. Alpine 3 auto-calls `init()` — never pair `x-init="init()"` with a factory `x-data`
 
@@ -111,6 +113,101 @@ Two related rules:
 - **Bind to `document`, not `document.body`**. `document` exists from the moment `<!DOCTYPE html>` is seen; `document.body` doesn't exist until `<body>` is parsed. HTMX events bubble to both, but `document` is reachable from anywhere a blocking head script runs.
 - **For Alpine factory registration via `alpine:init`**, the script that calls `Alpine.data('foo', ...)` must execute BEFORE Alpine's own defer-task fires `alpine:init`. Either load the registration script blocking from `<head>` (no `defer`), or use `document.addEventListener('alpine:init', ...)` from a defer script and accept that registration happens just before the first DOM walk.
 
+## 4. `hx-on::*` runs in plain JS scope, NOT Alpine's evaluator
+
+When you write `<div x-data="{ resetUrl: '' }">` and try to update `resetUrl` from `hx-on::after-request="resetUrl = ..."`, **the assignment doesn't reach Alpine's reactive state**. HTMX evaluates `hx-on` handlers via `new Function("event", code)` — that runs in plain JS scope. Bare `resetUrl = ...` becomes a window global (in non-strict mode) or a `ReferenceError` (in strict mode). Alpine's `x-text="resetUrl"` and `x-show="resetUrl"` bindings see no state change and never react.
+
+Symptom: a button bound with `hx-on::after-request` fires its HTMX request, response comes back, the assignment runs without throwing — but the dependent UI never updates. Manual smoke catches this; tests that assert markup at render time miss it entirely (the `x-data` binding renders fine; the runtime-dispatch issue is invisible to render-and-assert).
+
+```html
+<!-- WRONG: hx-on assignment doesn't update Alpine state -->
+<span x-data="{ resetUrl: '' }">
+    <button hx-post="/generate-link/"
+            hx-on::after-request="if(event.detail.successful){
+                try{ resetUrl = JSON.parse(event.detail.xhr.responseText).url; }catch(e){}
+            }">Generate</button>
+    <span x-text="resetUrl"></span>      <!-- never populates -->
+    <span x-show="resetUrl"><c-copy-button :target="..." /></span>  <!-- never reveals -->
+</span>
+```
+
+Three workable patterns, in increasing order of robustness:
+
+**A — `Alpine.$data($el).resetUrl = ...`** (Alpine 3.13+). Walks up to the closest Alpine scope and writes through its proxy. Closest to "just make the bare assignment work":
+
+```html
+hx-on::after-request="if(event.detail.successful){
+    try{ Alpine.$data(this).resetUrl = JSON.parse(event.detail.xhr.responseText).url; }catch(e){}
+}"
+```
+
+Works, but couples the consumer to Alpine's API surface and depends on the closest-ancestor `x-data` actually being the right scope (fragile under refactors that wrap or unwrap intermediate components).
+
+**B — Listen via Alpine, not HTMX**. `x-on:htmx:after-request.camel="…"` on the parent `x-data` evaluates the handler in Alpine's scope:
+
+```html
+<span x-data="{ resetUrl: '' }"
+      x-on:htmx:after-request.camel="if($event.detail.successful){
+          try{ resetUrl = JSON.parse($event.detail.xhr.responseText).url; }catch(e){}
+      }">
+    <button hx-post="/generate-link/" hx-swap="none">Generate</button>
+    ...
+</span>
+```
+
+The `.camel` modifier is required because HTMX dispatches the event as `htmx:afterRequest` (camelCase) and HTML attribute names lowercase. This is the cleanest "stay-in-Alpine" approach.
+
+**C — Plain DOM bridge: skip Alpine entirely for the reveal**. Use `document.getElementById('source').textContent = ...; document.getElementById('reveal').hidden = false`. Sidesteps the whole class of bridging bugs:
+
+```html
+<button hx-post="/generate-link/"
+        hx-on::after-request="if(event.detail.successful){
+            try{
+                var d=JSON.parse(event.detail.xhr.responseText);
+                document.getElementById('reset-source').textContent = d.url;
+                document.getElementById('reset-copy').hidden = false;
+            }catch(e){}
+        }">Generate</button>
+<span class="is-sr-only" id="reset-source"></span>
+<span id="reset-copy" hidden>
+    <c-copy-button target="#reset-source" />
+</span>
+```
+
+Pattern C is the right default when the consumer just needs to "show this hidden region after the response lands and let a c-copy-button read its content." No Alpine state needed because the c-copy-button reads `target.textContent` at click time anyway. Reference: teisutis [PR #413 commit `a3344000`](https://github.com/infohata/teisutis/commit/a3344000) replaced an Alpine-bridge attempt with this pattern after the manual smoke caught the buttons doing nothing.
+
+## 5. `hx-trigger="click once"` doesn't fire on synthetic state changes — drive lazy-fetch from a state-watcher
+
+When a UI primitive (collapsible, accordion, popover) supports both **user click** AND **synthetic open** (initial expanded state, deep-link from `location.hash`, programmatic open), and a side effect (HTMX lazy-fetch, telemetry ping, focus restoration) needs to fire on first-open regardless of how the open happened — **don't bind the side effect to the click event**.
+
+`hx-trigger="click once"` only fires on a real `click` event. Setting `open = true` from `x-init` (e.g. `if (window.location.hash === '#' + id) open = true`) is a synthetic state mutation, not an input event — no click bubbles up, the trigger never fires. The user-visible result: body shows whatever placeholder the lazy-fetch was meant to replace ("Loading…", an empty container), forever, with no error or console warning.
+
+Test renders that assert markup pass fine. The bug only surfaces in a manual smoke that reaches the synthetic-open path — which is exactly the path most tests skip because it requires reloading with a specific URL hash.
+
+The fix is to drive the side effect from the **state**, not the **input event**. Alpine `x-effect` watching the open variable, with a `loaded` (or equivalent) guard for exactly-once:
+
+```html
+<div x-data="{ open: false, loaded: false }"
+     x-init="if (window.location.hash === '#' + $el.id) open = true"
+     x-effect="if (open && !loaded) {
+         loaded = true;
+         htmx.ajax('GET', '/lazy-fetch-url/', '#body-content');
+     }">
+    <button @click="open = !open">Toggle</button>
+    <div x-show="open" x-cloak>
+        <div id="body-content">
+            <span class="loading">Loading…</span>
+        </div>
+    </div>
+</div>
+```
+
+`x-effect` re-runs whenever a reactive dep changes; the `open && !loaded` guard ensures exactly one fetch per primitive instance regardless of how `open` flipped — initial `expanded=true`, hash-deeplink, user click, programmatic `Alpine.$data(...).open = true`, all funnel through the same gate.
+
+The general principle: when an effect must fire on a state change rather than on a specific input event, use a state-watcher (`x-effect` in Alpine, `effect()` in Vue, `useEffect` in React, etc.). Click-handlers are for "user explicitly chose to do this," not for "the thing has now opened, regardless of cause."
+
+Reference: teisutis [PR #413 commit `4fcad0a0`](https://github.com/infohata/teisutis/commit/4fcad0a0) rewrote a `c-collapsible` cotton primitive from `hx-trigger="click once"` to `x-effect`-driven lazy-fetch after bugbot caught that hash-deeplink + lazy-fetch combo silently failed.
+
 ## Bringing it together: the safe-by-default boilerplate
 
 For an Alpine 3 component that listens to HTMX-dispatched events:
@@ -146,7 +243,12 @@ document.addEventListener('alpine:init', () => {
 <div x-data="myComponent()"><!-- no x-init="init()" --></div>
 ```
 
-Reference: the IDEA-138 toast surface (teisutis [PR #412](https://github.com/infohata/teisutis/pull/412)) hit all three within a single afternoon's work — the first two during manual smoke, the third caught by bugbot. Each took ≥30 minutes to diagnose because the symptoms looked unrelated to the actual cause.
+References:
+
+- The IDEA-138 toast surface (teisutis [PR #412](https://github.com/infohata/teisutis/pull/412)) hit gotchas 1-3 within a single afternoon's work — first two during manual smoke, third caught by bugbot.
+- The IDEA-139 cotton primitives (teisutis [PR #413](https://github.com/infohata/teisutis/pull/413)) hit gotchas 4-5 in the same one-day cycle — gotcha 4 caught by manual smoke (Alpine reactive bridge from `hx-on` doesn't work), gotcha 5 caught by bugbot (lazy-fetch + hash-deeplink combo silently broken).
+
+Each takes ≥30 minutes to diagnose because the symptoms always look unrelated to the actual cause.
 
 ---
 

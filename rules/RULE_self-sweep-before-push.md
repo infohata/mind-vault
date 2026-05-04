@@ -40,6 +40,54 @@ docker compose exec -T web python -m pyflakes <changed-files>
 
 The pip install is idempotent (no-op if already installed) and free in any reasonable dev image — the marginal cost is ~50ms after the first run.
 
+## Contract-Change Sweep: When You Modify a Shared Helper's Return Type or Signature
+
+Distinct discipline from the touched-files sweep, applies on a different trigger: **whenever you change a public-facing function's return type, parameter signature, or thrown exceptions, grep for ALL callers in the SAME commit.** Not just the most-prominent caller, not just the one you remembered, not just the one a test happened to cover. Every caller.
+
+The single most common "wasted bugbot cycle" pattern this rule prevents: a helper changes its contract, you patch the obvious caller, ship it. Bugbot reviews the diff, spots a second caller — often in the SAME file — that wasn't updated. You fix that one, ship it. Bugbot reviews again, spots a third caller in another file. By the time you're clean, you've burned three cycles on what was one self-contained refactor.
+
+### The grep that catches it
+
+For the typical refactor where a JS helper or Python function changes:
+
+```bash
+# Inside a docker compose container or repo root:
+grep -rn '\bfunctionName(' --include="*.js" --include="*.ts" --include="*.py"
+```
+
+For Python specifically, when the change is to a method on a class:
+
+```bash
+grep -rn '\.methodName(' --include="*.py"
+```
+
+Both should be run from the project root, not the file's directory — bugbot will catch any caller anywhere in the repo, so the sweep needs the same scope.
+
+### What counts as a contract change worth sweeping
+
+- **Return type changes**: `return undefined` → `return Promise.reject(...)` (any sync→async return). Callers without `.catch()` now leak unhandled rejections. Callers without `await` see different behaviour.
+- **Throwing where the caller didn't expect**: a previously infallible function now raises. Wrap-checking callers crash in production.
+- **Default parameter changes**: a previously optional positional now required. All call sites without explicit pass-through silently regress.
+- **Async-ifying a sync function**: callers that ignored the return value now silently complete out-of-order, races appear in tests intermittently.
+- **Removing a side effect**: callers that depended on the side effect (DOM mutation, log emission, cache invalidation) silently degrade.
+
+### What does NOT need the sweep
+
+- Pure additions: a new optional kwarg, a new return field on an existing dict-shaped return. Callers ignoring the new surface are unaffected.
+- Internal refactors that don't cross the function boundary: renaming a local variable, changing the implementation while keeping the signature + return type identical.
+- Adding logging / metrics that don't alter return value or exception shape.
+
+### When the sweep finds many callers
+
+If grep returns >5 callers and they're all in the project, judgement call:
+
+- **All in one file or one tight cluster**: handle in the same commit as the contract change. One reviewable diff, atomic semantics.
+- **Spread across many files / apps**: ship the contract change in commit N with a backwards-compat shim (the helper returns BOTH the old shape AND the new shape, callers on the old path keep working); ship the per-caller updates in commits N+1...N+M; remove the shim in commit N+M+1. The shim window prevents an N-file PR from blocking on per-file review feedback.
+
+### Reference
+
+- teisutis [PR #413](https://github.com/infohata/teisutis/pull/413) cycles 2 + 3 — `copyToClipboardWithFeedback` changed return from `undefined` to `Promise.reject` for the unavailable-clipboard early-exit. Cycle 2 patched `chat.js:2538` with `.catch()`; bugbot caught the symmetric oversight in cycle 3 — the SAME file's `initDataCopyUrlButtons` internal callback called the helper without `.catch()`. One extra cycle, one extra commit, one extra retrigger — all preventable by `grep -rn 'copyToClipboardWithFeedback(' --include="*.js"` before the cycle-2 push.
+
 ## Scope: Touched Files, Not Just New Edits
 
 When pyflakes flags pre-existing dead imports / unused locals in a file you're editing, **clean them up in the same commit** (or a separate `chore(tests):` commit if the diff would otherwise be confusing). Pre-existing findings in touched files are in scope, not out of scope.
