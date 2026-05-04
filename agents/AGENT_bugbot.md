@@ -124,6 +124,16 @@ These are recurring issues that Bugbot correctly catches. Check for them proacti
 
    Each of those links to a numbered section in `SHELL_INSTALLERS.md` with concrete examples and the PR cycle that surfaced it.
 
+16. **Middleware that drains Django messages framework on HTMX responses must gate on response status — skip 3xx**: when bridging the messages framework to `HX-Trigger` (so `messages.success(request, ...)` surfaces as a toast on HTMX flows), the middleware iterates `messages.get_messages(request)` to collect the entries, which sets `storage.used = True`. `MessageMiddleware.process_response` later in the chain reads `used` and clears persisted state for the next request. On a 2xx HTMX response that's correct — the messages got serialised into the `HX-Trigger` header on the response the browser actually sees. **On a 302 it's catastrophic**: XHR follows the redirect transparently, so any `HX-Trigger` header on the 302 is never seen by the browser, AND the framework's persisted state has been cleared, so the messages don't reach the redirect target either. The result is silent loss of every `messages.success`/`error` from HTMX form-then-redirect flows — a classic "why don't my saves show toasts anymore?" production-detect bug.
+
+   Drill-side checks while reviewing any middleware that touches `messages.get_messages(request)` on the response path:
+
+   - **Grep for the storage-iteration call** and confirm the surrounding `if` gates on `200 <= response.status_code < 300` (or `< 400`, depending on whether the middleware also wants to surface 4xx/5xx error toasts). 3xx specifically must be excluded.
+   - **For new HTMX-bridge middleware**, the safe-by-default pattern is: skip the entire response-processing body when `is_htmx and 300 <= response.status_code < 400`. Leave the messages storage intact; the next request's bridge consumer picks them up on first paint of the redirect target.
+   - **Regression test trio**: assert `HX-Trigger` is set on 2xx HTMX, `HX-Trigger` is set on 4xx HTMX, `HX-Trigger` is NOT set AND `storage.used` is NOT set on 3xx HTMX. The third test is the one that catches the bug — the first two are sanity guards.
+
+   Surfaced in teisutis IDEA-138 [PR #412](https://github.com/infohata/teisutis/pull/412) cycle 7 (HIGH, finding 3182104302). The original middleware was unconditionally draining + merging on every HTMX response. Bugbot's static analysis spotted the missing gate; manual smoke would have surfaced it the first time anyone tested an HTMX form-then-redirect flow on the new shell. Caught pre-production by bugbot.
+
 ### PASS 3: The Re-Trigger Loop
 
 - **Skip PASS 3 *and* the wait-and-wake state if zero fixes were applied in PASS 2** (all findings Tier 3, or all edits reverted on test failure). Hand back to the user immediately with all unfixed findings surfaced as Tier 3 escalations. Rationale: no fixes → no push → bugbot has nothing new to review; polling would only rediscover the same unfixable findings and waste the active-work budget. Never commit empty, never re-trigger bugbot on unchanged code.

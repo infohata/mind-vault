@@ -64,6 +64,7 @@ Typical high-signal checks:
 | Skip audit before compile | Carryovers and placeholder regressions reach runtime | Run audit and fix findings first |
 | Forget `compilemessages` | Translations not compiled; runtime uses stale `.mo` | Always compile after changes |
 | Skip `--no-obsolete` | Dead strings accumulate in `.po` files | Always pass `--no-obsolete` |
+| Translation map shipping msgids with no Python source | `makemessages` never extracts the msgid; map entries never reach `.po`; lookups fall back to source-language; translations sit dead | Every msgid in `tools/translation_maps/*.py` MUST have a matching `_()` / `gettext_lazy(...)` source somewhere in `web/`. When adding strings, add the Python source FIRST (`_NETWORK_ERROR = _("Connection failed")` in a module that gets imported at startup), then the map entry. `makemessages` is the bridge — it only sees what the AST contains. Surfaced in teisutis [PR #412](https://github.com/infohata/teisutis/pull/412) cycle 7: ui translation map shipped `Connection failed` for 4 locales but no Python source defined it; the htmx-error-handler used a substitute message until a `_NETWORK_ERROR = _("Connection failed")` constant was added in `responses.py`. |
 
 ### After Translations
 
