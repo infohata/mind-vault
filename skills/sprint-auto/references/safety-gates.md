@@ -4,7 +4,9 @@ Belt-and-suspenders: every IDEA in the batch must pass **all** gates. No single-
 
 ## Per-IDEA opt-in
 
-### Required frontmatter
+There are two opt-in modes — **`auto_safe`** (autonomous through to merge gate) and **`auto_safe_with_eval_gate`** (autonomous through to merge gate + emit a manual-evaluation checklist for the human reviewer to walk before merging). Sprint-auto includes IDEAs from BOTH modes in the same batch's cohort selection (S0); the only difference downstream is that eval-gate IDEAs additionally emit a checklist artefact at S5 (`/wrap --scope=idea-only`) and the integration PR's body at S11.10 lists each eval-checklist URL.
+
+### Mode A — `auto_safe: true`
 
 ```yaml
 ---
@@ -14,12 +16,33 @@ auto_safe_reason: "Pure UI tweak, covered by existing Alpine component tests. No
 ---
 ```
 
-- **`auto_safe: true`** — the flag the skill greps for. Missing or `false` → IDEA is rejected from the batch at preflight.
+- **`auto_safe: true`** — the flag the skill greps for. Missing or `false` → IDEA is rejected from the batch at preflight (unless Mode B applies — see below).
 - **`auto_safe_reason`** — one-sentence justification the human wrote when they cleared the IDEA. Required when `auto_safe: true`. Missing → rejected. The field exists so morning-you can reconstruct why overnight-you thought this was safe, without re-reading the whole IDEA body.
 
-### Explicit arg presence
+### Mode B — `auto_safe_with_eval_gate: true`
 
-The IDEA slug or number must appear in the `/sprint-auto` invocation's args. There is **no scan mode in v1** — if the human didn't type the slug, the skill will not touch the IDEA, even if `auto_safe: true`. Two independent signals = two independent authorial acts.
+```yaml
+---
+# ... standard IDEA fields ...
+auto_safe: false
+auto_safe_with_eval_gate: true
+auto_safe_reason: "Implementation is mechanical (cotton template + JS API + tests). Visual / a11y / interaction review needed at integration-PR-merge time."
+eval_gate_reason: "Modal primitives ship focus-trap + screen-reader semantics + mobile gesture nuance — render-and-assert tests cannot verify the UX of these. The integration-PR review is the right HITL gate."
+---
+```
+
+For IDEAs whose **implementation** is mechanical enough to sprint-auto end-to-end, but which ship behaviours that need human eyes on visual / a11y / interaction review before merge. The merge gate (the integration PR per `RULE_git-safety`) is already HITL — eval-gate mode just structures that review by emitting a per-IDEA manual-evaluation checklist for the human to walk. Sprint-auto runs the IDEA all the way through `/wrap` and into integration without pausing.
+
+- **`auto_safe_with_eval_gate: true`** — the second flag. Sprint-auto's S0 cohort selection accepts an IDEA when **either** `auto_safe: true` OR `auto_safe_with_eval_gate: true`.
+- **`auto_safe: false`** — explicit, paired with `auto_safe_with_eval_gate: true`. The two flags carry distinct semantics; the eval-gate flag does NOT override `auto_safe`. Both states are independently true.
+- **`auto_safe_reason`** — same field, same purpose; required for either mode.
+- **`eval_gate_reason`** — additional one-sentence justification specifically explaining what the human needs to walk that automated tests cannot verify. Required when `auto_safe_with_eval_gate: true`. Missing → rejected. The field exists because "needs human eyes" without a reason is too easy to slap on every IDEA — the explicit reason forces the author to think about which residue is genuinely human-only.
+
+The two modes are not a hierarchy — they're orthogonal opt-in signals. An IDEA that's `auto_safe: true` does NOT need the eval-gate (its tests cover everything). An IDEA that's `auto_safe_with_eval_gate: true` does NOT auto-imply `auto_safe: true` (the manual walk is the gate, not the test suite).
+
+### Explicit arg presence (both modes)
+
+The IDEA slug or number must appear in the `/sprint-auto` invocation's args. There is **no scan mode in v1** — if the human didn't type the slug, the skill will not touch the IDEA, even if either opt-in flag is set. Two independent signals = two independent authorial acts.
 
 ## Automatic disqualifiers
 
@@ -27,7 +50,9 @@ Run these checks at preflight. Any fail → IDEA dropped from the batch with a l
 
 | Check | Reason |
 |---|---|
-| `auto_safe` not true OR `auto_safe_reason` missing | Opt-in not declared |
+| Neither `auto_safe: true` NOR `auto_safe_with_eval_gate: true` declared | Opt-in not declared (one of the two modes is required) |
+| `auto_safe_reason` missing | Required for either mode |
+| `auto_safe_with_eval_gate: true` AND `eval_gate_reason` missing | Eval-gate mode requires an explicit "what's the manual walk for" reason |
 | Body has fewer than ~3 substantive prose paragraphs | `/plan`'s thin-input bootstrap would fire and block on interactive questions — autopilot cannot answer |
 | `status` is not `idea` | Already in-progress / complete / superseded — nothing to run |
 | `depends_on` references an IDEA that is not `status: complete` | Pipeline not ready; don't run work that will need to rebase onto unmerged prerequisites |
@@ -109,4 +134,4 @@ The per-IDEA auto-run log makes review mechanical. Expected fields:
 
 ---
 
-**Last Updated**: 2026-04-20
+**Last Updated**: 2026-05-05

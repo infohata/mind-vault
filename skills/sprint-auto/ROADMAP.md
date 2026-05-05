@@ -1,97 +1,100 @@
-# Sprint-auto handoff — `auto_safe_with_eval_gate` amendment proposal
+# Sprint-auto roadmap — browser-test automation (Direction 1)
 
-**Status**: handoff doc — the maintainer will take over from within mind-vault when implementing the amendment.
+**Status**: design plan, not yet implemented. Direction 2 (`auto_safe_with_eval_gate` mode) shipped first; this is the planned uplift that shrinks Direction 2's manual-walk surface.
 
 **Date opened**: 2026-05-05
 
-**Context**: Captured during teisutis IDEA-141 (`/compound` from PR #423). The IDEA-141 plan documented the proposal in its Out-of-band notes as a candidate sprint-workflow improvement; this doc is the mind-vault-side handoff with full context for the eventual sprint-auto skill amendment.
+## Why this exists
 
-## Problem the amendment solves
+`auto_safe_with_eval_gate` (Direction 2) unblocks UX-overhaul / a11y-heavy IDEAs from sprint-auto by emitting a per-IDEA manual-evaluation checklist that the human walks at integration-PR-merge time. Cheap to build, cheap to run, but every IDEA still costs reviewer time per merge gate. As the cohort grows, this cost grows linearly.
 
-Sprint-auto's current `auto_safe: true | false` gate is binary. IDEAs that need human eyes on visual / a11y / interaction review (most UX-overhaul IDEAs — modal primitives, drawers, file uploaders, etc.) are flagged `auto_safe: false` and excluded from sprint-auto, even though:
+Direction 1 — Playwright-driven browser automation in the dev image — *shrinks* the manual-walk surface by automating what *can* be automated: visual regression, focus traps, keyboard navigation, z-index hit-testing, animation timing, axe-core a11y rule checks, HTMX swap assertions, Alpine state snapshots. The residue left for the eval-checklist becomes the genuinely-HITL stuff: screen-reader experience, mobile gesture nuance, "does this feel right" — items where automation is technically possible but the value-per-effort is poor.
 
-1. The IDEA's *implementation* is mechanical (cotton template + JS API + tests). Sprint-auto could run `/plan → /work → /bugbot-loop → /wrap → /bugbot-loop` autonomously.
-2. The *human gate* needed isn't "approve every commit" or "review code quality" — bugbot already does that. It's "walk a structured eval checklist before merge" (focus-trap behaviour, screen-reader semantics, mobile gesture nuance — things render-and-assert tests can't catch).
-3. **The merge gate is already HITL** per `RULE_git-safety` — the integration PR is the SINGLE PR that targets a protected branch, and the human reviews it. Sprint-auto v3.2 explicitly stops at this gate.
+Composability with Direction 2 is the point: per-surface Playwright tests land alongside that surface's IDEA, and the IDEA's eval-checklist correspondingly drops the now-automated rows. Eval-gate doesn't disappear; it adapts surface-by-surface.
 
-So the work being deferred to manual `/plan` + `/work` is the *implementation*, not the *review*. The implementation could be sprint-auto'd and the human's pre-merge review could simply consume the eval-checklist artefact the IDEA's `/wrap` step emitted. Same merge gate, much cheaper review.
+## What headless Playwright covers
 
-## The amendment
+**Yes (build first):**
+- Visual regression — `expect(page).to_have_screenshot('name.png')` against committed baselines.
+- a11y rule checks — `@axe-core/playwright` or the Python wrapper; catches WCAG-mappable issues (contrast, ARIA roles, label associations, heading order).
+- Keyboard navigation — `page.keyboard.press('Tab')`, assert `:focus` on expected element. Catches focus-trap regressions, skip-link breakage, tabindex drift.
+- Z-index hit-testing — `page.locator('button').click()` natively fails when a higher-stacked element intercepts. Free regression test for layering bugs.
+- HTMX swap assertions — wait for `hx-target` to mutate, assert resulting DOM. Replaces "click button, hope HTMX swaps correctly" with deterministic checks.
+- Alpine state — read `page.evaluate(() => window.Alpine.$data(el).someFlag)` from a known DOM node. Catches `x-data` desync, `x-show` regressions.
+- Animation timing — `page.wait_for_function(() => getComputedStyle(...).opacity === '1', timeout=2000)`. Catches stuck-mid-transition bugs.
 
-Introduce a third frontmatter mode:
+**No (out of scope, stays HITL):**
+- Screen-reader *experience* — axe-core checks the markup; only NVDA/VoiceOver verifies the read-out makes sense.
+- Mobile gesture nuance — swipe-to-dismiss feel, pull-to-refresh momentum, touch-target ergonomics under glove/wet finger.
+- Subjective polish — easing curves, micro-interaction copy, brand voice in tooltips.
 
-```yaml
-auto_safe: false
-auto_safe_with_eval_gate: true   # NEW
-```
+## Approach — headless, in-container, no X11
 
-Sprint-auto's behavior:
+Playwright runs headless on Linux containers with no display server. Microsoft ships official Docker images preloaded with Chromium + Firefox + WebKit (`mcr.microsoft.com/playwright:v<X>-jammy`). Two integration options per project — pick the lighter one that fits:
 
-- **Stage S0 (cohort selection)**: include `auto_safe_with_eval_gate: true` IDEAs alongside `auto_safe: true` IDEAs. Both run autonomously.
-- **Stages S1–S5 (per-IDEA loop)**: identical to today's `auto_safe: true` path. `/plan → /work → /bugbot-loop (deliverables) → /wrap (idea-only)`.
-- **Stage S6 (`/wrap` idea-only emission)** for `auto_safe_with_eval_gate` IDEAs: additionally emit `docs/archive/<dir>/YYYY-MM-DD-manual-evaluation.md` (the R17-style deliverable from teisutis IDEA-141). Format mirrors IDEA-138's `2026-05-04-smoke-test.md` precedent — annotated walkthrough of every R16-equivalent dev-preview scenario with expected outcomes + checkbox per scenario + space for user notes.
-- **Stage S6 (`/bugbot-loop` docs)**: identical to today.
-- **Stage S11.7 (batch wrap on integration branch)**: aggregate each `auto_safe_with_eval_gate` IDEA's eval-checklist URL into the integration PR's body — so the human reviewing the integration PR sees a single landing page of "things to walk before merging".
-- **No mid-implementation pause**. Sprint-auto goes all the way through `/wrap` and into the integration phase. The eval is at the integration-PR-merge gate (the only true HITL gate per `RULE_git-safety`), where the human is already reviewing the integration anyway.
+1. **Pip-install into existing `web` image** — simplest when the project already has a Python `web` service. Adds `playwright` + `pytest-playwright` + `axe-core-python` to `requirements-dev.txt`, `playwright install` in the Makefile target. No new docker service.
+2. **Separate `playwright` service** — when the `web` image is intentionally minimal (production parity is tight) or build-time matters. Pulls the official MS image; bind-mounts source + test results.
 
-The integration PR's body template grows:
+Option 1 is the default unless the project explicitly objects.
 
-```markdown
-## Per-IDEA evaluation checklists
+## Stack notes — Cotton + Alpine + HTMX (no TypeScript)
 
-The following IDEAs in this batch ship behaviours that need human eyes on visual/a11y/interaction review before merge. Walk each checklist, tick boxes, then merge.
+The first user (teisutis) ships server-rendered Django Cotton components with Alpine.js for client state and HTMX for partial swaps. No TypeScript. So:
 
-- [ ] [IDEA-141 — modal primitives](https://github.com/.../docs/archive/.../YYYY-MM-DD-manual-evaluation.md)
-- [ ] [IDEA-145 — dashboard surface migration](https://github.com/.../docs/archive/.../YYYY-MM-DD-manual-evaluation.md)
-...
-```
+- Tests are **Python** (`pytest-playwright`), not TS — keeps the dev surface uniform with the rest of the project's tests.
+- `page.evaluate('() => window.Alpine.$data(el).flag')` is the Alpine-state probe; pair with `await page.wait_for_function('window.Alpine')` after each navigation since Alpine boots after DOM ready.
+- HTMX swaps fire `htmx:afterSettle`; tests `await page.wait_for_function("document.body.classList.contains('htmx-settled')")` *(or a project-local marker hook)* between trigger and assertion. Without this, race conditions pop up where the assertion runs before the swap completes.
+- Cotton components render server-side, so visual baselines reflect the rendered HTML — no client-only-rendered components to worry about. Baselines are stable across deploys.
+- Pair with `RULE_parallel-worktree-docker`'s container-image discipline: visual baselines must be captured in the same image they assert against (font rendering varies by Linux distro). Baselines committed to repo; CI re-captures on `--update-snapshots` only behind explicit user direction.
 
-## Why this isn't a Teisutis-only concern
+For projects with different stacks (React/Vue, TS), the same headless Playwright approach applies — only the test language and the framework-state probes change.
 
-Multiple Teisutis sprint cohorts (UX-overhaul 134–158 specifically) are blocked from sprint-auto because of this binary gate. Generalising:
+## Composability with Direction 2 (eval-gate)
 
-- Any project with a UX/a11y review burden hits the same gate.
-- Any project where reviewer time is the scarcest resource benefits from "sprint-auto produced N PRs, here are N checklists, walk + merge".
-- The `auto_safe_with_eval_gate` mode is *additive* — it doesn't change behaviour for IDEAs that don't opt in.
+Per-surface Playwright tests land alongside that surface's IDEA. The IDEA's `auto_safe_with_eval_gate: true` flag stays set; the eval-checklist that S5 emits is correspondingly trimmed:
 
-## Pair with browser-testing automation
+- Plan author writes the IDEA's eval-checklist scenarios.
+- For each scenario the Playwright suite covers, the scenario row in the manual-evaluation template gets pre-filled with `**Walked**: [x] (covered by `tests/playwright/test_<surface>.py::test_<scenario>`)`.
+- The remaining un-covered scenarios are what the integration-PR reviewer actually walks.
 
-Captured separately as a Teisutis-side IDEA candidate (when it materialises): Playwright integration in the dev-image so render-and-assert tests can be supplemented by browser-driven a11y + interaction tests for the residue (focus, click-through, animations, z-index hit-testing). Together with the eval-gate amendment:
+Over time, well-tested surfaces shrink toward "no manual walk needed"; new surfaces start with most of their checklist still manual. The eval-gate stays the safety net while automation catches up surface-by-surface.
 
-- Browser automation **shrinks** the manual checklist to genuinely-HITL residue (screen-reader semantics, mobile gesture nuance).
-- The eval-gate mode makes the residue **cheap to walk** at integration-PR review time.
+## Sprint-auto integration
 
-Together they could flip the entire UX-overhaul cohort from "needs interactive `/plan` per IDEA" to "sprint-auto-able with one integration-PR walk."
+Two natural touch points (both already exist, neither needs new state machinery):
 
-## Implementation sketch
+- **S2 verification** (`/work` runs targeted tests against the integration worktree). Add Playwright tests to the project's targeted-test paths. Sprint-auto's existing routing handles them as another pytest invocation.
+- **S11.8 union-of-target-tests** + **S11.9 full-suite** (integration-state validation). Playwright tests run as part of the suite — same `cap_exceeded` discipline as any other test.
 
-Files to touch when implementing:
+The dev image needs the Playwright + browser bytes baked in once. Sprint-auto's `tools/sprint-auto-bootstrap.sh` already runs `post_up_init`; project-local hook adds `playwright install --with-deps chromium` to that init step.
 
-1. `skills/sprint-auto/SKILL.md` — add `auto_safe_with_eval_gate` to the frontmatter parsing in S0 cohort-selection. Update the description's IDEA-allowlist semantics.
-2. `skills/sprint-auto/references/STAGE_GUIDE.md` (or wherever stage definitions live) — add the eval-checklist emission to S6's `/wrap (idea-only)` step.
-3. `skills/sprint-auto/references/integration-stage.md` — add the eval-checklist aggregation to S11.7's integration PR body template.
-4. `skills/wrap/SKILL.md` — add a new sub-mode that emits the manual-evaluation checklist when invoked with `--mode=eval-gate` (or detected via the IDEA frontmatter). The checklist template can be cribbed from teisutis IDEA-141's `2026-05-05-manual-evaluation.md`.
-5. `skills/wrap/assets/manual-evaluation-template.md` (NEW) — the template, generic across projects (placeholders for surface-name, scenario-table, etc.).
-6. `commands/sprint-auto.md` — describe the new mode in the user-facing help.
+## Implementation sketch (per project)
 
-Test plan when implementing:
+1. **Add Playwright to dev deps** — `requirements-dev.txt` (or project equivalent) grows `playwright`, `pytest-playwright`, `axe-core-python` (or whichever a11y harness fits the project's Python version).
+2. **Bake browsers into the dev image** — Dockerfile gets `RUN playwright install --with-deps chromium` (chromium-only is enough for v1; add Firefox/WebKit later if cross-browser regression matters).
+3. **Test layout** — `web/<app>/tests/playwright/test_<surface>.py`. Matches the project's existing `tests/` layout per app.
+4. **Baseline image storage** — `web/<app>/tests/playwright/__snapshots__/<test>/<scenario>.png`. Committed to repo; `pytest --update-snapshots` regenerates after intentional UI changes (gated behind explicit user direction, never auto-fired).
+5. **Makefile target** — `make playwright-test` (project-equivalent). Mirrors `make test` semantics but scoped to the playwright dir. Used by sprint-auto's S2 routing for IDEAs that include Playwright tests in their plan's Verification section.
+6. **First-IDEA pilot** — pick a surface that's *both* eval-gate today AND has clear automation wins (e.g. a modal primitive's focus-trap test). Land the test alongside any new IDEA touching that surface; verify the per-scenario `Walked: [x] (covered by ...)` pattern works in the eval-checklist.
+7. **Sweep follow-up** — once the pattern is proven, file IDEAs to backfill Playwright coverage for previously-shipped UX surfaces. Each backfill IDEA ships with `auto_safe: true` (no eval-gate needed — the surface is already shipped + walked once; the test is regression-only).
 
-- Run sprint-auto on a small batch with one `auto_safe_with_eval_gate` IDEA, verify the eval-checklist artefact lands in the per-IDEA archive dir AND its URL appears in the integration PR's body.
-- Verify the IDEA's frontmatter remains `auto_safe: false` AND `auto_safe_with_eval_gate: true` post-completion (the gate didn't override the safe flag — both are true together).
-- Verify mid-implementation pause does NOT happen — sprint-auto runs straight through the per-IDEA loop without waiting for human input.
+## Open questions to lock at /plan time
 
-## References
+- **Cross-browser**: chromium-only for v1, or Firefox + WebKit too? Cost: 3x browser bytes in image, 3x test runtime. Benefit: catches CSS / JS engine drift. Recommendation: chromium-only initially, add the other two if a real bug ships that they would have caught.
+- **Visual-diff tolerance**: pixelmatch threshold (default 0.1 → catches ~10% pixel changes). Tightening reduces false negatives but raises flake rate; loosening hides genuine regressions. Recommend starting at default, tighten per-surface as needed.
+- **Baseline-image management**: regenerate on every CI run from the integration worktree's stack, or commit to repo? Repo-committed is more robust (immutable history) but requires explicit refresh ritual. Recommend repo-committed with a `make playwright-snapshots-refresh` target gated behind explicit user invocation.
+- **a11y rule scope**: every WCAG 2.1 AA rule, or a curated subset? Some rules are noisy on partial-render Cotton components. Recommend full WCAG 2.1 AA for shipped surfaces, with a per-test allowlist for known-acceptable violations (each allowlist entry needs a `# reason: <why>` comment that ages out).
+- **Test parallelism**: Playwright supports `pytest-xdist` for parallel browser instances. Headless chromium is ~150 MB resident per worker. Recommend serial-by-default; parallel only after first-batch calibration shows headroom.
 
-- Teisutis IDEA-141 plan Out-of-band notes (sprint-auto compatibility section): `<teisutis>/docs/archive/2026-05-idea-141-modal-primitives-consolidation/2026-05-05-modal-primitives-consolidation-plan.md`
-- Teisutis IDEA-141 manual evaluation checklist (the canonical R17-style template this proposal generalises): `<teisutis>/docs/archive/2026-05-idea-141-modal-primitives-consolidation/2026-05-05-manual-evaluation.md`
-- Teisutis IDEA-141 PR: https://github.com/infohata/teisutis/pull/423
-- Sprint-auto v3.2 SKILL.md (current state): `skills/sprint-auto/SKILL.md`
-- Browser-testing automation companion proposal: surfaces in same plan; would warrant its own IDEA in Teisutis backlog if/when implemented.
+## Related references
 
-## What this handoff doc IS NOT
+- [`safety-gates.md`](references/safety-gates.md) — Mode A / Mode B opt-in (Direction 2, shipped).
+- [`integration-stage.md`](references/integration-stage.md) — § Per-IDEA evaluation checklists (S11.10 PR body aggregation, shipped).
+- [`../wrap/SKILL.md`](../wrap/SKILL.md) — § Step 7 (eval-checklist emission, shipped).
+- [`../wrap/assets/manual-evaluation-template.md`](../wrap/assets/manual-evaluation-template.md) — the template Step 7 emits (shipped).
+- [`RULE_parallel-worktree-docker`](../../rules/RULE_parallel-worktree-docker.md) — image-discipline rules that govern visual-baseline stability across container hosts.
 
-- Not a binding spec — when implementing, refine based on what the sprint-auto skill's current shape supports.
-- Not a sprint-auto-able task itself (this is the meta-amendment to sprint-auto; it requires human design judgment).
-- Not an IDEA file — mind-vault doesn't track per-project IDEAs (per-project numbering would collide). This handoff doc is the mind-vault-native equivalent.
+## What this roadmap IS NOT
 
-**Last Updated**: 2026-05-05
+- Not a binding spec — when the implementation IDEA opens, refine based on what the project's stack actually supports.
+- Not a sprint-auto-able task itself — building the test infrastructure (image baking, baseline-management Makefile target, first-pilot test) needs human design judgement and is too cross-cutting for unattended overnight execution. **Subsequent backfill IDEAs that just author Playwright tests for already-shipped surfaces are sprint-auto-able** with `auto_safe: true`.

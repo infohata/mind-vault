@@ -154,6 +154,40 @@ If any IDEA's migration **drops** a column/table that another IDEA's code still 
 ### The `[INTEGRATION]` PR — non-draft, the merge gate (v3.2)
 
 ```bash
+# Discover any per-IDEA eval-gate checklists for this batch.
+# Wrap S5 emits these to docs/archive/<dir>/YYYY-MM-DD-manual-evaluation.md
+# when the IDEA's frontmatter has auto_safe_with_eval_gate: true. See
+# safety-gates.md § Mode B and skills/wrap/SKILL.md § Step 7.
+eval_checklists=()
+for slug in "${batch_slugs[@]}"; do
+    archive_dir=$(find "docs/archive" -maxdepth 1 -type d -name "*-${slug}" | head -1)
+    [[ -z "$archive_dir" ]] && continue
+    while IFS= read -r checklist; do
+        eval_checklists+=("$checklist")
+    done < <(find "$archive_dir" -maxdepth 1 -name '*-manual-evaluation.md')
+done
+
+# Compose the eval-checklist section if any were emitted in this batch.
+eval_section=""
+if (( ${#eval_checklists[@]} > 0 )); then
+    eval_section=$'\n\n## Per-IDEA evaluation checklists\n\n'
+    eval_section+=$'The following IDEAs ship behaviours that need human eyes on visual / a11y / interaction review before merge. Walk each checklist in a real browser, tick boxes (or note deviations), then merge.\n\n'
+    for c in "${eval_checklists[@]}"; do
+        # Convert local path → repo URL on the integration branch:
+        #   docs/archive/2026-05-idea-141-modal-primitives/2026-05-05-manual-evaluation.md
+        # → https://github.com/<owner>/<repo>/blob/integration/sprint-auto-<batch-iso>/<path>
+        url="https://github.com/<owner>/<repo>/blob/${SPRINT_AUTO_INTEGRATION_BRANCH}/${c}"
+        # Pull the IDEA's title from its archive-dir IDEA file (best-effort).
+        # `sub` + `print` (NOT `-F': ' {print $2}`) preserves the full title
+        # even when it contains a colon-space (e.g. "Modal: Confirm & Error
+        # Variants" — field-splitting on ': ' would truncate to "Modal").
+        idea_file=$(dirname "$c")/IDEA-*.md
+        title=$(awk '/^title:/ { sub(/^title:[[:space:]]*/, ""); print; exit }' $idea_file 2>/dev/null \
+                 || basename "$(dirname "$c")")
+        eval_section+="- [ ] [${title}](${url})"$'\n'
+    done
+fi
+
 gh pr create \
     --base main \
     --head integration/sprint-auto-<batch-iso> \
@@ -173,10 +207,12 @@ Compatibility / conflict-resolution patches: see commits on this branch
 (authored by sprint-auto during S11.6 sequential merge + S11.7 batch wrap +
 S11.8/S11.9 test fixups + S11.10 integration-bugbot fixups, if any).
 
-Auto-run summary: <path>
+Auto-run summary: <path>${eval_section}
 EOF
 )"
 ```
+
+If the batch contains no eval-gate IDEAs, `eval_section` stays empty and the PR body is identical to a v3.2 batch with only `auto_safe: true` IDEAs — the section is purely additive.
 
 Then run `/bugbot-loop` against the PR's number. Cap **20 attempts** — integration branches are elephants (N-times-larger review surface than any per-PR PR). Symmetric with the S4 deliverables-pass cap because integration is deliverables-class review of the integrated state, not docs-class.
 
@@ -256,6 +292,8 @@ The per-batch summary at `docs/archive/auto-run-<ISO>-summary.md` gains an Integ
 - `full_suite_outcome` ∈ `clean | unresolved | cap_exceeded`
 - `integration_bugbot_outcome` ∈ `clean | unresolved | budget_exceeded`
 - `integration_bugbot_attempts` (0–20)
+- `eval_gate_idea_count` (number of IDEAs in the batch with `auto_safe_with_eval_gate: true`; 0 if none)
+- `eval_checklists_emitted` (count; should equal `eval_gate_idea_count` when wrap S5 fired correctly — divergence is a signal that S7 emission failed silently for some IDEA)
 - ~~`forward_sync_results`~~ — removed in v3.2
 - ~~`re_bugbot_results`~~ — removed in v3.2
 - `teardown` ∈ `stopped_clean | teardown_failed` (note: integration PR is NOT auto-closed; left OPEN as merge gate)
@@ -270,6 +308,4 @@ Three reasons:
 
 ---
 
-**Last Updated**: 2026-05-01 (v3.2 — integration-as-merge-gate redesign. Per-IDEA PRs target the integration branch (`--base $SPRINT_AUTO_INTEGRATION_BRANCH`); integration branch published to origin at S(-1) so per-IDEA PR creation works; `[INTEGRATION]` PR becomes non-draft and is the human-merged gate; S11.11 forward-sync + S11.12 per-PR re-bugbot deleted entirely; S11.13 leaves the integration PR open; integration teardown moves to `/wrap --integration <batch-iso>` post-merge. Compounded after teisutis sprint/ux-overhaul PR #407/#408/#409 cohort surfaced "now we have 3 identical PRs" UX confusion from v3.1's forward-sync mechanism.)
-
-**Previous**: 2026-04-29 (v3.1 — single-stack integration worktree; per-IDEA worktrees code-surface-only; verification routed via `SPRINT_AUTO_INTEGRATION_WORKTREE`. Forward-sync at S11.11 + per-PR re-bugbot at S11.12 carried the integrated state back into per-IDEA PRs.)
+**Last Updated**: 2026-05-05
