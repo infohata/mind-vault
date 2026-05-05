@@ -387,12 +387,19 @@ else
     #    PR_NUMBER comes from `gh pr view --json number` (empty if no PR
     #    is open yet — the placeholder stays untouched and the human fills
     #    it when they open the PR); today's date is wall-clock UTC.
+    #
+    #    The date sed is ANCHORED to the `**Date authored**:` line because
+    #    the template also has a `_Walked on_: YYYY-MM-DD` line at the
+    #    bottom — that placeholder is for the human reviewer to fill when
+    #    they walk the checklist, not the emission date. A greedy
+    #    `s|YYYY-MM-DD|<today>|g` would clobber both, defeating the
+    #    walked-on placeholder.
     PR_BODY="${PR_NUMBER:+#$PR_NUMBER}"
     sed -i \
         -e "s|<NNN>|${IDEA_NUMBER}|g" \
         -e "s|YYYY-MM-DD-<slug>-plan.md|${PLAN_DOC_FILENAME}|g" \
         -e "s|<#NNN>|${PR_BODY:-<#NNN>}|g" \
-        -e "s|YYYY-MM-DD|$(date -u +%Y-%m-%d)|g" \
+        -e "/^\*\*Date authored\*\*:/ s|YYYY-MM-DD|$(date -u +%Y-%m-%d)|" \
         "$target"
     # 3. Leave the Surface, Scenarios, Trigger, Expected, and Cross-cutting check
     #    list alone — those are author-judgement fields. Wrap fills only the
