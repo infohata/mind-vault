@@ -1,6 +1,6 @@
 ---
 name: wrap
-description: Documentation sweep — flip idea frontmatter to complete, re-sort the ideas index, append a devlog entry, and scan project docs (guides, reference, README) for references that need updating. Default is PRE-merge on the feature branch so merge lands the final docs state in one shot; post-merge fallback handles PRs that shipped without a wrap. Destructive worktree/volume teardown is strictly post-merge — extended in v3.1 sprint-auto mode to detect last-of-batch and tear down the integration worktree + branch. New --scope=idea-only mode narrows the wrap to frontmatter + downstream-docs only (devlog + ideas-index deferred to sprint-auto's batch wrap on the integration branch); used by sprint-auto S5 to eliminate the structural N-way line-conflict on devlog/index that every parallel /wrap produces. Runs between /bugbot-loop's pass 1 (deliverables) and pass 2 (docs) in sprint-auto mode.
+description: Documentation sweep — flip idea frontmatter to complete, re-sort the ideas index, append a devlog entry, scan project docs (guides, reference, README) for references that need updating, and (conditionally) emit a manual-evaluation checklist for IDEAs that opted into the eval-gate mode. Default is PRE-merge on the feature branch so merge lands the final docs state in one shot; post-merge fallback handles PRs that shipped without a wrap. Destructive worktree/volume teardown is strictly post-merge — extended in v3.1 sprint-auto mode to detect last-of-batch and tear down the integration worktree + branch. --scope=idea-only mode narrows the wrap to frontmatter + downstream-docs + eval-checklist only (devlog + ideas-index deferred to sprint-auto's batch wrap on the integration branch); used by sprint-auto S5 to eliminate the structural N-way line-conflict on devlog/index that every parallel /wrap produces. Runs between /bugbot-loop's pass 1 (deliverables) and pass 2 (docs) in sprint-auto mode.
 license: MIT
 metadata:
   author: mind-vault
@@ -38,7 +38,7 @@ The sprint-workflow step that closes the loop from code-shipped back to docs-coh
 
 ## Pattern
 
-Six steps in order. Most are guards — skip silently if the state is already correct. The skill is safe to re-run; it produces the same final state regardless of which steps an earlier run completed.
+Seven steps in order, one of which (Step 7 — eval-gate emission) is conditional on the IDEA's frontmatter. Most steps are guards — skip silently if the state is already correct. The skill is safe to re-run; it produces the same final state regardless of which steps an earlier run completed.
 
 ### Scope detection (alongside mode detection)
 
@@ -60,6 +60,7 @@ When `SCOPE_IDEA_ONLY=true`:
 - Step 4 (Devlog entry): **SKIP** — deferred to sprint-auto S11.7
 - Step 5 (Worktree teardown): RUN (per usual mode-detection rules — post-merge only)
 - Step 6 (Downstream docs scan): RUN
+- Step 7 (Eval-gate checklist emission): RUN if frontmatter has `auto_safe_with_eval_gate: true` AND mode is pre-merge
 
 The flag is a no-op outside sprint-auto context (manual `/wrap NNN` invocations don't need it; the parallel-conflict problem only arises when N branches' `/wrap`s collide).
 
@@ -362,6 +363,53 @@ Commit the documentation edits on the same branch that carries the IDEA-completi
 - **Pre-merge mode** — the feature branch (`auto/<slug>` in sprint-auto, or whatever feature branch the work has been happening on). All wrap commits ride into the merge together.
 - **Post-merge fallback** — a fresh `docs/idea-NNN-wrap` branch off `origin/main` (matches the `/compound` branch-or-extend decision tree).
 
+### Step 7 — Eval-gate manual evaluation checklist (PRE-MERGE ONLY, conditional)
+
+**Fires when** the IDEA's frontmatter has `auto_safe_with_eval_gate: true` AND the wrap is running in pre-merge mode (default) or in `--scope=idea-only` mode (sprint-auto S5). **Skipped** in post-merge fallback (the artefact's purpose is "things to walk before the integration PR merges" — post-merge it's pointless) and when the frontmatter lacks the flag (the IDEA opted out of the gate).
+
+**Why this exists**: some IDEAs ship behaviours that render-and-assert tests cannot verify — visual correctness, focus & keyboard interaction, screen-reader semantics, animation timing, mobile gesture nuance. The IDEA's *implementation* is mechanical enough to be sprint-auto-able, but a structured human walk is needed before the integration PR is merged. The `auto_safe_with_eval_gate: true` flag in the IDEA's frontmatter signals "sprint-auto this end-to-end, but emit a manual-evaluation checklist alongside the per-IDEA work; the human walks the checklist as part of integration-PR review." See [`skills/sprint-auto/references/safety-gates.md`](../sprint-auto/references/safety-gates.md) for the gate's authoring contract and [`integration-stage.md`](../sprint-auto/references/integration-stage.md) for how the integration PR aggregates the checklists.
+
+**Emission**:
+
+```bash
+template="<mind-vault-path>/skills/wrap/assets/manual-evaluation-template.md"
+target="docs/archive/<YYYY-MM-idea-NNN-slug>/$(date -u +%Y-%m-%d)-manual-evaluation.md"
+
+# 1. Skip if a checklist for this IDEA already exists in the archive dir.
+#    (Re-run safety: a previous /wrap may have emitted one; don't clobber any
+#    edits the human or a prior session may have started.)
+if compgen -G "docs/archive/<YYYY-MM-idea-NNN-slug>/*-manual-evaluation.md" > /dev/null; then
+    echo "Eval-checklist already present; skipping emission."
+else
+    cp "$template" "$target"
+    # 2. Substitute the placeholders the wrap can resolve mechanically.
+    #    IDEA_NUMBER + PLAN_DOC_FILENAME come from Step 1's resolution;
+    #    PR_NUMBER comes from `gh pr view --json number` (empty if no PR
+    #    is open yet — the placeholder stays untouched and the human fills
+    #    it when they open the PR); today's date is wall-clock UTC.
+    PR_BODY="${PR_NUMBER:+#$PR_NUMBER}"
+    sed -i \
+        -e "s|<NNN>|${IDEA_NUMBER}|g" \
+        -e "s|YYYY-MM-DD-<slug>-plan.md|${PLAN_DOC_FILENAME}|g" \
+        -e "s|<#NNN>|${PR_BODY:-<#NNN>}|g" \
+        -e "s|YYYY-MM-DD|$(date -u +%Y-%m-%d)|g" \
+        "$target"
+    # 3. Leave the Surface, Scenarios, Trigger, Expected, and Cross-cutting check
+    #    list alone — those are author-judgement fields. Wrap fills only the
+    #    mechanical placeholders; the IDEA's owner / next reviewer fills the rest.
+    git add "$target"
+fi
+```
+
+**The wrap fills only the mechanical placeholders.** Surface description, per-scenario triggers/expected, and which cross-cutting checks apply to this surface are author-judgement. Wrap is not in a position to invent scenarios from the diff. Two viable conventions for filling the rest:
+
+- **Plan-doc-driven** (preferred when available): if the IDEA's plan doc has a "Verification scenarios" or "Manual evaluation" section, copy each scenario as a Step 7 scenario. The plan author's intent transfers cleanly.
+- **Diff-summary-driven** (fallback): emit only the skeleton with mechanical placeholders filled; the integration-PR reviewer (or the IDEA's author at /plan time, retroactively) fills scenarios. Skeleton is still useful — having the file land in the right path with the right framing prompts the human to walk *something*, even if the scenarios are minimal.
+
+**Commit it with the rest of the wrap commits** — same branch (pre-merge mode = feature branch, the IDEA's `auto/<slug>` in sprint-auto context). The eval-checklist becomes part of the per-IDEA PR's docs delta; bugbot's docs-pass at S6 reviews it; the integration-PR creator at S11.10 finds it via `find docs/archive/ -name '*-manual-evaluation.md'` glob and links to it (see integration-stage.md § Per-IDEA evaluation checklists).
+
+**No teardown of the artefact post-merge.** The eval-checklist stays in the archive dir as part of the IDEA's history — a record of what the reviewer was asked to walk, what they noted, what follow-ups landed.
+
 ## Interaction rules
 
 - **Pre-merge is the default.** Unless the PR has already merged (post-merge fallback), the wrap commits land on the feature branch and ride into merge together. This eliminates the stale-on-main window between merge and wrap.
@@ -369,7 +417,8 @@ Commit the documentation edits on the same branch that carries the IDEA-completi
 - **Never skip Step 6** just because it reports zero findings — the grep itself is the value; its output is the audit trail.
 - **Never auto-patch architectural docs** (reference `/architecture.md`, high-level guides). Human review required; list findings, let the author decide.
 - **Documentation catch-up is wrap-scope, never new-IDEA.** If a pattern exists in code but has no docs, the wrap pass that surfaces the gap is where it gets documented — not a future IDEA, not a separate PR. "Document existing thing" tickets never ship; wrap's docs-pass bugbot review is what keeps the project's reference material honest.
-- **In `sprint-auto` mode** (unattended orchestrator): the wrap runs as sprint-auto's S5 step between the two bugbot passes, invoked with `--scope=idea-only`. Steps 1, 2, 6 commit onto the `auto/<slug>` branch; the second bugbot pass reviews those commits against the codebase; Steps 3 + 4 are deferred to sprint-auto's S11.7 batch wrap on the integration branch (eliminates the structural N-way line-conflict every parallel `/wrap` would otherwise produce); Step 5 stays deferred to the morning-review `/wrap NNN` invocation after merge — including the v3.1 last-of-batch integration worktree cleanup when applicable.
+- **In `sprint-auto` mode** (unattended orchestrator): the wrap runs as sprint-auto's S5 step between the two bugbot passes, invoked with `--scope=idea-only`. Steps 1, 2, 6 commit onto the `auto/<slug>` branch; Step 7 (eval-gate emission) runs when the IDEA's frontmatter has `auto_safe_with_eval_gate: true` and lands the checklist in the per-IDEA archive dir; the second bugbot pass reviews those commits (including the eval-checklist) against the codebase; Steps 3 + 4 are deferred to sprint-auto's S11.7 batch wrap on the integration branch (eliminates the structural N-way line-conflict every parallel `/wrap` would otherwise produce); Step 5 stays deferred to the morning-review `/wrap NNN` invocation after merge — including the v3.1 last-of-batch integration worktree cleanup when applicable.
+- **Eval-gate is opt-in per IDEA, not per invocation.** Step 7 fires when the IDEA's own frontmatter declares `auto_safe_with_eval_gate: true`. There is no `--mode=eval-gate` flag — making the behaviour frontmatter-driven means manual `/wrap NNN` invocations on an eval-gate IDEA also emit the checklist (pre-merge), and post-merge fallbacks correctly skip emission without needing a flag distinction.
 - **Don't merge** — every `/wrap` output is on a branch; the human merges it (same HITL gate as `/work`'s feature branch).
 
 ## When NOT to use these patterns

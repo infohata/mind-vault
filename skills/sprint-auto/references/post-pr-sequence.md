@@ -300,6 +300,7 @@ Work performed (narrowed from full /wrap):
 
 1. **IDEA frontmatter flip** — `status: in-progress` → `status: complete`, `completed: <today>` (per pre-merge convention; `/wrap` skill detects pre-merge mode automatically).
 2. **Downstream docs scan** — for each path the PR touched, grep for references in `README.md`, `docs/guides/`, `docs/reference/`, `CLAUDE.md`, `AGENTS.md`; update any that now point at renamed/removed/changed symbols. PER-IDEA ONLY — does not touch DEVELOPMENT_LOG or ideas-index.
+3. **Eval-gate checklist emission (conditional)** — fires when the IDEA's frontmatter has `auto_safe_with_eval_gate: true`. `/wrap` Step 7 copies the manual-evaluation template from `<mind-vault>/skills/wrap/assets/manual-evaluation-template.md` to `docs/archive/<YYYY-MM-idea-NNN-slug>/<today>-manual-evaluation.md`, fills mechanical placeholders (IDEA number, plan-doc filename, PR number, date), commits to `auto/<slug>`. The plan author's "Manual evaluation scenarios" section (if present) seeds the per-scenario blocks; otherwise the skeleton lands and the integration-PR reviewer fills scenarios from the per-IDEA diff. See [`../../wrap/SKILL.md`](../../wrap/SKILL.md) § Step 7 for emission mechanics. The S6 docs-pass bugbot reviews the checklist alongside the rest of the wrap commits.
 
 **Skipped at this stage** (deferred to S11.7 batch wrap):
 
@@ -393,6 +394,8 @@ gh pr create \
 ```
 
 Cap **20** attempts. Same escalation discipline as S4.
+
+**Eval-checklist aggregation in PR body**: when the batch contains any IDEA with `auto_safe_with_eval_gate: true`, the PR body additionally lists each emitted checklist's URL under a `## Per-IDEA evaluation checklists` section. The aggregation glob is `find docs/archive/<batch-IDEA-dirs>/ -maxdepth 1 -name '*-manual-evaluation.md'`. See [`integration-stage.md`](integration-stage.md) § The `[INTEGRATION]` PR for the full body template + bash composition.
 
 ### S11.11 — forward-sync
 
