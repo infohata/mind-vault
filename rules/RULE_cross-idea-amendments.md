@@ -51,10 +51,4 @@ When amending another IDEA's shipped files in scope of a current IDEA's work, AL
 - ❌ **Silent amendments** with no commit-message tag, no inline comment refresh, no archive backref. The next reader has no way to discover the amendment exists.
 - ❌ **Size caps** ("≤ N lines", "single file only"). The original draft of this rule had bounded the precedent — explicitly retired per user direction (project: teisutis 2026-05-05): "implemented ideas are not stones".
 
-## Worked example — teisutis IDEA-141 amending IDEA-138
-
-IDEA-141 (modal primitives) shipped after IDEA-138 (toast surface). The modal primitives needed `drawer 40 < modal 50/51 < toast 60` z-index ordering — toasts must overlay modals so a sticky-error toast triggered BY a modal action remains visible AND interactable above the still-open modal that triggered it. IDEA-138's shipped `_toast.scss` had `z-index: 50` (because at IDEA-138's ship time, modals weren't yet planned at any specific z-index).
-
-Amendment landed in IDEA-141's PR as a one-line change to `web/teisutis_ui/static/teisutis_ui/scss/components/_toast.scss` plus two comment lines refreshed. The IDEA-141 commit message tagged it `_toast.scss z-index 50 → 60` with the rationale. The IDEA-141 plan's "Out-of-band notes" section documented the amendment with the bidirectional-documentation contract. On `/wrap` of IDEA-141, a backref note `2026-05-05-amended-by-idea-141.md` was created in IDEA-138's archive dir.
-
 **Last Updated**: 2026-05-05
