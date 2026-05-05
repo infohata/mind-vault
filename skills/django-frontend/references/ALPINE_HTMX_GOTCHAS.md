@@ -1,6 +1,6 @@
-# Alpine 3 + HTMX bridge — five subtle gotchas
+# Alpine 3 + HTMX bridge — seven subtle gotchas
 
-A set of behaviours that bite when wiring Alpine 3 components to HTMX events (custom-event bridges, OOB swaps with Alpine state, deferred handler binding, HX-on as a state-mutation seam, lazy-fetch on synthetic state changes). Each is silent — no error, no warning — and only manifests after manual smoke or a corner-case input.
+A set of behaviours that bite when wiring Alpine 3 components to HTMX events (custom-event bridges, OOB swaps with Alpine state, deferred handler binding, HX-on as a state-mutation seam, lazy-fetch on synthetic state changes), plus the JS-side i18n contract for cotton components and the listener-installation-order trap for refusable gates. Each is silent — no error, no warning — and only manifests after manual smoke or a corner-case input.
 
 Load this reference when:
 - Writing an `Alpine.data('foo', () => ({...}))` factory that owns event listeners.
@@ -8,6 +8,8 @@ Load this reference when:
 - Deciding where to bind global handlers for HTMX events (`htmx:responseError`, `htmx:sendError`, `htmx:load`).
 - Using `hx-on::after-request` (or any `hx-on::*`) inside an Alpine `x-data` scope to mutate Alpine state.
 - Building disclosure widgets / collapsibles with optional first-expand HTMX lazy-fetch.
+- Writing JS that mutates `textContent` / `innerHTML` of a DOM element rendered by a `{% trans %}`-aware cotton component (gotcha 6 — JS clobbers translations).
+- Designing a JS function that has both side-effect installs (event listeners, classes, refs) AND a refusable gate check (gotcha 7 — install-after-gate).
 
 ## 1. Alpine 3 auto-calls `init()` — never pair `x-init="init()"` with a factory `x-data`
 
@@ -243,13 +245,198 @@ document.addEventListener('alpine:init', () => {
 <div x-data="myComponent()"><!-- no x-init="init()" --></div>
 ```
 
+## 6. JS that wraps a cotton component clobbers `{% trans %}` translations with hardcoded English
+
+When JavaScript mutates the `textContent` / `innerHTML` of a DOM element rendered by a cotton component template, any **defensive English fallback** in the JS literal silently overrides the cotton template's `{% trans %}`-rendered translation.
+
+The classic shape:
+
+```javascript
+// Modal title rebuilt on every open() call:
+titleEl.textContent = opts.title || 'Confirm';
+// "Looks fine" — opts.title is the caller-supplied value.
+// But: when opts.title is undefined, the fallback `'Confirm'` overwrites
+// whatever was in titleEl.textContent — including the cotton-template-rendered
+// `{% trans "Confirm" %}` that resolved to `Patvirtinti` (Lithuanian),
+// `Bekreft` (Norwegian), etc. The user sees English.
+```
+
+Bugbot will catch this as an "i18n regression — non-English users see English text". Bugbot's stated diagnosis ("missing translation map entry") is often **wrong** — the map entry is present, the .po catalog has the translation, the cotton template renders it correctly at request time. The bug is the JS overwrite that happens *after* render.
+
+**Three fix patterns** (use whichever fits the JS surface):
+
+### 6a. Snapshot the template-rendered text once per component instance, reuse on every mutation
+
+The JS function snapshots the DOM element's initial `textContent` (or `outerHTML` for richer state) on first lookup, caches it per component-id, and reuses the cached value as the fallback on subsequent mutations:
+
+```javascript
+const _defaultsCache = {};
+
+function _captureDefaults(componentId, modalEl) {
+    if (_defaultsCache[componentId]) return _defaultsCache[componentId];
+    const titleEl = modalEl.querySelector('[data-modal-title]');
+    const messageEl = modalEl.querySelector('[data-modal-message]');
+    _defaultsCache[componentId] = {
+        // The cotton template rendered these with {% trans %} — they're
+        // already in the user's locale at this snapshot point.
+        title: (titleEl && titleEl.textContent) || 'Confirm',
+        message: (messageEl && messageEl.textContent) || 'Are you sure?',
+    };
+    return _defaultsCache[componentId];
+}
+
+function showConfirm(opts) {
+    const modalEl = document.getElementById(opts.id || 'uiConfirmModal');
+    const defaults = _captureDefaults(opts.id, modalEl);
+    const titleEl = modalEl.querySelector('[data-modal-title]');
+    if (titleEl) titleEl.textContent = opts.title || defaults.title;
+    // ...
+}
+```
+
+The English literal `'Confirm'` in `_captureDefaults` becomes a *defensive* last-resort (only fires if the cotton template ever omits the data hook entirely — should be impossible). The user-facing path always reaches the locale-resolved cached value.
+
+### 6b. Snapshot a richer chunk of HTML when the mutation replaces innerHTML, not textContent
+
+Same pattern, but cache `outerHTML` of a marker element instead of `textContent`. Useful for loading-indicators, multi-element fragments:
+
+```javascript
+const _loadingIndicatorCache = {};
+
+function _captureLoadingIndicator(modalId, bodyEl) {
+    if (_loadingIndicatorCache[modalId]) return _loadingIndicatorCache[modalId];
+    const indicator = bodyEl.querySelector('[data-loading-indicator]');
+    if (!indicator) return null;
+    _loadingIndicatorCache[modalId] = indicator.outerHTML;
+    return _loadingIndicatorCache[modalId];
+}
+
+function showFormModal(opts) {
+    const bodyEl = document.querySelector('[data-modal-body]');
+    const loadingHtml = _captureLoadingIndicator(opts.id, bodyEl);
+    if (loadingHtml) bodyEl.innerHTML = loadingHtml;
+    // The previous bug: bodyEl.innerHTML = '<div>Loading…</div>'
+    // — hardcoded English. Now reuses the cotton template's
+    // {% trans "Loading…" %} HTML.
+}
+```
+
+### 6c. Pass translated strings as `data-i18n-*` attributes when the JS needs strings the cotton component doesn't render visually
+
+For strings the JS needs but the component doesn't visually render (e.g. legacy-shim defaults that interpolate into a multi-part message), expose them via `data-i18n-*` attrs on the cotton root rendered with `{% trans … as var %}` + `|escapejs`:
+
+```django
+{# cotton/confirm_modal.html #}
+{% trans "Confirm Deletion" as legacy_delete_title %}
+{% trans "Are you sure you want to delete" as legacy_delete_prefix %}
+{% trans "This action cannot be undone." as legacy_delete_suffix %}
+{% trans "Delete" as legacy_delete_label %}
+<div id="uiConfirmModal"
+     data-i18n-legacy-delete-title="{{ legacy_delete_title|escapejs }}"
+     data-i18n-legacy-delete-prefix="{{ legacy_delete_prefix|escapejs }}"
+     data-i18n-legacy-delete-suffix="{{ legacy_delete_suffix|escapejs }}"
+     data-i18n-legacy-delete-label="{{ legacy_delete_label|escapejs }}">
+  ...
+</div>
+```
+
+```javascript
+function _legacyI18n(key, fallbackEn) {
+    const modal = document.getElementById('uiConfirmModal');
+    return (modal && modal.dataset['i18nLegacyDelete' + key]) || fallbackEn;
+}
+
+window.confirmDelete = function (url, itemName) {
+    return openConfirm({
+        title: _legacyI18n('Title', 'Confirm Deletion'),
+        message: _legacyI18n('Prefix', 'Are you sure you want to delete')
+                 + ' "' + itemName + '"? '
+                 + _legacyI18n('Suffix', 'This action cannot be undone.'),
+        confirmText: _legacyI18n('Label', 'Delete'),
+        // ...
+    });
+};
+```
+
+> **Django template gotcha**: `{% trans "..." as var %}` requires a variable name that does NOT begin with an underscore. Django template variable parsing rejects `_legacy_delete_title` with `TemplateSyntaxError: Variables and attributes may not begin with underscores`. Use `legacy_delete_title` (no leading underscore).
+
+> **`|escapejs` is the right escape for data-attribute values** even though the attribute isn't strictly JSON. `escapejs` over-escapes for HTML-attribute context (over-escape is fine — HTML attribute parsers handle `'` correctly), and crucially it handles embedded quotes and backslashes that would otherwise break the attribute syntax.
+
+### When to reach for which pattern
+
+- **Mutation replaces a single text node, the cotton template already renders the translated value** → pattern 6a (`_captureDefaults`).
+- **Mutation replaces an HTML fragment, the cotton template carries the translated structure** → pattern 6b (`_captureLoadingIndicator`).
+- **JS needs strings the cotton template doesn't visually render** (legacy shims, multi-part interpolated messages, error strings used only on failure paths) → pattern 6c (`data-i18n-*` attrs).
+- **Combination** — large components (modal primitives, form widgets) often need ALL THREE patterns simultaneously. They're complementary, not exclusive.
+
+### Anti-patterns
+
+- ❌ **Hardcoded English literal in `||` fallback chain**: `opts.title || 'Confirm'`, `messageEl.textContent = 'Are you sure?'`, `bodyEl.innerHTML = '<div>Loading…</div>'`. Every one of these clobbers the template's translated value when opts is partial.
+- ❌ **"It's just a defensive fallback, the caller always passes opts.title"**: that's a runtime assertion that decays as the codebase grows. Two months later, a new caller forgets opts.title, the fallback fires, and non-English users see English. The defensive fallback is exactly the bug.
+- ❌ **Adding the missing string to the translation map** when the bug is JS clobber. The map IS already populated. The fix is JS-side, not catalog-side. Bugbot's surface diagnosis frequently misdirects here — verify the catalog state before "filling the gap".
+
+## 7. Event listeners installed before a refusable gate leak on refusal
+
+When a function performs both side-effect installs (event listeners on DOM elements, classes added, references stored in module-level state) AND a gate check that may refuse the operation, install the side-effects **after** the gate check. Otherwise refused calls leak the side-effects forever.
+
+The classic shape:
+
+```javascript
+// open() — gate may refuse if a modal is already open
+function open(modalEl, opts) {
+    // 1. Install side-effects (listener attached to DOM)
+    cancelBtn.addEventListener('click', _state.cancelClickHandler = () => close());
+    form.addEventListener('htmx:afterRequest', _state.afterRequestHandler = handleResponse);
+
+    // 2. Gate check (may refuse)
+    const accepted = coordinator.tryClaim(modalEl.id);
+    if (!accepted) return false;
+    //                ^^^ Listeners stay attached. _state.cancelClickHandler /
+    //                    afterRequestHandler now point at the LATEST attached
+    //                    handlers. close()'s teardown removes only those latest
+    //                    refs — older handlers leak forever.
+}
+```
+
+If the function is called repeatedly while the gate stays refused (e.g. user spam-clicks a "open modal" button while another modal is open), each call adds one more handler to `cancelBtn`/`form`. When the gate eventually opens and the user clicks Cancel:
+
+1. ALL accumulated handlers fire (each calls `close()`)
+2. The first `close()` succeeds and tears down `_state.cancelClickHandler`
+3. The remaining handlers see `coordinator.openId === null` and early-return — but they STILL fired
+4. Side effects from those leaked handlers (analytics, state updates, navigation) all happen N times for one user click
+
+**Fix — install side-effects after the gate**:
+
+```javascript
+function open(modalEl, opts) {
+    // 1. Gate check FIRST
+    const accepted = coordinator.tryClaim(modalEl.id);
+    if (!accepted) return false;
+
+    // 2. Install side-effects only after the gate accepted
+    cancelBtn.addEventListener('click', _state.cancelClickHandler = () => close());
+    form.addEventListener('htmx:afterRequest', _state.afterRequestHandler = handleResponse);
+
+    return true;
+}
+```
+
+The discipline generalises beyond modals — any function whose body has the shape `(install side-effects, check whether to proceed, return false if not)` has the same leak. Reorder to `(check first, install only on success, return)`.
+
+### How to detect the leak in code review
+
+- Search for `function (` definitions where `addEventListener` / `Alpine.data` / `Alpine.store` / module-level state assignment occurs *before* an early-return / coordinator-check / gate condition.
+- Verify that the side-effect installs are also paired with teardown in a corresponding close/cleanup function — and that the teardown uses the SAME reference the install captured (not the latest mutation of a shared `_state.X` field).
+- If the function is called multiple times for the same component, ensure the first install is idempotent or the function checks `if (already installed) return` before installing.
+
 References:
 
 - The IDEA-138 toast surface (teisutis [PR #412](https://github.com/infohata/teisutis/pull/412)) hit gotchas 1-3 within a single afternoon's work — first two during manual smoke, third caught by bugbot.
 - The IDEA-139 cotton primitives (teisutis [PR #413](https://github.com/infohata/teisutis/pull/413)) hit gotchas 4-5 in the same one-day cycle — gotcha 4 caught by manual smoke (Alpine reactive bridge from `hx-on` doesn't work), gotcha 5 caught by bugbot (lazy-fetch + hash-deeplink combo silently broken).
+- The IDEA-141 modal primitives (teisutis [PR #423](https://github.com/infohata/teisutis/pull/423)) hit gotchas 6 + 7 across THREE bugbot cycles — every i18n finding shared the same root cause (JS clobber), each surface needing one of the three patterns to fix it. Gotcha 7's listener leak in `confirm()` surfaced when the dev-preview demo's spam-click-during-modal-from-modal-refusal scenario was finally exercised; the same PR's `form()` already had the correct ordering.
 
-Each takes ≥30 minutes to diagnose because the symptoms always look unrelated to the actual cause.
+Each gotcha takes ≥30 minutes to diagnose because the symptoms always look unrelated to the actual cause.
 
 ---
 
-**Last Updated**: 2026-05-04
+**Last Updated**: 2026-05-05

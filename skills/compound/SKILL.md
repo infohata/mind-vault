@@ -70,7 +70,22 @@ For project-local: write and stop. No branch management — this is the target p
 
 For mind-vault destinations: apply step 4 before emitting.
 
-For auto-memory: write into the memory filesystem at `~/.claude/projects/-home-kestas-projects-mind-vault/memory/` and update `MEMORY.md`'s one-line index. Honour the type classification (feedback / project / user / reference) from the global CLAUDE.md auto-memory rules.
+For auto-memory: write into the memory filesystem at `~/.claude/projects/<project-id>/memory/` and update `MEMORY.md`'s one-line index. Honour the type classification (feedback / project / user / reference) from the global `CLAUDE.md` auto-memory rules.
+
+#### Auto-memory vs mind-vault — the THIS-MACHINE-ONLY test
+
+Auto-memory lives in `~/.claude/projects/<project-id>/memory/` on the host machine. It does **not** sync across machines. A user who works from multiple environments — daily workstation + remote VPS for overnight sprint-auto runs + occasional laptop session — will see auto-memory written on machine A vanish from machine B's perspective.
+
+**Routing rule**: when deciding between auto-memory and mind-vault, ask "would this learning still apply if the same person opened a session on a different machine?"
+
+- **Yes (cross-machine value)** → mind-vault. Skill / rule / agent / command. The learning survives the host.
+- **No (truly THIS-MACHINE-ONLY)** → auto-memory. Examples: a one-off shell quirk specific to this user's keyboard layout, a path that resolves correctly only because of the user's home-dir layout on this specific machine, a temporary state-file pointer for an in-flight investigation.
+
+The default is mind-vault. Auto-memory is the exception, not the equal-weight alternative the table above might suggest. When the routing is genuinely ambiguous, prefer mind-vault — the cost of an unused mind-vault entry is one extra file in a knowledge store; the cost of a missed cross-machine learning is the user re-discovering the same lesson on every fresh environment.
+
+This includes patterns that *feel* project-local but recur across the user's work: bugbot triage shortcuts, sprint-workflow refinements, debugging-loop conventions. Project-local *content* (a specific bug fix's recipe with project-specific function names) goes to project-local solution docs, not auto-memory; cross-project *patterns* go to mind-vault.
+
+The user direction that surfaced this rule (teisutis 2026-05-05): "When deciding compound local memory vs. mind-vault, always remember that mind-vault survives the machine. I use you remotely as well (especially for overnight sprint-auto work) on VPS. If you think the compound is THIS LOCAL MACHINE ONLY, then it's local memory. All other cases — mind-vault."
 
 ### 4. Mind-vault promotion — branch policy
 
