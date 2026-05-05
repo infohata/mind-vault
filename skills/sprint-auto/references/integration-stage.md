@@ -178,8 +178,11 @@ if (( ${#eval_checklists[@]} > 0 )); then
         # → https://github.com/<owner>/<repo>/blob/integration/sprint-auto-<batch-iso>/<path>
         url="https://github.com/<owner>/<repo>/blob/${SPRINT_AUTO_INTEGRATION_BRANCH}/${c}"
         # Pull the IDEA's title from its archive-dir IDEA file (best-effort).
+        # `sub` + `print` (NOT `-F': ' {print $2}`) preserves the full title
+        # even when it contains a colon-space (e.g. "Modal: Confirm & Error
+        # Variants" — field-splitting on ': ' would truncate to "Modal").
         idea_file=$(dirname "$c")/IDEA-*.md
-        title=$(awk -F': ' '/^title:/ {print $2; exit}' $idea_file 2>/dev/null \
+        title=$(awk '/^title:/ { sub(/^title:[[:space:]]*/, ""); print; exit }' $idea_file 2>/dev/null \
                  || basename "$(dirname "$c")")
         eval_section+="- [ ] [${title}](${url})"$'\n'
     done
