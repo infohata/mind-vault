@@ -154,6 +154,8 @@ For projects using schema-based isolation (`django-tenants`):
 
 Getting this wrong (FK on tenant-schema tables) duplicates the schema isolation at the row level, wastes indexes, and turns every tenant-scoped query into a needless `WHERE org_id = ?` on top of the already-scoped schema.
 
+**Validate-and-prune helpers walking BOTH kinds**: when a single helper iterates a heterogeneous list of FK kinds (some tenant-schema, some public-schema-with-`org_id`) and does existence checks like `Model.objects.filter(id__in=session_ids)`, the public-schema queries MUST add an explicit `.filter(org_id=org_id)` — schema routing protects only the tenant-schema queries, and a session can carry stale ids from a foreign tenant. See [`rules/RULE_tenant-scoped-fk-validation.md`](../../rules/RULE_tenant-scoped-fk-validation.md) for the full pattern (per-kind `tenant_scope_required` flag) and the diagnostic recipe.
+
 ### Generic foreign keys and polymorphism
 
 When a model references heterogeneous types (AI context item pointing to Article / Event / Property), use `contenttypes.GenericForeignKey` via a reusable mixin:
