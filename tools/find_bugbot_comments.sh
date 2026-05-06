@@ -6,10 +6,14 @@
 #   - Prints a single `BUGBOT_CLEAN_SIGNAL=<id> COMMIT=<sha> AT=<iso-timestamp>` line
 #     on its own when bugbot's most recent review on the PR is a "found no new issues"
 #     clean-signal. The loop's Phase 4 decision tree greps for this line.
+#     The signal source is /pulls/<N>/reviews PRIMARILY, with a /commits/<sha>/check-runs
+#     fallback (added 2026-05-06): bugbot can post the clean signal as a GitHub Check
+#     instead of a review-body — the script synthesizes BUGBOT_CLEAN_SIGNAL from a
+#     successful check-run when /reviews has no clean-signal review for HEAD.
 #   - Prints formatted inline findings (existing behaviour, unchanged).
 #   - Prints any top-level PR comments from bugbot (umbrella summaries, retrigger
 #     acknowledgements, etc.) so the loop can detect truly-new activity by id.
-#   - Never early-exits before all three endpoints have been polled — a clean-signal
+#   - Never early-exits before all four endpoints have been polled — a clean-signal
 #     review and fresh inline findings can coexist for the same commit if bugbot was
 #     re-triggered after a prior clean.
 #
@@ -58,14 +62,28 @@ fi
 echo "📋 Fetching bugbot activity for PR #$PR_NUMBER..."
 echo ""
 
-# Fetch all three endpoints up-front (each defaults to [] on failure so the python
-# passes never receive empty stdin). `per_page=100` is GitHub's max-per-page — avoids
-# the default-30 cap that would silently drop the most recent review / comment on a
-# long-iteration PR and defeat the exact clean-signal fast-path this helper exists
+# Fetch all four endpoints up-front (each defaults to [] / empty-shape on failure so
+# the python passes never receive empty stdin). `per_page=100` is GitHub's max-per-page
+# — avoids the default-30 cap that would silently drop the most recent review / comment
+# on a long-iteration PR and defeat the exact clean-signal fast-path this helper exists
 # to serve. Single-page only (no --paginate) — bugbot review history is bounded.
 INLINE_COMMENTS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/comments?per_page=100" 2>/dev/null || echo "[]")
 ISSUE_COMMENTS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments?per_page=100" 2>/dev/null || echo "[]")
 REVIEWS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews?per_page=100" 2>/dev/null || echo "[]")
+
+# /check-runs API — added 2026-05-06 after PR #429 spent ~35 min polling /reviews
+# for a clean signal that bugbot had posted as a successful GitHub Check.
+# Bugbot's clean signal can land in EITHER:
+#   - /pulls/<N>/reviews with body "found no new issues" (the original signal source)
+#   - /commits/<sha>/check-runs with conclusion=success on the cursor app's check-run
+# This script accepts either as clean. The /check-runs path requires the PR HEAD SHA;
+# we fetch it via /pulls/<N> and gracefully degrade to empty state if that fetch fails.
+PR_HEAD_SHA=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER" -q '.head.sha' 2>/dev/null || echo "")
+if [ -n "$PR_HEAD_SHA" ]; then
+    CHECK_RUNS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/commits/$PR_HEAD_SHA/check-runs?per_page=100" 2>/dev/null || echo '{"check_runs":[]}')
+else
+    CHECK_RUNS='{"check_runs":[]}'
+fi
 
 # ------------------------------------------------------------------------------
 # Pass 1 — Reviews: three Python sub-passes against $REVIEWS
@@ -136,6 +154,73 @@ if [ -n "$CLEAN_SIGNAL_LINE" ]; then
     # exact failure mode this script exists to prevent.
     echo "$CLEAN_SIGNAL_LINE"
     echo -e "${GREEN}✅ Bugbot reviewed the PR head and found no new issues.${NC}"
+    echo ""
+fi
+
+# ------------------------------------------------------------------------------
+# Pass 1.5 — Check Runs API: bugbot's clean signal can also land here
+# ------------------------------------------------------------------------------
+# Surfaced 2026-05-06 in teisutis PR #429: bugbot posted a successful check-run
+# for the PR head while /reviews stayed empty for that commit. The loop wasted
+# ~35 min polling /reviews + /comments for a clean signal that lived on
+# /commits/<sha>/check-runs. Make the script tolerant: emit BUGBOT_CHECKRUN
+# unconditionally (informational), and SYNTHESIZE BUGBOT_CLEAN_SIGNAL when the
+# check-run reports success and /reviews didn't already produce a clean signal
+# for HEAD. Downstream consumers (/bugbot-loop Phase 4) only need to grep
+# BUGBOT_CLEAN_SIGNAL — the synthesis preserves the existing contract.
+#
+# App identification — match by app.slug for cursor's bot. Tolerant filter so
+# minor app-name changes don't break the script: matches if app.slug contains
+# 'cursor' OR app.owner.login contains 'cursor' OR name contains 'bugbot'.
+BUGBOT_CHECKRUN_LINE=$(echo "$CHECK_RUNS" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+runs = data.get('check_runs', []) if isinstance(data, dict) else []
+
+def is_bugbot(run):
+    app = run.get('app') or {}
+    slug = (app.get('slug') or '').lower()
+    owner_login = ((app.get('owner') or {}).get('login') or '').lower()
+    name = (run.get('name') or '').lower()
+    return ('cursor' in slug
+            or 'cursor' in owner_login
+            or 'bugbot' in name
+            or 'bugbot' in slug)
+
+bugbot = [r for r in runs if is_bugbot(r)]
+if not bugbot:
+    sys.exit(0)
+# Newest first by completed_at, fall back to started_at.
+bugbot.sort(key=lambda r: (r.get('completed_at') or r.get('started_at') or ''), reverse=True)
+latest = bugbot[0]
+status = latest.get('status', '')
+conclusion = latest.get('conclusion', '')
+rid = latest.get('id') or ''
+sha = latest.get('head_sha') or ''
+at = latest.get('completed_at') or latest.get('started_at') or ''
+print(f'BUGBOT_CHECKRUN={rid} COMMIT={sha} STATUS={status} CONCLUSION={conclusion} AT={at}')
+" 2>/dev/null || true)
+
+if [ -n "$BUGBOT_CHECKRUN_LINE" ]; then
+    echo "$BUGBOT_CHECKRUN_LINE"
+    # Synthesize BUGBOT_CLEAN_SIGNAL from a successful check-run when /reviews
+    # didn't produce one for HEAD. The downstream /bugbot-loop Phase 4 only
+    # greps BUGBOT_CLEAN_SIGNAL; this preserves the existing consumer contract.
+    cr_status=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'STATUS=[^ ]+' | cut -d= -f2)
+    cr_conclusion=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'CONCLUSION=[^ ]+' | cut -d= -f2)
+    if [ "$cr_status" = "completed" ] && [ "$cr_conclusion" = "success" ]; then
+        echo -e "${GREEN}✅ Bugbot check-run reports success for PR head.${NC}"
+        if [ -z "$CLEAN_SIGNAL_LINE" ]; then
+            cr_id=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'BUGBOT_CHECKRUN=[^ ]+' | cut -d= -f2)
+            cr_sha=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'COMMIT=[^ ]+' | cut -d= -f2)
+            cr_at=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'AT=[^ ]+' | cut -d= -f2)
+            echo "BUGBOT_CLEAN_SIGNAL=checkrun-${cr_id} COMMIT=${cr_sha} AT=${cr_at}"
+            CLEAN_SIGNAL_LINE="checkrun-${cr_id}"  # mark non-empty for the summary check below
+        fi
+    fi
     echo ""
 fi
 
@@ -349,7 +434,7 @@ fi
 # ------------------------------------------------------------------------------
 # Summary
 # ------------------------------------------------------------------------------
-if [ -z "$CLEAN_SIGNAL_LINE" ] && [ -z "$LATEST_REVIEW_LINE" ] && [ -z "$BUGBOT_INLINE" ] && [ -z "$BUGBOT_ISSUE" ] && [ -z "$OTHER_REVIEWS" ]; then
+if [ -z "$CLEAN_SIGNAL_LINE" ] && [ -z "$LATEST_REVIEW_LINE" ] && [ -z "$BUGBOT_INLINE" ] && [ -z "$BUGBOT_ISSUE" ] && [ -z "$OTHER_REVIEWS" ] && [ -z "$BUGBOT_CHECKRUN_LINE" ]; then
     echo "⏳ No bugbot activity yet for PR #$PR_NUMBER."
     echo "   Trigger a review with: ./tools/bugbot_retrigger.sh $PR_NUMBER"
     exit 0
