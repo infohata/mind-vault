@@ -128,4 +128,4 @@ The first-pass rule was wrong on two counts: (a) the hanging watcher had no TIME
 
 ---
 
-**Last Updated**: 2026-05-06 (revised — TIMEOUT prescription removed, self-match failure mode added)
+**Last Updated**: 2026-05-06
