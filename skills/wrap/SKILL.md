@@ -1,6 +1,6 @@
 ---
 name: wrap
-description: Documentation sweep — flip idea frontmatter to complete, re-sort the ideas index, append a devlog entry, scan project docs (guides, reference, README) for references that need updating, and (conditionally) emit a manual-evaluation checklist for IDEAs that opted into the eval-gate mode. Default is PRE-merge on the feature branch so merge lands the final docs state in one shot; post-merge fallback handles PRs that shipped without a wrap. Destructive worktree/volume teardown is strictly post-merge — extended in v3.1 sprint-auto mode to detect last-of-batch and tear down the integration worktree + branch. --scope=idea-only mode narrows the wrap to frontmatter + downstream-docs + eval-checklist only (devlog + ideas-index deferred to sprint-auto's batch wrap on the integration branch); used by sprint-auto S5 to eliminate the structural N-way line-conflict on devlog/index that every parallel /wrap produces. Runs between /bugbot-loop's pass 1 (deliverables) and pass 2 (docs) in sprint-auto mode.
+description: Documentation sweep — flip idea frontmatter to complete, re-sort the ideas index, append a devlog entry, scan project docs (guides, reference, README) for references that need updating, and (conditionally) emit a manual-evaluation checklist for IDEAs that opted into the eval-gate mode. Default is PRE-merge on the feature branch so merge lands the final docs state in one shot; post-merge fallback handles PRs that shipped without a wrap. **Concludes atomically when the PR target is non-protected** — Step 8 squash-merges via `gh pr merge` after a bugbot re-clearance, eliminating the "wrap then click merge" two-step. Protected targets (main / production / deployment) preserve the human-merge HITL gate. Destructive worktree/volume teardown is strictly post-merge — extended in v3.1 sprint-auto mode to detect last-of-batch and tear down the integration worktree + branch. --scope=idea-only mode narrows the wrap to frontmatter + downstream-docs + eval-checklist only (devlog + ideas-index deferred to sprint-auto's batch wrap on the integration branch); used by sprint-auto S5 to eliminate the structural N-way line-conflict on devlog/index that every parallel /wrap produces. Runs between /bugbot-loop's pass 1 (deliverables) and pass 2 (docs) in sprint-auto mode.
 license: MIT
 metadata:
   author: mind-vault
@@ -11,7 +11,9 @@ metadata:
 
 The sprint-workflow step that closes the loop from code-shipped back to docs-coherent — everything that was "in flight" during `/work` + `/bugbot-loop` and now needs a finalized paper trail. Catches the class of work that's cheap to forget and expensive to find later — the devlog entry that didn't get written, the idea still marked `status: in-progress`, the README link that now points at a removed env var, the reference doc section that quotes deleted code.
 
-**Default is pre-merge.** The wrap commits (frontmatter flip, ideas-index move, devlog entry, downstream docs fixes) land on the feature branch, so when the human merges the PR the docs state is already correct in one shot. No follow-up PR, no stale-on-main window between merge and wrap. The "what if the PR doesn't merge?" concern is a non-concern: unmerged commits never reach main, so no stale state can exist — if the branch is closed, the docs commits evaporate with it.
+**Default is pre-merge.** The wrap commits (frontmatter flip, ideas-index move, devlog entry, downstream docs fixes) land on the feature branch, so the PR carries the final docs state into merge in one shot. No follow-up PR, no stale-on-main window between merge and wrap. The "what if the PR doesn't merge?" concern is a non-concern: unmerged commits never reach main, so no stale state can exist — if the branch is closed, the docs commits evaporate with it.
+
+**Concludes atomically for non-protected targets.** When the PR's base branch is non-protected per [`RULE_git-safety`](../../rules/RULE_git-safety.md) (i.e. anything that isn't `main` / `production` / `deployment`), the wrap's final step (Step 8) squash-merges via `gh pr merge --squash --delete-branch` after a bugbot re-clearance pass. This mirrors what sprint-auto already does at the multi-IDEA scale (S11.10 integration PR → S11.12 docs-bugbot → integration merge produces ONE shipping moment for the batch). Single-IDEA wrap follows the same principle: when nothing about the merge target is the HITL gate, the wrap is the deliverer. Protected targets always require a human merge — Step 8 detects and skips, handing back the PR URL.
 
 **Post-merge is the fallback.** If a PR landed without a wrap pass (human merged directly, wrap was forgotten, a hotfix went in on the fly), invoking `/wrap NNN` after the fact creates a small `docs/idea-NNN-wrap` branch with the same outputs and opens a cleanup PR. The skill auto-detects PR state (`gh pr view <N> --json state`) and branches accordingly.
 
@@ -61,6 +63,7 @@ When `SCOPE_IDEA_ONLY=true`:
 - Step 5 (Worktree teardown): RUN (per usual mode-detection rules — post-merge only)
 - Step 6 (Downstream docs scan): RUN
 - Step 7 (Eval-gate checklist emission): RUN if frontmatter has `auto_safe_with_eval_gate: true` AND mode is pre-merge
+- Step 8 (Atomic merge): **SKIP** — sprint-auto v3.1 hands per-IDEA wraps to the orchestrator's S11 integration phase; the integration PR (NOT per-IDEA PRs) is the merge gate. `--scope=idea-only` always skips Step 8 to preserve that boundary.
 
 The flag is a no-op outside sprint-auto context (manual `/wrap NNN` invocations don't need it; the parallel-conflict problem only arises when N branches' `/wrap`s collide).
 
@@ -417,16 +420,90 @@ fi
 
 **No teardown of the artefact post-merge.** The eval-checklist stays in the archive dir as part of the IDEA's history — a record of what the reviewer was asked to walk, what they noted, what follow-ups landed.
 
+### Step 8 — Atomic merge (PRE-MERGE ONLY, conditional on non-protected target)
+
+**Fires when** the wrap is running in pre-merge mode AND the PR's target branch is **non-protected** per [`RULE_git-safety`](../../rules/RULE_git-safety.md). Protected branches (`main`, `production`, `deployment` — the project decides which) ALWAYS require a human merge; the wrap stops at "docs are coherent on the feature branch" and hands the PR URL to the user. Non-protected branches (sprint cohort like `sprint/<topic>`, integration branches like `integration/sprint-auto-<batch>`, any feature branch) are agent-authority for `gh pr merge` and the wrap concludes the IDEA atomically.
+
+**Why this exists** — sprint-auto already does atomic-merge at the multi-IDEA scale (S11.10 integration PR creation → S11.12 docs-bugbot → integration PR merge produces a single shipping moment for the batch). The single-IDEA wrap should follow the same principle: when nothing about the merge target is protected, the wrap is the deliverer. The previous default — "wrap pre-merge then hand back PR URL for human to click merge" — split the IDEA's shipping moment into two operator interactions for no safety reason. The HITL gate is *protected-branch* merge, not *every* merge; the gate stays exactly where `RULE_git-safety` puts it.
+
+**Detection**:
+
+```bash
+# 1. Resolve the PR's base branch.
+base_branch=$(gh pr view "$PR_NUMBER" --json baseRefName --jq '.baseRefName')
+
+# 2. Project-specific protected-branch list. Default convention: main +
+#    one release branch (production OR deployment, whichever the project uses).
+#    Project-level override: ~/.claude/projects/<project>/protected-branches.txt
+#    OR the project's CLAUDE.md naming the protected branches under a header
+#    like "## Protected branches".
+protected_branches=( "main" "production" "deployment" )
+
+is_protected=false
+for pb in "${protected_branches[@]}"; do
+    [[ "$base_branch" == "$pb" ]] && is_protected=true && break
+done
+
+if $is_protected; then
+    echo "Target $base_branch is protected — wrap concludes; human merges."
+    echo "PR ready: $(gh pr view "$PR_NUMBER" --json url --jq '.url')"
+    exit 0
+fi
+```
+
+**Pre-merge bugbot re-clearance**: pushing the wrap commits invalidates any prior bugbot clean signal because the head SHA changed. Two options before merging:
+
+- **Wait for bugbot re-clean** (cautious; recommended when the project rate-limits bugbot per PR or when wrap touched code-adjacent files). Trigger via the project's `tools/bugbot_retrigger.sh` after the wrap commits push, then `/bugbot-loop` until clean. THEN run merge.
+- **Merge without re-clearance** (faster; defensible when the wrap commits are pure docs — `docs/`, no code changes whatsoever). The pre-wrap clean signal already covered the substantive code; the wrap commits add only frontmatter, devlog, README, and grep-driven downstream-doc fixes. Bugbot has near-zero learnable signal on those.
+
+The wrap skill's default is **wait for re-clean**, because (a) it's the conservative path, (b) docs-only commits clear bugbot in a single short cycle anyway, and (c) detecting "purely docs" mechanically is messier than just running the loop. Project-level override via a `WRAP_SKIP_BUGBOT_RECLEAR=1` env var or `--no-bugbot-reclear` flag for projects that prefer the faster path.
+
+**Merge sequence**:
+
+```bash
+# 1. Confirm bugbot clean signal at current HEAD (skip if WRAP_SKIP_BUGBOT_RECLEAR).
+#    Use the project's find-bugbot-comments tool; abort if not clean.
+clean_sha=$(./tools/find_bugbot_comments.sh "$PR_NUMBER" 2>/dev/null \
+    | grep -oP 'BUGBOT_CLEAN_SIGNAL=\d+ COMMIT=\K[a-f0-9]+' | head -1)
+head_sha=$(git rev-parse HEAD)
+if [[ "$clean_sha" != "$head_sha" && -z "${WRAP_SKIP_BUGBOT_RECLEAR:-}" ]]; then
+    echo "Bugbot clean signal is at $clean_sha but HEAD is $head_sha — re-trigger + wait + merge in another wrap pass."
+    exit 1
+fi
+
+# 2. Squash-merge. Squash strategy collapses code commits + wrap commits
+#    into a single "feat: IDEA-NNN <title>" commit on the target branch —
+#    a single shipping moment in the cohort branch's git log. The PR's
+#    full commit history stays in the closed-PR record.
+gh pr merge "$PR_NUMBER" --squash --delete-branch
+
+# 3. Pull the now-updated target branch locally.
+default_branch=$(git symbolic-ref refs/remotes/origin/HEAD --short | sed 's|origin/||')
+git checkout "$base_branch"
+git pull --ff-only origin "$base_branch"
+
+# 4. Step 5's destructive worktree teardown becomes available now that the
+#    PR is in (`git branch -d` wouldn't have agreed before merge). If the
+#    work happened in a parallel worktree, run Step 5 here.
+```
+
+**Permission denials are not failures** — when `gh pr merge` is denied (the user's project-level permission settings declined the action despite the rule allowing it), Step 8 surfaces the denial as "human-clicks-merge step required" and hands back the PR URL. The wrap commits are already pushed; the user can merge manually with no loss.
+
+**The merge command's body** is just `gh pr merge --squash --delete-branch`. NO custom commit message — squash takes the PR title and body. The PR title was set at `/work` time per the conventional `type(scope): IDEA-NNN — <slug>` format; that becomes the cohort-branch commit title.
+
+**Don't auto-merge into production/deployment EVEN if the rule technically allows.** Some projects use `production` or `deployment` as the staging-rolled-up branch where the human's click is a deployment trigger. Detection list above uses `( main production deployment )` as the conservative default. Override per project if a project genuinely wants `deployment` to be agent-authority — explicit env var `WRAP_AUTO_MERGE_DEPLOYMENT=1`, never silent.
+
 ## Interaction rules
 
 - **Pre-merge is the default.** Unless the PR has already merged (post-merge fallback), the wrap commits land on the feature branch and ride into merge together. This eliminates the stale-on-main window between merge and wrap.
-- **Destructive teardown is strictly post-merge.** Step 5's `-v` volume removal + worktree removal + branch delete require the PR to have landed. Non-destructive container shutdown is handled by `/sprint-auto` S5, not here.
+- **Atomic merge for non-protected targets** (Step 8). When the PR base is `sprint/<topic>` / `integration/<batch>` / any feature branch, the wrap squash-merges itself. Protected targets always preserve the human-merge HITL gate.
+- **Destructive teardown is strictly post-merge.** Step 5's `-v` volume removal + worktree removal + branch delete require the PR to have landed. Non-destructive container shutdown is handled by `/sprint-auto` S5, not here. Step 8's atomic-merge path naturally unblocks Step 5 in the same wrap pass.
 - **Never skip Step 6** just because it reports zero findings — the grep itself is the value; its output is the audit trail.
 - **Never auto-patch architectural docs** (reference `/architecture.md`, high-level guides). Human review required; list findings, let the author decide.
 - **Documentation catch-up is wrap-scope, never new-IDEA.** If a pattern exists in code but has no docs, the wrap pass that surfaces the gap is where it gets documented — not a future IDEA, not a separate PR. "Document existing thing" tickets never ship; wrap's docs-pass bugbot review is what keeps the project's reference material honest.
 - **In `sprint-auto` mode** (unattended orchestrator): the wrap runs as sprint-auto's S5 step between the two bugbot passes, invoked with `--scope=idea-only`. Steps 1, 2, 6 commit onto the `auto/<slug>` branch; Step 7 (eval-gate emission) runs when the IDEA's frontmatter has `auto_safe_with_eval_gate: true` and lands the checklist in the per-IDEA archive dir; the second bugbot pass reviews those commits (including the eval-checklist) against the codebase; Steps 3 + 4 are deferred to sprint-auto's S11.7 batch wrap on the integration branch (eliminates the structural N-way line-conflict every parallel `/wrap` would otherwise produce); Step 5 stays deferred to the morning-review `/wrap NNN` invocation after merge — including the v3.1 last-of-batch integration worktree cleanup when applicable.
 - **Eval-gate is opt-in per IDEA, not per invocation.** Step 7 fires when the IDEA's own frontmatter declares `auto_safe_with_eval_gate: true`. There is no `--mode=eval-gate` flag — making the behaviour frontmatter-driven means manual `/wrap NNN` invocations on an eval-gate IDEA also emit the checklist (pre-merge), and post-merge fallbacks correctly skip emission without needing a flag distinction.
-- **Don't merge** — every `/wrap` output is on a branch; the human merges it (same HITL gate as `/work`'s feature branch).
+- **The HITL gate is *protected-branch* merge, not *every* merge.** Step 8 squash-merges into non-protected targets (sprint cohort, integration, feature) by default; protected targets always preserve the human-merge gate. This matches `RULE_git-safety` § 2 ("Never merge or push into a protected branch") rather than reading it as "never merge anything."
 
 ## When NOT to use these patterns
 
@@ -438,7 +515,8 @@ fi
 - [`RULE_parallel-worktree-docker`](../../rules/RULE_parallel-worktree-docker.md) — the worktree + compose-project contract Step 5 tears down.
 - [`/work`](../work/SKILL.md) — the stage before; its output (a PR on a feature branch, bugbot-cleared deliverables) is `/wrap`'s input.
 - [`/compound`](../compound/SKILL.md) — the stage after; `/wrap` leaves the paper trail `/compound` references.
-- [`/sprint-auto`](../sprint-auto/SKILL.md) — the orchestrator that stitches `idea → plan → work → bugbot-loop(deliverables) → wrap-docs → bugbot-loop(docs) → compound` for the unattended case. Sprint-auto's S5 step handles the non-destructive container shutdown; post-merge destructive teardown in Step 5 here complements it.
+- [`/sprint-auto`](../sprint-auto/SKILL.md) — the orchestrator that stitches `idea → plan → work → bugbot-loop(deliverables) → wrap-docs → bugbot-loop(docs) → compound` for the unattended case. Sprint-auto's S5 step handles the non-destructive container shutdown; post-merge destructive teardown in Step 5 here complements it. **Step 8's atomic-merge pattern derives from sprint-auto's integration-stage** — the same principle ("when nothing about the merge target is protected, the orchestrator delivers atomically") applies at single-IDEA scale. Manual `/wrap` and sprint-auto's S11 integration merge are two scales of the same idea.
+- [`RULE_git-safety`](../../rules/RULE_git-safety.md) — Step 8's protected-branch detection list (`main` / `production` / `deployment`) and the "merge into protected branch" prohibition that scopes Step 8 to non-protected targets only.
 
 ---
 

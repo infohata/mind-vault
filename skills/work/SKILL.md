@@ -82,7 +82,21 @@ After all Execution Sequence items land:
 1. Run the commands listed in the plan's Verification section. Capture output. **Verification routing — see § "Sprint-auto v3.1 verification routing" below for the env-var-driven mode.**
 2. If verification passes, open a PR: `gh pr create --title "<type>(<scope>): <plan.slug>" --body <plan-derived-body>`. Include the plan path in the PR body so the reviewer has the full context.
 3. Mark the plan `status: shipped` in frontmatter.
-4. Print the PR URL and suggest the next stage: `/bugbot-loop <pr-url>`.
+4. Print the PR URL and suggest the next-stage chain: `/bugbot-loop <pr-url>` → `/wrap NNN`.
+
+The full canonical chain after `/work` opens the PR:
+
+```text
+/work        → opens PR, plan: shipped, code committed
+/bugbot-loop → clears bugbot findings, retriggers until clean
+/wrap NNN    → docs commits ride the same PR (frontmatter flip,
+               ideas-index, devlog, archive README, downstream scan).
+               If PR base is non-protected, wrap also squash-merges.
+               If PR base is protected, wrap hands back the PR URL
+               for human merge.
+```
+
+The single-IDEA chain mirrors what sprint-auto already does at the multi-IDEA scale: code → bugbot → docs → integration merge as ONE shipping moment. Don't split it into two operator turns when the merge target is non-protected per [`RULE_git-safety`](../../rules/RULE_git-safety.md).
 
 If verification fails:
 
@@ -137,9 +151,13 @@ When `SPRINT_AUTO_INTEGRATION_WORKTREE` is set:
 
 The full env-var contract is in [`../sprint-auto/references/integration-stage.md`](../sprint-auto/references/integration-stage.md). If verification commands are documented elsewhere (project Makefile, `tools/test.sh`), the same routing applies — `cd $SPRINT_AUTO_INTEGRATION_WORKTREE` first, then run.
 
-### 6. Flip status on merge — frontmatter only (with `/plan`-bypass fallback)
+### 6. Frontmatter flip — `/wrap` is the canonical owner; this section is the fallback
 
-Per the revised [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md), the IDEA file normally already lives in its permanent home (`docs/archive/YYYY-MM-idea-NNN-<slug>/`, placed there by `/plan` step 6 when the user went through `/plan` first). On merge, **no file moves** in that case. Just frontmatter edits:
+**Primary path: `/wrap` does the frontmatter flip pre-merge.** `/wrap NNN` runs after `/bugbot-loop` clears, before merge — it flips IDEA frontmatter `in-progress → complete`, updates the ideas index, appends the devlog entry, scans downstream docs, and (when target is non-protected) squash-merges atomically. The `/work` skill does NOT duplicate that work in the normal flow — it hands off to `/wrap`.
+
+**Fallback in this section fires only when `/wrap` was bypassed** — the user merged the PR directly without invoking `/wrap`, or a hotfix landed without ceremony. In that case, the next `/work` invocation that touches a merged-but-unflipped IDEA runs the steps below as a cleanup pass on a separate `chore/complete-idea-NNN` branch. The `/wrap` skill itself also has a "post-merge fallback" mode that does the same thing with full docs sweep — prefer `/wrap NNN` post-merge over the pared-down version below.
+
+Per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md), the IDEA file normally already lives in its permanent home (`docs/archive/YYYY-MM-idea-NNN-<slug>/`, placed there by `/plan` step 6 when the user went through `/plan` first). On merge, **no file moves** in that case. Just frontmatter edits:
 
 ```yaml
 # docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md
@@ -179,7 +197,9 @@ This commit lands on a cleanup branch after the primary PR merges (typically `ch
 
 ### 6a. Write the completion summary into the archive dir README
 
-Alongside the frontmatter flip, append a short summary to `docs/archive/YYYY-MM-idea-NNN-<slug>/README.md` (create if missing) covering:
+**Owned by `/wrap`** — same canonical-vs-fallback split as Section 6. `/wrap` writes the archive-dir README during its pre-merge pass; this section is the fallback for IDEAs that merged without a wrap.
+
+When run as a fallback, append a short summary to `docs/archive/YYYY-MM-idea-NNN-<slug>/README.md` (create if missing) covering:
 
 - What shipped (one-paragraph)
 - PR number(s)
