@@ -153,4 +153,62 @@ Light/dark toggling is driven by `:root` / `.dark` CSS variable sets, which Bulm
 }
 ```
 
-**Last Updated**: 2026-04-17
+## CSS spec hazards: `min-height` > `max-height` clamp
+
+When you set `max-height: 0` on an element to collapse its layout slot, ANY inherited or framework-default `min-height` greater than 0 will silently defeat the collapse. Per CSS spec ([CSS Box Sizing Module Level 3 § 6.6](https://www.w3.org/TR/css-sizing-3/#min-size-properties)): "If `max-height` is less than `min-height`, max-height is set to min-height."
+
+**Symptom**: layout slot doesn't collapse despite `max-height: 0` in the computed styles. Element disappears visually (via `transform` or `overflow: hidden` + `opacity: 0`) but takes its full reserved height.
+
+**Probe**: in DevTools, check the element's `min-height` computed value. If non-zero, you've hit this trap.
+
+**Fix**: when collapsing via `max-height`, also set `min-height: 0` + `padding-{top,bottom}: 0` + `overflow: hidden`. Apply to the modifier class, not the base — don't break the visible state.
+
+```scss
+.navbar.navbar--hidden {
+    transform: translateY(-100%);
+    min-height: 0;       // override Bulma's 3.25rem min on .navbar
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+}
+```
+
+Frameworks that bite this trap by default: Bulma (`.navbar { min-height: 3.25rem }`), Bootstrap (`.navbar { min-height: 56px }` in some themes), any Tailwind config that adds a navbar utility with min-height.
+
+Surfaced: teisutis IDEA-143 M20 cycle 5 — empty 3.25rem strip remained at top when navbar's `--hidden` class fired, despite `max-height: 0; transform: translateY(-100%)`. Cycles 1-4 chased the wrong trees (overflow:hidden on base broke dropdowns; margin-top: -3.25rem on shell-main broke sticky scroll context). The actual fix took 4 lines.
+
+## Theme contrast picker (WCAG luminance)
+
+When picking a foreground colour (`#181818` dark vs `#ffffff` light) against an arbitrary themed background — avatar initials, badge text, alert text on a colour-coded surface — the W3C-correct relative luminance formula requires gamma-decoded RGB values before applying the BT.709 coefficients. Most hand-written shortcuts skip the linearization step and produce wrong contrast picks for medium-tone colours.
+
+**Wrong** (gamma-encoded shortcut):
+
+```python
+r, g, b = [c / 255.0 for c in rgb]
+luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b   # WRONG — gamma-encoded
+return '#181818' if luminance > 0.179 else '#ffffff'
+```
+
+**Right** (linearized per W3C spec):
+
+```python
+def _linearize(channel: float) -> float:
+    return channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4
+
+r_lin, g_lin, b_lin = [_linearize(c / 255.0) for c in rgb]
+luminance = 0.2126 * r_lin + 0.7152 * g_lin + 0.0722 * b_lin
+return '#181818' if luminance > 0.179 else '#ffffff'
+```
+
+The 0.179 crossover threshold is calibrated against linearized luminance. Without the linearization step, medium-tone backgrounds (`#444`–`#666` range) get wrong-contrast foreground picks — `#555555` returns dark text at ~2.1:1 contrast when WCAG AA requires the white-text pick at ~7.6:1.
+
+Reference: [WCAG 2.1 § Relative luminance](https://www.w3.org/TR/WCAG21/#dfn-relative-luminance).
+
+Implement once as a Django template filter (e.g. `on_color`) and reuse — the computation is a recurring need (avatar foreground, badge foreground, alert text, themed-pill text); each surface re-deriving it tends to drift back toward the shortcut.
+
+Surfaced: teisutis IDEA-143 — bugbot review 4240346456 caught the gamma-encoded shortcut in the project's `on_color` template filter. Fix collapsed the wrong-pick contrast across every themed surface in the app.
+
+---
+
+**Last Updated**: 2026-05-07

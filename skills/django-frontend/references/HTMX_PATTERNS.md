@@ -397,6 +397,30 @@ document.addEventListener('htmx:afterRequest', function(event) {
 - Implement proper error boundaries
 - Monitor HTMX performance with custom events
 
+## Form focus preservation via list-scoped swap
+
+When an HTMX swap target wraps a form input, every keystroke that triggers a hx-fetch swaps the form node — focus drops, IME state lost, caret position lost. `hx-preserve` on the input is fragile; the surrounding form's trigger re-bind around the wholesale swap drops focus regardless.
+
+**Fix**: scope the swap to a sibling element (the result list) that does NOT include the form. Use `hx-target` + `hx-select` to extract the relevant slice from the same fragment endpoint response.
+
+```html
+<form hx-get="{% url '...' %}"
+      hx-target="#result-list"          <!-- swap target: just the list -->
+      hx-select="#result-list"          <!-- which part of response to swap -->
+      hx-swap="outerHTML"
+      hx-trigger="keyup changed delay:200ms from:input[name='q']">
+    <input type="text" name="q" placeholder="..." />
+</form>
+
+<ul id="result-list">
+    {% for item in items %}…{% endfor %}
+</ul>
+```
+
+The form/input is never touched across requests; focus + caret + IME state are preserved by structure, not by preservation tricks.
+
+Surfaced: teisutis IDEA-143 M14 cycles 1-2 — initial fix was `hx-preserve="true"` on the input; focus still dropped after 1-2 keystrokes (form's trigger re-bind via outerHTML on the wrapper id swapped the form node anyway). List-scoped target retained focus indefinitely.
+
 ---
 
-**Last Updated**: 2026-01-28
+**Last Updated**: 2026-05-07
