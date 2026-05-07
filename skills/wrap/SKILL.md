@@ -420,6 +420,8 @@ fi
 
 **No teardown of the artefact post-merge.** The eval-checklist stays in the archive dir as part of the IDEA's history — a record of what the reviewer was asked to walk, what they noted, what follow-ups landed.
 
+**When the walk surfaces issues** — the back-and-forth of regression report → fix → re-walk gets ambiguous fast (multiple issues, multi-cycle fixes, "the user-menu thing… no the *other* user-menu thing"). Introduce a [`MANUAL_EVAL_ISSUES.md` tracker](references/MANUAL_EVAL_TRACKER.md) at the first regression report, not the fifth. Stable `M0`, `M1`, `M2`, … IDs + severity column + status emoji + fix-SHA column let the reviewer verify in-place; the tracker lives next to the eval-checklist in the same archive dir. Pattern surfaced in teisutis IDEA-143 (26 issues, 60+ commits) — full conventions in the reference.
+
 ### Step 8 — Atomic merge (PRE-MERGE ONLY, conditional on non-protected target)
 
 **Fires when** the wrap is running in pre-merge mode AND the PR's target branch is **non-protected** per [`RULE_git-safety`](../../rules/RULE_git-safety.md). Protected branches (`main`, `production`, `deployment` — the project decides which) ALWAYS require a human merge; the wrap stops at "docs are coherent on the feature branch" and hands the PR URL to the user. Non-protected branches (sprint cohort like `sprint/<topic>`, integration branches like `integration/sprint-auto-<batch>`, any feature branch) are agent-authority for `gh pr merge` and the wrap concludes the IDEA atomically.

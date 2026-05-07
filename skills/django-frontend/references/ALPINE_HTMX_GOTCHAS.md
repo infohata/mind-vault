@@ -437,6 +437,36 @@ References:
 
 Each gotcha takes ≥30 minutes to diagnose because the symptoms always look unrelated to the actual cause.
 
+## 8. Rebind-on-event listener migration is fragile — prefer permanent-bind + active-discriminator
+
+When listening to per-X events (per-pane scroll, per-tab focus, per-region resize) where X changes over time, the natural pattern of "rebind listener on X-change-event" is fragile. Change events have edge cases that don't fire — sibling short-circuits, equality early-returns (`if (next === current) return` before the change-event dispatches), Alpine reactive equality bail-outs.
+
+**Symptom**: listener bound to a stale element after a state transition. Behaviour silently dies for affected users; no JS error, no console warning.
+
+**Fix**: bind permanently to ALL candidate sources at init. Each handler reads a discriminator (DOM attribute mirrored from reactive state, or a global selector match) at event time and short-circuits if its source isn't currently active.
+
+```js
+function bindAllPaneListeners() {
+    ['workspace', 'center', 'preview'].forEach((paneName) => {
+        const pane = document.querySelector(`[data-pane-name="${paneName}"]`);
+        if (!pane) return;
+        const scrollEl = resolveScrollContainer(pane);
+        scrollEl.addEventListener('scroll', () => {
+            // Discriminator: read the active-pane attribute at event time.
+            const active = document.querySelector('.shell-pane-snap').dataset.activePane;
+            if (paneName !== active) return;  // not us, short-circuit
+            // ...do per-active-pane work.
+        }, { passive: true });
+    });
+}
+```
+
+The active-discriminator is mirrored from reactive state via a single binding — Alpine `:data-active-pane="activePane"`, React `data-active-pane={activePane}`, Vue `:data-active-pane="activePane"`. Subscribers no longer migrate on `paneChanged` events; they self-route from a single source of truth.
+
+Trade: more listeners pinned simultaneously (one per candidate source), but each is cheap and the discriminator short-circuit makes the inactive ones zero-cost. Net win is robustness — no class of "the change event didn't fire because of an upstream early-return" bug.
+
+Surfaced: teisutis IDEA-143 M25 — `navbar-scroll.js` migrated its single scroll listener on `paneChanged`. Close paths whose `goToPane('center')` snap landed on a pane that was already `activePane='center'` short-circuited `paneChanged` (`next === activePane` early-return), so the rebind never fired. Listener stayed attached to the off-screen drawer's scroll container; nav-hide silently broke after every drawer close.
+
 ---
 
-**Last Updated**: 2026-05-05
+**Last Updated**: 2026-05-07
