@@ -35,6 +35,9 @@ Compatibility: Django 4.2+ (tested through 5.2 LTS), any database.
 - [Alpine + HTMX Gotchas](references/ALPINE_HTMX_GOTCHAS.md) — Alpine 3 factory `x-data` auto-init trap, `HX-Trigger` value-wrapping shape, defer-vs-DOMContentLoaded ordering, `hx-on::*` plain-JS scope (not Alpine), `hx-trigger="click once"` doesn't fire on synthetic state changes
 - [HTMX Scroll Preservation](references/HTMX_SCROLL_PRESERVATION.md) — Load-older / inverse-pagination scroll-position primitive; marker-offsetTop diff math (robust to `display: contents` wrappers + concurrent below-marker mutations)
 - [Cotton Components](references/COTTON.md) — django-cotton component primitives: file layout, settings, call-site syntax (`:prop` vs `prop`), render-and-assert tests, cotton-vs-`{% include %}` decision table, and the `:prop`-coercion hazard with its JSON-seed fix
+- [Preview Drawer URL Stack Contract](references/PREVIEW_DRAWER_URL_STACK.md) — `?open=<base>&push=<f1>,<f2>,…` for round-tripping a megastack-style preview drawer's full state through the URL; 7-phase migration shape + popstate-without-state failure mode + URL-pattern-map fallback
+- [Session Filter Persistence](references/SESSION_FILTER_PERSISTENCE.md) — per-entity vs cross-entity filter session split for multi-entity workspaces (`cross_filters_<org_id>` for scope/property/category; `<namespace>_<entity>_filters_<org_id>` for tags/q); `_filter_form=1` sentinel distinguishing real submits from cross-link nav; clear-filter `?clear=1` 302-redirect
+- [Shell Notifications](references/SHELL_NOTIFICATIONS.md) — `uiNotify` CustomEvent is the canonical toast dispatch for shell-bound modules; legacy `window.show*` family + direct `#messages-container` writes forbidden; `HX-Trigger: <eventName>` event-name pattern for `outerHTML`-swap targets that contain the trigger button
 
 ## When to use
 

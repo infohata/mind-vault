@@ -77,7 +77,34 @@ The structural fix when you find a wrong-map entry: cut the entry from `<app-A>.
 
 The deeper design tension this surfaces: **shared cotton components / shared partials with embedded `{% trans %}` calls force translations into every consuming app's catalog.** A `<c-foo>` cotton component used by 5 apps has its `{% trans %}` strings extracted to all 5 apps' catalogs (because each consuming app's template is what `makemessages` scans). The map-ownership rule says: maintain the entries in the consuming-app's `<app>.py`, even when the string was authored alongside the cotton component. Duplicate the entries in each app's map if the same component renders across apps. Yes — translation maps are fragile, AI-token/performance optimised over surface elegance, but the duplication is the price.
 
-Surfaced in teisutis: IDEA-138 PR #412 cycle 7 (`ui` strings consumed by `auth` templates), IDEA-139 PR #413 (cotton-default `Copy` / `Copied!` consumed by both `ui` and `auth`), IDEA-140 PR #415 cycle 1 finding `3183742934` (`Load older` / `Beginning of history` extracted to `kb` because `_load_older_pager.html` is a kb partial, but map entry sat in `ui.py`).
+Surfaced in teisutis: IDEA-138 PR #412 cycle 7 (`ui` strings consumed by `auth` templates), IDEA-139 PR #413 (cotton-default `Copy` / `Copied!` consumed by both `ui` and `auth`), IDEA-140 PR #415 cycle 1 finding `3183742934` (`Load older` / `Beginning of history` extracted to `kb` because `_load_older_pager.html` is a kb partial, but map entry sat in `ui.py`), IDEA-146 PR #433 M4 (`+ Article` workspace button entry sat in `kb.py` but template lives in `ui.py` — `makemessages` extracted to `teisutis_ui/locale/*` while `fill_empty_po` for `teisutis_ui/...` only loaded `tools/translation_maps/ui.py`; cut from kb, paste into ui, re-fill, locales render correctly).
+
+#### Worked diagnostic recipe
+
+When a string isn't translating, the FIRST diagnostic is "which app's `.po` file does `makemessages` extract this msgid into?" — NOT "which app's translation map should logically own it?":
+
+```bash
+# 1. Find which app's .po file makemessages extracted the msgid into.
+grep -l "^msgid \"<the visible string>\"" web/*/locale/*/LC_MESSAGES/django.po
+# Output → e.g. web/teisutis_ui/locale/lt/LC_MESSAGES/django.po
+#                web/teisutis_ui/locale/pl/LC_MESSAGES/django.po
+#                web/teisutis_ui/locale/ru/LC_MESSAGES/django.po
+#                web/teisutis_ui/locale/nb/LC_MESSAGES/django.po
+
+# 2. Check that app's translation map has the entry.
+grep -n "'<the visible string>'" tools/translation_maps/<that-app>.py
+# If absent → the entry needs to live HERE.
+
+# 3. Check OTHER maps for misplaced duplicate entries.
+grep -rn "'<the visible string>'" tools/translation_maps/
+# If a different app's map has the entry → that's the wrong-map regression.
+# Cut from the wrong map, paste into the right map per step 2.
+```
+
+Logical-ownership traps that cause this regression:
+- A workspace button labeled "+ Article" *feels* like a kb concern, but lives in the ui shell template.
+- A toast emitted by shared `notifications.js` infra *feels* like ui, but if the calling code is in `<kb-app>/static/...`, the msgid extracts wherever the JS path's source files reside.
+- Cotton components consumed across apps: the msgid extracts to EVERY consuming app's catalog (one shared component → N entries needed in N maps; see the previous paragraph).
 
 ### Audit-First Principle
 
@@ -106,4 +133,4 @@ Restart the web server (and Celery if translations affect background tasks) — 
 
 ---
 
-**Last Updated**: 2026-03-17
+**Last Updated**: 2026-05-08
