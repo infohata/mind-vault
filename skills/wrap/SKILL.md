@@ -237,7 +237,7 @@ Use the last two devlog entries in the same file as style anchors — match pros
 
 Non-destructive container shutdown (`docker compose down` without `-v`) is handled elsewhere — `/sprint-auto`'s S5 teardown step stops containers pre-merge to free CPU/RAM/ports while keeping volumes and the worktree filesystem for reviewer inspection. This step is the rest of the cleanup: volumes removed, worktree removed, branch deleted.
 
-If the sprint ran in a parallel git worktree with its own docker-compose stack (see [`RULE_parallel-worktree-docker`](../../rules/RULE_parallel-worktree-docker.md)) — the idea-specific `.env`, per-worktree stack with port offset, dedicated compose project — this is the natural moment to tear it down completely. Leaving it live holds disk hostage and invites port collisions when the next sprint starts.
+If the sprint ran in a parallel git worktree with its own docker-compose stack (see [`RULE_parallel-worktree-docker`](../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md)) — the idea-specific `.env`, per-worktree stack with port offset, dedicated compose project — this is the natural moment to tear it down completely. Leaving it live holds disk hostage and invites port collisions when the next sprint starts.
 
 Skip this step when:
 
@@ -534,8 +534,8 @@ git pull --ff-only origin "$base_branch"
 
 ## References
 
-- [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md) — the frontmatter-only transition this skill relies on.
-- [`RULE_parallel-worktree-docker`](../../rules/RULE_parallel-worktree-docker.md) — the worktree + compose-project contract Step 5 tears down.
+- [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md) — the frontmatter-only transition this skill relies on.
+- [`RULE_parallel-worktree-docker`](../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — the worktree + compose-project contract Step 5 tears down.
 - [`/work`](../work/SKILL.md) — the stage before; its output (a PR on a feature branch, bugbot-cleared deliverables) is `/wrap`'s input.
 - [`/compound`](../compound/SKILL.md) — the stage after; `/wrap` leaves the paper trail `/compound` references.
 - [`/sprint-auto`](../sprint-auto/SKILL.md) — the orchestrator that stitches `idea → plan → work → bugbot-loop(deliverables) → wrap-docs → bugbot-loop(docs) → compound` for the unattended case. Sprint-auto's S5 step handles the non-destructive container shutdown; post-merge destructive teardown in Step 5 here complements it. **Step 8's atomic-merge pattern derives from sprint-auto's integration-stage** — the same principle ("when nothing about the merge target is protected, the orchestrator delivers atomically") applies at single-IDEA scale. Manual `/wrap` and sprint-auto's S11 integration merge are two scales of the same idea.

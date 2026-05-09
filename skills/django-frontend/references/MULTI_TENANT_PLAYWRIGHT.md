@@ -185,7 +185,7 @@ def test_tenant_a_rows_invisible_to_tenant_b(
 
 Cheap and worth running once per release. Schema-per-tenant rarely regresses, but a misplaced query that bypasses tenant routing (e.g. raw SQL with hardcoded `public.table`) WILL slip through unit tests and only surface here.
 
-See [`../../../rules/RULE_tenant-scoped-fk-validation.md`](../../../rules/RULE_tenant-scoped-fk-validation.md) for the orthogonal failure mode where shared-schema models with `org_id` need explicit per-row scoping — those bugs survive even strict schema isolation and Playwright cross-tenant tests are the right surface to catch them.
+See [`../../django/references/TENANT_SCOPED_FK_VALIDATION.md`](../../django/references/TENANT_SCOPED_FK_VALIDATION.md) for the orthogonal failure mode where shared-schema models with `org_id` need explicit per-row scoping — those bugs survive even strict schema isolation and Playwright cross-tenant tests are the right surface to catch them.
 
 ## Cleanup strategy — `transactional_db` won't help you
 
@@ -219,7 +219,7 @@ Default to option 1. Add an explicit list of tables that need truncation; `cur.e
 
 - [`../../django/references/MULTI_TENANT.md`](../../django/references/MULTI_TENANT.md) — the underlying schema-per-tenant architecture.
 - [`../../django/references/MULTI_TENANT_ASYNC.md`](../../django/references/MULTI_TENANT_ASYNC.md) — async/WebSocket counterparts.
-- [`../../../rules/RULE_tenant-scoped-fk-validation.md`](../../../rules/RULE_tenant-scoped-fk-validation.md) — orthogonal isolation failure (shared-schema rows with `org_id`).
+- [`../../django/references/TENANT_SCOPED_FK_VALIDATION.md`](../../django/references/TENANT_SCOPED_FK_VALIDATION.md) — orthogonal isolation failure (shared-schema rows with `org_id`).
 - [`HTMX_ALPINE_WAITS.md`](HTMX_ALPINE_WAITS.md) — Playwright wait recipes once tenant routing is solved.
 - [`../../sprint-auto/ROADMAP.md`](../../sprint-auto/ROADMAP.md) — Direction-1 Playwright architecture.
 

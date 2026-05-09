@@ -32,14 +32,14 @@ sensitive_paths_cleared_reason: "Edits skills that gate sprint-auto execution (S
 **Non-goals**:
 - Not authoring the first concrete Playwright tests. That's a downstream IDEA in a real project (teisutis is the natural pilot — it has the most Cotton/Alpine/HTMX surface).
 - Not running the bootstrap script against any project. The script template lives in mind-vault; running it is the consumer project's first Direction-1 IDEA.
-- Not changing visual-regression workflow conventions beyond what `RULE_visual-baseline-bumps.md` formalises.
+- Not changing visual-regression workflow conventions beyond what `../../../skills/django-frontend/references/VISUAL_BASELINE_BUMPS.md` formalises.
 - Not auto-detecting projects that already have Playwright infra (out of scope; current convention is "consumer project copies from mind-vault asset, runs once").
 
 **Approach** (treating ROADMAP as plan, this section is the deliverables list):
 
 | # | File | Action | Notes |
 |---|------|--------|-------|
-| 1 | `rules/RULE_visual-baseline-bumps.md` | New | Visual-snapshot bump discipline — when to regenerate baselines, what to commit, review etiquette. |
+| 1 | `../../../skills/django-frontend/references/VISUAL_BASELINE_BUMPS.md` | New | Visual-snapshot bump discipline — when to regenerate baselines, what to commit, review etiquette. |
 | 2 | `skills/django-frontend/references/HTMX_ALPINE_WAITS.md` | New | The four-class HTMX wait recipe + Alpine settled-state pattern. Referenced from ROADMAP. |
 | 3 | `skills/django-frontend/references/MULTI_TENANT_PLAYWRIGHT.md` | New | django-tenants + Playwright fixtures (host header, schema seeding, DB cleanup). |
 | 4 | `skills/sprint-auto/assets/setup_playwright.sh.template` | New | Idempotent bootstrap — auto-detects Docker stack, CI shape, tenant model, locales. The meaty deliverable. |

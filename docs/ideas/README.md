@@ -1,6 +1,6 @@
 # mind-vault Ideas Index
 
-_Two locations per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md): `docs/ideas/` = backlog;
+_Two locations per [`RULE_ideas-location-status`](../../skills/idea/references/IDEAS_LOCATION_STATUS.md): `docs/ideas/` = backlog;
 `docs/archive/YYYY-MM-idea-NNN-<slug>/` = everything that's left backlog,
 differentiated by frontmatter `status:`._
 

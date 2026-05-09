@@ -76,7 +76,7 @@ Execution adapted: Commits 1+2 (AddField + RunPython) → Commits 4-13 (rename r
 ## Relationship To Other Rules
 
 - [`RULE_git-safety`](RULE_git-safety.md) — every rename and drop commit lands on a feature branch; per-commit-compilability makes `--force-with-lease` rebases safe inside the rename sequence.
-- [`RULE_ideas-location-status`](RULE_ideas-location-status.md) — IDEA file's archive dir holds the plan doc that captures the commit sequence as part of the Execution Sequence section.
+- [`RULE_ideas-location-status`](../skills/idea/references/IDEAS_LOCATION_STATUS.md) — IDEA file's archive dir holds the plan doc that captures the commit sequence as part of the Execution Sequence section.
 
 ---
 

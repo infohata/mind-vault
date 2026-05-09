@@ -119,7 +119,7 @@ Mitigations:
 - **Pixelmatch default (0.1 threshold) for first cut**; per-surface upgrade to `mode='ssim'` for surfaces that flake on anti-aliasing.
 - **Triage protocol on baseline failure**: visual diff that's >80% in text glyphs → suspect font rendering or asset-path drift; visual diff localised to one component → real regression. Bake into the `make playwright-test` failure output.
 
-Genuine novelty mind-vault ships here: [`rules/RULE_visual-baseline-bumps.md`](../../rules/RULE_visual-baseline-bumps.md) codifies "AI agents never auto-`--update-snapshots`; baseline regen requires explicit human invocation". OSS tools either auto-accept or require SaaS click-through; mind-vault's discipline is the right shape for AI-orchestrator workflows.
+Genuine novelty mind-vault ships here: [`../django-frontend/references/VISUAL_BASELINE_BUMPS.md`](../django-frontend/references/VISUAL_BASELINE_BUMPS.md) codifies "AI agents never auto-`--update-snapshots`; baseline regen requires explicit human invocation". OSS tools either auto-accept or require SaaS click-through; mind-vault's discipline is the right shape for AI-orchestrator workflows.
 
 ## Composability with Direction 2 (eval-gate)
 
@@ -202,7 +202,7 @@ These need explicit treatment in the implementation IDEA's plan; the bootstrap s
 - **i18n locale pinning** — `browser_context_args` fixture overriding `locale` + `Accept-Language` from `PLAYWRIGHT_LOCALE` env. Default-locale baselines + structural-only locale assertions for other locales. Bootstrap script provisions the fixture; IDEA needs to document the discipline (which surfaces get per-locale baselines vs structural-only).
 - **Multi-tenant authentication** — `storage_state` + `browser_context_args` per tenant + per role. For `django-tenants`: tenant schema swap before login, dump storage_state to `tests/playwright/auth/<tenant>-<role>.json`. **Researcher's strongest novelty finding**: zero published examples in the OSS world for this combo. The architectural patterns are codified in [`../django-frontend/references/MULTI_TENANT_PLAYWRIGHT.md`](../django-frontend/references/MULTI_TENANT_PLAYWRIGHT.md); the project-specific tenant list, role matrix, and storage_state cache TTL still need IDEA-level decisions.
 - **Test data reset** — within an IDEA's Playwright suite, tests are sequential. Either each test is idempotent (uses `page.goto` from a known DB state) or the suite uses transaction rollback between tests. Specify the discipline.
-- **Chromium version migration** — when the dev image's Chromium bumps (security patch, dep update), some baselines red-shift. Triage protocol: glyph-only diff → font drift, refresh allowed; layout diff → real regression, investigate. Codified in [`../../rules/RULE_visual-baseline-bumps.md`](../../rules/RULE_visual-baseline-bumps.md) § "The Chromium-bump cliff".
+- **Chromium version migration** — when the dev image's Chromium bumps (security patch, dep update), some baselines red-shift. Triage protocol: glyph-only diff → font drift, refresh allowed; layout diff → real regression, investigate. Codified in [`../django-frontend/references/VISUAL_BASELINE_BUMPS.md`](../django-frontend/references/VISUAL_BASELINE_BUMPS.md) § "The Chromium-bump cliff".
 - **HTMX + Alpine + Cotton wait-discipline as a packaged pattern** — the four-step recipe (`window.Alpine` ready → trigger → htmx-settled predicate → state probe) is codified in [`../django-frontend/references/HTMX_ALPINE_WAITS.md`](../django-frontend/references/HTMX_ALPINE_WAITS.md) and ready for reuse across projects.
 
 ## Related references
@@ -213,8 +213,8 @@ These need explicit treatment in the implementation IDEA's plan; the bootstrap s
 - [`../wrap/assets/manual-evaluation-template.md`](../wrap/assets/manual-evaluation-template.md) — the template Step 7 emits; HTML comment under Scenarios documents the three pre-fill states.
 - [`assets/setup_playwright.sh.template`](assets/setup_playwright.sh.template) — the project-side bootstrap script that provisions Playwright into a target project's stack.
 - [`../../agents/AGENT_architect.md`](../../agents/AGENT_architect.md) § "/plan-time project probes" — the architect's role in deciding whether an IDEA wants `requires_playwright: true` based on its surface.
-- [`../../rules/RULE_visual-baseline-bumps.md`](../../rules/RULE_visual-baseline-bumps.md) — AI-never-auto-regen discipline for visual baselines.
-- [`../../rules/RULE_parallel-worktree-docker.md`](../../rules/RULE_parallel-worktree-docker.md) — image-discipline rules that govern visual-baseline stability across container hosts.
+- [`../django-frontend/references/VISUAL_BASELINE_BUMPS.md`](../django-frontend/references/VISUAL_BASELINE_BUMPS.md) — AI-never-auto-regen discipline for visual baselines.
+- [`references/PARALLEL_WORKTREE_DOCKER.md`](references/PARALLEL_WORKTREE_DOCKER.md) — image-discipline rules that govern visual-baseline stability across container hosts.
 - [`../django-frontend/references/HTMX_ALPINE_WAITS.md`](../django-frontend/references/HTMX_ALPINE_WAITS.md) — Playwright wait recipes for HTMX + Alpine + Cotton surfaces.
 - [`../django-frontend/references/MULTI_TENANT_PLAYWRIGHT.md`](../django-frontend/references/MULTI_TENANT_PLAYWRIGHT.md) — django-tenants fixtures (Host header, schema seeding, storage_state cookie pre-baking).
 - [`../django-frontend/references/ALPINE_HTMX_GOTCHAS.md`](../django-frontend/references/ALPINE_HTMX_GOTCHAS.md) — gotcha 5 (HTMX-during-Alpine-init race) is the wait-discipline upstream constraint.

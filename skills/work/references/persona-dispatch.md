@@ -72,7 +72,7 @@ docker compose up -d
 # 5. Run project-specific post-up bootstrap (MinIO buckets, ES indices, seed data).
 ```
 
-Full rules — including the `!override` gotcha on port lists, subnet overlap errors, and the pip-cache problem when adding deps — live in [`rules/RULE_parallel-worktree-docker.md`](../../../rules/RULE_parallel-worktree-docker.md).
+Full rules — including the `!override` gotcha on port lists, subnet overlap errors, and the pip-cache problem when adding deps — live in [`../../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md`](../../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md).
 
 ### Starting the agent inside the worktree
 

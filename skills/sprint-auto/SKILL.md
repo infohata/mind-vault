@@ -285,9 +285,9 @@ No `/compound` reminder here — compound ran in section 4 above.
 - [references/integration-conflict-resolutions.md](references/integration-conflict-resolutions.md) — **NEW** algorithm catalogue for S11.6 conflict resolution (devlog, index, .po, HTML, JS, Python, settings, tests)
 - [references/escalation-policy.md](references/escalation-policy.md) — T2/T3 resolution rules + per-pass attempt caps (20 deliverables / 5 docs / 10 union / 10 full / 20 integration / 5 re-bugbot / 5 mind-vault compound)
 - [assets/auto-run-log-template.md](assets/auto-run-log-template.md) — per-IDEA + batch-summary log shape (now includes Integration check section)
-- [rules/RULE_parallel-worktree-docker.md](../../rules/RULE_parallel-worktree-docker.md) — underlying worktree + docker isolation contract
+- [skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md](references/PARALLEL_WORKTREE_DOCKER.md) — underlying worktree + docker isolation contract
 - [rules/RULE_git-safety.md](../../rules/RULE_git-safety.md) — the HITL boundary the skill must never cross
-- [rules/RULE_ideas-location-status.md](../../rules/RULE_ideas-location-status.md) — how IDEA files migrate; `/plan` does the move inside the worktree
+- [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — how IDEA files migrate; `/plan` does the move inside the worktree
 - [commands/bugbot-loop.md](../../commands/bugbot-loop.md) — invoked twice per IDEA happy path (deliverables S3, docs S6) + once on the [INTEGRATION] PR (S11.10, the merge gate) + once per mind-vault compound PR; honors `SPRINT_AUTO_INTEGRATION_WORKTREE` and `SPRINT_AUTO_INTEGRATION_BRANCH`
 - [skills/plan/SKILL.md](../plan/SKILL.md) — invoked per IDEA (step 2)
 - [skills/work/SKILL.md](../work/SKILL.md) — invoked per plan (step 4); honors `SPRINT_AUTO_INTEGRATION_WORKTREE` for verification routing
@@ -296,6 +296,7 @@ No `/compound` reminder here — compound ran in section 4 above.
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — the sprint workflow this skill wraps
 - [ROADMAP.md](ROADMAP.md) — Direction-1 (Playwright) plumbing context for the S(-1) availability probe + per-IDEA `requires_playwright` gate
 - [assets/setup_playwright.sh.template](assets/setup_playwright.sh.template) — bootstrap script projects copy to provision Playwright
+- [skills/work/references/WATCHER_HYGIENE.md](../work/references/WATCHER_HYGIENE.md) — orchestrator-trash-collection discipline for `run_in_background` watchers across S3/S6/S11.10/S13 bugbot loops
 
 ---
 

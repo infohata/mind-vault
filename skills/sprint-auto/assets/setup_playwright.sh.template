@@ -27,7 +27,7 @@
 # Image rebuild is NOT triggered automatically — the operator runs
 # `docker compose build` after reviewing the diff.
 #
-# Discipline this script wires in (see RULE_visual-baseline-bumps.md):
+# Discipline this script wires in (see ../../django-frontend/references/VISUAL_BASELINE_BUMPS.md):
 #   - `make playwright-test` runs WITHOUT --update-snapshots.
 #   - `make playwright-update-baselines` is a separate, explicit target.
 #   - AI agents should NEVER call the second target.
@@ -361,7 +361,7 @@ if (( HAS_MAKEFILE )); then
     append_block Makefile '# playwright targets (managed by setup_playwright.sh)' <<'EOF'
 
 # playwright targets (managed by setup_playwright.sh)
-# Discipline (see RULE_visual-baseline-bumps.md):
+# Discipline (see ../../django-frontend/references/VISUAL_BASELINE_BUMPS.md):
 #   - playwright-test does NOT pass --update-snapshots.
 #   - playwright-update-baselines is a SEPARATE target the operator
 #     invokes deliberately. AI agents must NEVER call it.
@@ -543,7 +543,7 @@ references in mind-vault for the discipline that governs these.
 References:
   - skills/django-frontend/references/HTMX_ALPINE_WAITS.md
   - skills/django-frontend/references/MULTI_TENANT_PLAYWRIGHT.md
-  - rules/RULE_visual-baseline-bumps.md
+  - ../../django-frontend/references/VISUAL_BASELINE_BUMPS.md
 """
 import os
 import pytest

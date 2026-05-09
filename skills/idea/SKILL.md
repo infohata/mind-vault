@@ -31,7 +31,7 @@ Auto-increment, two-phase capture.
 
 **Phase A — establish the record.**
 
-1. Determine the next IDEA number by scanning **both IDEA-file locations** — `docs/ideas/IDEA-*.md` and `docs/archive/*/IDEA-*.md` — for the greatest existing three-digit number, and adding 1. Default to `001` if no files exist. Users can override with an explicit number argument (`/idea 200` → forces `IDEA-200`). Scanning only `docs/ideas/` would collide with any IDEA currently in `in-progress`, `complete`, `superseded`, or `rejected` state, all of which live in the archive tree per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md).
+1. Determine the next IDEA number by scanning **both IDEA-file locations** — `docs/ideas/IDEA-*.md` and `docs/archive/*/IDEA-*.md` — for the greatest existing three-digit number, and adding 1. Default to `001` if no files exist. Users can override with an explicit number argument (`/idea 200` → forces `IDEA-200`). Scanning only `docs/ideas/` would collide with any IDEA currently in `in-progress`, `complete`, `superseded`, or `rejected` state, all of which live in the archive tree per [`RULE_ideas-location-status`](references/IDEAS_LOCATION_STATUS.md).
 2. Ask the user for **title**, **priority** (high / medium / low), and an optional **depends_on** / **related** list referencing existing IDEA ids.
 3. Use the platform's blocking question tool when available (`AskUserQuestion` in Claude Code, `request_user_input` in Codex) for the priority choice. Ask one question at a time.
 4. Derive the slug from the title: lowercase, kebab-case, strip stopwords (`a`, `the`, `for`, `into`), truncate to ~40 chars. Confirm with the user if the slug is ambiguous.
@@ -55,13 +55,13 @@ ls docs/ideas/IDEA-*.md docs/archive/*/IDEA-*.md 2>/dev/null \
 **Phase B — emit the file.**
 
 1. Read [`assets/idea-template.md`](assets/idea-template.md) and substitute the frontmatter fields. Fill `status: idea`, `created: YYYY-MM-DD` (today), `completed: null`.
-2. Write to `<project>/docs/ideas/IDEA-NNN-<slug>.md` per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md) — `status: idea` always starts in `docs/ideas/`. Create the directory if missing.
+2. Write to `<project>/docs/ideas/IDEA-NNN-<slug>.md` per [`RULE_ideas-location-status`](references/IDEAS_LOCATION_STATUS.md) — `status: idea` always starts in `docs/ideas/`. Create the directory if missing.
 3. Append an index line to `<project>/docs/ideas/README.md` under the matching priority heading. Create the index file with the standard skeleton if missing (see [Index maintenance](#3-index-maintenance)).
 4. Print the created path + the index line for user verification.
 
 ### 2. Updating an existing idea
 
-When invoked with a slug argument that matches an existing file (`/idea sprint-workflow`), load the file for interactive update. The file may live in `docs/ideas/` (backlog) or `docs/archive/<dir>/` (any non-backlog status) per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md) — glob both when resolving.
+When invoked with a slug argument that matches an existing file (`/idea sprint-workflow`), load the file for interactive update. The file may live in `docs/ideas/` (backlog) or `docs/archive/<dir>/` (any non-backlog status) per [`RULE_ideas-location-status`](references/IDEAS_LOCATION_STATUS.md) — glob both when resolving.
 
 1. Glob `docs/ideas/IDEA-*-<slug>.md` and `docs/archive/*/IDEA-*-<slug>.md` — the user rarely types the IDEA number and may not know whether the idea is still in backlog.
 2. Offer the user a field-level edit menu. Common updates: **status change** (one-move transition per step 2a; most status flips are frontmatter-only since the idea already lives in its permanent dir), **priority bump** (moves the index line into the new section; no file move), **relationship edits** on `related` / `depends_on` / `supersedes` (merge + de-dupe), and **body edits** (open the file for the user; do not auto-rewrite prose).
@@ -83,7 +83,7 @@ See [`references/update-semantics.md`](references/update-semantics.md) for the f
 
 ### 3. Index maintenance
 
-`<project>/docs/ideas/README.md` is the single-file index regardless of where individual IDEA files physically live. Links resolve into `docs/ideas/` (same dir) or `../archive/<dir>/` per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md).
+`<project>/docs/ideas/README.md` is the single-file index regardless of where individual IDEA files physically live. Links resolve into `docs/ideas/` (same dir) or `../archive/<dir>/` per [`RULE_ideas-location-status`](references/IDEAS_LOCATION_STATUS.md).
 
 Standard skeleton:
 
@@ -131,7 +131,7 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
 
 ### 4. Auto-incrementing IDEA-NNN
 
-- Scan **both IDEA-file locations** together: `<project>/docs/ideas/IDEA-*.md` and `<project>/docs/archive/*/IDEA-*.md`. Zero-padded three-digit numbers preferred (`IDEA-042` not `IDEA-42`). Scanning only `docs/ideas/` would miss IDEAs in any non-backlog state (`in-progress`, `complete`, `superseded`, `rejected`) — all live in the archive tree per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md) — and produce a collision on the next increment.
+- Scan **both IDEA-file locations** together: `<project>/docs/ideas/IDEA-*.md` and `<project>/docs/archive/*/IDEA-*.md`. Zero-padded three-digit numbers preferred (`IDEA-042` not `IDEA-42`). Scanning only `docs/ideas/` would miss IDEAs in any non-backlog state (`in-progress`, `complete`, `superseded`, `rejected`) — all live in the archive tree per [`RULE_ideas-location-status`](references/IDEAS_LOCATION_STATUS.md) — and produce a collision on the next increment.
 - Take max + 1. If no files exist, start at `IDEA-001`.
 - User override: `/idea 200 "Title here"` forces the number. Warn and ask if the number already exists **in either location**.
 - Do **not** attempt to find "gaps" in the numbering. Numbers are append-only; holes from deleted ideas stay as holes.
@@ -150,7 +150,7 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
 
 - [assets/idea-template.md](assets/idea-template.md) — the verbatim template written to disk
 - [references/update-semantics.md](references/update-semantics.md) — detailed rules for editing an existing IDEA file
-- [rules/RULE_ideas-location-status.md](../../rules/RULE_ideas-location-status.md) — location-by-status routing contract, including the `git mv` semantics for status transitions
+- [skills/idea/references/IDEAS_LOCATION_STATUS.md](references/IDEAS_LOCATION_STATUS.md) — location-by-status routing contract, including the `git mv` semantics for status transitions
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
 - [skills/plan/SKILL.md](../plan/SKILL.md) — next stage; consumes the IDEA file and triggers `idea` → `in-progress` move
 - [skills/work/SKILL.md](../work/SKILL.md) — triggers the `in-progress` → `complete` move on PR merge

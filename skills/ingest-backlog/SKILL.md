@@ -64,7 +64,7 @@ See [`references/legacy-formats.md`](references/legacy-formats.md) for the full 
 
 ### 3. Classify entries
 
-Walk the detected entries and classify per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md). Two dirs, not three:
+Walk the detected entries and classify per [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md). Two dirs, not three:
 
 - **`status: idea`** → file lands in `docs/ideas/IDEA-NNN-<slug>.md`.
 - **`status: in-progress`** → file lands in `docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md`. `YYYY-MM` = month execution started (inferred from the brownfield source or current month when undated). The IDEA lives inside the archive dir from the moment it left backlog; artefacts (plans, research, screenshots) get co-located there as work proceeds.
@@ -91,7 +91,7 @@ Only when explicitly passed `--write`:
 
 1. Require clean git working tree (`git status --porcelain` empty). Refuse with error otherwise.
 2. `mkdir -p <project>/docs/ideas/`. Archive dirs are created on demand per entry.
-3. For each entry, route to its destination per step 3's classification and [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md):
+3. For each entry, route to its destination per step 3's classification and [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md):
    - `status: idea` → `<project>/docs/ideas/IDEA-NNN-<slug>.md`.
    - `status: in-progress | superseded | rejected` → `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md`. Create the archive dir. `YYYY-MM` = best-effort from the source's dates (execution start for in-progress, supersession/rejection date otherwise), falling back to the current month when undated.
    - `status: complete` → no file. Footer-line only in the index.
@@ -204,7 +204,7 @@ Teisutis IDEA-112 is the first real consumer. Validation gate for this skill's v
 
 - [assets/idea-template.md](assets/idea-template.md) — per-idea file template; same schema as `skills/idea/assets/idea-template.md`
 - [references/legacy-formats.md](references/legacy-formats.md) — format recognition rules, variant handling, field inference heuristics
-- [rules/RULE_ideas-location-status.md](../../rules/RULE_ideas-location-status.md) — location-by-status routing contract honoured by step 3 and step 5
+- [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — location-by-status routing contract honoured by step 3 and step 5
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — authoritative IDEA frontmatter schema
 - [skills/idea/SKILL.md](../idea/SKILL.md) — the skill that consumes the per-idea format this one produces
 - Origin: teisutis IDEA-112 (Split `docs/execution/IDEAS.md` into per-idea files). This skill is the execution vehicle for that idea. First end-to-end brownfield ingest validated the three-location split — see teisutis PR TBD.

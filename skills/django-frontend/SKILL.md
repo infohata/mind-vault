@@ -908,7 +908,7 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [Vendoring JS Bundles](references/VENDORING_JS_BUNDLES.md) — vendor pre-built JS to `static/vendor/`, zero Node toolchain in CI/Docker; disposable container build for ESM-only libraries (precedent: EasyMDE; planned: TipTap)
 - [django](../django/SKILL.md) — backend pairing (BaseModel, DRF, ORM optimisation, permissions)
 - [surgical-tdd](../surgical-tdd/SKILL.md) — testing approach for Django apps
-- [`RULE_i18n-workflow`](../../rules/RULE_i18n-workflow.md) — translation hard rules
+- [`RULE_i18n-workflow`](../django/references/I18N_WORKFLOW.md) — translation hard rules
 - [HTMX Documentation](https://htmx.org/docs/)
 - [Alpine.js Documentation](https://alpinejs.dev/)
 - [Bulma CSS Documentation](https://bulma.io/documentation/)

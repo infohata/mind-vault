@@ -9,7 +9,7 @@ Second stage of the five-stage sprint workflow (`idea → brainstorm/plan → wo
 
 This skill merges the brainstorm + plan stages from CE. When input is already specific (a filled-out IDEA file, a bug report with clear repro), the skill skips straight to plan authoring. When input is thin (a one-line description, an IDEA stub), a **thin-input bootstrap** fires — the interactive brainstorm front-end — before the plan is written. Brainstorming is a mode, not a separate skill. `/brainstorm` is an alias for `/plan`.
 
-This skill does not write code, run tests, or modify project source. It does, however, author the plan artifact and — per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md) and step 6 below — trigger the single `git mv` that moves the source IDEA file from `docs/ideas/` into its `docs/archive/YYYY-MM-idea-NNN-<slug>/` dir. The plan artifact itself lands in that same archive dir (emitted by step 7). Execution belongs in `/work` (the next stage).
+This skill does not write code, run tests, or modify project source. It does, however, author the plan artifact and — per [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md) and step 6 below — trigger the single `git mv` that moves the source IDEA file from `docs/ideas/` into its `docs/archive/YYYY-MM-idea-NNN-<slug>/` dir. The plan artifact itself lands in that same archive dir (emitted by step 7). Execution belongs in `/work` (the next stage).
 
 ## When to use
 
@@ -92,7 +92,7 @@ The reviewer pass is optional for trivial and small plans. Required for medium a
 
 ### 6. Transition the source IDEA — single move, then never again
 
-Per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md), the act of drafting a plan is the signal that an idea has left the backlog. This triggers the **one and only** filesystem move in the IDEA file's life — and it must run **before** step 7 writes the plan file, because step 7 emits the plan into the dir this step creates:
+Per [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md), the act of drafting a plan is the signal that an idea has left the backlog. This triggers the **one and only** filesystem move in the IDEA file's life — and it must run **before** step 7 writes the plan file, because step 7 emits the plan into the dir this step creates:
 
 ```bash
 mkdir -p <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/
@@ -111,7 +111,7 @@ After this step's move, step 7 emits the plan file into the same dir. All subseq
 
 ### 7. Emit the plan file into the idea's archive dir
 
-Plans live **alongside the IDEA file they implement**, inside the same `docs/archive/YYYY-MM-idea-NNN-<slug>/` dir per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md). There is no separate `docs/plans/` tree — that was an earlier draft and was dropped in favour of co-location (cross-refs between plan and IDEA file stay local; no cross-tree paths).
+Plans live **alongside the IDEA file they implement**, inside the same `docs/archive/YYYY-MM-idea-NNN-<slug>/` dir per [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md). There is no separate `docs/plans/` tree — that was an earlier draft and was dropped in favour of co-location (cross-refs between plan and IDEA file stay local; no cross-tree paths).
 
 Step 6's move has already created the archive dir and moved the IDEA file into it, so this step just writes the plan file alongside:
 
@@ -174,7 +174,7 @@ The plan's philosophy stays the same at every scope; the depth scales.
 - [references/thin-input-bootstrap.md](references/thin-input-bootstrap.md) — the interactive brainstorm front-end for thin inputs
 - [references/architect-handoff.md](references/architect-handoff.md) — how to invoke AGENT_architect as a reviewer and integrate findings
 - [references/batching-for-sprint-auto.md](references/batching-for-sprint-auto.md) — opt-in mode for grouping multiple `/plan` outputs onto one feature branch + PR to feed an overnight `/sprint-auto` run
-- [rules/RULE_ideas-location-status.md](../../rules/RULE_ideas-location-status.md) — the location-by-status contract driving step 6's `idea` → `in-progress` move
+- [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — the location-by-status contract driving step 6's `idea` → `in-progress` move
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
 - [skills/idea/SKILL.md](../idea/SKILL.md) — previous stage; produces the IDEA file this skill consumes
 - [skills/work/SKILL.md](../work/SKILL.md) — next stage; executes the plan this skill emits

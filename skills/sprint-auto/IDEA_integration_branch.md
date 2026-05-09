@@ -246,7 +246,7 @@ When green-lit:
 - [`../wrap/SKILL.md`](../wrap/SKILL.md) — touched by this plan (`--scope=idea-only`, last-of-batch detection)
 - [`../work/SKILL.md`](../work/SKILL.md) — touched by this plan (verification routing via env var)
 - [`../../commands/bugbot-loop.md`](../../commands/bugbot-loop.md) — touched by this plan (Phase 0 skip-bootstrap rule when env var set)
-- [`../../rules/RULE_parallel-worktree-docker.md`](../../rules/RULE_parallel-worktree-docker.md) — worktree pattern; v3.1 narrows the per-worktree stack assumption for sprint-auto
+- [`references/PARALLEL_WORKTREE_DOCKER.md`](references/PARALLEL_WORKTREE_DOCKER.md) — worktree pattern; v3.1 narrows the per-worktree stack assumption for sprint-auto
 - [`../../rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — confirms forward-sync (S11.11) is agent-allowed; the `[INTEGRATION]` draft PR is a non-merging artefact
 - Surfacing context: teisutis `docs/archive/auto-run-2026-04-26T02-31-00Z-summary.md` — the batch run that prompted this idea
 - Existing sprint-auto state machine: `skills/sprint-auto/SKILL.md` (S0–S15)

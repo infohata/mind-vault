@@ -54,7 +54,7 @@ When you've just solved a problem — or a bugbot-loop finding has been cleared 
 | --- | --- | --- |
 | Project-specific fix with domain detail | `<project>/docs/solutions/<topic>.md` | Webhook HMAC mismatch due to flat-payload edge case |
 | Cross-project pattern | mind-vault skill or `references/` file | "Async tenant context loss in Channels → wrap in `with tenant_context(tenant):`" |
-| Guardrail-worthy hard rule | `mind-vault/rules/RULE_<name>.md` | "Never hand-edit `.po` files" |
+| Guardrail-worthy hard rule (always-on, cross-cutting) | `mind-vault/rules/RULE_<name>.md` | "Never push to main" / "Renames first, drops last" |
 | Reviewer-caught pattern | new pass appended to `agents/AGENT_<persona>.md` | "Dictionary key collisions silently swallow overrides" |
 | Tool-worthy repeatable action | `mind-vault/commands/<verb>.md` or `tools/<script>.sh` | Regex sweep for `format_html(_(...))` migration drift |
 | User-behavioural preference | auto-memory `feedback_*` / `project_*` / `user_*` / `reference_*` | "Prefer bundled PR over split for this kind of refactor" |
@@ -109,7 +109,7 @@ The `source` field is what makes handoff possible: `/plan` reads an IDEA file an
 
 ## Directory layout inside a target project
 
-Per [`RULE_ideas-location-status`](../rules/RULE_ideas-location-status.md), an IDEA file lives in exactly one of two locations across its whole life — `docs/ideas/` while in backlog, `docs/archive/YYYY-MM-idea-NNN-<slug>/` everything after. The only filesystem move is `idea → archive` at `/plan` time (or `/work` time for small-scope plans that bypassed `/plan`). Post-move, status flips are frontmatter-only.
+Per [`RULE_ideas-location-status`](../skills/idea/references/IDEAS_LOCATION_STATUS.md), an IDEA file lives in exactly one of two locations across its whole life — `docs/ideas/` while in backlog, `docs/archive/YYYY-MM-idea-NNN-<slug>/` everything after. The only filesystem move is `idea → archive` at `/plan` time (or `/work` time for small-scope plans that bypassed `/plan`). Post-move, status flips are frontmatter-only.
 
 ```text
 <project>/
@@ -183,7 +183,7 @@ The loop's value scales with the work's ambiguity. Don't force ceremony onto wor
 - [skills/ingest-backlog/](../skills/ingest-backlog/SKILL.md) — brownfield-takeover helper (Phase 1.5)
 - [agents/AGENT_curator.md](../agents/AGENT_curator.md) — secondary "sprint-end promotion sweep" mode scans `docs/solutions/` for recurring patterns and proposes `/compound` invocations
 - [rules/RULE_git-safety.md](../rules/RULE_git-safety.md) — what `/compound` honours when promoting to mind-vault
-- [rules/RULE_parallel-worktree-docker.md](../rules/RULE_parallel-worktree-docker.md) — what `/work` cites for parallel execution
+- [skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md](../skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — what `/work` cites for parallel execution
 
 ---
 

@@ -182,7 +182,7 @@ Compounded from the teisutis 2026-04-28 dependabot sweep — 9 open PRs triaged 
 
 ## Composes with
 
-- [`rules/RULE_parallel-worktree-docker.md`](../../rules/RULE_parallel-worktree-docker.md) — the worktree + override-file + sentinel-env mechanics this skill leans on for verification isolation.
+- [`../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md`](../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — the worktree + override-file + sentinel-env mechanics this skill leans on for verification isolation.
 - [`rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — forward-sync is allowed; merge-into-main is HITL.
 - [`skills/wrap/SKILL.md`](../wrap/SKILL.md) — for the docs sweep at step 9 when the dep sweep was non-trivial enough to deserve a devlog entry.
 - [`skills/bugbot/SKILL.md`](../bugbot/SKILL.md) — when a bundle PR's review surfaces issues (rare for dep bumps, but the bugbot loop applies if invoked).

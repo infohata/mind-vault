@@ -457,4 +457,4 @@ fi
 
 - `agents/AGENT_bugbot.md` §9 — review-side pointer to this reference (drill discipline stays in AGENT_bugbot so the bugbot-loop knows where to look).
 - `tools/README.md` "Adding New Tools" — author-side pointer to this reference.
-- `rules/RULE_parallel-worktree-docker.md` — when writing an installer that runs INSIDE a parallel-worktree stack, the gotchas there apply in addition.
+- `../../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md` — when writing an installer that runs INSIDE a parallel-worktree stack, the gotchas there apply in addition.

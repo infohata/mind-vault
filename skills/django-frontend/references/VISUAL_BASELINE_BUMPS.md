@@ -99,7 +99,7 @@ That's a clean baseline-regen story. What's NOT clean: 47 baselines drifted alon
 ## Relationship To Other Rules / Skills
 
 - [`RULE_git-safety`](RULE_git-safety.md) — baseline regen still happens on a feature branch; protected-branch rules are unchanged.
-- [`RULE_parallel-worktree-docker`](RULE_parallel-worktree-docker.md) — § "Docker as privileged-fileops escape hatch" is occasionally needed when baselines are written by the container as root and the host user can't unlink them; same `docker run --rm -v <path>:/work alpine chown -R "$(id -u):$(id -g)" /work` recipe applies.
+- [`RULE_parallel-worktree-docker`](../../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — § "Docker as privileged-fileops escape hatch" is occasionally needed when baselines are written by the container as root and the host user can't unlink them; same `docker run --rm -v <path>:/work alpine chown -R "$(id -u):$(id -g)" /work` recipe applies.
 - [`skills/sprint-auto/ROADMAP.md`](../skills/sprint-auto/ROADMAP.md) § "Visual-baseline stability" — the architectural context this rule formalises.
 - [`skills/sprint-auto/SKILL.md`](../skills/sprint-auto/SKILL.md) — sprint-auto preflight + per-IDEA gate behaviour treats `--update-snapshots` as out-of-bounds for unattended runs.
 - [`skills/sprint-auto/assets/setup_playwright.sh.template`](../skills/sprint-auto/assets/setup_playwright.sh.template) — wires `make playwright-test` and `make playwright-update-baselines` as separate targets per § "How To Apply" #3.

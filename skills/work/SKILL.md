@@ -157,7 +157,7 @@ The full env-var contract is in [`../sprint-auto/references/integration-stage.md
 
 **Fallback in this section fires only when `/wrap` was bypassed** — the user merged the PR directly without invoking `/wrap`, or a hotfix landed without ceremony. In that case, the next `/work` invocation that touches a merged-but-unflipped IDEA runs the steps below as a cleanup pass on a separate `chore/complete-idea-NNN` branch. The `/wrap` skill itself also has a "post-merge fallback" mode that does the same thing with full docs sweep — prefer `/wrap NNN` post-merge over the pared-down version below.
 
-Per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md), the IDEA file normally already lives in its permanent home (`docs/archive/YYYY-MM-idea-NNN-<slug>/`, placed there by `/plan` step 6 when the user went through `/plan` first). On merge, **no file moves** in that case. Just frontmatter edits:
+Per [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md), the IDEA file normally already lives in its permanent home (`docs/archive/YYYY-MM-idea-NNN-<slug>/`, placed there by `/plan` step 6 when the user went through `/plan` first). On merge, **no file moves** in that case. Just frontmatter edits:
 
 ```yaml
 # docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md
@@ -226,13 +226,14 @@ This is the canonical landing page for anyone discovering the idea via grep/inde
 ## References
 
 - [references/persona-dispatch.md](references/persona-dispatch.md) — per-domain persona routing, worktree setup for parallel work streams, override conventions
-- [rules/RULE_ideas-location-status.md](../../rules/RULE_ideas-location-status.md) — location-by-status contract driving step 6's archive move on merge
+- [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — location-by-status contract driving step 6's archive move on merge
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer
 - [skills/plan/SKILL.md](../plan/SKILL.md) — previous stage; produces the plan this skill executes
 - [skills/compound/SKILL.md](../compound/SKILL.md) — final stage; compound what was learned after review clears
 - [rules/RULE_git-safety.md](../../rules/RULE_git-safety.md) — branching and commit contract
-- [rules/RULE_parallel-worktree-docker.md](../../rules/RULE_parallel-worktree-docker.md) — worktree + docker isolation contract for parallel execution
-- [rules/RULE_i18n-workflow.md](../../rules/RULE_i18n-workflow.md) — translation-map workflow enforced during execution
+- [skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md](../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — worktree + docker isolation contract for parallel execution
+- [skills/django/references/I18N_WORKFLOW.md](../django/references/I18N_WORKFLOW.md) — translation-map workflow enforced during execution
+- [references/WATCHER_HYGIENE.md](references/WATCHER_HYGIENE.md) — load when arming `run_in_background` watchers (test runs, log tails, polling); orchestrator-trash-collection discipline + self-match avoidance
 - [agents/AGENT_backend.md](../../agents/AGENT_backend.md), [AGENT_frontend.md](../../agents/AGENT_frontend.md), [AGENT_devops.md](../../agents/AGENT_devops.md), [AGENT_test-engineer.md](../../agents/AGENT_test-engineer.md) — implementation personas dispatched by this skill
 
 ---

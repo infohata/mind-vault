@@ -154,7 +154,7 @@ For projects using schema-based isolation (`django-tenants`):
 
 Getting this wrong (FK on tenant-schema tables) duplicates the schema isolation at the row level, wastes indexes, and turns every tenant-scoped query into a needless `WHERE org_id = ?` on top of the already-scoped schema.
 
-**Validate-and-prune helpers walking BOTH kinds**: when a single helper iterates a heterogeneous list of FK kinds (some tenant-schema, some public-schema-with-`org_id`) and does existence checks like `Model.objects.filter(id__in=session_ids)`, the public-schema queries MUST add an explicit `.filter(org_id=org_id)` — schema routing protects only the tenant-schema queries, and a session can carry stale ids from a foreign tenant. See [`rules/RULE_tenant-scoped-fk-validation.md`](../../rules/RULE_tenant-scoped-fk-validation.md) for the full pattern (per-kind `tenant_scope_required` flag) and the diagnostic recipe.
+**Validate-and-prune helpers walking BOTH kinds**: when a single helper iterates a heterogeneous list of FK kinds (some tenant-schema, some public-schema-with-`org_id`) and does existence checks like `Model.objects.filter(id__in=session_ids)`, the public-schema queries MUST add an explicit `.filter(org_id=org_id)` — schema routing protects only the tenant-schema queries, and a session can carry stale ids from a foreign tenant. See [`references/TENANT_SCOPED_FK_VALIDATION.md`](references/TENANT_SCOPED_FK_VALIDATION.md) for the full pattern (per-kind `tenant_scope_required` flag) and the diagnostic recipe.
 
 ### Generic foreign keys and polymorphism
 
@@ -681,7 +681,7 @@ Canonical flow:
 
 Key gotcha — **Gettext fuzzy matching**: `msgmerge` appends `#, fuzzy` markers to guessed translations. If the pipeline strips the flag without wiping the msgstr, bad guesses burn into the `.mo` files. The extract target must invoke `msgattrib --clear-fuzzy --empty` to reset all fuzzy entries to empty msgstr, forcing explicit re-translation.
 
-Full workflow detail in [references/I18N.md](references/I18N.md). Hard rules across projects in [`RULE_i18n-workflow`](../../rules/RULE_i18n-workflow.md).
+Full workflow detail in [references/I18N.md](references/I18N.md). Hard rules across projects in [`RULE_i18n-workflow`](references/I18N_WORKFLOW.md).
 
 ### Testing UI strings under locale
 
@@ -794,7 +794,7 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [django-frontend](../django-frontend/SKILL.md) — HTMX / Alpine / Bulma frontend pairing
 - [deployment](../deployment/SKILL.md) — production deployment patterns
 - [surgical-tdd](../surgical-tdd/SKILL.md) — focused test execution
-- [`RULE_i18n-workflow`](../../rules/RULE_i18n-workflow.md) — hard rules for translations
+- [`RULE_i18n-workflow`](references/I18N_WORKFLOW.md) — hard rules for translations
 - [Django Documentation](https://docs.djangoproject.com/)
 - [Django REST Framework](https://www.django-rest-framework.org/)
 - [Django ORM Query Optimisation](https://docs.djangoproject.com/en/stable/topics/db/optimization/)

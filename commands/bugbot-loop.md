@@ -178,6 +178,8 @@ If at least one fix was applied:
 
 ## Phase 4: Wait + wake
 
+The wake-loop in this phase IS a watcher in the [`skills/work/references/WATCHER_HYGIENE.md`](../skills/work/references/WATCHER_HYGIENE.md) sense: orchestrator-armed, supersede-able, never wall-clock-timeout-bound. Apply that reference's discipline — explicit `TaskStop` on supersede, no `pgrep -f` self-match traps, explicit cleanup on terminal condition.
+
 1. `ScheduleWakeup(delaySeconds=180, ...)` for the first poll (cache-warm). Subsequent polls also use short cache-warm intervals — see escalation note below.
 2. On wake: re-fetch bugbot comments via `./tools/find_bugbot_comments.sh`. The script output includes two signals of interest: a `BUGBOT_CLEAN_SIGNAL=<id> COMMIT=<sha> AT=<timestamp>` line if bugbot has posted a "found no new issues" review, and an inline list of any unresolved findings (with their review comment ids).
 3. Decision tree — evaluate in order. The first two branches are **absolute hard-bound guards**: they are checked before any happy-path branch so that the happy paths (which are collectively exhaustive over wake state) cannot shadow them.

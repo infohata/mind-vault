@@ -88,7 +88,7 @@ From the conversation that spawned this plan:
 - **`AGENT_architect`** (`agents/AGENT_architect.md`) — 4-pass structural architecture workflow. Consumed by `skills/plan/` as a reviewer pass over draft plans.
 - **`AGENT_bugbot`** + **`AGENT_curator`** (`agents/AGENT_bugbot.md`, `agents/AGENT_curator.md`) — the 6-pass pre-commit review personas validated on Teisutis. Review stage delegates here unchanged.
 - **`AGENT_backend`, `AGENT_frontend`, `AGENT_devops`, `AGENT_test-engineer`** — implementation personas dispatched by `skills/work/`.
-- **`RULE_parallel-worktree-docker`** (`rules/RULE_parallel-worktree-docker.md`) — isolation contract for parallel work streams. `skills/work/` cites it as the prerequisite when the plan flags parallel execution.
+- **`RULE_parallel-worktree-docker`** (`../../skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md`) — isolation contract for parallel work streams. `skills/work/` cites it as the prerequisite when the plan flags parallel execution.
 - **`RULE_git-safety`** (`rules/RULE_git-safety.md`) — HITL merge gate on `main` / `production`. Governs `skills/compound/`'s mind-vault promotion path (stage files, never commit to main).
 - **`RULE_i18n-workflow`** — enforced by `AGENT_backend` when translated strings change; compound promotions must not regress this.
 - **Auto-memory system** (`~/.claude/projects/-home-kestas-projects-mind-vault/memory/`) — destination for user-behavioural learnings from `/compound`. Types: `feedback_*`, `project_*`, `user_*`, `reference_*`. Already documented in global `CLAUDE.md`.

@@ -115,7 +115,7 @@ This is cheap and prevents long-term `/tmp` creep on machines hosting many orche
 ## Relationship to Other Rules
 
 - [`RULE_git-safety`](RULE_git-safety.md) — orchestrator commits + pushes happen on feature branches; trash-collection of watchers doesn't bypass the merge-to-protected-branch gate.
-- [`RULE_parallel-worktree-docker`](RULE_parallel-worktree-docker.md) § "State-mutating chain trap" — related cwd-hygiene point about `cd "$WORKTREE_VAR" && docker compose down` falling through when the env var is unset. Same family of bug: cwd assumptions from the outer shell don't survive subshell boundaries, and the cure is the same — pin the path explicitly at the point of use.
+- [`RULE_parallel-worktree-docker`](../../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) § "State-mutating chain trap" — related cwd-hygiene point about `cd "$WORKTREE_VAR" && docker compose down` falling through when the env var is unset. Same family of bug: cwd assumptions from the outer shell don't survive subshell boundaries, and the cure is the same — pin the path explicitly at the point of use.
 
 ## Provenance
 

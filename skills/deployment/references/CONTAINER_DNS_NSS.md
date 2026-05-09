@@ -78,6 +78,6 @@ HTTP-01 ACME works throughout because certbot doesn't use the app's `sync_domain
 
 ## Related references
 
-- [`rules/RULE_parallel-worktree-docker.md`](../../../rules/RULE_parallel-worktree-docker.md) — adjacent Docker-networking gotchas (port / subnet / ipv4 collisions when running multiple stacks). Points here for the DNS/NSS layer.
+- [`../../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md`](../../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — adjacent Docker-networking gotchas (port / subnet / ipv4 collisions when running multiple stacks). Points here for the DNS/NSS layer.
 - [`DJANGO_DEPLOYMENT.md`](DJANGO_DEPLOYMENT.md) — Django-specific deploy concerns; any Django project using domain allowlists or ALLOWED_HOSTS gates should consult this file too.
 - [`HARDENING.md`](HARDENING.md) — server hardening is the natural place to codify the "machine hostname should not match production domain" convention.
