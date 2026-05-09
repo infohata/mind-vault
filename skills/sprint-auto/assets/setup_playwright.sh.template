@@ -176,7 +176,7 @@ for f in "${settings_files[@]}"; do
     if (( lang_count > 1 )); then
         HAS_MULTILINGUAL=1
         # If any locale falls outside ASCII Latin-1, recommend noto fonts
-        if grep -qE "['\"](?:lt|ru|uk|bg|el|ka|hy|ja|ko|zh|ar|he|hi|th|vi)['\"]" "$f"; then
+        if grep -qE "['\"](lt|ru|uk|bg|el|ka|hy|ja|ko|zh|ar|he|hi|th|vi)['\"]" "$f"; then
             NEEDS_NOTO_FONTS=1
         fi
         break
