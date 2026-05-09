@@ -202,57 +202,9 @@ items = (
 
 ### FileField MIME capture + registry drift guards
 
-Two recurring failure modes around file uploads + categorised-MIME registries:
+**Fires when** an app handles file uploads and categorises content by MIME type. Two failure modes recur: (1) `FieldFile.content_type` returns empty because `FieldFile.__getattr__` doesn't delegate `content_type` from the underlying `UploadedFile` — the obvious code falls through to extension-based guessing silently; (2) "one true list" registries drift between consumer modules as formats get added to the canonical set but not to the parallel `{mime → format_hint}` dict elsewhere.
 
-**1. `FieldFile.content_type` is always empty** — `FieldFile.__getattr__` does **not** delegate `content_type` from the underlying `UploadedFile`, even on a freshly-assigned field before save. Code that relies on `getattr(att.file, "content_type", None)` to pick up a browser-supplied MIME silently falls through to extension-based guessing every time. Verify via shell:
-
-```python
-uf = SimpleUploadedFile("a.webm", b"x", content_type="audio/webm;codecs=opus")
-att = MyModel(file=uf)
-getattr(att.file, "content_type", "MISSING")       # → "MISSING" (surprise)
-getattr(att.file.file, "content_type", "MISSING")  # → "audio/webm;codecs=opus"
-```
-
-Capture at upload into a DB column; read path prefers the column over re-read:
-
-```python
-class Attachment(models.Model):
-    file = models.FileField(upload_to="attachments/")
-    mime_type = models.CharField(max_length=127, blank=True, default="")
-
-    def save(self, *args, **kwargs):
-        if self.file and not self.mime_type:
-            underlying = getattr(self.file, "file", None)
-            if isinstance(underlying, UploadedFile):
-                raw = getattr(underlying, "content_type", "") or ""
-                if raw:
-                    # Strip ``;codecs=…`` / ``;charset=…`` so re-reads get a clean MIME.
-                    self.mime_type = raw.split(";", 1)[0].strip().lower()[:127]
-        super().save(*args, **kwargs)
-```
-
-Backfill migration for legacy rows uses `mimetypes.guess_type(filename)`; pair with an explicit `migrations.RunPython.noop` reverse (the forward operation isn't safely reversible once new uploads start populating the column — blanking it on reverse would wipe correct data).
-
-**2. "One true list" enforced at import time** — when the canonical set lives in module A (e.g. `teisutis_core.attachment_types.AUDIO_MIMES`) and a parallel consumer module B carries a related dict (e.g. `{mime → pydub_format_hint}`), the two drift silently as new formats are added to A. Enforce coverage with a module-scope assert in B so any new format *has to* update both sides or the app physically won't start:
-
-```python
-from teisutis_core.attachment_types import AUDIO_MIMES
-
-_MIME_TO_FORMAT = {
-    "audio/webm": "webm",
-    "audio/mp4": "mp4",
-    # …
-}
-
-_missing = AUDIO_MIMES - _MIME_TO_FORMAT.keys()
-assert not _missing, (
-    f"_MIME_TO_FORMAT is missing pydub mappings for AUDIO_MIMES: {sorted(_missing)}. "
-    f"Update both sides when adding a format to the registry."
-)
-del _missing
-```
-
-The assert fires at import, which is what you want — startup fails before the first request, so the drift is discovered at `python manage.py check` rather than on the first user-facing audio upload.
+Fixes: capture browser-supplied MIME at upload into a dedicated DB column (`mime_type`) by reading `self.file.file.content_type` (NOT `self.file.content_type`), strip `;codecs=…`/`;charset=…` suffixes, prefer the column on read; pair the canonical set + consumer dict with a module-scope `assert` that fires at import time so missing entries crash `python manage.py check` rather than the first user-facing upload. Mechanics — full save() override, backfill migration with `RunPython.noop` reverse, drift-guard assert example — are in [`references/FILEFIELD_MIME_CAPTURE.md`](references/FILEFIELD_MIME_CAPTURE.md). Read that reference when this section fires.
 
 ### DRF — base viewset and permissions
 
@@ -713,6 +665,7 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 ## References
 
 - [Cross-entity session-filter](references/CROSS_ENTITY_SESSION_FILTER.md) — fan-out invalidation when a cross-entity field's change leaves derived per-entity state stale across sibling session entries; full `_clear_tags_from_other_entity_sessions` helper + two safety gates
+- [FileField MIME capture](references/FILEFIELD_MIME_CAPTURE.md) — `FieldFile.content_type` is empty by design; capture browser MIME at upload + import-time `assert` that locks the canonical set ↔ consumer dict against drift
 - [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation
 - [Async WebSocket](references/ASYNC_WEBSOCKET.md) — Channels consumers and routing
 - [Celery Background Tasks](references/CELERY.md)
