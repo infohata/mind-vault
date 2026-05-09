@@ -3,7 +3,7 @@ stage: plan
 slug: skill-debloat
 created: 2026-05-09
 source: ./IDEA-002-skill-debloat.md
-status: ready
+status: shipped
 project: mind-vault
 ---
 
@@ -101,7 +101,7 @@ The whole sequence runs on `feature/idea-002-skill-debloat` (already created). P
 ### Phase 1.0 — Architect review
 
 1. Invoke `feature-dev:code-architect` subagent with this plan as input. See `skills/plan/references/architect-handoff.md` for the handoff protocol.
-2. Apply architect findings inline to this plan; flip `status: ready` → `status: ready` once findings are integrated.
+2. Apply architect findings inline to this plan; flip `status: shipped` → `status: shipped` once findings are integrated.
 
 ### Phase 1.1 — Extract wrap Step 5 (worktree teardown)
 
