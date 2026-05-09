@@ -466,46 +466,9 @@ When NOT to apply: one-direction-only renderers (server-only partial, or JS-only
 
 ### Template comment syntax — `{# inline #}` is single-line only
 
-Django has two comment syntaxes and they are not interchangeable:
+**Fires when** writing comments inside Django templates. `{# … #}` is single-line only; multi-line comments must use `{% comment %} … {% endcomment %}`. Mixing them produces a silent **content leak**: a multi-line `{#` opens, hits a newline before `#}`, and Django's tokeniser emits the entire block as plain text on the rendered page. No template error, no test failure — just literal comment text shown to end users.
 
-| Syntax | Multi-line? | Use for |
-| --- | --- | --- |
-| `{# … #}` | **No** — single-line only | A short inline note on one line |
-| `{% comment %} … {% endcomment %}` | Yes | Anything spanning multiple lines |
-
-The failure mode when the wrong one is used: **content leak**. If a `{#` opens and a newline appears before the closing `#}`, Django's tokeniser fails to recognise the construct as a comment and emits the entire block as plain text into the rendered output. No template error, no test failure — just literal "comment" text shown to end users.
-
-```django
-{# This is fine — opens and closes on the same line. #}
-
-{# THIS IS BROKEN — multi-line {# #} renders as visible
-   text on the page because Django's tokeniser only matches
-   {# … #} when both delimiters are on the same line. #}
-
-{% comment %}
-    This works for any number of lines. Use this whenever
-    the comment doesn't fit on a single line, especially
-    documentation comments above template blocks.
-{% endcomment %}
-```
-
-Worked example — teisutis IDEA-124 PR #375 ([fix commit](https://github.com/infohata/teisutis/commit/c68905ab)): a multi-line `{# … #}` block documenting the audio-fallback behavior leaked its contents onto the rendered chat-input area. Visible to every user picking a voice file pre-send. Bugbot didn't catch it because the regression suite tested the partial in isolation and the comment was in chat.html itself, not the partial. Surfaced immediately on first manual browser hit on staging.
-
-**Detection during review**: grep for `{#` followed by a newline before `#}`:
-
-```python
-import re, pathlib
-for path in pathlib.Path('.').rglob('*.html'):
-    text = path.read_text(errors='replace')
-    for m in re.finditer(r'\{#', text):
-        rest = text[m.start():]
-        nl, end = rest.find('\n'), rest.find('#}')
-        if end == -1 or (nl != -1 and nl < end):
-            line_no = text[:m.start()].count('\n') + 1
-            print(f'{path}:{line_no}: multi-line {{# #}} — convert to {{% comment %}}')
-```
-
-CI hook this as a pre-commit lint when the templates surface starts to grow.
+Mechanics — full syntax matrix, leak failure-mode example, teisutis IDEA-124 PR #375 worked example (audio-fallback comment leaked into chat-input UI), and the grep-based detection recipe (`{#` followed by a newline before `#}`) suitable for CI pre-commit lint — are in [`references/TEMPLATE_COMMENT_SYNTAX.md`](references/TEMPLATE_COMMENT_SYNTAX.md). Read that reference when this section fires.
 
 ### Sibling trap — Django tag literals inside JS `//` comments
 
@@ -658,6 +621,7 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [App-shell layout](references/APP_SHELL_LAYOUT.md) — fixed-viewport + per-pane-scroll layout primitives, "unstable child" `min-height: 0` rule, `scroll-utils.findScrollContainer` helper, document-scroll-migration regressions
 - [Alpine.store coordinators with delayed-registered consumers](references/ALPINE_STORE_COORDINATORS.md) — `onRegister` callback pattern: register-or-queue API, one-shot semantics, sync-or-deferred transparency, replaces fragile `Alpine.effect`-poll-instance idiom
 - [Active-state tracking](references/ACTIVE_STATE_TRACKING.md) — `aria-current="true"` + CSS `:has()` instead of JS class-toggling for "currently selected" list items: single source of truth, free a11y, HTMX-swap-friendly
+- [Template comment syntax](references/TEMPLATE_COMMENT_SYNTAX.md) — `{# inline #}` is single-line only; multi-line uses `{% comment %}`; content-leak failure mode; grep-based detection recipe for CI lint
 - [Base Template + Theme](references/BASE_TEMPLATE.md)
 - [Modal System](references/MODAL_SYSTEM.md)
 - [HTMX Widgets](references/HTMX_WIDGETS.md) — autocomplete, file upload, colour/icon pickers
