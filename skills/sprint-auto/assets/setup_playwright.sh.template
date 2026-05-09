@@ -1,0 +1,638 @@
+#!/usr/bin/env bash
+# tools/setup_playwright.sh — provision Playwright (Direction 1) into a project.
+#
+# COPY this file into your project as tools/setup_playwright.sh, chmod +x,
+# review, then run from the project root. (Do not symlink — the script is
+# project-local; mind-vault carries the canonical template.)
+#
+# What it does (idempotent — safe to re-run):
+#
+#   1. Detects your project shape: docker-compose web service, Makefile,
+#      pytest config, CI provider, django-tenants, multilingual settings.
+#   2. Prints the planned changes and waits for confirmation (unless run
+#      with --yes).
+#   3. Appends Playwright deps to requirements-dev.txt (or equivalent).
+#   4. Writes a Dockerfile delta for `playwright install --with-deps chromium`.
+#   5. Adds Makefile targets: playwright-test, playwright-update-baselines,
+#      playwright-trace-clean.
+#   6. Appends pytest config block to pyproject.toml / pytest.ini / setup.cfg.
+#   7. Writes .github/workflows/playwright.yml (or .gitlab-ci.yml stage).
+#   8. Appends .gitignore patterns for traces, reports, and *.actual.png.
+#   9. Provisions a tests/playwright/conftest.py skeleton (with django-tenants
+#      tenant_session fixture stub if django-tenants is in deps).
+#  10. Provisions a browser_context_args fixture pinning locale (if the
+#      project has > 1 LANGUAGES entry).
+#  11. Adds fonts-noto + fc-cache to the Dockerfile apt step (if multilingual).
+#
+# Image rebuild is NOT triggered automatically — the operator runs
+# `docker compose build` after reviewing the diff.
+#
+# Discipline this script wires in (see RULE_visual-baseline-bumps.md):
+#   - `make playwright-test` runs WITHOUT --update-snapshots.
+#   - `make playwright-update-baselines` is a separate, explicit target.
+#   - AI agents should NEVER call the second target.
+#   - The CI workflow stub does not pass --update-snapshots.
+
+set -euo pipefail
+
+# ============================================================================
+# Config — adjust if your project's defaults differ
+# ============================================================================
+
+PROJECT_ROOT="${PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+WEB_SERVICE="${WEB_SERVICE:-web}"
+REQUIREMENTS_DEV="${REQUIREMENTS_DEV:-requirements-dev.txt}"
+DOCKERFILE_PATH="${DOCKERFILE_PATH:-Dockerfile}"
+PLAYWRIGHT_TEST_DIR="${PLAYWRIGHT_TEST_DIR:-tests/playwright}"
+
+# Pinned versions — bump deliberately; coordinate with image rebuild.
+PLAYWRIGHT_VERSION="${PLAYWRIGHT_VERSION:-1.49.0}"
+PYTEST_PLAYWRIGHT_VERSION="${PYTEST_PLAYWRIGHT_VERSION:-0.5.2}"
+PYTEST_PLAYWRIGHT_VISUAL_SNAPSHOT_VERSION="${PYTEST_PLAYWRIGHT_VISUAL_SNAPSHOT_VERSION:-0.5.1}"
+AXE_PLAYWRIGHT_PYTHON_VERSION="${AXE_PLAYWRIGHT_PYTHON_VERSION:-1.0.4}"
+
+# Image base — Microsoft's official Playwright image is the alternative path.
+PLAYWRIGHT_IMAGE="${PLAYWRIGHT_IMAGE:-mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy}"
+
+ASSUME_YES=0
+DRY_RUN=0
+
+# ============================================================================
+# Logging helpers
+# ============================================================================
+
+log()    { printf '[setup_playwright] %s\n' "$*"; }
+warn()   { printf '[setup_playwright] WARN: %s\n' "$*" >&2; }
+err()    { printf '[setup_playwright] ERROR: %s\n' "$*" >&2; }
+detect() { printf '[setup_playwright] detect: %s\n' "$*"; }
+write()  { printf '[setup_playwright] write : %s\n' "$*"; }
+skip()   { printf '[setup_playwright] skip  : %s\n' "$*"; }
+
+# ============================================================================
+# Argument parsing
+# ============================================================================
+
+usage() {
+    cat <<EOF
+Usage: $0 [--yes] [--dry-run]
+
+  --yes       Skip the confirmation prompt; apply all changes.
+  --dry-run   Print the plan only; make no filesystem changes.
+  --help      Show this help.
+
+Environment overrides (rarely needed):
+  PROJECT_ROOT, WEB_SERVICE, REQUIREMENTS_DEV, DOCKERFILE_PATH,
+  PLAYWRIGHT_TEST_DIR, PLAYWRIGHT_VERSION (and friends).
+EOF
+}
+
+while (( $# > 0 )); do
+    case "$1" in
+        --yes|-y)     ASSUME_YES=1 ;;
+        --dry-run|-n) DRY_RUN=1 ;;
+        --help|-h)    usage; exit 0 ;;
+        *) err "Unknown argument: $1"; usage >&2; exit 2 ;;
+    esac
+    shift
+done
+
+# ============================================================================
+# Preflight
+# ============================================================================
+
+cd "$PROJECT_ROOT"
+log "Project root: $PROJECT_ROOT"
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    err "Not inside a git repository. Run from your project root."
+    exit 1
+fi
+
+if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+    warn "Working tree is not clean. Recommended: commit or stash first so changes are reviewable in isolation."
+fi
+
+# ============================================================================
+# Detection
+# ============================================================================
+
+HAS_COMPOSE=0
+HAS_WEB_SERVICE=0
+WEB_IS_PYTHON=0
+HAS_MAKEFILE=0
+HAS_PYPROJECT=0
+HAS_PYTEST_INI=0
+HAS_SETUP_CFG=0
+HAS_GH_WORKFLOWS=0
+HAS_GITLAB_CI=0
+HAS_GITIGNORE=0
+HAS_DJANGO_TENANTS=0
+HAS_MULTILINGUAL=0
+NEEDS_NOTO_FONTS=0
+
+[[ -f docker-compose.yml || -f compose.yml || -f compose.yaml ]] && HAS_COMPOSE=1
+[[ -f Makefile ]]         && HAS_MAKEFILE=1
+[[ -f pyproject.toml ]]   && HAS_PYPROJECT=1
+[[ -f pytest.ini ]]       && HAS_PYTEST_INI=1
+[[ -f setup.cfg ]]        && HAS_SETUP_CFG=1
+[[ -d .github/workflows ]] && HAS_GH_WORKFLOWS=1
+[[ -f .gitlab-ci.yml ]]   && HAS_GITLAB_CI=1
+[[ -f .gitignore ]]       && HAS_GITIGNORE=1
+
+if (( HAS_COMPOSE )); then
+    compose_file="docker-compose.yml"
+    [[ -f compose.yml ]]  && compose_file="compose.yml"
+    [[ -f compose.yaml ]] && compose_file="compose.yaml"
+    if grep -qE "^[[:space:]]*${WEB_SERVICE}:" "$compose_file"; then
+        HAS_WEB_SERVICE=1
+        # Heuristic: web is Python iff the Dockerfile or compose mentions python
+        if [[ -f "$DOCKERFILE_PATH" ]] && grep -qiE 'python|pip' "$DOCKERFILE_PATH"; then
+            WEB_IS_PYTHON=1
+        elif grep -qiE 'python|pip' "$compose_file"; then
+            WEB_IS_PYTHON=1
+        fi
+    fi
+fi
+
+# django-tenants in any requirements file
+if grep -rqE '^django-tenants[[:space:]>=<]' requirements*.txt 2>/dev/null \
+        || grep -rqE 'django-tenants' pyproject.toml 2>/dev/null; then
+    HAS_DJANGO_TENANTS=1
+fi
+
+# Multilingual: search settings.py for LANGUAGES list with > 1 entry
+# (best-effort — projects with non-standard layouts may need manual override).
+settings_files=()
+while IFS= read -r f; do
+    settings_files+=("$f")
+done < <(find . -type f -name 'settings*.py' \
+            -not -path '*/.venv/*' -not -path '*/venv/*' -not -path '*/node_modules/*' \
+            2>/dev/null | head -20)
+
+for f in "${settings_files[@]}"; do
+    # Heuristic: presence of a LANGUAGES tuple/list with at least 2 ('xx', ...) entries
+    lang_count=$(awk '/LANGUAGES[[:space:]]*=/{flag=1} flag{print} /\)\s*$|\]\s*$/{if(flag){flag=0}}' "$f" 2>/dev/null \
+                 | grep -cE "^[[:space:]]*\(['\"]" || true)
+    if (( lang_count > 1 )); then
+        HAS_MULTILINGUAL=1
+        # If any locale falls outside ASCII Latin-1, recommend noto fonts
+        if grep -qE "['\"](?:lt|ru|uk|bg|el|ka|hy|ja|ko|zh|ar|he|hi|th|vi)['\"]" "$f"; then
+            NEEDS_NOTO_FONTS=1
+        fi
+        break
+    fi
+done
+
+# ============================================================================
+# Plan summary
+# ============================================================================
+
+print_plan() {
+    cat <<EOF
+
+============================================================
+Detected project shape:
+  docker-compose:        $( (( HAS_COMPOSE )) && echo yes || echo no)
+  '$WEB_SERVICE' service:           $( (( HAS_WEB_SERVICE )) && echo yes || echo no)
+  '$WEB_SERVICE' is Python:         $( (( WEB_IS_PYTHON )) && echo yes || echo no)
+  Makefile:              $( (( HAS_MAKEFILE )) && echo yes || echo no)
+  pyproject.toml:        $( (( HAS_PYPROJECT )) && echo yes || echo no)
+  pytest.ini:            $( (( HAS_PYTEST_INI )) && echo yes || echo no)
+  setup.cfg:             $( (( HAS_SETUP_CFG )) && echo yes || echo no)
+  GitHub workflows:      $( (( HAS_GH_WORKFLOWS )) && echo yes || echo no)
+  GitLab CI:             $( (( HAS_GITLAB_CI )) && echo yes || echo no)
+  .gitignore:            $( (( HAS_GITIGNORE )) && echo yes || echo no)
+  django-tenants:        $( (( HAS_DJANGO_TENANTS )) && echo yes || echo no)
+  multilingual (>1 lang):$( (( HAS_MULTILINGUAL )) && echo yes || echo no)
+  needs noto fonts:      $( (( NEEDS_NOTO_FONTS )) && echo yes || echo no)
+
+Planned changes:
+EOF
+
+    if (( WEB_IS_PYTHON )); then
+        echo "  + Append to $REQUIREMENTS_DEV: playwright, pytest-playwright,"
+        echo "    pytest-playwright-visual-snapshot, axe-playwright-python."
+        echo "  + Append to $DOCKERFILE_PATH: 'RUN playwright install --with-deps chromium'"
+        echo "    after the pip install layer."
+    elif (( HAS_COMPOSE )); then
+        echo "  + Create docker-compose.playwright.yml overlay with playwright service"
+        echo "    using $PLAYWRIGHT_IMAGE."
+    else
+        echo "  ! No web service or compose file found. Aborting — manually adopt"
+        echo "    Playwright into your stack first."
+    fi
+
+    if (( HAS_MAKEFILE )); then
+        echo "  + Append to Makefile: playwright-test, playwright-update-baselines,"
+        echo "    playwright-trace-clean targets."
+    fi
+
+    if (( HAS_PYPROJECT || HAS_PYTEST_INI || HAS_SETUP_CFG )); then
+        echo "  + Append pytest config block (testpaths, addopts, markers)."
+    fi
+
+    if (( HAS_GH_WORKFLOWS )); then
+        echo "  + Write .github/workflows/playwright.yml stub."
+    elif (( HAS_GITLAB_CI )); then
+        echo "  + Append playwright job stage to .gitlab-ci.yml."
+    else
+        echo "  ! No CI provider detected; skipping CI integration."
+    fi
+
+    if (( HAS_GITIGNORE )); then
+        echo "  + Append to .gitignore: __snapshots__/*.actual.png,"
+        echo "    __snapshots__/*.diff.png, playwright-traces/, playwright-report/."
+    fi
+
+    echo "  + Provision $PLAYWRIGHT_TEST_DIR/conftest.py skeleton."
+    if (( HAS_DJANGO_TENANTS )); then
+        echo "    (Includes tenant_session fixture stub for django-tenants.)"
+    fi
+    if (( HAS_MULTILINGUAL )); then
+        echo "    (Includes browser_context_args locale-pinning fixture.)"
+    fi
+
+    if (( NEEDS_NOTO_FONTS )) && [[ -f "$DOCKERFILE_PATH" ]]; then
+        echo "  + Add fonts-noto fonts-liberation to Dockerfile apt step + fc-cache -fv."
+    fi
+
+    echo
+    echo "Image rebuild is NOT automatic. After this script:"
+    echo "  - Review the diff:  git diff"
+    echo "  - Rebuild the image: docker compose build $WEB_SERVICE"
+    echo "  - Verify in container: docker compose run --rm $WEB_SERVICE playwright --version"
+    echo "============================================================"
+    echo
+}
+
+print_plan
+
+if (( ! WEB_IS_PYTHON )) && (( ! HAS_COMPOSE )); then
+    err "Cannot proceed without a docker-compose file or Python web service."
+    exit 1
+fi
+
+if (( DRY_RUN )); then
+    log "Dry-run: not applying any changes."
+    exit 0
+fi
+
+if (( ! ASSUME_YES )); then
+    read -r -p "Apply these changes? [y/N] " confirm
+    [[ "$confirm" =~ ^[Yy]$ ]] || { log "Cancelled."; exit 0; }
+fi
+
+# ============================================================================
+# Idempotence helper — append a block iff its sentinel marker is absent.
+# ============================================================================
+
+# append_block <file> <sentinel> <heredoc-content-via-stdin>
+append_block() {
+    local file="$1"
+    local sentinel="$2"
+    if [[ -f "$file" ]] && grep -qF "$sentinel" "$file"; then
+        skip "$file (sentinel '$sentinel' already present)"
+        return 0
+    fi
+    write "$file"
+    cat >> "$file"
+}
+
+# ============================================================================
+# Step 1 — requirements-dev.txt
+# ============================================================================
+
+if (( WEB_IS_PYTHON )); then
+    append_block "$REQUIREMENTS_DEV" '# playwright deps (managed by setup_playwright.sh)' <<EOF
+
+# playwright deps (managed by setup_playwright.sh)
+playwright==${PLAYWRIGHT_VERSION}
+pytest-playwright==${PYTEST_PLAYWRIGHT_VERSION}
+pytest-playwright-visual-snapshot==${PYTEST_PLAYWRIGHT_VISUAL_SNAPSHOT_VERSION}
+axe-playwright-python==${AXE_PLAYWRIGHT_PYTHON_VERSION}
+EOF
+fi
+
+# ============================================================================
+# Step 2 — Dockerfile delta
+# ============================================================================
+
+if (( WEB_IS_PYTHON )) && [[ -f "$DOCKERFILE_PATH" ]]; then
+    append_block "$DOCKERFILE_PATH" '# playwright browser install (managed by setup_playwright.sh)' <<EOF
+
+# playwright browser install (managed by setup_playwright.sh)
+# Runs after pip install of $REQUIREMENTS_DEV. Chromium only — Firefox / WebKit
+# add image weight without proportionate regression-catching value for v1.
+RUN playwright install --with-deps chromium
+EOF
+fi
+
+# ============================================================================
+# Step 3 — Compose overlay (only if web is non-Python)
+# ============================================================================
+
+if (( ! WEB_IS_PYTHON )) && (( HAS_COMPOSE )); then
+    overlay=docker-compose.playwright.yml
+    if [[ ! -f "$overlay" ]]; then
+        write "$overlay"
+        cat > "$overlay" <<EOF
+# Loaded with: docker compose -f docker-compose.yml -f docker-compose.playwright.yml ...
+# (consider adding a Make target that wires the -f flag automatically.)
+services:
+  playwright:
+    image: ${PLAYWRIGHT_IMAGE}
+    working_dir: /app
+    volumes:
+      - .:/app
+    network_mode: host
+    command: ["sleep", "infinity"]
+    profiles: ["playwright"]
+EOF
+    else
+        skip "$overlay (already exists)"
+    fi
+fi
+
+# ============================================================================
+# Step 4 — Makefile targets
+# ============================================================================
+
+if (( HAS_MAKEFILE )); then
+    append_block Makefile '# playwright targets (managed by setup_playwright.sh)' <<'EOF'
+
+# playwright targets (managed by setup_playwright.sh)
+# Discipline (see RULE_visual-baseline-bumps.md):
+#   - playwright-test does NOT pass --update-snapshots.
+#   - playwright-update-baselines is a SEPARATE target the operator
+#     invokes deliberately. AI agents must NEVER call it.
+#   - playwright-trace-clean drops failed-test traces between runs.
+.PHONY: playwright-test playwright-update-baselines playwright-trace-clean
+
+playwright-test:
+	@docker compose exec -T web pytest tests/playwright/ \
+		--tracing retain-on-failure \
+		--video retain-on-failure
+
+playwright-update-baselines:
+	@echo ""
+	@echo "WARNING: about to regenerate visual baselines."
+	@echo "Per RULE_visual-baseline-bumps.md, this target requires explicit"
+	@echo "human invocation. AI agents must NEVER call this."
+	@echo ""
+	@docker compose exec -T web pytest tests/playwright/ --update-snapshots
+
+playwright-trace-clean:
+	@find . -path '*/playwright-traces/*' -delete 2>/dev/null || true
+	@find . -path '*/playwright-report/*' -delete 2>/dev/null || true
+	@echo "Cleaned playwright-traces/ and playwright-report/."
+EOF
+fi
+
+# ============================================================================
+# Step 5 — pytest config
+# ============================================================================
+
+PYTEST_CONFIG_BLOCK=$(cat <<'EOF'
+
+# pytest config (managed by setup_playwright.sh)
+[tool.pytest.ini_options]
+testpaths = ["tests/playwright", "web"]
+addopts = "--tracing retain-on-failure --video retain-on-failure"
+markers = [
+    "playwright: tests that drive a real browser via playwright",
+    "visual: tests that compare against committed visual baselines",
+    "a11y: tests that run axe-core accessibility scans",
+]
+EOF
+)
+
+if (( HAS_PYPROJECT )); then
+    append_block pyproject.toml '# pytest config (managed by setup_playwright.sh)' <<<"$PYTEST_CONFIG_BLOCK"
+elif (( HAS_PYTEST_INI )); then
+    append_block pytest.ini '# pytest config (managed by setup_playwright.sh)' <<'EOF'
+
+# pytest config (managed by setup_playwright.sh)
+[pytest]
+testpaths = tests/playwright web
+addopts = --tracing retain-on-failure --video retain-on-failure
+markers =
+    playwright: tests that drive a real browser via playwright
+    visual: tests that compare against committed visual baselines
+    a11y: tests that run axe-core accessibility scans
+EOF
+elif (( HAS_SETUP_CFG )); then
+    append_block setup.cfg '# pytest config (managed by setup_playwright.sh)' <<'EOF'
+
+# pytest config (managed by setup_playwright.sh)
+[tool:pytest]
+testpaths = tests/playwright web
+addopts = --tracing retain-on-failure --video retain-on-failure
+markers =
+    playwright: tests that drive a real browser via playwright
+    visual: tests that compare against committed visual baselines
+    a11y: tests that run axe-core accessibility scans
+EOF
+fi
+
+# ============================================================================
+# Step 6 — CI workflow
+# ============================================================================
+
+if (( HAS_GH_WORKFLOWS )); then
+    workflow=.github/workflows/playwright.yml
+    if [[ ! -f "$workflow" ]]; then
+        write "$workflow"
+        cat > "$workflow" <<'EOF'
+name: playwright
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  playwright:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build dev image
+        run: docker compose build web
+
+      - name: Bring up stack
+        run: docker compose up -d --wait
+
+      - name: Run playwright tests
+        run: docker compose exec -T web pytest tests/playwright/
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: |
+            playwright-traces/
+            playwright-report/
+            **/__snapshots__/**/*.actual.png
+            **/__snapshots__/**/*.diff.png
+          retention-days: 7
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose down -v
+EOF
+    else
+        skip "$workflow (already exists — review for Playwright integration)"
+    fi
+elif (( HAS_GITLAB_CI )); then
+    append_block .gitlab-ci.yml '# playwright stage (managed by setup_playwright.sh)' <<'EOF'
+
+# playwright stage (managed by setup_playwright.sh)
+playwright:
+  stage: test
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker compose build web
+    - docker compose up -d --wait
+    - docker compose exec -T web pytest tests/playwright/
+  artifacts:
+    when: on_failure
+    paths:
+      - playwright-traces/
+      - playwright-report/
+    expire_in: 7 days
+EOF
+fi
+
+# ============================================================================
+# Step 7 — .gitignore
+# ============================================================================
+
+if (( HAS_GITIGNORE )); then
+    append_block .gitignore '# playwright (managed by setup_playwright.sh)' <<'EOF'
+
+# playwright (managed by setup_playwright.sh)
+**/__snapshots__/**/*.actual.png
+**/__snapshots__/**/*.diff.png
+playwright-traces/
+playwright-report/
+EOF
+fi
+
+# ============================================================================
+# Step 8 — conftest.py skeleton
+# ============================================================================
+
+mkdir -p "$PLAYWRIGHT_TEST_DIR"
+conftest="$PLAYWRIGHT_TEST_DIR/conftest.py"
+
+if [[ -f "$conftest" ]]; then
+    skip "$conftest (already exists — review against the template stub)"
+else
+    write "$conftest"
+    cat > "$conftest" <<'EOF'
+"""Playwright test fixtures.
+
+Provisioned by tools/setup_playwright.sh — see ROADMAP and the relevant
+references in mind-vault for the discipline that governs these.
+
+References:
+  - skills/django-frontend/references/HTMX_ALPINE_WAITS.md
+  - skills/django-frontend/references/MULTI_TENANT_PLAYWRIGHT.md
+  - rules/RULE_visual-baseline-bumps.md
+"""
+import os
+import pytest
+
+
+@pytest.fixture(scope='session')
+def browser_context_args(browser_context_args):
+    """Pin locale + Accept-Language so visual baselines stay deterministic
+    across environments. Override via PLAYWRIGHT_LOCALE env var.
+    """
+    locale = os.environ.get('PLAYWRIGHT_LOCALE', 'en-US')
+    return {
+        **browser_context_args,
+        'locale': locale,
+        'extra_http_headers': {
+            **browser_context_args.get('extra_http_headers', {}),
+            'Accept-Language': locale,
+        },
+    }
+EOF
+fi
+
+# Append django-tenants stub if applicable.
+if (( HAS_DJANGO_TENANTS )) && ! grep -q 'tenant_session' "$conftest"; then
+    write "$conftest (append tenant_session stub)"
+    cat >> "$conftest" <<'EOF'
+
+
+@pytest.fixture
+def tenant_session(db):
+    """Bootstrap a tenant schema for django-tenants Playwright tests.
+
+    See skills/django-frontend/references/MULTI_TENANT_PLAYWRIGHT.md for the
+    full pattern (Host-header injection, schema seeding, storage_state
+    cookie pre-baking).
+
+    Replace the schema_name and primary_domain with values that match your
+    test fixtures.
+    """
+    from django_tenants.utils import schema_context, get_tenant_model
+    from django.core.management import call_command
+
+    Tenant = get_tenant_model()
+    tenant, _ = Tenant.objects.get_or_create(
+        schema_name='tenant_test',
+        defaults={'name': 'Test Tenant'},
+    )
+    tenant.domains.get_or_create(
+        domain='tenant-test.example.test',
+        defaults={'is_primary': True, 'tenant': tenant},
+    )
+    with schema_context(tenant.schema_name):
+        call_command('migrate_schemas', '--schema', tenant.schema_name, verbosity=0)
+    return tenant
+EOF
+fi
+
+# ============================================================================
+# Step 9 — fonts in Dockerfile (multilingual support)
+# ============================================================================
+
+if (( NEEDS_NOTO_FONTS )) && [[ -f "$DOCKERFILE_PATH" ]] && \
+        ! grep -q 'fonts-noto' "$DOCKERFILE_PATH"; then
+    append_block "$DOCKERFILE_PATH" '# noto fonts for multilingual playwright baselines (managed by setup_playwright.sh)' <<'EOF'
+
+# noto fonts for multilingual playwright baselines (managed by setup_playwright.sh)
+# Without these, non-Latin glyphs render via fallback fonts and visual baselines
+# diff every Chromium minor bump. fc-cache rebuilds the font cache so Chromium
+# picks up the new fonts at startup.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        fonts-noto fonts-noto-cjk fonts-liberation \
+    && fc-cache -fv \
+    && rm -rf /var/lib/apt/lists/*
+EOF
+fi
+
+# ============================================================================
+# Done
+# ============================================================================
+
+cat <<EOF
+
+[setup_playwright] Done.
+
+Next steps:
+  1. git diff           — review the changes.
+  2. git add -p && git commit -m 'chore(playwright): provision Direction-1 plumbing'
+  3. docker compose build $WEB_SERVICE
+  4. docker compose run --rm $WEB_SERVICE playwright --version
+  5. Open the first Playwright IDEA — see ROADMAP § Implementation sketch.
+
+EOF
