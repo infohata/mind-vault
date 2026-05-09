@@ -73,7 +73,7 @@ Run once, before any per-IDEA work. If **any** check fails, abort with an action
    - **Probe = absent, IDEA has `requires_playwright: true`** → plan author writes ONLY the manual-eval-checklist rows for Playwright-relevant scenarios; the frontmatter flag stays as a backref so a later "set up Playwright" IDEA can backfill tests.
    - **IDEA has no `requires_playwright`** → IDEA proceeds independent of probe outcome.
 
-   See [`ROADMAP.md`](ROADMAP.md) § "IDEA-level Playwright-availability gate" for the full rationale (bootstrap circularity solved by manual-eval fallback; no IDEA blocks on infra readiness).
+   Bootstrap circularity is solved by manual-eval fallback: the first project-side "set up Playwright" IDEA's `requires_playwright` is `false` (it provisions the gate's "present" state but doesn't depend on it); after it merges, downstream IDEAs' probes flip to "present" and the gate begins authoring tests. No IDEA is ever blocked on infra readiness.
 
 ### 2. Per-IDEA execution loop (S0–S11)
 
@@ -294,7 +294,7 @@ No `/compound` reminder here — compound ran in section 4 above.
 - [skills/wrap/SKILL.md](../wrap/SKILL.md) — invoked per IDEA at step 6 (`--scope=idea-only` mode); post-merge destructive teardown extended for `--integration <batch-iso>` mode (v3.2: human merges the integration PR; teardown runs from the integration ref, not last-of-batch IDEA)
 - [skills/compound/SKILL.md](../compound/SKILL.md) — invoked at batch end (section 4) for cross-project learnings; each mind-vault PR is itself bugbot-looped
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — the sprint workflow this skill wraps
-- [ROADMAP.md](ROADMAP.md) — Direction-1 (Playwright) plumbing context for the S(-1) availability probe + per-IDEA `requires_playwright` gate
+- [docs/archive/2026-05-idea-001-playwright-plumbing/ROADMAP.md](../../docs/archive/2026-05-idea-001-playwright-plumbing/ROADMAP.md) — historical artefact: the IDEA-001 planning ROADMAP (architect critique + OSS research) for Direction-1 (Playwright). The skill's actual S(-1) probe + per-IDEA `requires_playwright` gate is documented in this file and in `references/safety-gates.md`
 - [assets/setup_playwright.sh.template](assets/setup_playwright.sh.template) — bootstrap script projects copy to provision Playwright
 - [skills/work/references/WATCHER_HYGIENE.md](../work/references/WATCHER_HYGIENE.md) — orchestrator-trash-collection discipline for `run_in_background` watchers across S3/S6/S11.10/S13 bugbot loops
 - [skills/django-frontend/references/VISUAL_BASELINE_BUMPS.md](../django-frontend/references/VISUAL_BASELINE_BUMPS.md) — AI-never-auto-`--update-snapshots` discipline for Direction-1 IDEAs that ship Playwright visual baselines
