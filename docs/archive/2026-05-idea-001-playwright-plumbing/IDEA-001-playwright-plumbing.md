@@ -1,7 +1,7 @@
 ---
 id: 1
 title: Playwright Direction-1 plumbing — assets, gate, preflight
-status: idea
+status: in-progress
 priority: high
 supersedes: []
 superseded_by: null
@@ -17,7 +17,7 @@ sensitive_paths_cleared_reason: "Edits skills that gate sprint-auto execution (S
 
 # IDEA-001: Playwright Direction-1 plumbing — assets, gate, preflight
 
-**Status**: 💡 Idea
+**Status**: 🚧 In Progress
 **Priority**: High
 
 **Problem**: `skills/sprint-auto/ROADMAP.md` (PR #105) describes Direction-1 (Playwright-driven browser tests in the dev image) at near-plan depth — bootstrap script shape, IDEA-level gate semantics, cross-reference contract — but none of the assets exist yet. Until the assets land, every forward-looking pointer in the ROADMAP is a dangling reference, the IDEA-level `requires_playwright` gate is documented behaviour with no implementation, and the first project to adopt Direction-1 has no `setup_playwright.sh.template` to copy.

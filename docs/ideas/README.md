@@ -6,11 +6,11 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-001](../archive/2026-05-idea-001-playwright-plumbing/IDEA-001-playwright-plumbing.md) ⏳ — Playwright Direction-1 plumbing — assets, gate, preflight
 
 ## 💡 High Priority (backlog)
 
-- [IDEA-001](IDEA-001-playwright-plumbing.md) — Playwright Direction-1 plumbing — assets, gate, preflight
+_(none)_
 
 ## 💡 Medium Priority (backlog)
 
