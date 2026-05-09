@@ -44,6 +44,35 @@ The two modes are not a hierarchy — they're orthogonal opt-in signals. An IDEA
 
 The IDEA slug or number must appear in the `/sprint-auto` invocation's args. There is **no scan mode in v1** — if the human didn't type the slug, the skill will not touch the IDEA, even if either opt-in flag is set. Two independent signals = two independent authorial acts.
 
+## Playwright-availability gate (`requires_playwright`)
+
+Direction-1 (Playwright-driven browser tests; see [`../ROADMAP.md`](../ROADMAP.md)) introduces a third frontmatter flag — orthogonal to `auto_safe` and `auto_safe_with_eval_gate`, **not** a fourth opt-in mode and **never** a disqualifier:
+
+```yaml
+---
+# ... standard IDEA fields ...
+auto_safe: false
+auto_safe_with_eval_gate: true
+auto_safe_reason: "..."
+eval_gate_reason: "..."
+requires_playwright: true   # IDEA wants Playwright tests for its surface
+---
+```
+
+**Semantics — three branches** (decided by combining the frontmatter flag with sprint-auto's S(-1) probe outcome — see [`../SKILL.md`](../SKILL.md) § 1 step 9):
+
+| Probe outcome | `requires_playwright` | Behaviour |
+|---|---|---|
+| Present | `true` | Plan author writes Playwright tests in the Verification section + a `playwright_test_coverage` YAML block. `/wrap` Step 7 pre-fills covered eval-checklist rows. |
+| Absent | `true` | Plan author writes ONLY manual-eval-checklist rows for Playwright-relevant scenarios. The flag stays as a backref so a later "set up Playwright" IDEA can backfill tests for these scenarios. **The IDEA still ships through sprint-auto with eval-gate as today.** |
+| (any) | unset / `false` | IDEA proceeds independent of Playwright state. Most IDEAs. |
+
+**Why `requires_playwright` is NOT a disqualifier**: the bootstrap circularity argument from the ROADMAP. If the flag *did* disqualify when probe = absent, the very first project setting up Playwright would be unable to ship the IDEA that provisions Playwright (probe is absent until that IDEA merges). The manual-eval-only fallback closes the loop — every IDEA that mentions Playwright still ships, just with rows that say "manual walk needed" until the infra catches up. After the first project-side `setup_playwright.sh` IDEA merges, downstream IDEAs' probes flip to "present" and the gate begins pre-filling test-covered rows.
+
+**Defence in depth at S2** (per [`../SKILL.md`](../SKILL.md) step 4): `/work` re-probes Playwright availability before running tests; a probe failure between S(-1) and S2 (rare; image rebuild or container reset) logs `playwright_unavailable: true` to the auto-run log, skips Playwright tests for that IDEA, continues with non-Playwright tests. The integration PR's S11.10 evaluation summary surfaces the warning.
+
+**Out of scope for this gate**: deciding *whether* a specific IDEA wants Playwright tests. That's a `/plan`-time architect decision (see [`../../../agents/AGENT_architect.md`](../../../agents/AGENT_architect.md) — the architect probes the project, asks whether the IDEA's deliverable surfaces want browser-test coverage, and proposes adding `requires_playwright: true` to the frontmatter). Once the flag is in the IDEA, this gate just routes; it doesn't author.
+
 ## Automatic disqualifiers
 
 Run these checks at preflight. Any fail → IDEA dropped from the batch with a logged reason; the batch continues if ≥1 IDEA survives, aborts if all drop.
