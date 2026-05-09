@@ -202,57 +202,9 @@ items = (
 
 ### FileField MIME capture + registry drift guards
 
-Two recurring failure modes around file uploads + categorised-MIME registries:
+**Fires when** an app handles file uploads and categorises content by MIME type. Two failure modes recur: (1) `FieldFile.content_type` returns empty because `FieldFile.__getattr__` doesn't delegate `content_type` from the underlying `UploadedFile` — the obvious code falls through to extension-based guessing silently; (2) "one true list" registries drift between consumer modules as formats get added to the canonical set but not to the parallel `{mime → format_hint}` dict elsewhere.
 
-**1. `FieldFile.content_type` is always empty** — `FieldFile.__getattr__` does **not** delegate `content_type` from the underlying `UploadedFile`, even on a freshly-assigned field before save. Code that relies on `getattr(att.file, "content_type", None)` to pick up a browser-supplied MIME silently falls through to extension-based guessing every time. Verify via shell:
-
-```python
-uf = SimpleUploadedFile("a.webm", b"x", content_type="audio/webm;codecs=opus")
-att = MyModel(file=uf)
-getattr(att.file, "content_type", "MISSING")       # → "MISSING" (surprise)
-getattr(att.file.file, "content_type", "MISSING")  # → "audio/webm;codecs=opus"
-```
-
-Capture at upload into a DB column; read path prefers the column over re-read:
-
-```python
-class Attachment(models.Model):
-    file = models.FileField(upload_to="attachments/")
-    mime_type = models.CharField(max_length=127, blank=True, default="")
-
-    def save(self, *args, **kwargs):
-        if self.file and not self.mime_type:
-            underlying = getattr(self.file, "file", None)
-            if isinstance(underlying, UploadedFile):
-                raw = getattr(underlying, "content_type", "") or ""
-                if raw:
-                    # Strip ``;codecs=…`` / ``;charset=…`` so re-reads get a clean MIME.
-                    self.mime_type = raw.split(";", 1)[0].strip().lower()[:127]
-        super().save(*args, **kwargs)
-```
-
-Backfill migration for legacy rows uses `mimetypes.guess_type(filename)`; pair with an explicit `migrations.RunPython.noop` reverse (the forward operation isn't safely reversible once new uploads start populating the column — blanking it on reverse would wipe correct data).
-
-**2. "One true list" enforced at import time** — when the canonical set lives in module A (e.g. `teisutis_core.attachment_types.AUDIO_MIMES`) and a parallel consumer module B carries a related dict (e.g. `{mime → pydub_format_hint}`), the two drift silently as new formats are added to A. Enforce coverage with a module-scope assert in B so any new format *has to* update both sides or the app physically won't start:
-
-```python
-from teisutis_core.attachment_types import AUDIO_MIMES
-
-_MIME_TO_FORMAT = {
-    "audio/webm": "webm",
-    "audio/mp4": "mp4",
-    # …
-}
-
-_missing = AUDIO_MIMES - _MIME_TO_FORMAT.keys()
-assert not _missing, (
-    f"_MIME_TO_FORMAT is missing pydub mappings for AUDIO_MIMES: {sorted(_missing)}. "
-    f"Update both sides when adding a format to the registry."
-)
-del _missing
-```
-
-The assert fires at import, which is what you want — startup fails before the first request, so the drift is discovered at `python manage.py check` rather than on the first user-facing audio upload.
+Fixes: capture browser-supplied MIME at upload into a dedicated DB column (`mime_type`) by reading `self.file.file.content_type` (NOT `self.file.content_type`), strip `;codecs=…`/`;charset=…` suffixes, prefer the column on read; pair the canonical set + consumer dict with a module-scope `assert` that fires at import time so missing entries crash `python manage.py check` rather than the first user-facing upload. Mechanics — full save() override, backfill migration with `RunPython.noop` reverse, drift-guard assert example — are in [`references/FILEFIELD_MIME_CAPTURE.md`](references/FILEFIELD_MIME_CAPTURE.md). Read that reference when this section fires.
 
 ### DRF — base viewset and permissions
 
@@ -331,81 +283,11 @@ HTMX-aware template selection and response-type switching lives in [django-front
 
 ### Cross-entity session-filter state — fan-out invalidation on shared-key change
 
-When user-facing filter state spans multiple list/detail surfaces (articles ↔ events ↔ FAQs ↔ dashboard), a common shape is **two session keys per tenant**:
+**Fires when** user-facing filter state spans multiple list/detail surfaces (articles ↔ events ↔ FAQs ↔ dashboard) and per-entity state is derived from a cross-entity field. Common session-key shape: `cross_filters_<org_id>` for fields that travel (`scope`, `property`, `category`) + `kb_<entity>_filters_<org_id>` for per-entity fields (`q`, `tags`).
 
-- `cross_filters_<org_id>` — fields that *travel* across surfaces (`scope`, `property`, `category`).
-- `kb_<entity>_filters_<org_id>` — per-entity fields (`q` text search, per-entity toggles, `tags`).
+The recurring trap: when the cross-entity field changes value, derived per-entity state goes stale on **every** sibling entry, not just the current request's. The canonical example: tags are FK-scoped to Scope; user picks `scope=A, tag=X` on `/articles/`, cross-links to `/events/`, changes `scope=B`. Entity-local tag-clearing fixes events but leaves `kb_articles_filters_<org>.tags=['X']` referencing a scope-A tag. Articles' picker renders for scope B (no escape) yet session still applies X → 0 results.
 
-```python
-CROSS_ENTITY_FILTER_KEYS: Tuple[str, ...] = ('scope', 'property', 'category')
-
-def get_effective_filters(request, *, namespace: str, filter_keys: tuple) -> dict:
-    """Read URL-or-session filters; bucket writes into cross vs per-entity."""
-    org_id = getattr(get_current_tenant(), 'pk', 0)
-    cross_key = f'cross_filters_{org_id}'
-    entity_key = f'kb_{namespace}_filters_{org_id}'
-    # ... bucket each filter_keys value into cross or entity by membership in
-    # CROSS_ENTITY_FILTER_KEYS, then return the merge.
-```
-
-The trap that recurs across this pattern: **when a cross-entity field changes value, derived per-entity state that was foreign-keyed to it goes stale on EVERY sibling per-entity entry** — not just the current request's. Concrete worked example:
-
-- Tags are FK-scoped to Scope (`Tag.scope_id → Scope.id`).
-- User on `/articles/` picks `scope=A` and `tag=X`. `kb_articles_filters_<org>.tags = ['X']`, `cross_filters_<org>.scope = 'A'`.
-- User cross-links to `/events/` (no GET params).
-- User changes `scope=B` on `/events/`. The current request's entity is `events`; the obvious clear-tags fix only touches `kb_events_filters_<org>`. **`kb_articles_filters_<org>.tags = ['X']` is untouched** — but X is a scope-A tag and doesn't apply to scope B. Articles' tag-picker now renders for scope B (so X isn't in the picker → user can't de-select), but `apply_common_filters` still applies tag X from session → 0 results, no UI escape.
-
-Solution: when the scope-change branch fires, **iterate session keys with a stable namespace prefix** and clear the derived field from every matching entry, not just the current entity.
-
-```python
-def _clear_tags_from_other_entity_sessions(
-    session: Any,
-    org_id: int,
-    skip: str,
-) -> None:
-    """Remove ``tags`` from every ``kb_*_filters_<org_id>`` entry except ``skip``."""
-    suffix = f'_filters_{org_id}'
-    prefix = 'kb_'
-    for key in list(session.keys()):
-        if key == skip:
-            continue
-        if not (isinstance(key, str) and key.startswith(prefix) and key.endswith(suffix)):
-            continue
-        entry = session.get(key) or {}
-        if 'tags' not in entry:
-            continue
-        new_entry = {k: v for k, v in entry.items() if k != 'tags'}
-        if new_entry:
-            session[key] = new_entry
-        else:
-            del session[key]
-
-
-# In get_effective_filters, after the cross/entity bucket-write loop:
-old_scope_value = cross_existing.get('scope', '')   # captured before the loop
-# ... loop fills cross_existing[scope] from get_params if scope changes ...
-scope_changed = (
-    'scope' in filter_keys
-    and old_scope_value
-    and cross_existing.get('scope', '') != old_scope_value
-)
-if scope_changed:
-    if 'tags' in entity_existing:
-        del entity_existing['tags']
-        entity_changed = True
-    _clear_tags_from_other_entity_sessions(
-        request.session, org_id, skip=entity_key,
-    )
-```
-
-Two gates make this safe:
-
-- **`old_scope_value` truthy gate.** The very first scope+tags submit (where the user is intentionally setting both with `'' → 'A'`) would otherwise satisfy "old != new" and clobber the user's own freshly-submitted tags. Truthy gate excludes the empty-to-something case from "change".
-- **`isinstance(key, str)` defence in the helper.** Django sessions normally carry string keys, but mocks and pickled exotic types can leak through; the defensive check keeps the iteration safe.
-
-Generalise the rule: **for any per-entity state derived from a cross-entity field, the cross-field's write site must fan out invalidation across every per-entity session entry that shares the org-scoped suffix**. Entity-local clearing alone is incomplete — at any moment the user has multiple sibling entries holding their own copy of the now-stale derived state.
-
-Tests-as-spec: the `test_scope_change_clears_tags_across_all_entity_sessions` shape is the canonical four-step worked example to copy when adapting the pattern to a new project (set up two surfaces, change scope on one, navigate to the other, assert the second surface's derived state is also cleared).
+Fix: iterate session keys with the stable `kb_*_filters_<org_id>` namespace prefix and clear the derived field from every matching entry except the current. Two safety gates: `old_scope_value` truthy gate (excludes empty-to-something first-submit case from "change"); `isinstance(key, str)` defence inside the helper. Mechanics — full `get_effective_filters` shape, `_clear_tags_from_other_entity_sessions` helper implementation, both safety gates with rationale, generalisation rule, canonical test contract — are in [`references/CROSS_ENTITY_SESSION_FILTER.md`](references/CROSS_ENTITY_SESSION_FILTER.md). Read that reference when this section fires.
 
 ### Middleware
 
@@ -474,56 +356,9 @@ For URL-encoded `DATABASE_URL` parsing and typed casting, use `django-environ` o
 
 ### Env-driven allowlists / denylists as `frozenset`
 
-Allowlists and denylists (blocked MIME types, blocked file extensions, IP allowlists, feature flags keyed by tenant) want three properties at once:
+**Fires when** a list (blocked MIMEs, blocked extensions, IP allowlists, feature flags) needs all three of: per-deployment override without code change, O(1) hot-path membership lookup, and immutability against accidental request-handler mutation.
 
-1. **Per-deployment override without a code change** — sysop changes the policy via env var.
-2. **O(1) membership lookup** at request-handling hot paths.
-3. **Immutability** so a request handler can't accidentally mutate the global set.
-
-`frozenset` parsed from a comma-separated env var with a sane default in code gives all three:
-
-```python
-# settings.py
-ATTACHMENT_BLOCKED_UPLOAD_MIMES = frozenset(filter(None, (
-    m.strip().lower() for m in os.getenv(
-        'ATTACHMENT_BLOCKED_UPLOAD_MIMES',
-        'application/x-msdownload,application/x-msdos-program,'
-        'application/vnd.microsoft.portable-executable,application/x-dosexec,'
-        'application/x-msi,application/x-executable,application/x-elf,'
-        'application/x-mach-binary,application/x-sh,application/x-shellscript,'
-        'application/java-archive'
-    ).split(',')
-)))
-ATTACHMENT_BLOCKED_UPLOAD_EXTENSIONS = frozenset(filter(None, (
-    e.strip().lower().lstrip('.') for e in os.getenv(
-        'ATTACHMENT_BLOCKED_UPLOAD_EXTENSIONS',
-        'exe,dll,msi,bat,com,scr,cpl,so,dylib,class,jar,war,ear'
-    ).split(',')
-)))
-```
-
-```python
-# usage
-def is_blocked(mime: str, filename: str) -> bool:
-    norm = (mime or '').split(';', 1)[0].strip().lower()
-    if norm and norm in settings.ATTACHMENT_BLOCKED_UPLOAD_MIMES:
-        return True
-    if filename and '.' in filename:
-        ext = filename.rsplit('.', 1)[-1].lower()
-        if ext and ext in settings.ATTACHMENT_BLOCKED_UPLOAD_EXTENSIONS:
-            return True
-    return False
-```
-
-Notes that earn their keep:
-
-- **Replace, not extend, semantics.** The env var **replaces** the default list, not extends it. Document this in `.env.template` next to the example so an operator who uncomments a partial example doesn't silently weaken the policy. The `.env.template` example must list the full default — not a subset.
-- **Normalise on read, not on write.** Lower-case + strip on the parse side, not at every call site. The hot path stays a clean `if x in settings.X`.
-- **`filter(None, ...)` drops empty strings** from trailing commas / accidental blank entries. Cheaper than re-validating each entry.
-- **`frozenset` (not `set`)** so accidental `.add()` / `.discard()` from request handlers raises immediately instead of mutating shared global state.
-- **Extensionless guard.** When checking by extension, gate on `'.' in filename` first — `'Makefile'.rsplit('.', 1)[-1]` returns `'Makefile'`, which can collide with denylist entries by sheer coincidence.
-
-When NOT to use: small-cardinality static lists that never need per-deployment override (use a literal `frozenset(...)` constant), or lists that need per-tenant override (use a model + cached lookup, not a settings constant).
+The shape: parse a comma-separated env var into a `frozenset` at settings-import time, with a sane default literal embedded in code. Five details earn their keep — replace-not-extend semantics (env var REPLACES the default; `.env.template` must list the full default), normalise on parse not call-site, `filter(None, ...)` to drop empty entries from trailing commas, `frozenset` not `set` so handler `.add()` raises, extensionless guard (`'.' in filename` before `rsplit('.', 1)[-1]` to avoid `'Makefile'`-style collisions). Mechanics — full settings.py block with the BLOCKED_UPLOAD_MIMES + EXTENSIONS shape, hot-path `is_blocked` helper, all five earn-their-keep notes, when-NOT-to-use guidance for small-cardinality / per-tenant cases — are in [`references/ENV_DRIVEN_ALLOWLISTS.md`](references/ENV_DRIVEN_ALLOWLISTS.md). Read that reference when this section fires.
 
 ### Docker-generated migrations — ownership bypass
 
@@ -544,53 +379,9 @@ makemigrations:
 
 ### `ManifestStaticFilesStorage` — `collectstatic` is not enough, restart the app server
 
-Django's `ManifestStaticFilesStorage` (the recommended production-mode static backend) hash-fingerprints every URL: `theme.css` is served as `theme.dd52cbcbcdb6.css`, the hash changes on every content change, browsers auto-bust cache on every deploy. This is the right default. The trapdoor: the hash → URL mapping lives in `staticfiles.json`, which **the app server reads once at process startup and caches in-memory for the worker's lifetime**.
+**Fires when** a Django staging / production deployment uses `ManifestStaticFilesStorage` (DEBUG=False) and `collectstatic` runs as part of deploy. The trapdoor: `staticfiles.json` (the hash→URL mapping that powers `{% static %}`) is read once at app-server process startup and **cached in-memory for the worker's lifetime**. After `collectstatic` writes the new hashed file + new manifest entry, the running server's `{% static %}` still resolves to the OLD hash. User refreshes — including hard-refresh — and sees no change because the rendered HTML references the old URL, which still exists on disk and serves old content.
 
-After `collectstatic` runs:
-
-- ✅ new hashed file exists on disk
-- ✅ `staticfiles.json` has the new entry
-- ❌ **but** the running app server's `{% static %}` template tag still resolves to the OLD hash
-
-Result: the user reloads, the rendered HTML still references the old `theme.<oldhash>.css`, the browser fetches that URL successfully (it's still on disk under the old hash), and the user sees no change no matter how hard they refresh. A "hard refresh" (Cmd/Ctrl+Shift+R) doesn't help — the URL emitted in HTML is the cached one, not the new one.
-
-```python
-# settings.py — typical config
-_STATICFILES_BACKEND = (
-    'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
-    if not DEBUG
-    else 'django.contrib.staticfiles.storage.StaticFilesStorage'
-)
-STORAGES = {
-    'staticfiles': {'BACKEND': _STATICFILES_BACKEND},
-}
-```
-
-```makefile
-# ❌ insufficient: leaves the app server emitting the old hashed URL
-static:
-	docker compose exec web python manage.py compile_scss
-	docker compose exec web python manage.py collectstatic --noinput
-
-# ✅ correct: pair the rebuild with a restart so {% static %} re-reads the manifest
-static:
-	docker compose exec web python manage.py compile_scss
-	docker compose exec web python manage.py collectstatic --noinput
-
-restart-web:
-	docker compose restart web
-```
-
-The contract: every static-file change requires `make static && make restart-web` to land for users. This is the same shape as the env-var change-then-recreate pattern (`docker compose restart` doesn't pick up new ENV; you need `up -d --force-recreate`) — both are "the disk changed but the process is still on the old view."
-
-**Symptom shape during debug**:
-
-1. User reports "I refreshed and don't see my CSS / JS change."
-2. Dev tools shows the page loaded `theme.<oldhash>.css`.
-3. `curl https://example.com/static/.../theme.<oldhash>.css` returns the OLD content (because that's what's at the old-hash URL — the new content is at the new hash).
-4. Restart the app server → next page load emits the NEW hashed URL → browser fetches NEW file → user sees the change.
-
-Applies the same way to JS / image / font / any post-processed asset. Does not apply when `DEBUG=True` because `StaticFilesStorage` (no manifest) just resolves URLs to plain filenames at request time. The staging / production gotcha only.
+The contract: every static-file change requires `make static && make restart-web`. Same shape as env-var change-then-recreate (`docker compose restart` ≠ env reload; need `up -d --force-recreate`) — "the disk changed but the process is still on the old view." Mechanics — full settings.py STORAGES backend toggle for DEBUG vs not, ❌/✅ Makefile target shapes, four-step symptom-during-debug diagnostic, applicability scope (any post-processed asset; staging/prod-only) — are in [`references/MANIFEST_STATIC_FILES_STORAGE.md`](references/MANIFEST_STATIC_FILES_STORAGE.md). Read that reference when this section fires.
 
 ### ORM optimisation — N+1 prevention
 
@@ -782,6 +573,10 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 
 ## References
 
+- [Cross-entity session-filter](references/CROSS_ENTITY_SESSION_FILTER.md) — fan-out invalidation when a cross-entity field's change leaves derived per-entity state stale across sibling session entries; full `_clear_tags_from_other_entity_sessions` helper + two safety gates
+- [FileField MIME capture](references/FILEFIELD_MIME_CAPTURE.md) — `FieldFile.content_type` is empty by design; capture browser MIME at upload + import-time `assert` that locks the canonical set ↔ consumer dict against drift
+- [Env-driven allowlists / denylists as `frozenset`](references/ENV_DRIVEN_ALLOWLISTS.md) — three-property pattern (env override + O(1) hot-path + immutable global), full BLOCKED_UPLOAD_MIMES + EXTENSIONS shape, replace-not-extend env semantics
+- [`ManifestStaticFilesStorage` restart contract](references/MANIFEST_STATIC_FILES_STORAGE.md) — `collectstatic` writes the new file + manifest, but the running app server's `{% static %}` cache holds the OLD hash; require `make static && make restart-web` for changes to land for users
 - [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation
 - [Async WebSocket](references/ASYNC_WEBSOCKET.md) — Channels consumers and routing
 - [Celery Background Tasks](references/CELERY.md)

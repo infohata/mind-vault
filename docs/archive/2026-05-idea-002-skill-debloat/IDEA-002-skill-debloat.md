@@ -20,14 +20,25 @@ sensitive_paths_cleared_reason: "Touches skills/wrap/, skills/django-frontend/, 
 
 # IDEA-002: Skill debloat — extract over-budget SKILL.md bodies into references/
 
-**Status**: 🚧 In Progress (Phases 1 + 2 shipped; Phase 3 queued)
+**Status**: 🚧 In Progress (all 3 phases shipped; awaiting `/wrap` to flip frontmatter to complete)
 **Priority**: High
 
 ## Progress
 
 - ✅ **Phase 1** — `skills/wrap/SKILL.md`: shipped 2026-05-09 in [PR #107](https://github.com/infohata/mind-vault/pull/107). Body 546 → 310 lines (-43%, -236L). Three new references emitted: `WORKTREE_TEARDOWN.md`, `EVAL_GATE_EMISSION.md`, `ATOMIC_MERGE.md`. Architect-review verdict REQUIRES ABSTRACTION integrated (filename concept-scoping + internal forward-ref rewrite + foregone-conclusion Q1/Q2 collapse). Note: the inline audit's "Step 8 atomic merge (100L)" estimate was off — actual extracted body was 73L; minor variance, target line count met (≤350L).
 - ✅ **Phase 2** — `skills/django-frontend/SKILL.md`: shipped 2026-05-09 in [PR #109](https://github.com/infohata/mind-vault/pull/109). Body 920 → 613 lines (-33%, -307L). Five new references emitted: `APP_SHELL_LAYOUT.md` (110L), `ALPINE_STORE_COORDINATORS.md` (84L), `ACTIVE_STATE_TRACKING.md` (66L), `TEMPLATE_COMMENT_SYNTAX.md` (43L), `SCSS_VENDOR_IMPORT.md` (39L). Sibling-trap section (27L) skipped per plan's <30L extraction-overhead-exceeds-savings threshold. Pattern matches Phase 1 — verbatim section relocation + 2-paragraph stub + References list entry. No architect-review pass this phase since the pattern was already validated by Phase 1's REQUIRES ABSTRACTION → integrated cycle.
-- ⏳ **Phase 3** — `skills/django/SKILL.md`: queued. Lowest priority — distributed bloat (no single dominant section), harder per-section judgment whether each inline body earns extraction.
+- ✅ **Phase 3** — `skills/django/SKILL.md`: shipped 2026-05-09 in [PR #110](https://github.com/infohata/mind-vault/pull/110). Body 802 → 597 lines (-26%, -205L). Four new references emitted: `CROSS_ENTITY_SESSION_FILTER.md` (78L), `FILEFIELD_MIME_CAPTURE.md` (54L), `ENV_DRIVEN_ALLOWLISTS.md` (53L), `MANIFEST_STATIC_FILES_STORAGE.md` (50L). Originally-audited candidates LLM output post-processing (39L) and ORM optimisation (42L) skipped — both below the comfortable-extraction threshold per the per-section judgment the plan called for. Pattern matches Phases 1 + 2.
+
+## Final cumulative result
+
+| Phase | Skill | Before | After | Δ |
+|---|---|---|---|---|
+| 1 | `wrap/SKILL.md` | 546 | 310 | -43% (-236L) |
+| 2 | `django-frontend/SKILL.md` | 920 | 613 | -33% (-307L) |
+| 3 | `django/SKILL.md` | 802 | 597 | -26% (-205L) |
+| **Total** | 3 skill bodies | **2,268** | **1,520** | **-33% (-748L)** |
+
+Twelve new `references/*.md` files emitted across the three phases, each carrying a self-contained body that loads on demand only when the consuming agent's task touches the relevant pattern. Token cost reclaimed per per-skill activation roughly proportional to the body savings — meaningful at sprint-auto-scale invocation rates.
 
 **Problem** (or opportunity): Three skills currently exceed the ~500-line soft body budget set by `docs/SKILL_SPECIFICATION.md`. Every `Skill` tool invocation loads the full SKILL.md body into the consuming agent's context, so bloat is paid as a per-activation token cost — and `wrap` is invoked twice per IDEA under sprint-auto, multiplying the cost.
 
