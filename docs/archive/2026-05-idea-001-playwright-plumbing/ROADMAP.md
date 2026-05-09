@@ -1,8 +1,17 @@
-# Sprint-auto roadmap — browser-test automation (Direction 1)
+# Sprint-auto roadmap — browser-test automation (Direction 1) — ARCHIVED
 
-**Status**: design plan, not yet implemented. Direction 2 (`auto_safe_with_eval_gate` mode) shipped first; this is the planned uplift that shrinks Direction 2's manual-walk surface.
+> **Archive note** — this is the planning artefact for IDEA-001, preserved for historical context. Direction-1 plumbing shipped in PR #106 (2026-05-09); the implementation lives in:
+>
+> - `skills/sprint-auto/SKILL.md` § preflight + S2 defence-in-depth
+> - `skills/sprint-auto/references/safety-gates.md` § Playwright-availability gate
+> - `skills/sprint-auto/assets/setup_playwright.sh.template`
+> - `skills/wrap/SKILL.md` Step 7 + `skills/wrap/assets/manual-evaluation-template.md`
+> - `skills/django-frontend/references/HTMX_ALPINE_WAITS.md`, `MULTI_TENANT_PLAYWRIGHT.md`, `VISUAL_BASELINE_BUMPS.md`
+> - `agents/AGENT_architect.md` § /plan-time project probes
+>
+> Read this file when you want to understand *why* the choices look the way they do (architect critique, OSS research findings, decided/open questions). For *what* the choices are, read the implementation files above.
 
-**Date opened**: 2026-05-05 · **Revised**: 2026-05-09 (architect + OSS-research pass)
+**Date opened**: 2026-05-05 · **Revised**: 2026-05-09 (architect + OSS-research pass) · **Archived**: 2026-05-09 (PR #106)
 
 ## Why this exists
 

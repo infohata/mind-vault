@@ -178,6 +178,7 @@ See [`references/bugbot-finding-ingest.md`](references/bugbot-finding-ingest.md)
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with the compound-routing table
 - [skills/skill-writer/SKILL.md](../skill-writer/SKILL.md) — meta-standard consulted when emitting a new skill
 - [rules/RULE_git-safety.md](../../rules/RULE_git-safety.md) — branching and commit contract honoured during mind-vault promotion
+- [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — location-by-status routing; `/compound` may trigger the `idea`→archive move when post-incident routing classifies an IDEA as superseded or rejected before any execution started
 - [commands/bugbot-loop.md](../../commands/bugbot-loop.md) — the preceding review stage whose output this skill consumes
 
 ---

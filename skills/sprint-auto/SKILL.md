@@ -297,6 +297,7 @@ No `/compound` reminder here — compound ran in section 4 above.
 - [ROADMAP.md](ROADMAP.md) — Direction-1 (Playwright) plumbing context for the S(-1) availability probe + per-IDEA `requires_playwright` gate
 - [assets/setup_playwright.sh.template](assets/setup_playwright.sh.template) — bootstrap script projects copy to provision Playwright
 - [skills/work/references/WATCHER_HYGIENE.md](../work/references/WATCHER_HYGIENE.md) — orchestrator-trash-collection discipline for `run_in_background` watchers across S3/S6/S11.10/S13 bugbot loops
+- [skills/django-frontend/references/VISUAL_BASELINE_BUMPS.md](../django-frontend/references/VISUAL_BASELINE_BUMPS.md) — AI-never-auto-`--update-snapshots` discipline for Direction-1 IDEAs that ship Playwright visual baselines
 
 ---
 

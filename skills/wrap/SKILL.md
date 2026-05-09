@@ -416,7 +416,7 @@ fi
 - **Plan-doc-driven** (preferred when available): if the IDEA's plan doc has a "Verification scenarios" or "Manual evaluation" section, copy each scenario as a Step 7 scenario. The plan author's intent transfers cleanly.
 - **Diff-summary-driven** (fallback): emit only the skeleton with mechanical placeholders filled; the integration-PR reviewer (or the IDEA's author at /plan time, retroactively) fills scenarios. Skeleton is still useful — having the file land in the right path with the right framing prompts the human to walk *something*, even if the scenarios are minimal.
 
-**Playwright-coverage pre-fill (Direction-1)** — when the plan doc includes a `playwright_test_coverage` YAML block (per [`../sprint-auto/ROADMAP.md`](../sprint-auto/ROADMAP.md) § Composability with Direction 2), use it to pre-fill matching scenario rows in the emitted checklist. Block shape in the plan:
+**Playwright-coverage pre-fill (Direction-1)** — when the plan doc includes a `playwright_test_coverage` YAML block, use it to pre-fill matching scenario rows in the emitted checklist. Block shape in the plan:
 
 ```yaml
 playwright_test_coverage:

@@ -221,7 +221,6 @@ Default to option 1. Add an explicit list of tables that need truncation; `cur.e
 - [`../../django/references/MULTI_TENANT_ASYNC.md`](../../django/references/MULTI_TENANT_ASYNC.md) — async/WebSocket counterparts.
 - [`../../django/references/TENANT_SCOPED_FK_VALIDATION.md`](../../django/references/TENANT_SCOPED_FK_VALIDATION.md) — orthogonal isolation failure (shared-schema rows with `org_id`).
 - [`HTMX_ALPINE_WAITS.md`](HTMX_ALPINE_WAITS.md) — Playwright wait recipes once tenant routing is solved.
-- [`../../sprint-auto/ROADMAP.md`](../../sprint-auto/ROADMAP.md) — Direction-1 Playwright architecture.
 
 ---
 

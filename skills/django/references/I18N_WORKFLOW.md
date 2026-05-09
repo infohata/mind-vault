@@ -1,6 +1,6 @@
-# RULE_i18n-workflow
+# Django i18n workflow — map-first, never edit `.po` by hand
 
-## Django Translation Workflow for AI Agents
+## The discipline
 
 ### The Hard Rules
 

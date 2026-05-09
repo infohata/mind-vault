@@ -1,6 +1,6 @@
-# RULE_visual-baseline-bumps
+# Visual baseline bumps — AI never auto-`--update-snapshots`
 
-## AI agents never auto-`--update-snapshots`. Baseline regen is a deliberate human act.
+Baseline regen is a deliberate human act.
 
 Visual-regression tests assert that a rendered surface still matches a committed pixel baseline (`pytest-playwright-visual-snapshot`, `pytest-playwright`'s `expect(page).to_have_screenshot(...)`, or equivalent). When the assertion fails, two interpretations are equally consistent with the failure signal:
 
@@ -98,11 +98,10 @@ That's a clean baseline-regen story. What's NOT clean: 47 baselines drifted alon
 
 ## Relationship To Other Rules / Skills
 
-- [`RULE_git-safety`](RULE_git-safety.md) — baseline regen still happens on a feature branch; protected-branch rules are unchanged.
-- [`RULE_parallel-worktree-docker`](../../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — § "Docker as privileged-fileops escape hatch" is occasionally needed when baselines are written by the container as root and the host user can't unlink them; same `docker run --rm -v <path>:/work alpine chown -R "$(id -u):$(id -g)" /work` recipe applies.
-- [`skills/sprint-auto/ROADMAP.md`](../skills/sprint-auto/ROADMAP.md) § "Visual-baseline stability" — the architectural context this rule formalises.
-- [`skills/sprint-auto/SKILL.md`](../skills/sprint-auto/SKILL.md) — sprint-auto preflight + per-IDEA gate behaviour treats `--update-snapshots` as out-of-bounds for unattended runs.
-- [`skills/sprint-auto/assets/setup_playwright.sh.template`](../skills/sprint-auto/assets/setup_playwright.sh.template) — wires `make playwright-test` and `make playwright-update-baselines` as separate targets per § "How To Apply" #3.
+- [`RULE_git-safety`](../../../rules/RULE_git-safety.md) — baseline regen still happens on a feature branch; protected-branch rules are unchanged.
+- [`PARALLEL_WORKTREE_DOCKER`](../../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — § "Docker as privileged-fileops escape hatch" is occasionally needed when baselines are written by the container as root and the host user can't unlink them; same `docker run --rm -v <path>:/work alpine chown -R "$(id -u):$(id -g)" /work` recipe applies.
+- [`skills/sprint-auto/SKILL.md`](../../sprint-auto/SKILL.md) — sprint-auto preflight + per-IDEA gate behaviour treats `--update-snapshots` as out-of-bounds for unattended runs.
+- [`skills/sprint-auto/assets/setup_playwright.sh.template`](../../sprint-auto/assets/setup_playwright.sh.template) — wires `make playwright-test` and `make playwright-update-baselines` as separate targets per § "How To Apply" #3.
 
 ---
 

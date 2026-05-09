@@ -32,14 +32,14 @@ sensitive_paths_cleared_reason: "Edits skills that gate sprint-auto execution (S
 **Non-goals**:
 - Not authoring the first concrete Playwright tests. That's a downstream IDEA in a real project (teisutis is the natural pilot — it has the most Cotton/Alpine/HTMX surface).
 - Not running the bootstrap script against any project. The script template lives in mind-vault; running it is the consumer project's first Direction-1 IDEA.
-- Not changing visual-regression workflow conventions beyond what `../../../skills/django-frontend/references/VISUAL_BASELINE_BUMPS.md` formalises.
+- Not changing visual-regression workflow conventions beyond what [`VISUAL_BASELINE_BUMPS`](../../../skills/django-frontend/references/VISUAL_BASELINE_BUMPS.md) formalises.
 - Not auto-detecting projects that already have Playwright infra (out of scope; current convention is "consumer project copies from mind-vault asset, runs once").
 
 **Approach** (treating ROADMAP as plan, this section is the deliverables list):
 
 | # | File | Action | Notes |
 |---|------|--------|-------|
-| 1 | `../../../skills/django-frontend/references/VISUAL_BASELINE_BUMPS.md` | New | Visual-snapshot bump discipline — when to regenerate baselines, what to commit, review etiquette. |
+| 1 | `skills/django-frontend/references/VISUAL_BASELINE_BUMPS.md` | New | Visual-snapshot bump discipline — when to regenerate baselines, what to commit, review etiquette. (Initially landed as `rules/RULE_visual-baseline-bumps.md`; later moved to skill references in this same PR's tail commit alongside the broader rules-reorg.) |
 | 2 | `skills/django-frontend/references/HTMX_ALPINE_WAITS.md` | New | The four-class HTMX wait recipe + Alpine settled-state pattern. Referenced from ROADMAP. |
 | 3 | `skills/django-frontend/references/MULTI_TENANT_PLAYWRIGHT.md` | New | django-tenants + Playwright fixtures (host header, schema seeding, DB cleanup). |
 | 4 | `skills/sprint-auto/assets/setup_playwright.sh.template` | New | Idempotent bootstrap — auto-detects Docker stack, CI shape, tenant model, locales. The meaty deliverable. |
@@ -64,4 +64,4 @@ sensitive_paths_cleared_reason: "Edits skills that gate sprint-auto execution (S
 - Manual-evaluation rows: review the bootstrap script's auto-detection branches (Docker compose v1 / v2, GitHub Actions vs alternatives, django-tenants vs single-tenant) for sensible defaults.
 - Sprint-auto eligibility: this IDEA itself is NOT auto-safe. Touching gate logic is exactly the class of change that wants human review before unattended runs depend on it.
 
-**Related**: ROADMAP at `skills/sprint-auto/ROADMAP.md`. Roadmap-revision PR #105 (merged 2026-05-09). Architect critique + OSS research surfaced during PR #105 review cycle.
+**Related**: [ROADMAP.md](ROADMAP.md) (sibling artefact in this archive — was `skills/sprint-auto/ROADMAP.md` while IDEA-001 was in flight, archived alongside this IDEA file at PR #106 wrap). Roadmap-revision PR #105 (merged 2026-05-09). Architect critique + OSS research surfaced during PR #105 review cycle.

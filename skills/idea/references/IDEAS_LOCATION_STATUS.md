@@ -1,4 +1,4 @@
-# RULE_ideas-location-status
+# IDEA file location-by-status contract
 
 ## Two locations, one move
 
@@ -200,12 +200,12 @@ Rebuild the index from scratch when out of sync: scan both dirs, read each file'
 
 ## Relationship to other rules
 
-- [`RULE_git-safety.md`](RULE_git-safety.md) — single-move commits live on feature branches; `git mv` respects blame.
-- [`skills/idea/SKILL.md`](../skills/idea/SKILL.md) — owns creation in `docs/ideas/`; globs both dirs when auto-incrementing IDEA numbers.
-- [`skills/plan/SKILL.md`](../skills/plan/SKILL.md) — triggers the single `idea` → archive move; emits the plan file INTO the new archive dir (not a separate `docs/plans/` tree).
-- [`skills/work/SKILL.md`](../skills/work/SKILL.md) — on PR merge, updates frontmatter only by default (`status: complete`, `completed: <date>`). Triggers the `idea` → archive fallback move when `/plan` was bypassed and the source file is still in `docs/ideas/` (small-scope `/idea` → `/work` shortcut).
-- [`skills/compound/SKILL.md`](../skills/compound/SKILL.md) — may trigger `idea` → archive move directly when post-incident routing classifies an idea as superseded or rejected before any execution started.
-- [`skills/ingest-backlog/SKILL.md`](../skills/ingest-backlog/SKILL.md) — emits files to both dirs per this rule during brownfield takeover; retires any existing `docs/execution/` tree as part of the write step.
+- [`RULE_git-safety`](../../../rules/RULE_git-safety.md) — single-move commits live on feature branches; `git mv` respects blame.
+- [`skills/idea/SKILL.md`](../SKILL.md) — owns creation in `docs/ideas/`; globs both dirs when auto-incrementing IDEA numbers.
+- [`skills/plan/SKILL.md`](../../plan/SKILL.md) — triggers the single `idea` → archive move; emits the plan file INTO the new archive dir (not a separate `docs/plans/` tree).
+- [`skills/work/SKILL.md`](../../work/SKILL.md) — on PR merge, updates frontmatter only by default (`status: complete`, `completed: <date>`). Triggers the `idea` → archive fallback move when `/plan` was bypassed and the source file is still in `docs/ideas/` (small-scope `/idea` → `/work` shortcut).
+- [`skills/compound/SKILL.md`](../../compound/SKILL.md) — may trigger `idea` → archive move directly when post-incident routing classifies an idea as superseded or rejected before any execution started.
+- [`skills/ingest-backlog/SKILL.md`](../../ingest-backlog/SKILL.md) — emits files to both dirs per this rule during brownfield takeover; retires any existing `docs/execution/` tree as part of the write step.
 
 ---
 

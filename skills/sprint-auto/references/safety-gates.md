@@ -46,7 +46,7 @@ The IDEA slug or number must appear in the `/sprint-auto` invocation's args. The
 
 ## Playwright-availability gate (`requires_playwright`)
 
-Direction-1 (Playwright-driven browser tests; see [`../ROADMAP.md`](../ROADMAP.md)) introduces a third frontmatter flag — orthogonal to `auto_safe` and `auto_safe_with_eval_gate`, **not** a fourth opt-in mode and **never** a disqualifier:
+Direction-1 (Playwright-driven browser tests) introduces a third frontmatter flag — orthogonal to `auto_safe` and `auto_safe_with_eval_gate`, **not** a fourth opt-in mode and **never** a disqualifier:
 
 ```yaml
 ---
