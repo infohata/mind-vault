@@ -1,14 +1,14 @@
 ---
 id: 1
 title: Playwright Direction-1 plumbing — assets, gate, preflight
-status: in-progress
+status: complete
 priority: high
 supersedes: []
 superseded_by: null
 depends_on: []
-related: []
+related: [002]
 created: 2026-05-09
-completed: null
+completed: 2026-05-09
 auto_safe: false
 auto_safe_reason: "Touches sprint-auto + wrap skill semantics + introduces a new IDEA-level eligibility gate (`requires_playwright`). Wants human review before unattended runs depend on it."
 sensitive_paths_cleared: false
