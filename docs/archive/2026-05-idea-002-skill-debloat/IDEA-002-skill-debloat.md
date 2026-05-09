@@ -1,14 +1,14 @@
 ---
 id: 002
 title: Skill debloat — extract over-budget SKILL.md bodies into references/
-status: in-progress
+status: complete
 priority: high
 supersedes: []
 superseded_by: null
 depends_on: []
 related: [001]
 created: 2026-05-09
-completed: null
+completed: 2026-05-09
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
@@ -20,8 +20,9 @@ sensitive_paths_cleared_reason: "Touches skills/wrap/, skills/django-frontend/, 
 
 # IDEA-002: Skill debloat — extract over-budget SKILL.md bodies into references/
 
-**Status**: 🚧 In Progress (all 3 phases shipped; awaiting `/wrap` to flip frontmatter to complete)
+**Status**: ✅ Complete (all 3 phases shipped; PRs #107, #109, #110)
 **Priority**: High
+**Completed**: 2026-05-09
 
 ## Progress
 
