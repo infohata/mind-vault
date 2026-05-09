@@ -64,12 +64,25 @@ If the learning's violations require a conversation ("why did you do it this way
 - **Slash command** (`/compound`, `/bugbot-loop`) = user-facing, interactive, part of the workflow.
 - **Script** (`tools/bugbot_retrigger.sh`) = headless utility, usually called from another command or a human-run shell.
 
+### Body vs. reference vs. asset (within mind-vault)
+
+Once destination 2 (skill) or 3 (rule) is selected, the second-pass placement question is **load-on-demand vs always-on**. Default to load-on-demand (`references/` for prose, `assets/` for non-prose payloads). The full decision algorithm lives in `compound/SKILL.md` § *Mind-vault placement*; this is the disambiguation summary:
+
+- **`skills/<owner>/references/<TOPIC>.md`** — prose patterns, gotchas, recipes, mechanics. Default for any skill addition that isn't part of the skill's first-paragraph trigger surface.
+- **`skills/<owner>/assets/<filename>`** — templates, scaffolds, shell scripts, sed-substitution recipes. Anything multi-line + non-prose.
+- **SKILL.md body** — only when the addition is the canonical "what is this skill for" framing (a brand-new skill's first concept), or a 2-paragraph stub-with-pointer that names firing conditions and links to a reference for mechanics. Stubs are body-light; the heavy content always lands in references/.
+- **`rules/RULE_<name>.md`** (top-level) — only when the guardrail fires across multiple skills / stages / stack types. The PR #106 split is the criterion: always-on tier vs domain-bound. Domain-bound guardrails go to skill references, even when they're hard "always do X" rules.
+
+The reflex is: when in doubt, **prefer the load-on-demand surface**. The cost of an unused reference file is one extra file in the tree; the cost of every-session-paid bloat is paid forever, on every invocation, by every consumer. PR #106 + IDEA-002 paid −1,731L combined to remove that bloat — don't re-introduce it on first-promotion.
+
 ## Anti-patterns in routing
 
 - **Over-promoting.** If a pattern has appeared once, it's project-local until proven otherwise. First-occurrence promotions pollute mind-vault with noise.
 - **Under-promoting.** If the same finding has been captured in three different `docs/solutions/` files, that's a missed promotion — grep for duplicates before writing a fourth.
 - **Misclassifying behavioural preferences as skills.** "User prefers terse summaries" is memory, not a skill. Skills are about *what to do*; memory is about *how this user wants it done*.
 - **Creating a new rule when an existing one can be extended.** Prefer appending to `RULE_i18n-workflow` over creating `RULE_po-files-readonly`. One rule per concern.
+- **Inlining mechanics into SKILL.md body.** A skill's body is paid on every `Skill <name>` invocation. New mechanics belong in `references/<TOPIC>.md` — the body gets a stub-with-pointer at most. Re-introducing body bloat is the failure mode IDEA-002 spent three PRs cleaning up; don't reverse that work on a single compound run.
+- **Adding a new top-level rule when the guardrail is domain-specific.** Rules in `rules/` load every session. Domain-bound guardrails (Django i18n, Playwright baselines, parallel worktrees) belong in `skills/<owner>/references/` and load only when the owning skill activates. PR #106 already drew this line — respect it.
 
 ## De-duplication before writing
 

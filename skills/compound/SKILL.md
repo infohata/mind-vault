@@ -57,11 +57,12 @@ After the narrative probe, propose **one destination** with a one-sentence ratio
 
 Six destinations, each with its own emit procedure:
 
-| Destination | Target path | Template |
+| Destination | Target path (default) | Template |
 | --- | --- | --- |
 | Project-local solution | `<project>/docs/solutions/<topic>.md` | [`assets/solution-template.md`](assets/solution-template.md) |
-| Mind-vault skill update | `mind-vault/skills/<name>/SKILL.md` or `.../references/<topic>.md` | merge into existing skill, or emit new scaffold from [`assets/skill-scaffold-template.md`](assets/skill-scaffold-template.md) |
-| Mind-vault rule update | `mind-vault/rules/RULE_<name>.md` | append a new bullet / section to an existing rule, or draft a new rule file |
+| Mind-vault skill update | **`mind-vault/skills/<name>/references/<TOPIC>.md`** (default) — fall back to SKILL.md body only if the learning is the first concept of a brand-new skill, or so always-on that every invocation needs it. See [§ Mind-vault placement](#mind-vault-placement--references--assets-first-body-last). | merge into existing reference / emit new reference file; SKILL.md body gets only a stub-with-pointer if anything |
+| Mind-vault skill asset | `mind-vault/skills/<name>/assets/<filename>` | for templates, scaffolds, or scripts the skill emits — non-prose payloads belong here, not in the SKILL.md body |
+| Mind-vault rule update | append to an existing `mind-vault/rules/RULE_<name>.md` (default) — or, for domain-specific guardrails, route to `mind-vault/skills/<owner>/references/<TOPIC>.md` per the rules-reorg precedent (PR #106). New top-level rule files only when the guardrail genuinely applies across every stage and stack type. | extend existing rule / promote to skill reference / draft new rule file (last resort) |
 | Mind-vault agent pass | `mind-vault/agents/AGENT_<persona>.md` | append a new bullet to the relevant pass (curator PASS 3, architect PASS 1, etc.) |
 | Mind-vault command/tool | `mind-vault/commands/<verb>.md` or `mind-vault/tools/<script>.sh` | emit new file; ask the user whether a slash command or a bash helper is the right shape |
 | Auto-memory | `~/.claude/projects/<project-id>/memory/{feedback,project,user,reference}_<topic>.md` + `MEMORY.md` index line | use the canonical memory frontmatter from `CLAUDE.md`'s auto-memory section |
@@ -71,6 +72,30 @@ For project-local: write and stop. No branch management — this is the target p
 For mind-vault destinations: apply step 4 before emitting.
 
 For auto-memory: write into the memory filesystem at `~/.claude/projects/<project-id>/memory/` and update `MEMORY.md`'s one-line index. Honour the type classification (feedback / project / user / reference) from the global `CLAUDE.md` auto-memory rules.
+
+#### Mind-vault placement — references / assets first, body last
+
+Inside a mind-vault skill or rule destination, the placement choice — `references/<TOPIC>.md` vs `assets/<filename>` vs SKILL.md body vs new top-level `rules/RULE_<name>.md` — is itself a routing decision, and the default is **load-on-demand, not always-on**.
+
+The cost surface: every line in a SKILL.md body is paid on every `Skill <name>` invocation; every line in `rules/RULE_*.md` is paid on every session. Lines in `skills/<owner>/references/<TOPIC>.md` and `skills/<owner>/assets/*` cost nothing until they're explicitly loaded. PRs #106 (rules-reorg, −983L unconditional load) and IDEA-002 (skill debloat, −748L across three SKILL.md bodies) established the pattern; this routing rule prevents `/compound` from re-introducing the bloat those PRs paid to remove.
+
+Decision order when promoting a learning into mind-vault:
+
+1. **Default — write to `skills/<owner>/references/<TOPIC>.md`.** New file if no good home exists; extend an existing reference if one fits. Add a one-line pointer entry to the parent SKILL.md's References list — that's the only body-level surface needed.
+2. **Templates / scaffolds / scripts the skill emits → `skills/<owner>/assets/`.** Multi-line non-prose payloads (project-agnostic templates, shell scripts, sed-substitution recipes) belong here, never inlined into SKILL.md.
+3. **Add to SKILL.md body ONLY when** one of these fires:
+   - The learning is the **first concept of a brand-new skill on a new domain**, where the skill's body is still being authored from scratch (e.g. a new `skills/<new-domain>/SKILL.md` initial commit). After the skill exists, subsequent additions revert to the references-first default.
+   - The pattern is **so always-on for the skill's domain** that every consumer needs it inline (e.g. the "When to use" trigger surface, the canonical 1-paragraph "the shape of the problem" intro). 2-paragraph stubs with reference pointers count as body-light, not body-heavy.
+   - The pattern is **a stub** (≤5 lines) + load-on-demand pointer — that's the right thing in the body. The full mechanics still go to a reference.
+4. **Add a new top-level `rules/RULE_<name>.md` ONLY when** the guardrail genuinely fires **across multiple skills / stages / stack types** (the PR #106 always-on tier criterion). Domain-specific guardrails — even when they're hard "always do X" rules — belong in `skills/<owner>/references/<TOPIC>.md` and load on demand when their owning skill activates. Examples from PR #106's split:
+   - **Stays as `rules/`** — `RULE_git-safety` (every commit), `RULE_self-sweep-before-push` (every push), `RULE_rename-before-drop` (every refactor cycle), `RULE_cross-idea-amendments` (every IDEA touching another's files). Cross-stage breadth.
+   - **Moved to skill reference** — i18n workflow → `skills/django/references/I18N_WORKFLOW.md`, parallel-worktree-docker → `skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md`, visual-baseline-bumps → `skills/django-frontend/references/VISUAL_BASELINE_BUMPS.md`, etc. Domain-bound.
+
+The test before opting into bullets 3 or 4: **"would this learning fire when the consuming agent loads zero skills, OR only when this specific skill is invoked?"** If "only when invoked", that's a reference. If "always on regardless of skill activation", that's a top-level rule. Most learnings are reference-shaped; resist the gravitational pull toward bodies and rules/.
+
+When extending an existing reference: read the current file, decide whether the new learning is a section addition or a sibling concept, edit accordingly. The de-duplication grep from § *De-duplication before writing* runs first.
+
+When the existing SKILL.md body already documents a section adjacent to the new learning: **prefer extracting both the existing section and the new addition to a single reference**, rather than appending to the body next to the existing section. The new learning is the prompt to fix the bloat, not to extend it. Phase-2-of-IDEA-002-style: cite the existing section's line range in the commit message, write the reference, replace the body with a 2-paragraph stub + pointer.
 
 #### Auto-memory vs mind-vault — the THIS-MACHINE-ONLY test
 
