@@ -10,7 +10,7 @@ differentiated by frontmatter `status:`._
 
 ## 💡 High Priority (backlog)
 
-_(none)_
+- [IDEA-002](IDEA-002-skill-debloat.md) — Skill debloat — extract over-budget SKILL.md bodies into references/
 
 ## 💡 Medium Priority (backlog)
 
