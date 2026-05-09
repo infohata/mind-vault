@@ -172,69 +172,9 @@ The fragile pattern this replaces — `Alpine.effect`-poll-instance — has impl
 
 ### Active-state tracking — `aria-current="true"` + CSS `:has()` instead of JS class toggling
 
-When a list of links has a "currently selected" item that should style differently, the obvious shape is JS-side `classList.add('--selected')` / `classList.remove('--selected')` driven by an Alpine.effect or a click handler:
+**Fires when** a list of links has a "currently selected" item that should style differently. The obvious shape — JS-side `classList.add('--selected')` driven by `Alpine.effect` or a click handler — creates two sources of truth (store state + DOM class) that JS has to keep in sync, and HTMX swaps race against the JS re-walk.
 
-```javascript
-// Anti-pattern — JS owns the active-state class
-Alpine.effect(function () {
-    const top = Alpine.store('previewSurface').top;
-    document.querySelectorAll('a[data-preview-link]').forEach(link => {
-        const matches = top
-            && link.getAttribute('data-preview-type') === top.type
-            && link.getAttribute('data-preview-identifier') === String(top.identifier);
-        link.parentElement.classList.toggle('list-row--selected', matches);
-    });
-});
-```
-
-Two sources of truth — `top` in the store, `--selected` class on the row — kept in sync by JS. Bugs surface when the server template renders one source (e.g. server sets `--selected` on the cold-start row) and JS races to set the other; or when a row gets re-mounted by HTMX swap and the JS hasn't re-walked yet.
-
-**The fix — `aria-current="true"` on the link is the single source of truth, CSS `:has()` styles the parent**:
-
-```javascript
-// JS toggles the HTML attribute on the link, not a class on the parent.
-Alpine.effect(function () {
-    const top = Alpine.store('previewSurface').top;
-    document.querySelectorAll('a[data-preview-link]').forEach(link => {
-        const matches = top
-            && link.getAttribute('data-preview-type') === top.type
-            && link.getAttribute('data-preview-identifier') === String(top.identifier);
-        if (matches) link.setAttribute('aria-current', 'true');
-        else link.removeAttribute('aria-current');
-    });
-});
-```
-
-```scss
-// SCSS targets the row via :has() — the CSS owns the visual,
-// the HTML owns the truth. No JS class toggling on the parent.
-.list-row {
-    &:has(a[data-preview-link][aria-current="true"]) {
-        border-color: var(--color-primary);
-        background-color: var(--bg-tertiary);
-    }
-}
-```
-
-Server template emits the attribute on cold-start hits — same attribute name, same value:
-
-```django
-<a href="..." data-preview-link
-   data-preview-type="article" data-preview-identifier="{{ item.id }}"
-   {% if item.id|stringformat:"s" == selected_identifier %}aria-current="true"{% endif %}>
-   {{ item.title }}
-</a>
-```
-
-Why this wins:
-
-- **Single source of truth**: `aria-current="true"` is the active state, period. Server cold-start emits it; JS keeps it in sync; CSS styles off it. No racing two state shapes.
-- **Free a11y**: `aria-current="true"` is the standard ARIA attribute screen readers announce as "current page / current item". You'd want it anyway.
-- **CSS `:has()` is well-supported**: Chrome 105+, Safari 15.4+, Firefox 121+. The browsers a Django+HTMX+Alpine project targets all ship it.
-- **HTMX-swap-friendly**: when HTMX swaps the row, the new DOM carries whatever `aria-current` the server emitted; JS doesn't need to re-walk the DOM after the swap to fix the visual — `:has()` re-evaluates per-paint.
-- **Test contract is mechanical**: `assertIn('aria-current="true"', body)` for the matching row, `assertNotIn` for non-matches. No "is the class on the right element" indirection.
-
-When NOT to use this pattern: when the visual state is genuinely client-only (a hover effect, a temporary "just clicked" pulse) — those don't need round-tripping, so a plain CSS `:hover` / `:active` / Alpine `x-bind:class` is right. The `aria-current` pattern is for state that has SEMANTIC meaning the server might also know about (selected item, current page, current step in a wizard).
+The fix is `aria-current="true"` on the link as the single source of truth, with SCSS `:has(a[aria-current="true"])` targeting the parent row for the visual. Server template emits `aria-current` on cold-start; JS keeps it in sync; CSS owns the visual. Free a11y as a side effect — screen readers announce `aria-current` as "current item". Mechanics — full anti-pattern + fix + scss `:has()` browser support + HTMX-swap-friendliness + test contract + when-NOT-to-use (hover effects / client-only states stay client-only) — are in [`references/ACTIVE_STATE_TRACKING.md`](references/ACTIVE_STATE_TRACKING.md). Read that reference when this section fires.
 
 ### Toggleable containers — `inert` not `aria-hidden`
 
@@ -717,6 +657,7 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 
 - [App-shell layout](references/APP_SHELL_LAYOUT.md) — fixed-viewport + per-pane-scroll layout primitives, "unstable child" `min-height: 0` rule, `scroll-utils.findScrollContainer` helper, document-scroll-migration regressions
 - [Alpine.store coordinators with delayed-registered consumers](references/ALPINE_STORE_COORDINATORS.md) — `onRegister` callback pattern: register-or-queue API, one-shot semantics, sync-or-deferred transparency, replaces fragile `Alpine.effect`-poll-instance idiom
+- [Active-state tracking](references/ACTIVE_STATE_TRACKING.md) — `aria-current="true"` + CSS `:has()` instead of JS class-toggling for "currently selected" list items: single source of truth, free a11y, HTMX-swap-friendly
 - [Base Template + Theme](references/BASE_TEMPLATE.md)
 - [Modal System](references/MODAL_SYSTEM.md)
 - [HTMX Widgets](references/HTMX_WIDGETS.md) — autocomplete, file upload, colour/icon pickers
