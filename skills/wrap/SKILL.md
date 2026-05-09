@@ -416,6 +416,27 @@ fi
 - **Plan-doc-driven** (preferred when available): if the IDEA's plan doc has a "Verification scenarios" or "Manual evaluation" section, copy each scenario as a Step 7 scenario. The plan author's intent transfers cleanly.
 - **Diff-summary-driven** (fallback): emit only the skeleton with mechanical placeholders filled; the integration-PR reviewer (or the IDEA's author at /plan time, retroactively) fills scenarios. Skeleton is still useful — having the file land in the right path with the right framing prompts the human to walk *something*, even if the scenarios are minimal.
 
+**Playwright-coverage pre-fill (Direction-1)** — when the plan doc includes a `playwright_test_coverage` YAML block (per [`../sprint-auto/ROADMAP.md`](../sprint-auto/ROADMAP.md) § Composability with Direction 2), use it to pre-fill matching scenario rows in the emitted checklist. Block shape in the plan:
+
+```yaml
+playwright_test_coverage:
+  - scenario: "Modal opens with focus trapped on first input"
+    test: "tests/playwright/test_modal.py::test_focus_trap_first_input"
+  - scenario: "Esc closes modal and restores focus to trigger"
+    test: "tests/playwright/test_modal.py::test_esc_close_focus_restore"
+```
+
+Pre-fill algorithm:
+
+1. Parse the `playwright_test_coverage` block from the plan doc (YAML between `playwright_test_coverage:` and the next top-level key or end-of-file).
+2. **Verify each cited test is collectible** — run `make playwright-test --collect-only -q` (or project equivalent) and capture stdout. Any test in the YAML that's not in the collected listing is a rotted reference (deleted/renamed in a later IDEA).
+3. For each YAML entry, match `scenario:` against the eval-checklist's `### N. <Scenario name>` headings (case-sensitive, whitespace-trimmed, exact match). For each match:
+   - **Test collectible** → flip `**Walked**: [ ]` to `**Walked**: [x] (covered by <test path>)`.
+   - **Test NOT collectible** → keep `**Walked**: [ ]` AND append `  _⚠️ rot: <test path> cited in plan but not collectible — manual walk required_` on the same line. Do NOT flip the box; the human must walk it because the test no longer guards it.
+4. Scenarios in the eval-checklist that have NO matching YAML entry stay un-pre-filled. Scenarios in the YAML that have NO matching eval-checklist heading are logged as `playwright_coverage_orphan` warnings — likely a typo in the plan's `scenario:` text.
+
+**Skip when** the IDEA does not have `requires_playwright: true` in its frontmatter, OR when the `make playwright-test --collect-only` probe fails (Playwright not installed in the integration stack — the `playwright_unavailable` case S2 already logs). In the latter case, leave every scenario un-pre-filled and append a one-line note at the top of the eval-checklist file: `_Note: Playwright probe failed at /wrap time; no rows pre-filled. Manual walk required for all scenarios._`
+
 **Commit it with the rest of the wrap commits** — same branch (pre-merge mode = feature branch, the IDEA's `auto/<slug>` in sprint-auto context). The eval-checklist becomes part of the per-IDEA PR's docs delta; bugbot's docs-pass at S6 reviews it; the integration-PR creator at S11.10 finds it via `find docs/archive/ -name '*-manual-evaluation.md'` glob and links to it (see integration-stage.md § Per-IDEA evaluation checklists).
 
 **No teardown of the artefact post-merge.** The eval-checklist stays in the archive dir as part of the IDEA's history — a record of what the reviewer was asked to walk, what they noted, what follow-ups landed.

@@ -15,6 +15,21 @@ This checklist covers what render-and-assert tests cannot verify: visual correct
 
 ## Scenarios
 
+<!--
+  Pre-fill conventions (filled by /wrap Step 7 from the plan's
+  playwright_test_coverage block when the IDEA has requires_playwright: true):
+
+    **Walked**: [x] (covered by tests/playwright/...::test_name)
+      → A Playwright test covers this scenario. The reviewer may spot-check or skip.
+
+    **Walked**: [ ]   _⚠️ rot: tests/playwright/...::test_name cited in plan but not collectible — manual walk required_
+      → A Playwright test was cited but no longer exists (renamed/deleted in a later IDEA).
+        The box stays unchecked; manual walk is mandatory.
+
+    **Walked**: [ ]
+      → No Playwright coverage; manual walk is the only verification.
+-->
+
 ### 1. <Scenario name>
 
 **Trigger**: <how to invoke — click X, navigate to /Y, submit form Z, …>
