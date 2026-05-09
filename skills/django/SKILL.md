@@ -331,81 +331,11 @@ HTMX-aware template selection and response-type switching lives in [django-front
 
 ### Cross-entity session-filter state — fan-out invalidation on shared-key change
 
-When user-facing filter state spans multiple list/detail surfaces (articles ↔ events ↔ FAQs ↔ dashboard), a common shape is **two session keys per tenant**:
+**Fires when** user-facing filter state spans multiple list/detail surfaces (articles ↔ events ↔ FAQs ↔ dashboard) and per-entity state is derived from a cross-entity field. Common session-key shape: `cross_filters_<org_id>` for fields that travel (`scope`, `property`, `category`) + `kb_<entity>_filters_<org_id>` for per-entity fields (`q`, `tags`).
 
-- `cross_filters_<org_id>` — fields that *travel* across surfaces (`scope`, `property`, `category`).
-- `kb_<entity>_filters_<org_id>` — per-entity fields (`q` text search, per-entity toggles, `tags`).
+The recurring trap: when the cross-entity field changes value, derived per-entity state goes stale on **every** sibling entry, not just the current request's. The canonical example: tags are FK-scoped to Scope; user picks `scope=A, tag=X` on `/articles/`, cross-links to `/events/`, changes `scope=B`. Entity-local tag-clearing fixes events but leaves `kb_articles_filters_<org>.tags=['X']` referencing a scope-A tag. Articles' picker renders for scope B (no escape) yet session still applies X → 0 results.
 
-```python
-CROSS_ENTITY_FILTER_KEYS: Tuple[str, ...] = ('scope', 'property', 'category')
-
-def get_effective_filters(request, *, namespace: str, filter_keys: tuple) -> dict:
-    """Read URL-or-session filters; bucket writes into cross vs per-entity."""
-    org_id = getattr(get_current_tenant(), 'pk', 0)
-    cross_key = f'cross_filters_{org_id}'
-    entity_key = f'kb_{namespace}_filters_{org_id}'
-    # ... bucket each filter_keys value into cross or entity by membership in
-    # CROSS_ENTITY_FILTER_KEYS, then return the merge.
-```
-
-The trap that recurs across this pattern: **when a cross-entity field changes value, derived per-entity state that was foreign-keyed to it goes stale on EVERY sibling per-entity entry** — not just the current request's. Concrete worked example:
-
-- Tags are FK-scoped to Scope (`Tag.scope_id → Scope.id`).
-- User on `/articles/` picks `scope=A` and `tag=X`. `kb_articles_filters_<org>.tags = ['X']`, `cross_filters_<org>.scope = 'A'`.
-- User cross-links to `/events/` (no GET params).
-- User changes `scope=B` on `/events/`. The current request's entity is `events`; the obvious clear-tags fix only touches `kb_events_filters_<org>`. **`kb_articles_filters_<org>.tags = ['X']` is untouched** — but X is a scope-A tag and doesn't apply to scope B. Articles' tag-picker now renders for scope B (so X isn't in the picker → user can't de-select), but `apply_common_filters` still applies tag X from session → 0 results, no UI escape.
-
-Solution: when the scope-change branch fires, **iterate session keys with a stable namespace prefix** and clear the derived field from every matching entry, not just the current entity.
-
-```python
-def _clear_tags_from_other_entity_sessions(
-    session: Any,
-    org_id: int,
-    skip: str,
-) -> None:
-    """Remove ``tags`` from every ``kb_*_filters_<org_id>`` entry except ``skip``."""
-    suffix = f'_filters_{org_id}'
-    prefix = 'kb_'
-    for key in list(session.keys()):
-        if key == skip:
-            continue
-        if not (isinstance(key, str) and key.startswith(prefix) and key.endswith(suffix)):
-            continue
-        entry = session.get(key) or {}
-        if 'tags' not in entry:
-            continue
-        new_entry = {k: v for k, v in entry.items() if k != 'tags'}
-        if new_entry:
-            session[key] = new_entry
-        else:
-            del session[key]
-
-
-# In get_effective_filters, after the cross/entity bucket-write loop:
-old_scope_value = cross_existing.get('scope', '')   # captured before the loop
-# ... loop fills cross_existing[scope] from get_params if scope changes ...
-scope_changed = (
-    'scope' in filter_keys
-    and old_scope_value
-    and cross_existing.get('scope', '') != old_scope_value
-)
-if scope_changed:
-    if 'tags' in entity_existing:
-        del entity_existing['tags']
-        entity_changed = True
-    _clear_tags_from_other_entity_sessions(
-        request.session, org_id, skip=entity_key,
-    )
-```
-
-Two gates make this safe:
-
-- **`old_scope_value` truthy gate.** The very first scope+tags submit (where the user is intentionally setting both with `'' → 'A'`) would otherwise satisfy "old != new" and clobber the user's own freshly-submitted tags. Truthy gate excludes the empty-to-something case from "change".
-- **`isinstance(key, str)` defence in the helper.** Django sessions normally carry string keys, but mocks and pickled exotic types can leak through; the defensive check keeps the iteration safe.
-
-Generalise the rule: **for any per-entity state derived from a cross-entity field, the cross-field's write site must fan out invalidation across every per-entity session entry that shares the org-scoped suffix**. Entity-local clearing alone is incomplete — at any moment the user has multiple sibling entries holding their own copy of the now-stale derived state.
-
-Tests-as-spec: the `test_scope_change_clears_tags_across_all_entity_sessions` shape is the canonical four-step worked example to copy when adapting the pattern to a new project (set up two surfaces, change scope on one, navigate to the other, assert the second surface's derived state is also cleared).
+Fix: iterate session keys with the stable `kb_*_filters_<org_id>` namespace prefix and clear the derived field from every matching entry except the current. Two safety gates: `old_scope_value` truthy gate (excludes empty-to-something first-submit case from "change"); `isinstance(key, str)` defence inside the helper. Mechanics — full `get_effective_filters` shape, `_clear_tags_from_other_entity_sessions` helper implementation, both safety gates with rationale, generalisation rule, canonical test contract — are in [`references/CROSS_ENTITY_SESSION_FILTER.md`](references/CROSS_ENTITY_SESSION_FILTER.md). Read that reference when this section fires.
 
 ### Middleware
 
@@ -782,6 +712,7 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 
 ## References
 
+- [Cross-entity session-filter](references/CROSS_ENTITY_SESSION_FILTER.md) — fan-out invalidation when a cross-entity field's change leaves derived per-entity state stale across sibling session entries; full `_clear_tags_from_other_entity_sessions` helper + two safety gates
 - [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation
 - [Async WebSocket](references/ASYNC_WEBSOCKET.md) — Channels consumers and routing
 - [Celery Background Tasks](references/CELERY.md)
