@@ -121,6 +121,6 @@ Path 2 is the right answer. i18n templates emitted as `data-tags-i18n-zero` / `d
 
 ## Reference
 
-- Pattern surfaced in teisutis IDEA-146 (PR #433) M15 + clear-redirect; original `cross_filters_<org_id>` / `<namespace>_<entity>_filters_<org_id>` split came from teisutis IDEA-136. Pairs with [`RULE_tenant-scoped-fk-validation`](../../../rules/RULE_tenant-scoped-fk-validation.md) for the org-scoped session keys.
+Pairs with [`RULE_tenant-scoped-fk-validation`](../../../rules/RULE_tenant-scoped-fk-validation.md) for the org-scoped session keys.
 
 **Last Updated**: 2026-05-08

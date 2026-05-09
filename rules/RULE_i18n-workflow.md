@@ -56,7 +56,7 @@ The diagnostic recipe — run from project root after `make translate-extract`:
 ```bash
 # For a specific msgid you suspect is in the wrong map:
 grep -l '^msgid "Load older"' web/*/locale/*/LC_MESSAGES/django.po
-# → web/teisutis_kb/locale/lt/LC_MESSAGES/django.po
+# → web/<app-B>/locale/lt/LC_MESSAGES/django.po
 #   (etc — every locale of the EXTRACTED-INTO app)
 
 # That output tells you which app's <app>.py the map entry needs to live in.
@@ -66,9 +66,9 @@ A second sweep that's cheap to run periodically — looks for strings that ARE i
 
 ```bash
 # Pseudocode — adapt to project's map shape:
-for msgid in $(extract_msgids tools/translation_maps/ui.py); do
-    if ! grep -q -F "msgid \"$msgid\"" web/teisutis_ui/locale/lt/LC_MESSAGES/django.po; then
-        echo "DEAD MAP ENTRY in ui.py: $msgid"
+for msgid in $(extract_msgids tools/translation_maps/<app>.py); do
+    if ! grep -q -F "msgid \"$msgid\"" web/<app>/locale/lt/LC_MESSAGES/django.po; then
+        echo "DEAD MAP ENTRY in <app>.py: $msgid"
     fi
 done
 ```
@@ -77,8 +77,6 @@ The structural fix when you find a wrong-map entry: cut the entry from `<app-A>.
 
 The deeper design tension this surfaces: **shared cotton components / shared partials with embedded `{% trans %}` calls force translations into every consuming app's catalog.** A `<c-foo>` cotton component used by 5 apps has its `{% trans %}` strings extracted to all 5 apps' catalogs (because each consuming app's template is what `makemessages` scans). The map-ownership rule says: maintain the entries in the consuming-app's `<app>.py`, even when the string was authored alongside the cotton component. Duplicate the entries in each app's map if the same component renders across apps. Yes — translation maps are fragile, AI-token/performance optimised over surface elegance, but the duplication is the price.
 
-Surfaced in teisutis: IDEA-138 PR #412 cycle 7 (`ui` strings consumed by `auth` templates), IDEA-139 PR #413 (cotton-default `Copy` / `Copied!` consumed by both `ui` and `auth`), IDEA-140 PR #415 cycle 1 finding `3183742934` (`Load older` / `Beginning of history` extracted to `kb` because `_load_older_pager.html` is a kb partial, but map entry sat in `ui.py`), IDEA-146 PR #433 M4 (`+ Article` workspace button entry sat in `kb.py` but template lives in `ui.py` — `makemessages` extracted to `teisutis_ui/locale/*` while `fill_empty_po` for `teisutis_ui/...` only loaded `tools/translation_maps/ui.py`; cut from kb, paste into ui, re-fill, locales render correctly).
-
 #### Worked diagnostic recipe
 
 When a string isn't translating, the FIRST diagnostic is "which app's `.po` file does `makemessages` extract this msgid into?" — NOT "which app's translation map should logically own it?":
@@ -86,10 +84,10 @@ When a string isn't translating, the FIRST diagnostic is "which app's `.po` file
 ```bash
 # 1. Find which app's .po file makemessages extracted the msgid into.
 grep -l "^msgid \"<the visible string>\"" web/*/locale/*/LC_MESSAGES/django.po
-# Output → e.g. web/teisutis_ui/locale/lt/LC_MESSAGES/django.po
-#                web/teisutis_ui/locale/pl/LC_MESSAGES/django.po
-#                web/teisutis_ui/locale/ru/LC_MESSAGES/django.po
-#                web/teisutis_ui/locale/nb/LC_MESSAGES/django.po
+# Output → e.g. web/<app>/locale/<locale-1>/LC_MESSAGES/django.po
+#                web/<app>/locale/<locale-2>/LC_MESSAGES/django.po
+#                web/<app>/locale/<locale-3>/LC_MESSAGES/django.po
+#                (one line per configured locale of the EXTRACTED-INTO app)
 
 # 2. Check that app's translation map has the entry.
 grep -n "'<the visible string>'" tools/translation_maps/<that-app>.py
@@ -102,8 +100,8 @@ grep -rn "'<the visible string>'" tools/translation_maps/
 ```
 
 Logical-ownership traps that cause this regression:
-- A workspace button labeled "+ Article" *feels* like a kb concern, but lives in the ui shell template.
-- A toast emitted by shared `notifications.js` infra *feels* like ui, but if the calling code is in `<kb-app>/static/...`, the msgid extracts wherever the JS path's source files reside.
+- A workspace button labelled with content-domain wording (e.g. "+ Article") *feels* like a content-app concern, but if it lives in the shared shell/UI app's template, the msgid extracts to the shell-app catalog.
+- A toast or label emitted by shared infra (e.g. a `notifications.js` helper) *feels* like UI, but if the calling code is in `<content-app>/static/...`, the msgid extracts wherever the JS path's source files reside.
 - Cotton components consumed across apps: the msgid extracts to EVERY consuming app's catalog (one shared component → N entries needed in N maps; see the previous paragraph).
 
 ### Audit-First Principle
@@ -125,7 +123,7 @@ Typical high-signal checks:
 | Skip audit before compile | Carryovers and placeholder regressions reach runtime | Run audit and fix findings first |
 | Forget `compilemessages` | Translations not compiled; runtime uses stale `.mo` | Always compile after changes |
 | Skip `--no-obsolete` | Dead strings accumulate in `.po` files | Always pass `--no-obsolete` |
-| Translation map shipping msgids with no Python source | `makemessages` never extracts the msgid; map entries never reach `.po`; lookups fall back to source-language; translations sit dead | Every msgid in `tools/translation_maps/*.py` MUST have a matching `_()` / `gettext_lazy(...)` source somewhere in `web/`. When adding strings, add the Python source FIRST (`_NETWORK_ERROR = _("Connection failed")` in a module that gets imported at startup), then the map entry. `makemessages` is the bridge — it only sees what the AST contains. Surfaced in teisutis [PR #412](https://github.com/infohata/teisutis/pull/412) cycle 7: ui translation map shipped `Connection failed` for 4 locales but no Python source defined it; the htmx-error-handler used a substitute message until a `_NETWORK_ERROR = _("Connection failed")` constant was added in `responses.py`. |
+| Translation map shipping msgids with no Python source | `makemessages` never extracts the msgid; map entries never reach `.po`; lookups fall back to source-language; translations sit dead | Every msgid in `tools/translation_maps/*.py` MUST have a matching `_()` / `gettext_lazy(...)` source somewhere in `web/`. When adding strings, add the Python source FIRST (e.g. `_NETWORK_ERROR = _("Connection failed")` in a module that gets imported at startup), then the map entry. `makemessages` is the bridge — it only sees what the AST contains. |
 
 ### After Translations
 

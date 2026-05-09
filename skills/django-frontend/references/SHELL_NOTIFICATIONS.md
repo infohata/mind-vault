@@ -108,10 +108,6 @@ This rule applies across every surface migration in a multi-IDEA shell-frontend 
 
 ## Reference
 
-Pattern surfaced repeatedly across teisutis sprint cohort:
-- IDEA-138 (toast primitive + `notify()` + `ToastNotifyMiddleware`) — initial canonicalisation.
-- IDEA-146 (PR #433) F.4 + F.7 — broad sweep across `search-create-select.js`, `tiptap-widget.js`, `markdown-paste-upload.js`, `kb-actions.js`, `article_actions.js`. Same fix shape across all 5 files. `articleApproved` HX-Trigger pattern shipped in F.7.
-
 Pairs with [`COTTON.md`](COTTON.md) for cotton component conventions and [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) for HTMX `HX-Trigger` value-wrapping shape.
 
 **Last Updated**: 2026-05-08

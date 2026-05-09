@@ -67,7 +67,7 @@ URL_PATTERN_BY_TYPE: dict[str, str] = {
         id="ui-preview-url-patterns">{{ preview_url_patterns_json|safe }}</script>
 ```
 
-The `|safe` filter is **load-bearing** — without it, Django autoescape mangles `"` into `&quot;` and JSON.parse throws SyntaxError at the bootstrap fetch. Confirmed in IDEA-146 M2 follow-up.
+The `|safe` filter is **load-bearing** — without it, Django autoescape mangles `"` into `&quot;` and JSON.parse throws SyntaxError at the bootstrap fetch.
 
 ```js
 // preview_surface.js bootstrap
@@ -88,7 +88,7 @@ url: persisted?.url || _deriveFrameUrl(token.type, token.identifier)
 
 ## Title fallback discipline
 
-When persisted state is missing, the chrome title falls back to `''` (empty), **not** the `type.id` URL-token literal. Reason: the cold-start fragment body typically carries `data-preview-title-hint` (the F.1 pattern in IDEA-146) which the surface's `_restoreBody` chain reads. Surfacing `'article.7'` as the title is worse UX than empty (chrome stays clean while the body fetch hydrates).
+When persisted state is missing, the chrome title falls back to `''` (empty), **not** the `type.id` URL-token literal. Reason: the cold-start fragment body typically carries a `data-preview-title-hint` data attribute that the surface's `_restoreBody` chain reads. Surfacing the URL-token (e.g. `'article.7'`) as the title is worse UX than empty (chrome stays clean while the body fetch hydrates).
 
 ## Tradeoffs accepted
 
@@ -112,6 +112,6 @@ The surface URL (`/articles/`) MUST stay name-stable across the migration — sa
 
 ## Reference
 
-Pattern surfaced in teisutis IDEA-146 (PR #433) M2 cluster — cross-IDEA amendment to IDEA-159 (preview-drawer foundation). 7-phase migration shipped as commits `e185745c` (URL contract), `525ae03c` (attachment endpoint), `2453fa0b` (seed dispatcher), `79c20ca2` (JS phases 4-6), `c8f48283` (URL pattern derivation follow-up). Cross-IDEA backref doc at the foundation IDEA's archive dir per `RULE_cross-idea-amendments`.
+When this contract is added by a downstream IDEA on top of an upstream preview-drawer foundation IDEA, file the cross-IDEA backref per [`RULE_cross-idea-amendments`](../../../rules/RULE_cross-idea-amendments.md).
 
 **Last Updated**: 2026-05-08
