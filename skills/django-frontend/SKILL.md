@@ -499,42 +499,9 @@ Both traps are the same family — Django's template engine treats the file as o
 
 ### SCSS vendor-import hazard — `@import url()` is runtime, not compile-time
 
-When a Django project compiles SCSS to CSS via libsass / dart-sass / `compile_scss` and serves the result through `collectstatic`, an `@import url('../vendor/bulma.min.css')` inside the SCSS source is **NOT** resolved by Sass at compile time. Sass copies the `@import url(...)` line verbatim into the compiled `.css`; the **browser** resolves the relative URL at runtime, against the COMPILED CSS file's URL.
+**Fires when** a Django project compiles SCSS to CSS via libsass / dart-sass / `compile_scss` and serves the result through `collectstatic`. The trap: `@import url('../vendor/bulma.min.css')` inside SCSS is NOT resolved by Sass at compile time — Sass copies the line verbatim into the compiled `.css`; the **browser** resolves the relative URL at runtime against the COMPILED CSS file's URL. App relocation, `STATIC_ROOT` change, or sibling-app reorg → `bulma.min.css` 404s; page renders unstyled while Sass compiled cleanly.
 
-Failure mode: the SCSS source lives at a stable repo path (e.g. `myapp/static/myapp/scss/theme.scss`) and the vendor file sits as a sibling (`myapp/static/myapp/vendor/bulma.min.css`), so during dev with the SCSS importer everything looks fine. After `collectstatic` deploys the compiled `theme.css` somewhere else (the destination depends on the app's static config and `STATIC_ROOT`), the `../vendor/bulma.min.css` relative URL points at a different place than where collectstatic put the vendor file. **Sass compiled cleanly**; the **browser logs a 404** for `bulma.min.css`; the page renders unstyled.
-
-The trap recurs whenever:
-- a Django app is renamed (e.g. `app_core` → `app_ui`) and its compiled CSS file's `STATIC_URL` path shifts
-- `STATIC_ROOT` changes between dev and prod
-- `collectstatic --no-default-ignore` flags differ between environments
-- a sibling app's static directory is reorganised
-
-```scss
-// ❌ DON'T — runtime-resolved against compiled CSS path; breaks on relocation.
-@import url('../vendor/bulma.min.css');
-// ... project styles below ...
-
-// ✅ DO — vendor CSS goes in a <link> in base.html (or app-specific base).
-//        SCSS only handles theme + component styles.
-```
-
-```django
-{# base.html — vendor links FIRST so theme CSS can override defaults #}
-<link rel="stylesheet" href="{% static 'myapp/vendor/bulma.min.css' %}">
-<link rel="stylesheet" href="{% static 'myapp/css/theme.css' %}">
-```
-
-Why a `<link>` survives where `@import url()` doesn't: `{% static %}` resolves through Django's staticfiles finders to the correct URL for the current settings, regardless of where collectstatic happens to put the file. The HTML resolution is settings-aware; the CSS resolution is path-relative-to-compiled-output.
-
-Compounded from teisutis IDEA-135 [PR #409](https://github.com/infohata/teisutis/pull/409) where the SCSS lived inside `teisutis_core` originally, the IDEA relocated it to `teisutis_ui` (a new shell app), and the compiled `theme.css`'s URL shifted from `/static/teisutis_core/css/theme.css` to `/static/teisutis_ui/css/theme.css`. The `@import url('../css/bulma.min.css')` line in the SCSS pointed at `../css/bulma.min.css` relative to the compiled CSS — now resolving to `/static/teisutis_ui/css/bulma.min.css`, but `bulma.min.css` was sitting at `/static/teisutis_core/css/bulma.min.css` (didn't move). Browser 404'd; UI rendered unstyled until the `<link>` migration landed.
-
-**Detection during review**: grep SCSS source for `@import url(`:
-
-```bash
-grep -rn '@import url(' --include='*.scss' static/ web/ src/ | grep -v node_modules
-```
-
-Any hit is a candidate for migration to a `<link>` tag. The exception is when the imported file is itself part of the same compiled output (i.e. another SCSS partial bundled by Sass) — in that case it's a Sass-time `@use` / `@import` of a sibling source, not a runtime URL fetch, and the syntax is `@import 'partial';` (no `url()`, no extension). The hazard is specifically `@import url(...)`.
+The fix: vendor CSS goes in a `<link>` tag in base.html (`{% static %}` resolves through Django's staticfiles finders, settings-aware); SCSS only handles theme + component styles. Mechanics — full failure-mode walkthrough, four recurrence triggers, ❌/✅ syntax examples, teisutis IDEA-135 PR #409 worked example (`teisutis_core` → `teisutis_ui` rename broke the compiled-CSS URL), grep-based detection recipe, and the partial-import exception (`@import 'partial';` is Sass-time, not the hazard) — are in [`references/SCSS_VENDOR_IMPORT.md`](references/SCSS_VENDOR_IMPORT.md). Read that reference when this section fires.
 
 ## Bulma template standards
 
@@ -622,6 +589,7 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [Alpine.store coordinators with delayed-registered consumers](references/ALPINE_STORE_COORDINATORS.md) — `onRegister` callback pattern: register-or-queue API, one-shot semantics, sync-or-deferred transparency, replaces fragile `Alpine.effect`-poll-instance idiom
 - [Active-state tracking](references/ACTIVE_STATE_TRACKING.md) — `aria-current="true"` + CSS `:has()` instead of JS class-toggling for "currently selected" list items: single source of truth, free a11y, HTMX-swap-friendly
 - [Template comment syntax](references/TEMPLATE_COMMENT_SYNTAX.md) — `{# inline #}` is single-line only; multi-line uses `{% comment %}`; content-leak failure mode; grep-based detection recipe for CI lint
+- [SCSS vendor-import hazard](references/SCSS_VENDOR_IMPORT.md) — `@import url()` is runtime, not compile-time; vendor CSS belongs in `<link>`; failure-mode + recurrence triggers + detection grep
 - [Base Template + Theme](references/BASE_TEMPLATE.md)
 - [Modal System](references/MODAL_SYSTEM.md)
 - [HTMX Widgets](references/HTMX_WIDGETS.md) — autocomplete, file upload, colour/icon pickers
