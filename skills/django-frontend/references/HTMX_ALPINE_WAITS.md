@@ -106,7 +106,7 @@ When a form has `hx-boost="true"` or `hx-post="..."`:
 async def submit_htmx_form(page, form_selector, **field_values):
     for name, value in field_values.items():
         await page.fill(f'{form_selector} [name="{name}"]', value)
-    async with page.expect_response(lambda r: 'htmx' in r.request.headers.get('hx-request', '').lower()) as response_info:
+    async with page.expect_response(lambda r: r.request.headers.get('hx-request') == 'true') as response_info:
         await page.click(f'{form_selector} [type="submit"]')
     response = await response_info.value
     assert response.status == 200
