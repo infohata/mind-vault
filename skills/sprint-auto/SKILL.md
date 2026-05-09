@@ -56,6 +56,25 @@ Run once, before any per-IDEA work. If **any** check fails, abort with an action
 
    **Why push at S(-1)** (v3.2 change from v3.1, where push happened at S11.10): per-IDEA `/work` invocations in S2 open PRs with `--base $SPRINT_AUTO_INTEGRATION_BRANCH`. GitHub requires the base ref to exist on `origin` at PR-creation time, so the integration branch must be pushed first. The push is just the branch ref — no PR is opened until S11.10.
 
+9. **Playwright availability probe (non-fatal).** After the integration stack is up, probe whether Playwright is installed in the `web` service. The probe outcome flips the IDEA-level `requires_playwright` gate; it is **never** a batch-level abort.
+   ```bash
+   if docker compose exec -T web playwright --version >/dev/null 2>&1; then
+       export SPRINT_AUTO_PLAYWRIGHT_AVAILABLE=1
+   else
+       export SPRINT_AUTO_PLAYWRIGHT_AVAILABLE=0
+       echo "[preflight] Playwright not installed in integration stack." \
+            "IDEAs with 'requires_playwright: true' will gate to manual-eval-only mode" \
+            "(plan author writes manual-eval-checklist rows; Playwright tests are deferred)." \
+            "Run tools/setup_playwright.sh and rebuild the image to enable." | tee -a "$BATCH_LOG"
+   fi
+   ```
+   Persist `SPRINT_AUTO_PLAYWRIGHT_AVAILABLE` to the batch state file so per-IDEA `/plan` and `/work` invocations read the same value across worktree boundaries (env vars don't survive subshells). The IDEA-level gate (`requires_playwright` frontmatter flag) is described in [`references/safety-gates.md`](references/safety-gates.md) § Playwright-availability gate. Three branches:
+   - **Probe = present, IDEA has `requires_playwright: true`** → plan author writes Playwright tests; eval-checklist pre-fills covered rows from the plan's `playwright_test_coverage` block.
+   - **Probe = absent, IDEA has `requires_playwright: true`** → plan author writes ONLY the manual-eval-checklist rows for Playwright-relevant scenarios; the frontmatter flag stays as a backref so a later "set up Playwright" IDEA can backfill tests.
+   - **IDEA has no `requires_playwright`** → IDEA proceeds independent of probe outcome.
+
+   See [`ROADMAP.md`](ROADMAP.md) § "IDEA-level Playwright-availability gate" for the full rationale (bootstrap circularity solved by manual-eval fallback; no IDEA blocks on infra readiness).
+
 ### 2. Per-IDEA execution loop (S0–S11)
 
 For each IDEA in the list, in argument order, sequentially. The full state machine is in [`references/post-pr-sequence.md`](references/post-pr-sequence.md). Each step heading below tags the state it covers.
@@ -85,6 +104,8 @@ For each IDEA in the list, in argument order, sequentially. The full state machi
 4. **Work the plan (S2).** Invoke the `work` skill against the emitted plan. The work skill detects `SPRINT_AUTO_INTEGRATION_WORKTREE` is set and routes its verification step there — see [`references/integration-stage.md`](references/integration-stage.md) and [`../work/SKILL.md`](../work/SKILL.md). Per `RULE_git-safety`, the per-IDEA worktree is on `auto/<slug>` (not main), so commits flow freely. `/work` dispatches personas, commits per plan item, runs verification on the integration worktree (`git fetch origin auto/<slug>` + `git checkout --detach origin/auto/<slug>` there + `docker compose up -d --force-recreate web celery` + targeted tests; **`--detach` is required** because the per-IDEA worktree already has `auto/<slug>` checked out, and git refuses cross-worktree branch checkouts), and opens the PR on success.
 
    **v3.2 PR base routing**: when `SPRINT_AUTO_INTEGRATION_BRANCH` is set, `/work` passes `--base "$SPRINT_AUTO_INTEGRATION_BRANCH"` to `gh pr create` instead of the parent (`main` / `sprint-*`). The PR's diff is naturally IDEA-isolated against integration (which starts as a copy of `origin/main` at S(-1) and only accumulates merge commits as later IDEAs land). Each per-IDEA PR remains independently reviewable for the morning reviewer. If verification fails or `/work` returns without opening a PR, re-enter at step 9 with `outcome: verification_failed`.
+
+   **Playwright defence-in-depth at S2**: if the IDEA's plan contains a `playwright_test_coverage` block (i.e. the plan author wrote Playwright tests), `/work`'s verification step re-probes `docker compose exec -T web playwright --version` against the integration stack. If the probe now fails (infra was uninstalled between S(-1) and now, or the image was rebuilt without Playwright), S2 logs `playwright_unavailable: true` to the auto-run log, skips the Playwright tests for that IDEA only, and continues with non-Playwright tests. The IDEA still ships; the manual-eval rows the plan would have pre-filled stay un-pre-filled. The integration PR's body surfaces this in S11.10's per-IDEA evaluation summary.
 
 5. **Bugbot-loop the PR — deliverables pass (S3).** Invoke `/bugbot-loop <PR>` on the PR `/work` just opened. With `SPRINT_AUTO_INTEGRATION_WORKTREE` set, bugbot-loop's Phase 0 skips entirely — per-IDEA worktrees never get `.env` or docker. Fix-verification routes to the integration worktree as in step 4 (no DB reset within the bugbot session — fix commits don't typically migrate; reset cost would explode). Three outcomes (per [`references/escalation-policy.md`](references/escalation-policy.md)):
    - **Clean** → step 6.
@@ -273,6 +294,8 @@ No `/compound` reminder here — compound ran in section 4 above.
 - [skills/wrap/SKILL.md](../wrap/SKILL.md) — invoked per IDEA at step 6 (`--scope=idea-only` mode); post-merge destructive teardown extended for `--integration <batch-iso>` mode (v3.2: human merges the integration PR; teardown runs from the integration ref, not last-of-batch IDEA)
 - [skills/compound/SKILL.md](../compound/SKILL.md) — invoked at batch end (section 4) for cross-project learnings; each mind-vault PR is itself bugbot-looped
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — the sprint workflow this skill wraps
+- [ROADMAP.md](ROADMAP.md) — Direction-1 (Playwright) plumbing context for the S(-1) availability probe + per-IDEA `requires_playwright` gate
+- [assets/setup_playwright.sh.template](assets/setup_playwright.sh.template) — bootstrap script projects copy to provision Playwright
 
 ---
 
