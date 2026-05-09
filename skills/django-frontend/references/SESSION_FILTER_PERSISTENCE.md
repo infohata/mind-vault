@@ -57,6 +57,12 @@ def get_effective_filters(request, *, namespace: str, filter_keys: tuple[str, ..
     entity_existing = request.session.get(entity_key, {})
 
     is_real_submit = '_filter_form' in request.GET
+    # Capture the OLD scope value BEFORE the merge loop. The loop below
+    # mutates cross_existing[key] = value in place, so reading 'scope' from
+    # cross_existing AFTER the loop would always equal request.GET['scope']
+    # and the change would be invisible. The tags-clear fan-out depends on
+    # this comparison happening across the loop, not after it.
+    old_scope = cross_existing.get('scope', '')
 
     for key in filter_keys:
         if key not in request.GET:
@@ -68,7 +74,8 @@ def get_effective_filters(request, *, namespace: str, filter_keys: tuple[str, ..
             entity_existing[key] = value
 
     # Scope-change → tags-clear (this entity + fan-out across siblings).
-    if is_real_submit and _scope_changed(cross_existing, request.GET):
+    new_scope = cross_existing.get('scope', '')
+    if is_real_submit and old_scope != new_scope:
         if 'tags' in entity_existing:
             del entity_existing['tags']
         _clear_tags_from_other_entity_sessions(
