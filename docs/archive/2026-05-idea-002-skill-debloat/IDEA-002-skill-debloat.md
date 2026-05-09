@@ -1,7 +1,7 @@
 ---
 id: 002
 title: Skill debloat — extract over-budget SKILL.md bodies into references/
-status: idea
+status: in-progress
 priority: high
 supersedes: []
 superseded_by: null

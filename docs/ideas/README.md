@@ -7,10 +7,11 @@ differentiated by frontmatter `status:`._
 ## 🚧 In Progress
 
 - [IDEA-001](../archive/2026-05-idea-001-playwright-plumbing/IDEA-001-playwright-plumbing.md) ⏳ — Playwright Direction-1 plumbing — assets, gate, preflight
+- [IDEA-002](../archive/2026-05-idea-002-skill-debloat/IDEA-002-skill-debloat.md) ⏳ — Skill debloat — extract over-budget SKILL.md bodies into references/
 
 ## 💡 High Priority (backlog)
 
-- [IDEA-002](IDEA-002-skill-debloat.md) — Skill debloat — extract over-budget SKILL.md bodies into references/
+_(none)_
 
 ## 💡 Medium Priority (backlog)
 
