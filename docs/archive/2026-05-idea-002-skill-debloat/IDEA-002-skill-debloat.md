@@ -20,8 +20,14 @@ sensitive_paths_cleared_reason: "Touches skills/wrap/, skills/django-frontend/, 
 
 # IDEA-002: Skill debloat — extract over-budget SKILL.md bodies into references/
 
-**Status**: 💡 Idea
+**Status**: 🚧 In Progress (Phase 1 shipped; Phase 2 + 3 queued)
 **Priority**: High
+
+## Progress
+
+- ✅ **Phase 1** — `skills/wrap/SKILL.md`: shipped 2026-05-09 in [PR #107](https://github.com/infohata/mind-vault/pull/107). Body 546 → 310 lines (-43%, -236L). Three new references emitted: `WORKTREE_TEARDOWN.md`, `EVAL_GATE_EMISSION.md`, `ATOMIC_MERGE.md`. Architect-review verdict REQUIRES ABSTRACTION integrated (filename concept-scoping + internal forward-ref rewrite + foregone-conclusion Q1/Q2 collapse). Note: the inline audit's "Step 8 atomic merge (100L)" estimate was off — actual extracted body was 73L; minor variance, target line count met (≤350L).
+- ⏳ **Phase 2** — `skills/django-frontend/SKILL.md`: queued. ~373L = 40% of body extractable across six section moves.
+- ⏳ **Phase 3** — `skills/django/SKILL.md`: queued. Lowest priority — distributed bloat, harder per-section judgment.
 
 **Problem** (or opportunity): Three skills currently exceed the ~500-line soft body budget set by `docs/SKILL_SPECIFICATION.md`. Every `Skill` tool invocation loads the full SKILL.md body into the consuming agent's context, so bloat is paid as a per-activation token cost — and `wrap` is invoked twice per IDEA under sprint-auto, multiplying the cost.
 
