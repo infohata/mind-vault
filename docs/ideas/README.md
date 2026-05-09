@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-- [IDEA-002](../archive/2026-05-idea-002-skill-debloat/IDEA-002-skill-debloat.md) ⏳ — Skill debloat — extract over-budget SKILL.md bodies into references/ (Phase 1 shipped via PR #107; Phases 2 + 3 queued)
+_(none)_
 
 ## 💡 High Priority (backlog)
 
@@ -25,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-002: Skill debloat — extract over-budget SKILL.md bodies into references/ ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-05-09 · **See**: [Archive](../archive/2026-05-idea-002-skill-debloat/IDEA-002-skill-debloat.md), [PR #107](https://github.com/infohata/mind-vault/pull/107) (Phase 1 — wrap), [PR #109](https://github.com/infohata/mind-vault/pull/109) (Phase 2 — django-frontend), [PR #110](https://github.com/infohata/mind-vault/pull/110) (Phase 3 — django).
+Three-phase debloat across `wrap/SKILL.md` (-43%, -236L), `django-frontend/SKILL.md` (-33%, -307L), and `django/SKILL.md` (-26%, -205L). **748L total saved across 2,268L of original SKILL.md bodies (-33%)**. Twelve new `references/*.md` files emitted, each loading on demand only when the consuming agent's task touches the relevant pattern. Token cost reclaimed per skill activation roughly proportional to body savings — meaningful at sprint-auto-scale invocation rates. Pattern matches PR #106's rules-reorg precedent (always-on vs load-on-demand) extended from `rules/` to `skills/<owner>/SKILL.md`.
 
 ### IDEA-001: Playwright Direction-1 plumbing — assets, gate, preflight ✅ COMPLETE
 
