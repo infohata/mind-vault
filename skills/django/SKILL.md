@@ -356,56 +356,9 @@ For URL-encoded `DATABASE_URL` parsing and typed casting, use `django-environ` o
 
 ### Env-driven allowlists / denylists as `frozenset`
 
-Allowlists and denylists (blocked MIME types, blocked file extensions, IP allowlists, feature flags keyed by tenant) want three properties at once:
+**Fires when** a list (blocked MIMEs, blocked extensions, IP allowlists, feature flags) needs all three of: per-deployment override without code change, O(1) hot-path membership lookup, and immutability against accidental request-handler mutation.
 
-1. **Per-deployment override without a code change** — sysop changes the policy via env var.
-2. **O(1) membership lookup** at request-handling hot paths.
-3. **Immutability** so a request handler can't accidentally mutate the global set.
-
-`frozenset` parsed from a comma-separated env var with a sane default in code gives all three:
-
-```python
-# settings.py
-ATTACHMENT_BLOCKED_UPLOAD_MIMES = frozenset(filter(None, (
-    m.strip().lower() for m in os.getenv(
-        'ATTACHMENT_BLOCKED_UPLOAD_MIMES',
-        'application/x-msdownload,application/x-msdos-program,'
-        'application/vnd.microsoft.portable-executable,application/x-dosexec,'
-        'application/x-msi,application/x-executable,application/x-elf,'
-        'application/x-mach-binary,application/x-sh,application/x-shellscript,'
-        'application/java-archive'
-    ).split(',')
-)))
-ATTACHMENT_BLOCKED_UPLOAD_EXTENSIONS = frozenset(filter(None, (
-    e.strip().lower().lstrip('.') for e in os.getenv(
-        'ATTACHMENT_BLOCKED_UPLOAD_EXTENSIONS',
-        'exe,dll,msi,bat,com,scr,cpl,so,dylib,class,jar,war,ear'
-    ).split(',')
-)))
-```
-
-```python
-# usage
-def is_blocked(mime: str, filename: str) -> bool:
-    norm = (mime or '').split(';', 1)[0].strip().lower()
-    if norm and norm in settings.ATTACHMENT_BLOCKED_UPLOAD_MIMES:
-        return True
-    if filename and '.' in filename:
-        ext = filename.rsplit('.', 1)[-1].lower()
-        if ext and ext in settings.ATTACHMENT_BLOCKED_UPLOAD_EXTENSIONS:
-            return True
-    return False
-```
-
-Notes that earn their keep:
-
-- **Replace, not extend, semantics.** The env var **replaces** the default list, not extends it. Document this in `.env.template` next to the example so an operator who uncomments a partial example doesn't silently weaken the policy. The `.env.template` example must list the full default — not a subset.
-- **Normalise on read, not on write.** Lower-case + strip on the parse side, not at every call site. The hot path stays a clean `if x in settings.X`.
-- **`filter(None, ...)` drops empty strings** from trailing commas / accidental blank entries. Cheaper than re-validating each entry.
-- **`frozenset` (not `set`)** so accidental `.add()` / `.discard()` from request handlers raises immediately instead of mutating shared global state.
-- **Extensionless guard.** When checking by extension, gate on `'.' in filename` first — `'Makefile'.rsplit('.', 1)[-1]` returns `'Makefile'`, which can collide with denylist entries by sheer coincidence.
-
-When NOT to use: small-cardinality static lists that never need per-deployment override (use a literal `frozenset(...)` constant), or lists that need per-tenant override (use a model + cached lookup, not a settings constant).
+The shape: parse a comma-separated env var into a `frozenset` at settings-import time, with a sane default literal embedded in code. Five details earn their keep — replace-not-extend semantics (env var REPLACES the default; `.env.template` must list the full default), normalise on parse not call-site, `filter(None, ...)` to drop empty entries from trailing commas, `frozenset` not `set` so handler `.add()` raises, extensionless guard (`'.' in filename` before `rsplit('.', 1)[-1]` to avoid `'Makefile'`-style collisions). Mechanics — full settings.py block with the BLOCKED_UPLOAD_MIMES + EXTENSIONS shape, hot-path `is_blocked` helper, all five earn-their-keep notes, when-NOT-to-use guidance for small-cardinality / per-tenant cases — are in [`references/ENV_DRIVEN_ALLOWLISTS.md`](references/ENV_DRIVEN_ALLOWLISTS.md). Read that reference when this section fires.
 
 ### Docker-generated migrations — ownership bypass
 
@@ -666,6 +619,7 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 
 - [Cross-entity session-filter](references/CROSS_ENTITY_SESSION_FILTER.md) — fan-out invalidation when a cross-entity field's change leaves derived per-entity state stale across sibling session entries; full `_clear_tags_from_other_entity_sessions` helper + two safety gates
 - [FileField MIME capture](references/FILEFIELD_MIME_CAPTURE.md) — `FieldFile.content_type` is empty by design; capture browser MIME at upload + import-time `assert` that locks the canonical set ↔ consumer dict against drift
+- [Env-driven allowlists / denylists as `frozenset`](references/ENV_DRIVEN_ALLOWLISTS.md) — three-property pattern (env override + O(1) hot-path + immutable global), full BLOCKED_UPLOAD_MIMES + EXTENSIONS shape, replace-not-extend env semantics
 - [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation
 - [Async WebSocket](references/ASYNC_WEBSOCKET.md) — Channels consumers and routing
 - [Celery Background Tasks](references/CELERY.md)
