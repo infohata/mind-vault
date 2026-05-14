@@ -330,6 +330,135 @@ function _parseStackPrefix(str) {
 
 Lenient parse mirrors `parse_open_param`'s contract from the URL stack section above — a malformed piece drops silently rather than poisoning the whole stack.
 
+### Prefix frame metadata — pairing titles with the prefix CSV
+
+`_parseStackPrefix` as drafted above produces frames as `{type, identifier}` only — **no title field**. When the drawer's chrome (back-affordance label, title slot) binds to `frame.title`, prefix frames born from `data-preview-stack-prefix` render empty: the back-affordance shows `"← Article: "` (type label only) and clicking back to a prefix-loaded parent leaves the title slot blank.
+
+Cold-start hydration paths don't have this gap because the server-emitted seed JSON includes titles per frame. But the **closed-drawer-then-click path** that triggers `openWith()` bypasses cold-start entirely — it has only the tokens from `data-preview-stack-prefix`. The divergence-branch (`lcpLen === 0`) path has the same gap; it just gets exercised less often.
+
+Surfaced by teisutis PR #446 manual smoke after the `openWith()` empty-stack guard (above) made flow E reachable from a closed drawer. The empty-stack push gap had previously been hiding the title gap — when the drawer didn't open at all, no one noticed the prefix frames were title-less.
+
+Fix: server emits a **parallel JSON array** of titles alongside the prefix CSV; JS parser pairs them by index.
+
+**Server side — template tag returns titles in the same order as the prefix CSV:**
+
+```python
+import json
+from django import template
+
+register = template.Library()
+
+@register.simple_tag
+def event_stack_prefix_titles(event):
+    """Return JSON-encoded titles parallel to ``event_stack_prefix``.
+
+    JSON over CSV because raw titles carry commas/quotes/colons that
+    break naïve splitters; ``ensure_ascii=False`` keeps non-ASCII
+    glyphs unescaped (e.g. Cyrillic, Lithuanian, Polish diacritics).
+    """
+    titles = []
+    if event.linked_article_id:
+        # Prefer the GFK-prefetched ``content_object`` when the view
+        # already loaded it (typical list path). Falls back to a cheap
+        # ``.only('title')`` lookup so the tag stays correct on detail
+        # pages / partial renders that don't prefetch.
+        article = getattr(event, 'linked_article', None)
+        if article is None:
+            article = Article.objects.filter(
+                pk=event.linked_article_id,
+            ).only('title').first()
+        titles.append(getattr(article, 'title', '') if article else '')
+    if event.recurrence_master_id:
+        master = getattr(event, 'recurrence_master', None)
+        if master is None:
+            master = Event.objects.filter(
+                pk=event.recurrence_master_id,
+            ).only('title').first()
+        titles.append(getattr(master, 'title', '') if master else '')
+    if not titles:
+        return ''
+    return json.dumps(titles, ensure_ascii=False)
+```
+
+**Template — second attribute alongside the existing prefix CSV:**
+
+```django
+{% event_stack_prefix event as stack_prefix %}
+{% event_stack_prefix_titles event as stack_prefix_titles %}
+<a href="{{ event.detail_url }}"
+   data-preview-link
+   data-preview-type="event"
+   data-preview-identifier="{{ event.pk }}"
+   {% if stack_prefix %}data-preview-stack-prefix="{{ stack_prefix }}"{% endif %}
+   {% if stack_prefix_titles %}data-preview-stack-prefix-titles="{{ stack_prefix_titles }}"{% endif %}>
+    {{ event.title }}
+</a>
+```
+
+**Client side — `_parseStackPrefix` accepts a second argument and pairs by index:**
+
+```js
+function _parseStackPrefix(str, titlesJson) {
+    if (!str) return [];
+    let titles = [];
+    if (titlesJson) {
+        try {
+            const parsed = JSON.parse(titlesJson);
+            if (Array.isArray(parsed)) titles = parsed;
+        } catch (_) { /* malformed → empty titles, lenient */ }
+    }
+    const out = [];
+    const pieces = str.split(',');
+    for (let i = 0; i < pieces.length; i++) {
+        const piece = pieces[i].trim();
+        if (!piece) continue;
+        const [type, identifier] = piece.split('.');
+        if (!type || !identifier) continue;
+        const title = (typeof titles[i] === 'string') ? titles[i] : '';
+        out.push({ type, identifier, title });
+    }
+    return out;
+}
+```
+
+Both click handlers (outside-drawer + inside-drawer) forward both attributes:
+
+```js
+const prefix = _parseStackPrefix(
+    el.dataset.previewStackPrefix || '',
+    el.dataset.previewStackPrefixTitles || ''
+);
+```
+
+**Lenient contract — symmetric with the prefix CSV:**
+
+- Empty `titlesJson` → all frames get `title: ''`. Frames still produced.
+- Malformed JSON → caught, empty titles. Frames still produced.
+- Shorter titles array than tokens → trailing frames get `title: ''`. Frames still produced.
+- Longer titles array → extra titles ignored.
+
+Never throw; never poison the whole stack. The chrome's worst-case is "type label only" — same as the pre-pairing baseline — not a JS error.
+
+**Why JSON over `|`-delimited CSV or URL-encoded CSV:**
+
+- Titles contain commas (English: `"Hello, world"`), colons (`"Topic: subtopic"`), quotes (`"O'Brien's report"`), and full-Unicode glyphs. A simple split would corrupt them.
+- HTML attribute autoescape handles JSON's `"` characters via `&quot;` — no extra escaping layer needed.
+- `ensure_ascii=False` keeps the wire size small and the source readable in DevTools.
+
+**Production prefetch contract:**
+
+The title tag's DB fallback (the `.only('title')` lookup when the related row isn't prefetched) is functional but costs one query per row. To stay at O(1) queries per list-page, list views opting into the stack-prefix convention should prefetch:
+
+```python
+queryset = Event.objects.visible_to(user).select_related(
+    'recurrence_master',
+).prefetch_related(
+    'linked_article',  # or 'content_object' if using GenericForeignKey
+)
+```
+
+The pattern degrades gracefully when prefetch is missing — chrome shows the title via the fallback query, list view eats N extra queries until the prefetch is added. Acceptable for lists ≤ 50 rows; revisit if perf surfaces.
+
 ### The seven flows the algorithm handles
 
 | # | Starting state | Click | Final stack |
