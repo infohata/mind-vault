@@ -124,6 +124,8 @@ Short-circuit: if frontmatter already shows `status: complete`, assume Step 2 ha
 
 ### Step 2 — Flip the idea frontmatter
 
+**Pre-condition — IDEA completeness audit.** Before flipping `status: in-progress` → `complete`, walk the plan's R-numbers one by one and confirm each is satisfied by the merged code at PR HEAD. Any unmet criterion BLOCKS the flip — either ship the missing work on the same PR, or keep `status: in-progress` and document the pending piece with the ⚠️ marker in every wrap output (devlog entry, ideas-index entry, hand-back report). Phase-shipped IDEAs (multiple PRs over time) use `phase_N_completed:` plus `completed:` to track both phase boundaries and final close-out. Full audit procedure + the worked teisutis IDEA-163 precedent (premature Phase-1 wrap caught by the user at /compound time) are in [`references/IDEA_COMPLETENESS_AUDIT.md`](references/IDEA_COMPLETENESS_AUDIT.md). Read that reference when this step fires for any IDEA whose plan documented multiple phases or whose R-criteria might not all be shipped on this PR.
+
 Per `RULE_ideas-location-status`, frontmatter-edit only — **no file move** (archive dir already exists):
 
 ```yaml
@@ -295,6 +297,7 @@ The HITL gate is *protected-branch* merge, not *every* merge; the gate stays exa
 
 ## References
 
+- [`references/IDEA_COMPLETENESS_AUDIT.md`](references/IDEA_COMPLETENESS_AUDIT.md) — Step 2 pre-condition: walk plan R-numbers before flipping `status: complete`. ⚠️ marker for unmet criteria, phase-tracking frontmatter (`phase_N_completed:` + `completed:`), teisutis IDEA-163 premature-wrap precedent.
 - [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md) — Step 5 mechanics: destructive teardown sequence, per-file evaluation when `git worktree remove` refuses, last-of-batch integration cleanup for sprint-auto v3.1 batches.
 - [`references/EVAL_GATE_EMISSION.md`](references/EVAL_GATE_EMISSION.md) — Step 7 mechanics: emission shell + placeholder substitution, Playwright-coverage pre-fill algorithm for Direction-1 IDEAs, MANUAL_EVAL_TRACKER hand-off when the walk surfaces issues.
 - [`references/ATOMIC_MERGE.md`](references/ATOMIC_MERGE.md) — Step 8 mechanics: protected-branch detection, pre-merge bugbot re-clearance, squash-merge sequence, permission-denial handling, deployment-branch override.
