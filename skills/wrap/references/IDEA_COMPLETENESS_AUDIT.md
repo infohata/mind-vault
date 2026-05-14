@@ -8,7 +8,7 @@ Step 2 of `/wrap NNN` — at the moment the IDEA file's frontmatter is about to 
 
 ## The audit
 
-Open the IDEA file and the plan doc side-by-side. Walk the requirement list — every `R1`, `R2`, … — and ask one question per requirement:
+Open the IDEA file and the plan doc side-by-side. Walk the requirement list — every numbered requirement (R-numbers, requirement-ids, or named subsections, depending on the plan template) — and ask one question per requirement:
 
 > **"Does the merged code at the PR's HEAD demonstrably satisfy this requirement, or is there work referenced in the plan that has not shipped?"**
 
@@ -20,22 +20,22 @@ Three possible answers per requirement:
 | ⚠️ **Partially satisfied** — half the surface shipped, the other half is in a separate planned PR / phase / follow-up | **Do not flip frontmatter to `complete`.** Either (a) ship the remaining work on the same PR before continuing /wrap, or (b) keep `status: in-progress` and document the missing piece as a follow-up. The wrap output (devlog entry, ideas-index entry, hand-back report) must explicitly call out the deferred piece with the ⚠️ marker. |
 | 🔍 **Unclear** — the requirement was implicit and the plan didn't enumerate concrete acceptance signals | Investigate first. If you can't confidently answer ✅ within 5 minutes, treat as ⚠️. |
 
-The audit is per-requirement, not per-PR. A multi-phase IDEA may legitimately satisfy `R1..R6` on PR #N but leave `R7` for PR #N+1 — the right wrap shape is "PR #N satisfies R1..R6, R7 still pending, IDEA stays in-progress until PR #N+1 ships".
+The audit is per-requirement, not per-PR. A multi-phase IDEA may legitimately satisfy most acceptance criteria on PR #N but leave one or more for PR #N+1 — the right wrap shape is "PR #N satisfies the Phase-1 criteria, the Phase-2 criteria stay pending, IDEA stays in-progress until PR #N+1 ships". Don't paraphrase R-numbers from the plan into the wrap output; name them by phase and concept so a reader without the plan in hand can follow.
 
 ## The ⚠️ visual marker is load-bearing
 
 Every wrap output that summarises an IDEA's status must surface unmet criteria with ⚠️. The marker survives compaction; soft phrasing does not. Examples:
 
 ```
-✅ IDEA-NNN: Phase 1 shipped (canonical helper + walker + 15 emit-site dual-emission).
-⚠️ Phase 2 pending — drop legacy per-name keys + retire 4 modal.js listeners.
-   R7 acceptance criterion ("legacy listeners retired") unmet until Phase 2 ships.
+✅ IDEA-NNN: Phase 1 shipped (foundation + dual-emit overlap landed).
+⚠️ Phase 2 pending — legacy code paths still live; drop / retire deferred.
+   Phase-2 acceptance criterion ("legacy paths retired") unmet until Phase 2 ships.
 ```
 
 Not this:
 
 ```
-✅ IDEA-NNN complete — helper + walker + 15 emit-site migration shipped in PR #N.
+✅ IDEA-NNN complete — foundation + emit-site migration shipped in PR #N.
 ```
 
 The soft form elides the gap. The next reader — possibly the same agent post-compaction — reads "complete" and stops digging. The deferred work disappears into a memory note, then drifts out of the next session's load, and surfaces months later as "wait, why is legacy code still emitting?".
@@ -47,7 +47,7 @@ When an IDEA legitimately ships in phases over multiple PRs, the wrap commit on 
 - **Phase 1 PR's wrap** — frontmatter stays `in-progress`, banner adds a "Phase 1 shipped / Phase 2 pending" section with ⚠️ on the pending half. Devlog entry titled `IDEA-NNN Phase 1: <subject> (PR #N)`. Ideas-index keeps the IDEA in "In Progress" with a Phase 2 stub explaining what's outstanding.
 - **Phase N+1 (final) PR's wrap** — frontmatter flips to `complete`, IDEA banner updates to a combined Phase 1 + Phase 2 + … summary, devlog gets a new entry titled `IDEA-NNN Phase 2: <subject> (PR #N+1)`, the prior Phase 1 entry stays untouched (chronological log), ideas-index entry moves from In Progress to References — Implemented with the combined close-out.
 
-The "frozen mid-flight" Phase 1 wrap shape isn't an exception to this audit — it's a successful application: the audit caught R7 as unmet, the wrap respected that, the IDEA stayed in-progress on purpose. The failure mode the audit prevents is the *premature* flip that ignores R7.
+The "frozen mid-flight" Phase 1 wrap shape isn't an exception to this audit — it's a successful application: the audit caught the unmet Phase-2 criterion, the wrap respected that, the IDEA stayed in-progress on purpose. The failure mode the audit prevents is the *premature* flip that ignores it.
 
 ## Frontmatter convention for phase tracking
 
@@ -70,14 +70,14 @@ completed: 2026-05-14             # Final phase merge date (matches the last shi
 Walk back the wrap:
 
 1. **Frontmatter** — revert `status: complete` → `in-progress`. Drop `completed: <date>`. Keep `phase_N_completed: <date>` for any phase that actually shipped.
-2. **IDEA banner** — switch from ✅ COMPLETE to 🚧 IN PROGRESS — Phase N pending. Document the pending piece with ⚠️ and the R-number.
+2. **IDEA banner** — switch from ✅ COMPLETE to 🚧 IN PROGRESS — Phase N pending. Document the pending piece with ⚠️ and the criterion identifier (R-number, requirement-id, or named subsection, whichever the plan uses).
 3. **Ideas-index** — move the entry from "References — Implemented" back to "In Progress". If a phase did ship, the References entry can stay as a "Phase 1 (canonical landed, legacy still firing alongside)" stub pointing at the In Progress entry; or just delete and re-add when the IDEA fully closes.
 4. **Devlog** — if a devlog entry was already written under the wrong assumption, edit it in place to add the ⚠️ Phase N pending note. Don't delete — the entry's chronological position is load-bearing.
 5. **Hand-back the gap to the user** — surface the unmet R-criterion as a follow-up task. Either ship the missing work in the same PR (preferred when the gap is small), or file as a sibling IDEA / follow-up PR.
 
 ## Anti-patterns
 
-- ❌ **"Functionally complete" / "shipped" / "the visible behaviour works"** as justification for flipping to `complete` when R-criteria are unmet. Phrases like these are red flags during review; replace with literal R-number satisfaction.
+- ❌ **"Functionally complete" / "shipped" / "the visible behaviour works"** as justification for flipping to `complete` when acceptance criteria are unmet. Phrases like these are red flags during review; replace with literal per-criterion satisfaction.
 - ❌ **Burying ⚠️ inside a longer summary paragraph** — comprehension cost compounds with summary length. The marker must be the first character of the line that mentions the gap.
 - ❌ **Trusting the user's satisfaction with the visible behaviour over the plan's literal R-criteria.** The user may be happy with what shipped; the plan's R-criteria are the wrap-time contract. If they diverge, surface the divergence as a question before flipping status.
 - ❌ **Adding "Phase 2 (future)" to a wrap output without ⚠️.** The future framing softens the gap; combined with no marker, it's a recipe for the next reader to skip the deferred work.
