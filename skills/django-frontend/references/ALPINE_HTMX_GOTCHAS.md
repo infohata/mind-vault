@@ -502,7 +502,7 @@ document.addEventListener('alpine:init', () => {
 <div x-data="myWidget()"><!-- factory auto-calls init() once — no x-init needed --></div>
 ```
 
-Even cleaner for bistable open/close state (collapsibles, accordions): drop Alpine entirely for that surface and use native `<details>` / `<summary>`. The browser owns the state machine; JS handles persistence (sessionStorage) + first-open lazy-fetch. The full pattern is in [`PREVIEW_DRAWER_URL_STACK.md`](PREVIEW_DRAWER_URL_STACK.md) § *Walker rebind contract* — same project surface where the lazy-fetch event lifecycle matters.
+Even cleaner for bistable open/close state (collapsibles, accordions): drop Alpine entirely for that surface and use native `<details>` / `<summary>`. The browser owns the state machine; JS handles persistence (sessionStorage) + first-open lazy-fetch. Full pattern + the failure classes that become structurally impossible: [`COLLAPSIBLE_PATTERNS.md`](COLLAPSIBLE_PATTERNS.md) § *Native `<details>` defragilization*.
 
 ## 10. `htmx:afterSwap` `event.detail.target` is unreliable for outerHTML swaps — re-walk the document
 
@@ -530,7 +530,7 @@ Two related rules:
 - **Defer the listener-install to DOMContentLoaded** when the script loads in `<head>` (otherwise `document.body` may not exist yet — gotcha 3's territory).
 - **Re-walk is cheap because of the `data-*-bound` sentinel**. The walk is O(N) over a slice scoped to live components; the sentinel makes already-bound elements no-ops.
 
-Surfaced: teisutis IDEA-147 c_collapsible defragilization — first round of edits trusted `event.detail.target` for the bind chain; after native `<details>` migration, an unrelated cotton swap left collapsibles unbound because the new collapsible cottons replaced their hosts. Document re-walk + dual-event listening recovered the contract.
+Recurrence shape: a native-`<details>` migration where the bind chain trusted `event.detail.target` failed when an unrelated cotton swap replaced the collapsible's host element — the new hosts loaded unbound. Document re-walk + dual-event listening on both `htmx:afterSwap` and `htmx:load` recovered the contract.
 
 ## 11. Bootstrap a document-level listener on `document`, not `document.body`
 
