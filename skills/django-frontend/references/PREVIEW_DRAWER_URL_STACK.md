@@ -204,6 +204,156 @@ if (newTop.snapshot && newTop.snapshot.bodyHTML) {
 
 Lazy fetch is the right call here — eager pre-fetch would explode traffic on every reload. Known downstream: a sibling `_abortInflight()` can cancel the lazy fetch mid-flight; tolerate the cancellation, the next pop retries.
 
+### `openWith(prefixFrames, topFrame)` — natural-parent stacking with LCP-dedupe
+
+When a card has a **natural parent** (an event linked to an article, a recurrence instance with a master, a comment under a message), clicking that card from arbitrary contexts should:
+
+- Push the parent if it's not already in the drawer stack.
+- Reuse the parent if the same one is already in stack (don't open twice).
+- Replace the parent if a *different* one is in stack (don't leave a stale frame).
+
+`store.open()` resets the stack on every click. `store.push()` always adds depth. Neither handles "intent extends current stack" vs "intent diverges from current stack" gracefully.
+
+`openWith(prefixFrames, topFrame)` composes the existing primitives in ~25 LoC using a longest-common-prefix dedupe algorithm:
+
+```js
+function openWith(prefixFrames, topFrame) {
+    const stack = surface.stack;
+
+    // Walk current stack vs intent from the base; frames match by type+identifier.
+    let L = 0;
+    const minLen = Math.min(stack.length, prefixFrames.length);
+    while (L < minLen
+           && stack[L].type === prefixFrames[L].type
+           && stack[L].identifier === prefixFrames[L].identifier) {
+        L++;
+    }
+
+    if (L === stack.length) {
+        // Current stack IS a prefix of intent: open|push remaining tail + top.
+        if (stack.length === 0) {
+            // Empty stack → drawer is closed; first frame needs open(), not push().
+            if (prefixFrames.length === 0) {
+                surface.open(topFrame);
+                return;
+            }
+            surface.open(prefixFrames[0]);
+            for (let i = 1; i < prefixFrames.length; i++) surface.push(prefixFrames[i]);
+        } else {
+            for (let i = L; i < prefixFrames.length; i++) surface.push(prefixFrames[i]);
+        }
+        surface.push(topFrame);
+        return;
+    }
+
+    // Divergence at index L: pop down to L, then open|push the divergent root,
+    // then push the rest.
+    while (surface.stack.length > L) surface.pop();
+    if (L === 0) {
+        if (prefixFrames.length === 0) {
+            surface.open(topFrame);
+            return;
+        }
+        surface.open(prefixFrames[0]);
+        for (let i = 1; i < prefixFrames.length; i++) surface.push(prefixFrames[i]);
+    } else {
+        for (let i = L; i < prefixFrames.length; i++) surface.push(prefixFrames[i]);
+    }
+    surface.push(topFrame);
+}
+```
+
+### Server-side: `data-preview-stack-prefix` attribute
+
+The natural-parent chain is computed **server-side** (the server knows the relationships; the client shouldn't have to). Emit it as a data attribute on the card / link the user is about to click:
+
+```python
+# project/templatetags/preview_stack.py
+@register.simple_tag
+def event_stack_prefix(event):
+    """Return the natural-parent chain for an event card.
+
+    Format: comma-separated "<type>.<id>,..." in base-first order.
+    Empty string → orphan event → legacy open/push paths apply.
+    """
+    parts = []
+    if event.linked_article_id:
+        parts.append(f'article.{event.linked_article_id}')
+    if event.recurrence_master_id:
+        parts.append(f'event.{event.recurrence_master_id}')
+    return ','.join(parts)
+```
+
+```django
+<a href="{{ event.detail_url }}"
+   data-preview-link
+   data-preview-type="event"
+   data-preview-identifier="{{ event.pk }}"
+   data-preview-stack-prefix="{% event_stack_prefix event %}">
+    {{ event.title }}
+</a>
+```
+
+The attribute is **absent** for orphans → drawer's click router falls through to the legacy `.open()` / `.push()` path → existing surfaces don't migrate.
+
+### Client-side: route on attribute presence
+
+Both the outside-drawer document click handler AND the inside-drawer click handler check for the attribute:
+
+```js
+function _routePreviewClick(el) {
+    const prefixAttr = el.dataset.previewStackPrefix;
+    const topFrame = {
+        type: el.dataset.previewType,
+        identifier: el.dataset.previewIdentifier,
+        url: el.href,
+    };
+    if (!prefixAttr) {
+        // Legacy path — back-compat for surfaces that haven't opted in.
+        return surface.open(topFrame);
+    }
+    const prefixFrames = _parseStackPrefix(prefixAttr);
+    surface.openWith(prefixFrames, topFrame);
+}
+
+function _parseStackPrefix(str) {
+    if (!str) return [];
+    const out = [];
+    for (const piece of str.split(',')) {
+        const [type, identifier] = piece.split('.');
+        if (!type || !identifier) continue;   // lenient parse — drop malformed
+        out.push({ type, identifier });
+    }
+    return out;
+}
+```
+
+Lenient parse mirrors `parse_open_param`'s contract from the URL stack section above — a malformed piece drops silently rather than poisoning the whole stack.
+
+### The seven flows the algorithm handles
+
+| # | Starting state | Click | Final stack |
+|---|---|---|---|
+| A | (empty) | article | `[article.7]` |
+| B | `[article.7]` | counter on article.7 page | `[article.7]` (no-op) |
+| C | `[article.7]` | event-42 linked to article.7 | `[article.7, event.42]` |
+| D | `[article.7]` (stale) | event-99 linked to article.55 | `[article.55, event.99]` (REPLACE article.7) |
+| E | (empty) | recurrence-instance whose master is event.10 | `[event.10, event.42]` |
+| F | `[article.7]` | recurrence-instance under master event.10 linked to article.7 | `[article.7, event.10, event.42]` |
+| G | (empty) | orphan event (no `data-preview-stack-prefix`) | `[event.42]` (legacy path) |
+
+Why these matter: D is the killer flow. Without dedupe, the user can end up with a stale parent frame "above" the new child — confusing and incoherent. The LCP comparison catches divergence at depth 0 and pops it.
+
+### Why this generalises
+
+Any entity with a natural-parent relationship gets free natural-parent stacking by:
+
+1. Adding the prefix computation to its server-side templatetag / serializer.
+2. Emitting `data-preview-stack-prefix` on the link.
+3. Done. The JS routing generalises; new entity types don't require JS changes.
+
+Use cases: GFK chains generally (comments under messages under threads), recurrence masters with instances, attachment chains (article → attachment → annotation), or any other parent-child preview surface.
+
 ### `data-preview-route="open"` attribute for back-navigation links
 
 When a link inside the drawer means "navigate to a sibling/parent surface" rather than "stack a new frame on top", route via `open()` (REPLACES stack) instead of the default `push()` (stacks). The convention is an explicit attribute on the anchor:

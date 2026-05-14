@@ -55,6 +55,41 @@ def test_validation_error(self):
 - Ensures consistent behavior across development environments
 - Prevents false positives/negatives in CI
 
+### Anonymous-user requests need explicit `Accept-Language`
+
+`@override_settings(LANGUAGE_CODE='en')` alone is **not enough** when the test client is unauthenticated. Django's `LocaleMiddleware` resolves the active language by walking this chain:
+
+1. URL prefix (`i18n_patterns`)
+2. Session
+3. Cookie
+4. `Accept-Language` request header
+5. `LANGUAGE_CODE` setting (last fallback)
+
+For a logged-in test client, the user's saved language preference usually populates #2 or #3. For an **anonymous** test client, only #4 and #5 are populated — and without `Accept-Language` in the request, the middleware skips to #5. But `@override_settings(LANGUAGE_CODE='en')` doesn't always reach the middleware the way one expects under multi-tenant or i18n-pattern routing, so the response renders in the project default (e.g. `lt`) and assertions like `assertContains(response, 'Articles')` fail because the page actually rendered `Straipsniai`.
+
+**Fix:** add the header to the client itself, alongside the decorator:
+
+```python
+from django.test import override_settings
+
+@override_settings(LANGUAGE_CODE='en')
+class AnonymousNavTest(TenantTestCaseBase):
+    def setUp(self):
+        super().setUp()
+        # Force Accept-Language on every request from this client.
+        self.client = TenantClient(self.tenant, HTTP_ACCEPT_LANGUAGE='en')
+
+    def test_anonymous_visible_text(self):
+        response = self.client.get('/articles/')
+        self.assertContains(response, 'Articles')
+```
+
+The `HTTP_ACCEPT_LANGUAGE='en'` keyword on the test client (`Client`, `APIClient`, `TenantClient`) applies to every `client.get(...)` / `client.post(...)` from that instance — Django translates it into the `Accept-Language` request header at the WSGI layer.
+
+**Symptom**: assertion fails on a visible-text noun that's a localised translation (`'Articles'` → `'Straipsniai'`). Inspect `response.content` — if you see `<html lang="lt">` (or whatever the tenant default is) instead of `<html lang="en">`, the middleware never reached your override and you need the header.
+
+**Rule of thumb**: every test class that asserts English visible-text strings AND uses anonymous (logged-out) requests needs **both** the decorator and the header. Logged-in tests usually only need the decorator (the user's saved language pref carries through), but adding the header is harmless belt-and-braces.
+
 ## External API Testing Patterns
 
 **CRITICAL**: Tests that make real external API calls MUST be properly mocked or guarded to prevent:

@@ -126,8 +126,167 @@ When filter state changes via HTMX (form submit refreshes the centre list, not t
 
 Path 2 is the right answer. i18n templates emitted as `data-tags-i18n-zero` / `data-tags-i18n-plural` on the form root carry localised pluralisable strings; JS substitutes a `{n}` placeholder at click time.
 
+## Checkbox-toggle filters need an explicit allowlist
+
+HTML omits unchecked checkboxes from form-data submissions. A `<input type="checkbox" name="needs_approval" value="1">` that's unchecked produces **no** `needs_approval` key in `request.GET` — indistinguishable from "this request came from a page that doesn't use that filter at all".
+
+Without disambiguation, a checkbox filter has a one-way ratchet bug:
+
+- User checks the box, submits the form → `needs_approval=1` in GET → session stores it.
+- User unchecks the box, submits the form → no `needs_approval` in GET → `get_effective_filters` falls through the "key not in request.GET → skip" branch → session keeps the stale `True`.
+- The filter stays applied forever; unchecking is silently ignored.
+
+The fix is a project-wide **`CHECKBOX_TOGGLE_KEYS`** allowlist enumerating the keys whose absence-on-real-submit means "user just unchecked it":
+
+```python
+# project/utils/filter_keys.py
+CHECKBOX_TOGGLE_KEYS: tuple[str, ...] = (
+    'assigned_to_me',
+    'my',
+    'unassigned',
+    'needs_approval',
+    # Future toggles: add here. Each entity's filter_keys tuple still
+    # gates whether this entity actually uses the key, so listing one
+    # here that no entity currently uses is harmless.
+)
+```
+
+The toggle-clear loop runs **inside** the real-submit branch (gated by the `_filter_form=1` sentinel from the earlier section) so cross-link nav doesn't trigger it:
+
+```python
+def get_effective_filters(request, *, namespace, filter_keys):
+    # ... existing cross/entity merge above ...
+    is_real_submit = '_filter_form' in request.GET
+    if is_real_submit:
+        for toggle_key in CHECKBOX_TOGGLE_KEYS:
+            if (toggle_key in filter_keys                # entity opts in
+                    and toggle_key not in request.GET    # HTML omitted = unchecked
+                    and toggle_key in entity_existing):  # session has stale True
+                del entity_existing[toggle_key]
+    # ... session writeback ...
+```
+
+**The bug pattern this prevents**: adding a key to a per-entity `filter_keys` tuple without adding it to `CHECKBOX_TOGGLE_KEYS`. Enabling the toggle persists; unchecking it doesn't. The fix is one tuple append.
+
+### Test pattern — realistic uncheck shape
+
+A naive uncheck test (`?_filter_form=1` with no other params) gets a false-pass because `get_effective_filters` typically gates the toggle-clear loop on `has_filter_params` — at least one filter key must appear in GET. Real form serialisation submits **every** form field including empty ones (`scope=&property=&category=&q=`), so the realistic test shape includes the empty siblings:
+
+```python
+def test_unchecking_toggle_clears_session(self):
+    # 1. Enable + submit — toggle persists.
+    self.client.get('/events/?_filter_form=1&scope=&property=&category=&q=&needs_approval=1')
+    self.assertEqual(self.session_filters()['needs_approval'], '1')
+
+    # 2. Uncheck + submit (mirrors real form serialisation: empty siblings,
+    #    `needs_approval` key absent because HTML omitted the unchecked box).
+    self.client.get('/events/?_filter_form=1&scope=&property=&category=&q=')
+    self.assertNotIn('needs_approval', self.session_filters())
+```
+
+The empty siblings matter: `has_filter_params` becomes True (because `scope` is in GET, even though its value is empty), the toggle-clear loop runs, the toggle drops from session.
+
+## Chip-row + per-filter-clear endpoint pattern
+
+When a filter is set by **navigation** (clicking a counter, a deep-link from another surface, an AI-tool result) rather than by the filter form itself, the form-input model breaks down — there's no checkbox to uncheck. The user only sees the narrowed list and has no obvious way to clear the navigation-driven filter without clearing **everything**.
+
+Legacy fallback: "Clear all" link, full-page reload to `?clear=1`. Loses scroll position, drawer state, every unrelated filter. Hostile.
+
+The fix is a two-part affordance:
+
+### 1. A read-only chip rendered above the centre list
+
+Renders inside the same swap region as the list (so HTMX swaps update both atomically). Conditional on the navigation-driven filter being set:
+
+```django
+{% if filters.linked_to_article %}
+<div class="chip-row">
+    <span class="tag is-info">
+        <span>{% blocktrans with title=linked_article.title %}Linked to: <strong>{{ title }}</strong>{% endblocktrans %}</span>
+        <button class="delete"
+                hx-post="{% url 'events:filter_clear' %}?key=linked_to_article"
+                hx-target="#event-list-region"
+                hx-swap="outerHTML"
+                hx-push-url="true"
+                aria-label="{% trans 'Clear filter' %}"></button>
+    </span>
+</div>
+{% endif %}
+```
+
+The chip is **read-only** display + a single `[✕]` clear control. No form, no input. Pure HTMX.
+
+### 2. An allowlisted per-filter clear endpoint
+
+```python
+# project/views/filter_clear.py
+_EVENT_FILTER_KEYS: tuple[str, ...] = (
+    'scope', 'property', 'category', 'tags', 'q',
+    'linked_to_article', 'needs_approval',
+)
+
+@require_POST   # GET → 405 (prevents accidental cleanup via browser address bar)
+def event_filter_clear(request):
+    key = request.GET.get('key', '')
+    if key not in _EVENT_FILTER_KEYS:
+        return HttpResponseBadRequest('unknown filter key')   # allowlist defence
+    org_id = request.user.org_id
+    bucket = request.session.get(f'kb_event_filters_{org_id}', {})
+    bucket.pop(key, None)
+    request.session[f'kb_event_filters_{org_id}'] = bucket
+
+    response = render_event_list_region(request)               # re-render
+    response['HX-Push-Url'] = '/events/'                       # parent surface URL — NOT request.path (clear-endpoint path); strips any chip-driving QS
+    return response
+```
+
+Three load-bearing details:
+
+- **POST-only**. GETs against this endpoint are rejected with 405. Otherwise a stray browser-history GET or a misclick on a copy-paste link would clear session state silently.
+- **Allowlist gate**. `?key=...` is validated against the entity's `_<SURFACE>_FILTER_KEYS` tuple before any session mutation. Defence-in-depth — never `del request.session[arbitrary_key]`.
+- **`HX-Push-Url` to the surface URL, NOT `request.path`**. The chip click came from a URL that may carry `?linked_to_article=7` as part of the navigation; clearing the filter must also clean the address bar. `request.path` here is `/events/filter/clear/` — the *clear endpoint's* own path — which is what would land in the browser address bar if you push that. Push the *parent surface* URL (`/events/`) instead so refresh + bookmark land at the filtered-by-nothing surface. If the surface has a named route, prefer `reverse('events:list')` over a literal.
+
+### Why this generalises
+
+Any future navigation-driven per-entity filter inherits the UX for free:
+
+1. Add the key to the entity's `_<SURFACE>_FILTER_KEYS` tuple.
+2. Add a chip-row block to the surface template (one `{% if filters.<key> %}` clause).
+3. Done. The clear endpoint generalises across all keys via the allowlist.
+
+Examples that benefit: `assigned_to_team`, `created_by`, dashboard-widget deep-links (`from_widget=urgent_events`), AI-tool deep-links (`from_ai_suggestion=42`). The cost per new filter is one tuple entry + one template block.
+
+### Test pattern
+
+```python
+class EventChipRowFilterClearTests(TenantTestCaseBase):
+    def test_chip_renders_when_filter_set(self):
+        response = self.client.get(f'/events/?linked_to_article={self.article.pk}')
+        self.assertContains(response, 'Linked to:')
+
+    def test_chip_absent_when_filter_unset(self):
+        response = self.client.get('/events/')
+        self.assertNotContains(response, 'chip-row')
+
+    def test_clear_endpoint_removes_session_key(self):
+        # Seed session via filter form.
+        self.client.get(f'/events/?_filter_form=1&linked_to_article={self.article.pk}')
+        response = self.client.post(f'/events/filter/clear/?key=linked_to_article')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['HX-Push-Url'], '/events/')
+        self.assertNotIn('linked_to_article', self.session_filters())
+
+    def test_allowlist_rejects_unknown_keys(self):
+        response = self.client.post('/events/filter/clear/?key=arbitrary_key')
+        self.assertEqual(response.status_code, 400)
+
+    def test_get_rejected(self):
+        response = self.client.get('/events/filter/clear/?key=linked_to_article')
+        self.assertEqual(response.status_code, 405)
+```
+
 ## Reference
 
 Pairs with [`RULE_tenant-scoped-fk-validation`](../../django/references/TENANT_SCOPED_FK_VALIDATION.md) for the org-scoped session keys.
 
-**Last Updated**: 2026-05-08
+**Last Updated**: 2026-05-14
