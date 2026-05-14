@@ -404,6 +404,61 @@ function createToastContainer() {
 }
 ```
 
+## Generic `form-toggle-class.js` — entity-agnostic checkbox visual sync
+
+A common problem: a filter form with multiple checkboxes that the user can toggle, and each toggle should immediately update a visual highlight class on the button-shaped label (`is-selected`, `is-active`, etc.). HTMX's `hx-swap` re-renders the form on every change, so the visual state would normally take a server round-trip. The fast path is a small JS module that mirrors the checkbox state to the label class entirely client-side.
+
+The naive approach is per-entity: each filter type (tags, scopes, categories) gets its own JS module that hard-codes the selector + class name. Three near-identical files; adding a fourth filter type means a fourth file.
+
+The generic approach uses a `[data-toggle-class]` attribute as the contract:
+
+```html
+{# Each label carries the class name to toggle in a data attribute #}
+<label data-toggle-class="is-selected" class="button">
+    <input type="checkbox" name="tag" value="urgent">
+    <span>Urgent</span>
+</label>
+
+<label data-toggle-class="is-selected" class="button">
+    <input type="checkbox" name="tag" value="bug">
+    <span>Bug</span>
+</label>
+```
+
+```js
+// static/js/form-toggle-class.js — one module, every entity
+(function () {
+    function _bindContainer(container) {
+        container.querySelectorAll('[data-toggle-class] input[type=checkbox], [data-toggle-class] input[type=radio]')
+            .forEach(input => {
+                if (input.dataset.toggleClassBound) return;     // idempotent
+                input.dataset.toggleClassBound = '1';
+                const label = input.closest('[data-toggle-class]');
+                const className = label.dataset.toggleClass;
+                const sync = () => label.classList.toggle(className, input.checked);
+                sync();    // initial state
+                input.addEventListener('change', sync);
+            });
+    }
+
+    // Bind on initial load + after every HTMX swap (see HTMX_PATTERNS.md re: dual-event listening)
+    document.addEventListener('DOMContentLoaded', () => _bindContainer(document));
+    ['htmx:afterSwap', 'htmx:load'].forEach(name => {
+        document.addEventListener(name, () => _bindContainer(document));
+    });
+})();
+```
+
+Three properties make this generalisable:
+
+1. **Per-label contract, not per-form**: each label declares its own class name. Forms can mix `is-selected` for one filter type and `is-active` for another without per-form code.
+2. **Idempotent rebind**: the `data-toggle-class-bound` sentinel makes the walk safe on every HTMX swap. Re-walk frequency doesn't accumulate listeners.
+3. **No project-specific selectors**: no `[data-tag-filter]`, no `[data-scope-filter]`. Future filter types participate by adding `data-toggle-class="..."` to their labels.
+
+Existing per-entity tag-filters / scope-filters modules can be retired in favour of this single shared module. The visual sync is the same operation regardless of which entity's filter is being toggled.
+
+Surfaced: teisutis IDEA-147 M1 — three near-identical per-entity modules existed; user direction was "cannot micromanage filter states with every object functionality porting". The generic module replaced all three at ~25 LoC.
+
 ---
 
 **Integration Patterns:**
@@ -423,4 +478,4 @@ function createToastContainer() {
 
 ---
 
-**Last Updated**: 2026-01-28
+**Last Updated**: 2026-05-14

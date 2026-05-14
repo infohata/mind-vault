@@ -110,8 +110,118 @@ That's it. Three additive lines per new surface; no protocol changes.
 
 The surface URL (`/articles/`) MUST stay name-stable across the migration — same URL, same name, new view body. Bookmarks against the legacy detail URL (`/articles/<pk>/`) get a 302 to `/articles/?open=article.<pk>` (same shell, drawer pre-opened). The redirect is callable-only; the legacy view body retires in a later cleanup IDEA. Without this invariant, every saved bookmark breaks at migration.
 
+## State-mutation patterns once the contract is in place
+
+The URL contract above defines the *shape* of the stack. These patterns concern the *mutation surface* — how callers read and write to `store.stack` without breaking the contract. Surfaced during the second wave of state-refresh work that landed atop the URL stack.
+
+### `store.top` is a snapshot getter, NOT a mutable reference
+
+Convention from the Alpine store: the `top` getter computes a plain object from `stack[stack.length - 1]` each call. It mirrors `{type, identifier, title}` plus whichever fields are exposed publicly — but it does **not** expose `url`, and writes to it land on a throwaway object that's gone the next reactive read.
+
+```js
+// ❌ Wrong — looks fine, silently no-ops; the snapshot is discarded
+surface.top.title = 'New title';
+surface.top.url = '/articles/ui/detail/7/';   // 'url' isn't on the snapshot anyway
+surface.top.snapshot.bodyHTML = '';            // mutation lost on next read
+
+// ✅ Right — mutate the backing store entry directly
+const stack = surface.stack;
+const idx = stack.length - 1;
+stack[idx] = { ...stack[idx], title: 'New title', snapshot: { ...stack[idx].snapshot, bodyHTML: '' } };
+```
+
+The trap re-surfaces whenever a caller reads `top` to inspect state, then keeps the same reference assuming it's live. It isn't. Any write path needs `store.stack[idx]`. Pair this rule with a docstring on the getter and a test that does `surface.top.title = 'x'; expect(surface.top.title).not.toBe('x')`.
+
+### Walker rebind contract — dispatch all three HTMX events on manual swaps
+
+When a state-refresh walker (or any module replacing DOM via `innerHTML` / `outerHTML` outside HTMX's own swap path) hands a freshly-fetched fragment to the page, it must re-fire the HTMX rebind events. Different consumer modules subscribe to different events — some on `htmx:afterSwap` only, some on `htmx:afterSettle`, some on `htmx:load`. Dispatching all three on the swapped element is the only guarantee everyone rebinds:
+
+```js
+function _rebroadcastSwap(target) {
+    for (const name of ['htmx:afterSwap', 'htmx:afterSettle', 'htmx:load']) {
+        target.dispatchEvent(new CustomEvent(name, {
+            bubbles: true,
+            detail: { elt: target, target, successful: true, requestConfig: {} },
+        }));
+    }
+}
+```
+
+Fire on the **swapped element**, not on `document` — events bubble UP. A listener on `document.body` will catch a dispatch on a descendant; a listener on `document.body` will **not** catch a dispatch on `document` (events don't propagate DOWN). Mirrors HTMX's own dispatch behaviour. See [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 3 for the bubble-direction rationale.
+
+### Edit-frame guard — short-circuit refreshes when the user has in-flight unsaved input
+
+A generic refresh walker that re-renders the drawer body on every entity-mutation event will clobber an in-flight edit form. Add a guard that inspects the top frame's type before refreshing:
+
+```js
+function isTopInEditFrame(surface) {
+    const top = surface.top;
+    return Boolean(top && typeof top.type === 'string' && top.type.endsWith('-edit'));
+}
+
+function refreshEl(el, surface) {
+    if (isTopInEditFrame(surface)) return;     // user has unsaved form open
+    // ...fetch + swap + rebroadcast
+}
+```
+
+The convention: frame types ending in `-edit` (`article-edit`, `event-edit`, etc.) are edit surfaces. The guard skips them. Save flow is exempt because the save endpoint flips the top frame BACK to the detail type before the refresh walker fires — by the time the walker runs, `top.type === 'article'` again. The guard guards against tangential refreshes (a sibling entity mutation, a snooze action, etc.) during edit.
+
+### Universal edit→detail invariant in the walker, not per-entity
+
+When the project has an invariant "every X edit form returns to the X detail view on save", codify it once in the walker (or dispatcher), not per-entity. Two consumers already pay back the deduplication; three+ multiply it:
+
+```js
+function flipDrawerEditFrameOnSave(surface, payload) {
+    // payload = { type: 'article' | 'event' | …, id: <pk>, action: 'saved' }
+    if (payload.action !== 'saved') return;
+    const idx = surface.stack.length - 1;
+    const top = surface.stack[idx];
+    if (!top || top.type !== `${payload.type}-edit`) return;
+    surface.stack[idx] = {
+        ...top,
+        type: payload.type,
+        url: `/${payload.type}s/ui/detail/${payload.id}/`,
+    };
+    // Trigger the walker to fetch + swap the detail body.
+}
+```
+
+URL conventions live as a project-level pattern map (mirrors `URL_PATTERN_BY_TYPE` from the URL contract). Per-entity files own only entity-specific cosmetics (title hints, post-save toasts, etc.). New entities inherit the routing for free.
+
+### Empty-snapshot fallback in pop / popstate handlers
+
+Cold-loading via `?open=parent&push=child` renders only the TOP frame's body — parent frames' snapshots are empty. Browser back at depth>1 then restores an empty body. Guard in both `store.pop()` and the popstate handler:
+
+```js
+const newTop = surface.stack[surface.stack.length - 1];
+if (newTop.snapshot && newTop.snapshot.bodyHTML) {
+    _restoreBody(newTop.snapshot.bodyHTML);
+} else {
+    _loadFrameContent(newTop);    // lazy-fetch on first pop
+}
+```
+
+Lazy fetch is the right call here — eager pre-fetch would explode traffic on every reload. Known downstream: a sibling `_abortInflight()` can cancel the lazy fetch mid-flight; tolerate the cancellation, the next pop retries.
+
+### `data-preview-route="open"` attribute for back-navigation links
+
+When a link inside the drawer means "navigate to a sibling/parent surface" rather than "stack a new frame on top", route via `open()` (REPLACES stack) instead of the default `push()` (stacks). The convention is an explicit attribute on the anchor:
+
+```html
+<a href="/articles/ui/detail/7/"
+   data-preview-link
+   data-preview-type="article"
+   data-preview-identifier="7"
+   data-preview-route="open">
+    ← Back to article
+</a>
+```
+
+The drawer's click router checks `data-preview-route`; absent attribute stays default-push for back-compat. Apply to: parent-backlinks, "switch entity" navigation between two siblings in the same frame, "navigate up the hierarchy" links. Future routing consolidation: a single `routeIntent({ frame, intent })` dispatcher absorbs all routing decisions — the attribute becomes one of N intents.
+
 ## Reference
 
 When this contract is added by a downstream IDEA on top of an upstream preview-drawer foundation IDEA, file the cross-IDEA backref per [`RULE_cross-idea-amendments`](../../../rules/RULE_cross-idea-amendments.md).
 
-**Last Updated**: 2026-05-08
+**Last Updated**: 2026-05-14

@@ -66,6 +66,17 @@ Some failures appear ONLY after the legacy symbol is gone — code that defensiv
 
 Execution adapted: Commits 1+2 (AddField + RunPython) → Commits 4-13 (rename references across forms / admin / serializers / signals / views / templates / JS / iCal / AI app) → Commit 14 (translations) → Commit 15 (test fixture sweep, full kb pass green at 90/90) → Commit 3 (deferred — `0037_drop_legacy_content_fields.py` RemoveField × 4) → re-test (508 passed, 0 IDEA-127 failures). The Commit-15 test pass surfaced one missed reference at `web/teisutis_kb/recurrence.py:_COPY_FIELDS` cleanly via 36 `AttributeError` tests; one-line fix unblocked the cluster. Bundled, that finding would have been a needle inside a haystack of post-drop noise.
 
+## Worked Example: teisutis IDEA-163 (2026-05-14) — 15-emit-site convention migration
+
+Same rule applied to a JS-level convention rename rather than a schema collapse: per-entity HX-Trigger names (`articleSaved`, `eventSaved`, `articleDeleted`, `eventDeleted`, etc.) → one canonical `entityChanged` event with `{type, id, action}` payload. 15 server emit sites + 8 client consumer modules + several Django views.
+
+Sequenced as a two-PR migration to keep deploy windows safe:
+
+- **Phase 1 PR (#443)**: introduce canonical `entity_changed()` helper in `web/teisutis_core/htmx_triggers.py`; emit BOTH canonical AND legacy per-name keys from each of the 15 server sites (zero-risk overlap — legacy consumers unaffected); add the walker module that subscribes to `entityChanged` and routes the refresh; per-entity capture-phase modules slim down to entity-specific cosmetics only.
+- **Phase 2 PR (future)**: drop legacy per-name HX-Trigger keys from emit sites; remove per-name consumer listeners that the walker now subsumes. Cleanly reversible if Phase 2 surfaces a regression — Phase 1 alone is functionally complete.
+
+The Phase 1 PR carried all 15 emit-site changes alongside the helper, the walker, and the entity-specific cosmetics — one bisectable commit cluster per surface (server emit changes + matching client-side refactor in adjacent commits). Bugbot caught the modal-scoping mismatch (`form_invalid` returning 200 still triggered modal close) cleanly because the helper emitted the canonical signal only on form_valid, never on form_invalid — the test pass between phases was the gate that surfaced the asymmetry. Bundled with a Phase-2 drop, the validation-failure regression would have hidden inside the broader drop-related test churn.
+
 ## Anti-Patterns
 
 - ❌ "Big-bang rename + drop in one commit" — bisectability dies, regressions surface as undifferentiated noise.
@@ -80,4 +91,4 @@ Execution adapted: Commits 1+2 (AddField + RunPython) → Commits 4-13 (rename r
 
 ---
 
-**Last Updated**: 2026-04-25
+**Last Updated**: 2026-05-14

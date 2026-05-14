@@ -467,6 +467,97 @@ Trade: more listeners pinned simultaneously (one per candidate source), but each
 
 Surfaced: teisutis IDEA-143 M25 — `navbar-scroll.js` migrated its single scroll listener on `paneChanged`. Close paths whose `goToPane('center')` snap landed on a pane that was already `activePane='center'` short-circuited `paneChanged` (`next === activePane` early-return), so the rebind never fired. Listener stayed attached to the off-screen drawer's scroll container; nav-hide silently broke after every drawer close.
 
+## 9. Alpine `x-init` / `x-effect` expressions must stay expression-only — `try/catch` and IIFEs both fail
+
+`x-init` and `x-effect` attribute bodies are evaluated by Alpine via a `Function('with($data) { return <expr> }')`-style wrapper. The wrapping forces a few syntactic constraints that aren't documented:
+
+| Inline form | Failure |
+|---|---|
+| `x-init="try { foo(); } catch(e) {}"` | `SyntaxError: Unexpected token 'try'` — statements aren't allowed at top level |
+| `x-init="(() => { try { foo(); } catch(e) {} })()"` | Loses Alpine's `with($data)` scope inside nested arrows — bare reactive refs fail to resolve |
+| `x-init="foo && bar()"` | Works (expression) |
+| `x-init="$nextTick(() => { foo(); })"` | Works (Alpine provides `$nextTick`, arrow body is an expression-equivalent) |
+
+The canonical fix when the body needs statement-level logic (try/catch, multi-statement init, error handling): **register a real `Alpine.data()` factory at `alpine:init` and call it from `x-data`**:
+
+```js
+// In a blocking <head> script, before Alpine's defer-init fires:
+document.addEventListener('alpine:init', () => {
+    Alpine.data('myWidget', () => ({
+        loaded: false,
+        async init() {
+            try {
+                await this.loadData();
+                this.loaded = true;
+            } catch (err) {
+                console.warn('widget init failed', err);
+            }
+        },
+        async loadData() { /* … */ },
+    }));
+});
+```
+
+```html
+<div x-data="myWidget()"><!-- factory auto-calls init() once — no x-init needed --></div>
+```
+
+Even cleaner for bistable open/close state (collapsibles, accordions): drop Alpine entirely for that surface and use native `<details>` / `<summary>`. The browser owns the state machine; JS handles persistence (sessionStorage) + first-open lazy-fetch. The full pattern is in [`PREVIEW_DRAWER_URL_STACK.md`](PREVIEW_DRAWER_URL_STACK.md) § *Walker rebind contract* — same project surface where the lazy-fetch event lifecycle matters.
+
+## 10. `htmx:afterSwap` `event.detail.target` is unreliable for outerHTML swaps — re-walk the document
+
+For `hx-swap="outerHTML"` swaps, `event.detail.target` on `htmx:afterSwap` may reference the OLD removed element (HTMX's internal swap order varies by version). Listeners that try to `event.detail.target.querySelectorAll(...)` get an empty result because the target is detached from the document.
+
+**Fix**: re-walk the document on every swap event (operations must be idempotent), and listen for BOTH `htmx:afterSwap` AND `htmx:load` for cross-version coverage:
+
+```js
+function _bindMySurfaceTo(root) {
+    root.querySelectorAll('[data-my-surface]').forEach(el => {
+        if (el.dataset.mySurfaceBound) return;       // idempotent
+        el.dataset.mySurfaceBound = '1';
+        // bind…
+    });
+}
+
+// Bind on every swap event — both names cover all HTMX swap shapes
+['htmx:afterSwap', 'htmx:load'].forEach(name => {
+    document.addEventListener(name, () => _bindMySurfaceTo(document));
+});
+```
+
+Two related rules:
+
+- **Defer the listener-install to DOMContentLoaded** when the script loads in `<head>` (otherwise `document.body` may not exist yet — gotcha 3's territory).
+- **Re-walk is cheap because of the `data-*-bound` sentinel**. The walk is O(N) over a slice scoped to live components; the sentinel makes already-bound elements no-ops.
+
+Surfaced: teisutis IDEA-147 c_collapsible defragilization — first round of edits trusted `event.detail.target` for the bind chain; after native `<details>` migration, an unrelated cotton swap left collapsibles unbound because the new collapsible cottons replaced their hosts. Document re-walk + dual-event listening recovered the contract.
+
+## 11. Bootstrap a document-level listener on `document`, not `document.body`
+
+When binding a global event listener (HTMX trigger, custom event, refresh walker) from a `<head>` blocking script, `document.body` doesn't exist yet at script parse time — `document.body.addEventListener(...)` throws `Cannot read properties of null`.
+
+The fix is to bind on `document` itself, which exists from the moment the parser sees `<!DOCTYPE html>`. Custom events fired on any descendant bubble up through body → document, so document-level listeners catch them:
+
+```js
+// ❌ Wrong — script in <head>, body not parsed yet
+document.body.addEventListener('entityChanged', handler);
+
+// ✅ Right — document exists from parse-start; events bubble up
+document.addEventListener('entityChanged', handler);
+```
+
+**Important corollary — events bubble UP, not DOWN.** A custom event fired on `document` does NOT propagate down to listeners bound to `document.body`. If you fire from a JS module, fire on the **swapped element** (or `document.body`); listeners on either `document.body` or `document` catch the bubble:
+
+```js
+// ❌ Wrong — document.body listener never fires
+document.dispatchEvent(new CustomEvent('refresh', { bubbles: true }));
+
+// ✅ Right — fire on swapped target; bubbles up through body → document
+swappedEl.dispatchEvent(new CustomEvent('refresh', { bubbles: true }));
+```
+
+Mirrors HTMX's own dispatch behaviour (HTMX fires on the swapped target). The walker pattern in [`PREVIEW_DRAWER_URL_STACK.md`](PREVIEW_DRAWER_URL_STACK.md) § *Walker rebind contract* embodies this.
+
 ---
 
-**Last Updated**: 2026-05-07
+**Last Updated**: 2026-05-14

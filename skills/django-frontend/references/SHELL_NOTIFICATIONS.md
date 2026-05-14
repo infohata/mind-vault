@@ -106,8 +106,49 @@ The pattern is reusable for any `outerHTML`-swap target containing the trigger e
 
 This rule applies across every surface migration in a multi-IDEA shell-frontend cohort — every list/detail surface (article / event / FAQ / dashboard / chat / admin surfaces) will hit the same regression unless the rule is part of the migration checklist from the start. Cheaper to enforce as a self-sweep step than to surface as bugbot finding cycles.
 
+## Pick ONE source per flow — server `messages.*` OR client `HX-Trigger` handler, never both
+
+Once a project ships both server-emitted toasts (Django `messages.*` → notify middleware → `HX-Trigger: uiNotify`) and client-side `HX-Trigger` listeners that ALSO call `uiNotify`, double-toast bugs become routine. The user sees the same toast twice — once from the server's middleware-dispatched event, once from the client's named-event listener that fires on the same response.
+
+The fix is at the design level: each flow's toast emits from exactly one source.
+
+| Flow shape | Toast source | Why |
+|---|---|---|
+| Normal form submit → Django view → render | Server `messages.success(request, ...)` drained by middleware | The cleanest path; `HX-Trigger` carries data-events only, not toast text |
+| HTMX action with `hx-swap="none"` | Server `HX-Trigger` header → JS handler dispatches `uiNotify` | No view-rendered context for a `messages.success` to land in |
+| Server flash + client post-action work | Server `messages.success` for the toast; JS handler uses `refreshOnly: true` (does refresh work, no toast) | Avoids the double-fire when both layers want to know "save succeeded" |
+| Pure client-side action (no server roundtrip) | JS dispatches `uiNotify` directly | No server involvement; nothing else to coordinate with |
+
+The `refreshOnly: true` convention is what makes the third row work. Pattern:
+
+```js
+// JS handler for entitySaved — does the refresh, does NOT emit a toast
+document.body.addEventListener('articleSaved', (event) => {
+    const detail = _unwrapHtmxDetail(event.detail);
+    if (detail && detail.refreshOnly) {
+        _refreshList();
+        return;     // toast was already emitted by messages.success → middleware → uiNotify
+    }
+    // Otherwise: this fired from a flow with no server messages.success
+    // and we DO need to emit the toast.
+    _refreshList();
+    _emitUiNotify('Article saved.', 'success');
+});
+```
+
+Server-side: when a view emits both `messages.success` AND an `HX-Trigger`, the trigger payload sets `refreshOnly: true`:
+
+```python
+response = render(request, '...', context)
+messages.success(request, _('Article saved.'))
+response['HX-Trigger'] = json.dumps({'articleSaved': {'refreshOnly': True}})
+return response
+```
+
+The `refreshOnly` flag is the signal to the JS handler: "do your data-side work, skip the toast, the server already arranged for the toast via messages.success". Inverse for HTMX-trigger-only flows: the JS handler emits the toast because there's no `messages.success` path.
+
 ## Reference
 
-Pairs with [`COTTON.md`](COTTON.md) for cotton component conventions and [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) for HTMX `HX-Trigger` value-wrapping shape.
+Pairs with [`COTTON.md`](COTTON.md) for cotton component conventions and [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) for HTMX `HX-Trigger` value-wrapping shape. [`HTMX_PATTERNS.md`](HTMX_PATTERNS.md) § *Modal scoping* covers the three-gate listener that distinguishes form_valid from form_invalid responses.
 
-**Last Updated**: 2026-05-08
+**Last Updated**: 2026-05-14

@@ -217,3 +217,105 @@ def test_initial_open_is_the_only_initial_attribute_on_cotton_root(self):
 ```
 
 Any future contributor adding a per-frame attribute to the cotton root re-introduces the boolean+string coercion hazard; the test fails first.
+
+## Three-layer cotton split — shared / per-entity workflow / composition
+
+Once a project has 2+ entity surfaces (Article, Event, FAQ, …) that ALL need cotton component coverage, the natural shape is three concentric layers, not two:
+
+| Layer | Lives in | Examples | Owned by |
+|---|---|---|---|
+| **Shared neutral** | `<ui-app>/templates/cotton/` | Edit / Delete / AI / generic pill / icon button | Cross-entity, identical lifecycle |
+| **Per-entity workflow** | `<entity-app>/templates/cotton/` | Approve / Assign / Snooze / Mark-Executed | Per-entity, different lifecycles |
+| **Composition cotton** | Either, by ownership of the "row" | `<c-article-card>`, `<c-event-detail-actions>` | Wires shared + workflow together |
+
+The trap that the split prevents: hoisting "Approve" or "Snooze" into the shared layer because both Article and Event have an "Approve" button. They look identical visually, but their lifecycles diverge (Article-Approve flips a draft→published bit; Event-Approve assigns a reviewer + sets a date). Sharing one component forces N entity-specific branches inside the shared file, and adding a new entity means amending the shared file — exactly what the split was supposed to remove.
+
+The composition layer is where the layout lives. Canonical pattern: workflow-cluster (entity-specific) → AI → Edit → `── horizontal rule ──` → Delete. The rule separates routine actions from destructive ones. The composition file is the right place for that ordering decision.
+
+When promoting from `{% include %}` to cotton across an entity:
+
+1. Start with the per-entity workflow components — they touch the most surface and don't need consensus across entities to ship.
+2. Compose them with `<c-edit-button :href="..." />` / `<c-delete-button :href="..." />` from the shared layer.
+3. Build the per-entity composition cotton (`<c-article-actions>`, `<c-event-detail-actions>`) last — it's the layout-decision layer and benefits from having both wings already stable.
+
+## `href` is the FRAGMENT URL on `data-preview-link` anchors
+
+When a cotton primitive wraps an `<a data-preview-link>` (clicked → drawer fetches + opens), `href` must be the **fragment URL the drawer fetches**, not the shorthand URL the drawer pushes to history:
+
+```django
+{# ❌ Wrong — drawer fetches the SHELL HTML instead of the fragment #}
+<a href="?open=article.{{ article.pk }}"
+   data-preview-link
+   data-preview-type="article"
+   data-preview-identifier="{{ article.pk }}">{{ article.title }}</a>
+
+{# ✅ Right — href is the fragment URL #}
+<a href="/articles/ui/detail/{{ article.pk }}/"
+   data-preview-link
+   data-preview-type="article"
+   data-preview-identifier="{{ article.pk }}">{{ article.title }}</a>
+```
+
+The drawer's click intercept reads `href` to know where to fetch from, then computes the history-push URL (`?open=article.<id>`) from `data-preview-type` + `data-preview-identifier`. Putting the shorthand in `href` lands shell HTML in the drawer body — visible regression (page-shell-inside-page-shell), no JS error.
+
+## Nested anchors break the click intercept
+
+Cotton primitives consumed inside `<a data-preview-link>` MUST NOT emit inner `<a>` tags. The HTML spec forbids nested anchors, so browsers split them at parse time → click hits the inner anchor → the outer `data-preview-link` never fires → drawer never opens → the user gets a hard page load instead.
+
+```html
+<!-- ❌ Browser splits the nested anchor; drawer intercept never fires -->
+<a href="/articles/ui/detail/7/" data-preview-link>
+    <c-event-row-header :event="event" />   <!-- emits <a href="...">Edit</a> inside -->
+</a>
+```
+
+Detection: add a regex check to the cotton's test fixture asserting no `<a` tags in the rendered output for components designed to live inside preview-link wrappers:
+
+```python
+def test_no_nested_anchor(self):
+    rendered = render_cotton('<c-event-row-header :event="event" />', ctx)
+    self.assertNotRegex(rendered, r'<a\b')
+```
+
+The alternative — emitting `<button>` or `<span>` for actions inside a preview-link wrapper — keeps the click intercept intact. Action buttons that need their own navigation get a separate sibling outside the preview-link wrapper.
+
+## Detail-variant cotton: `hx-target="this" hx-swap="none"`
+
+Workflow-action cotton (Approve / Assign / Snooze) frequently has two consumers: the entity's CARD (inside a list) and the entity's DETAIL view (inside the preview drawer). The card variant naturally targets `closest .event-card` to outerHTML-swap the row. The detail variant has no `.event-card` ancestor — that selector throws `htmx:targetError` on every click.
+
+Convention: parameterise the cotton with a variant prop and route the htmx attributes per variant:
+
+```django
+{# cotton/event_workflow_actions.html #}
+{% if variant == 'detail' %}
+    <button hx-post="..." hx-target="this" hx-swap="none">Approve</button>
+{% else %}
+    <button hx-post="..." hx-target="closest .event-card" hx-swap="outerHTML">Approve</button>
+{% endif %}
+```
+
+The detail variant's `hx-swap="none"` works because the actual UI refresh rides on the `entityChanged` HX-Trigger header → a state-refresh walker fetches the detail body. The card variant outerHTML-swaps the row in place (no walker needed for that flow). Generalises to any cotton with both card + detail consumers.
+
+## Default-true cotton props — `{% if X is not False %}` not `{% with %}`
+
+A cotton prop that defaults to true (most callers want it enabled, opt-out with `:show_x="False"`) does NOT work via `{% with %}`:
+
+```django
+{# ❌ Wrong — {% with %} doesn't propagate to nested {% if %} as you'd expect #}
+{% with show_actions=show_actions|default:True %}
+    {% if show_actions %}...{% endif %}
+{% endwith %}
+
+{# ✅ Right — explicit not-False check #}
+{% if show_actions is not False %}
+    ...
+{% endif %}
+
+{# ✅ Also right — <c-vars> for multi-prop default declaration #}
+<c-vars show_actions="True" show_metadata="True" />
+{% if show_actions %}...{% endif %}
+```
+
+The cotton `<c-vars>` template tag (provided by django-cotton) is the right choice when 2+ props need defaults. Single-prop defaults can use `is not False`. Don't use `{% with %}` for prop defaults — its scope rules surprise everyone who reads the template later.
+
+**Last Updated**: 2026-05-14

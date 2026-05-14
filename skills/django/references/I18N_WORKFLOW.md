@@ -129,6 +129,68 @@ Typical high-signal checks:
 
 Restart the web server (and Celery if translations affect background tasks) — Django caches compiled `.mo` files in memory.
 
+## `FORCE_SYNC_MSGIDS` — translate-fill silently skips existing msgstr without it
+
+When a project's fill script (e.g. `tools/fill_empty_po.py`) updates `.po` catalogs from translation maps, the default behaviour is **only write to msgids where msgstr is empty**. Updating a translation map entry whose msgid already has a (different, possibly wrong) msgstr does *nothing* — the fill skips it silently.
+
+The escape hatch is a `FORCE_SYNC_MSGIDS` set of msgids the script considers "always overwrite". To re-sync an msgid after fixing the translation map, add it to the set:
+
+```python
+# tools/translation_maps/shared.py
+FORCE_SYNC_MSGIDS: set[str] = {
+    'Save',                  # had wrong translation; new value forces overwrite
+    'Hello %(name)s!',       # blocktrans entry that needed placeholder-form fix
+    # ...
+}
+```
+
+Without this, the workflow leaves a dead map entry behind: the map looks right, the fill script reports success, the `.po` file still has the wrong (or empty) msgstr. The user-facing translation never updates.
+
+### The telemetry trap
+
+If the fill script reports "force-synced N entries", N is the count of entries **in `FORCE_SYNC_MSGIDS`**, not the count actually overwritten. An entry in the set with no matching msgid still counts toward N. The telemetry suggests progress when none happened.
+
+Recommendation: add a `--force <msgid>` CLI flag to the fill script for one-off overrides without permanent set membership, and surface "actually-overwritten N" telemetry separately from "force-set size N".
+
+### Diagnostic recipe
+
+When a translation isn't updating:
+
+1. Confirm the map entry exists in the right `<app>.py` (the wrong-map regression is more common — see *Map ownership* above).
+2. If the entry is in the right map, check the `.po` file's existing msgstr — is it empty (will fill) or populated (won't fill without force)?
+3. If populated, add the msgid to `FORCE_SYNC_MSGIDS` and re-run translate-fill.
+4. Re-check the `.po` to confirm the new value landed.
+
+Surfaced: teisutis IDEA-147 — filter-label disambiguation needed to overwrite previously-shipped (wrong) translations across lt/ru/pl/nb. The first fill pass left the original values intact; bug only surfaced when manual eval re-tested in non-English locales.
+
+## Don't translate developer notes — they leak into `.po` and ship to users
+
+A `{% trans "TODO: refactor this in Phase 2" %}` block in a template gets extracted into `.po`, translation maps add msgstr entries, the result ships to end users as page copy. The fix is at the template layer: developer notes belong inside `{% comment %}…{% endcomment %}` blocks, not inside `{% trans %}`.
+
+Audit recipe (run periodically, or wire as a pre-commit check):
+
+```bash
+grep -rEn '\{%\s*trans\s+"[^"]*(TODO|FIXME|Phase|see IDEA|legacy|deprecated)' \
+    --include="*.html" web/
+```
+
+See [`../../django-frontend/references/TEMPLATE_COMMENT_SYNTAX.md`](../../django-frontend/references/TEMPLATE_COMMENT_SYNTAX.md) for the template-side discipline (single-line vs multi-line, content leak failure mode, conversion recipe).
+
+## `{% blocktrans %}` placeholders extract as `%(var)s`, not `{{ var }}`
+
+Inside `{% blocktrans %}…{% endblocktrans %}`, template variables write as `{{ var }}` — but makemessages converts them to `%(var)s` in the extracted msgid. Translation map keys MUST match the `.po` form:
+
+```python
+APP_TRANSLATIONS = {
+    'lt': {
+        'Hello %(name)s!': 'Sveiki, %(name)s!',   # ✅ matches .po msgid
+        # 'Hello {{ name }}!': '…',               # ❌ never matches, dead entry
+    },
+}
+```
+
+The audit's placeholder-parity check is the canary — every map entry whose key contains `{{ }}` is suspect; convert to `%(var)s` form.
+
 ---
 
-**Last Updated**: 2026-05-08
+**Last Updated**: 2026-05-14

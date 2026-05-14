@@ -421,6 +421,97 @@ The form/input is never touched across requests; focus + caret + IME state are p
 
 Surfaced: teisutis IDEA-143 M14 cycles 1-2 — initial fix was `hx-preserve="true"` on the input; focus still dropped after 1-2 keystrokes (form's trigger re-bind via outerHTML on the wrapper id swapped the form node anyway). List-scoped target retained focus indefinitely.
 
+## HX-Trigger: multi-event payload REQUIRES JSON-object form
+
+The HTMX docs are quiet about this — string-shaped multi-event triggers silently mangle when the response passes through any middleware that parses+re-serialises the header:
+
+```python
+# ❌ Wrong — middleware sanitisers fail to parse "name1, name2" as two events;
+# the WHOLE string becomes a single event name. HTMX dispatches one event
+# named 'eventSaved, eventListRefresh'. Per-event listeners never fire.
+response['HX-Trigger'] = 'eventSaved, eventListRefresh'
+
+# ✅ Right — JSON object preserves multi-event semantics across middleware passes
+import json
+response['HX-Trigger'] = json.dumps({
+    'eventSaved': True,
+    'eventListRefresh': True,
+})
+```
+
+The diagnostic: open Network → Response Headers, copy the literal `HX-Trigger` string, paste into a `json.loads()` REPL call. If it errors, it's being mangled into a single-event name downstream. The fix is always the JSON-object form.
+
+Single-event triggers (`'articleSaved'`) keep working unchanged — the parser handles the unquoted bare-string case cleanly. The trap is multi-event only.
+
+## Custom event dispatch — fire on the swapped element, not on `document`
+
+Events bubble UP through the DOM, not down. A `document.dispatchEvent(new CustomEvent('refresh'))` does NOT reach listeners bound to `document.body` — body is a descendant of document, the event never propagates down to it.
+
+When dispatching synthetic events to notify widget rebind chains (`htmx:afterSettle`, `htmx:load`, project-specific `entityChanged`-style events), fire on the **swapped element**:
+
+```js
+// ❌ Wrong — document.body and descendant listeners miss this entirely
+document.dispatchEvent(new CustomEvent('entityChanged', { detail }));
+
+// ✅ Right — fire on the swapped target; bubbles up through body → document.
+// Listeners on either body OR document catch the bubble.
+swappedEl.dispatchEvent(new CustomEvent('entityChanged', {
+    bubbles: true,
+    detail,
+}));
+```
+
+Mirrors HTMX's own dispatch behaviour. See [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 11 for the full bubble-direction explainer.
+
+## Modal scoping — three-gate check on `htmx:beforeSwap` for form-success modal close
+
+A modal that listens for `entityChanged` (or any project-wide success event) to auto-close on form success has a subtle scoping problem: the event fires on every form-save anywhere in the app, not just saves from inside the modal's own form. Naive `body.addEventListener('entityChanged', closeModal)` closes the modal on any sibling action.
+
+The narrow fix isn't "scope the event to the modal" — it's to gate the listener on three independent signals via `htmx:beforeSwap`:
+
+```js
+// modal.js — body-level listener with three gates
+bodyEl.addEventListener('htmx:beforeSwap', (evt) => {
+    // Gate 1: only consider 2xx responses (failures shouldn't close)
+    const xhr = evt.detail && evt.detail.xhr;
+    if (!xhr) return;
+    if (xhr.status < 200 || xhr.status >= 300) return;
+
+    // Gate 2: only consider responses that carry the canonical success signal.
+    // Django's form_invalid returns 200 + a re-rendered form-with-errors — status
+    // alone is insufficient. The HX-Trigger header is the distinguisher.
+    const trigger = xhr.getResponseHeader('HX-Trigger') || '';
+    if (trigger.indexOf('"entityChanged"') === -1) return;
+
+    // Gate 3: prevent the form HTML from being swapped INTO the modal body —
+    // the modal closes; the swap is unnecessary and would re-render the form.
+    evt.detail.shouldSwap = false;
+
+    closeModal();
+});
+```
+
+The 3-gate composition matters:
+
+1. **Bind on `htmx:beforeSwap`, not `htmx:afterRequest`**: `afterRequest` fires after the form is detached from the DOM during the swap → the event source disappears → listeners that try to walk back to the form get null.
+2. **`xhr.status` 2xx is necessary but not sufficient**: Django's default `form_invalid()` returns status 200 + form-with-errors. Without override, status-only gating closes the modal on validation failure. See [`../../django/references/DJANGO_FORM_INVALID_STATUS.md`](../../django/references/DJANGO_FORM_INVALID_STATUS.md) for the override pattern that makes status-only gating safe.
+3. **Response `HX-Trigger` header contains the canonical success signal**: the server emits `entityChanged` only on form_valid; absent on form_invalid. The header check is the actual distinguisher.
+
+Surfaced: teisutis IDEA-163 PR #443 cycles 3 → 5 — bugbot caught each broken approach (htmx:afterRequest detached form, status-only gate closes modal on form_invalid). Final form: bugbot CLEAN.
+
+## Single-event vs multi-event toast dispatch — pick ONE source per flow
+
+When a flow emits `messages.success(request, ...)` AND a JS `HX-Trigger` listener that also calls `uiNotify`, the user sees the toast twice. The fix is at the design level: pick ONE source per flow.
+
+| Flow shape | Recommended source |
+|---|---|
+| Form submit → Django view → render response | `messages.success` + middleware drains to `uiNotify` |
+| HTMX action with `hx-swap="none"` | `HX-Trigger` header → JS dispatches `uiNotify` |
+| Action where the JS handler has post-action work (refresh list, etc.) | `HX-Trigger` BUT the JS handler uses `refreshOnly: true` (no toast) — let `messages.success` carry the toast |
+| Pure JS action (client-side, no server roundtrip) | JS dispatches `uiNotify` directly |
+
+The `refreshOnly: true` flag is the convention name; the concept is "this listener does data-refresh work but doesn't double-emit the toast that the messages framework already emitted." Apply when the same flow has both server-side `messages.*` calls AND a client-side post-action handler.
+
 ---
 
-**Last Updated**: 2026-05-07
+**Last Updated**: 2026-05-14
