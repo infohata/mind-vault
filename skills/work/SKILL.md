@@ -234,6 +234,7 @@ This is the canonical landing page for anyone discovering the idea via grep/inde
 - [skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md](../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — worktree + docker isolation contract for parallel execution
 - [skills/django/references/I18N_WORKFLOW.md](../django/references/I18N_WORKFLOW.md) — translation-map workflow enforced during execution
 - [references/WATCHER_HYGIENE.md](references/WATCHER_HYGIENE.md) — load when arming `run_in_background` watchers (test runs, log tails, polling); orchestrator-trash-collection discipline + self-match avoidance
+- [references/AUDIT_NEWLY_REACHABLE_CODE.md](references/AUDIT_NEWLY_REACHABLE_CODE.md) — load when the fix being applied REMOVES a short-circuit (empty-state guard, early return, missing call, async resolution, type-gate relaxation); audit newly-reachable downstream code for latent issues before committing
 - [agents/AGENT_backend.md](../../agents/AGENT_backend.md), [AGENT_frontend.md](../../agents/AGENT_frontend.md), [AGENT_devops.md](../../agents/AGENT_devops.md), [AGENT_test-engineer.md](../../agents/AGENT_test-engineer.md) — implementation personas dispatched by this skill
 
 ---
