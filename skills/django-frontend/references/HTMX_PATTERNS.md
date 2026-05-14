@@ -501,16 +501,7 @@ Surfaced: teisutis IDEA-163 PR #443 cycles 3 → 5 — bugbot caught each broken
 
 ## Single-event vs multi-event toast dispatch — pick ONE source per flow
 
-When a flow emits `messages.success(request, ...)` AND a JS `HX-Trigger` listener that also calls `uiNotify`, the user sees the toast twice. The fix is at the design level: pick ONE source per flow.
-
-| Flow shape | Recommended source |
-|---|---|
-| Form submit → Django view → render response | `messages.success` + middleware drains to `uiNotify` |
-| HTMX action with `hx-swap="none"` | `HX-Trigger` header → JS dispatches `uiNotify` |
-| Action where the JS handler has post-action work (refresh list, etc.) | `HX-Trigger` BUT the JS handler uses `refreshOnly: true` (no toast) — let `messages.success` carry the toast |
-| Pure JS action (client-side, no server roundtrip) | JS dispatches `uiNotify` directly |
-
-The `refreshOnly: true` flag is the convention name; the concept is "this listener does data-refresh work but doesn't double-emit the toast that the messages framework already emitted." Apply when the same flow has both server-side `messages.*` calls AND a client-side post-action handler.
+When a flow emits `messages.success(request, ...)` AND a JS `HX-Trigger` listener that also calls `uiNotify`, the user sees the toast twice. The fix is at the design level: pick ONE source per flow — see [`SHELL_NOTIFICATIONS.md`](SHELL_NOTIFICATIONS.md) § *Pick ONE source per flow* for the canonical 4-flow table (server `messages.*` / `hx-swap="none"` / server-flash + client post-action with `refreshOnly: true` / pure client-side) and the JS + Python `refreshOnly` code shapes.
 
 ---
 
