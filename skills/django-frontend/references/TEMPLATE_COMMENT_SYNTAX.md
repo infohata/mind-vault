@@ -79,33 +79,6 @@ Every match is a candidate for conversion. The Django i18n workflow reference co
 
 ## `{% blocktrans %}` placeholder format is `%(var)s` in `.po`, not `{{ var }}`
 
-Inside a `{% blocktrans %}…{% endblocktrans %}` block, template variables write as `{{ var }}` — but Django's makemessages converts them to `%(var)s` in the extracted `.po` file. Translation maps that key on the visible-on-template form (`Hello {{ user }}!`) never match; the map entry is dead.
-
-```django
-{# In the template — written with the template-variable form #}
-{% blocktrans with name=user.name %}Hello {{ name }}!{% endblocktrans %}
-```
-
-```po
-# In django.po — extracted with the gettext placeholder form
-msgid "Hello %(name)s!"
-msgstr ""
-```
-
-Translation map entries MUST key on the `.po` form:
-
-```python
-# tools/translation_maps/myapp.py
-APP_TRANSLATIONS = {
-    'lt': {
-        'Hello %(name)s!': 'Sveiki, %(name)s!',     # ✅ matches the .po msgid
-        # 'Hello {{ name }}!': '…',                  # ❌ never matches; dead entry
-    },
-}
-```
-
-Translation-audit tools' placeholder-parity check is the canary — flagged mismatches between `msgid` and `msgstr` placeholder shapes catch this in the audit pass. Add `%(...)s` parity to the audit if it isn't already there.
-
-Surfaced: teisutis IDEA-147 Block J — blocktrans entries in event detail templates never reached the locales because map keys used `{{ var }}` form. Audit's placeholder check caught it after the first fill cycle.
+Inside a `{% blocktrans %}…{% endblocktrans %}` block, template variables write as `{{ var }}` — but Django's makemessages converts them to `%(var)s` in the extracted `.po` file. Translation maps that key on the visible-on-template form (`Hello {{ user }}!`) never match — see [`../../django/references/I18N_WORKFLOW.md`](../../django/references/I18N_WORKFLOW.md) § *`{% blocktrans %}` placeholders extract as `%(var)s`, not `{{ var }}`* for the canonical map-key contract + audit-tool placeholder-parity check.
 
 **Last Updated**: 2026-05-14

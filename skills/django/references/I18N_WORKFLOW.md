@@ -165,16 +165,7 @@ Surfaced: teisutis IDEA-147 — filter-label disambiguation needed to overwrite 
 
 ## Don't translate developer notes — they leak into `.po` and ship to users
 
-A `{% trans "TODO: refactor this in Phase 2" %}` block in a template gets extracted into `.po`, translation maps add msgstr entries, the result ships to end users as page copy. The fix is at the template layer: developer notes belong inside `{% comment %}…{% endcomment %}` blocks, not inside `{% trans %}`.
-
-Audit recipe (run periodically, or wire as a pre-commit check):
-
-```bash
-grep -rEn '\{%\s*trans\s+"[^"]*(TODO|FIXME|Phase|see IDEA|legacy|deprecated)' \
-    --include="*.html" web/
-```
-
-See [`../../django-frontend/references/TEMPLATE_COMMENT_SYNTAX.md`](../../django-frontend/references/TEMPLATE_COMMENT_SYNTAX.md) for the template-side discipline (single-line vs multi-line, content leak failure mode, conversion recipe).
+A `{% trans "TODO: refactor this in Phase 2" %}` block extracts into `.po`, translation maps add msgstr entries, the result ships to end users as page copy. The fix is at the template layer (`{% comment %}` instead of `{% trans %}`) — see [`../../django-frontend/references/TEMPLATE_COMMENT_SYNTAX.md`](../../django-frontend/references/TEMPLATE_COMMENT_SYNTAX.md) § *Don't translate developer notes* for the canonical template-side recipe + audit grep.
 
 ## `{% blocktrans %}` placeholders extract as `%(var)s`, not `{{ var }}`
 
