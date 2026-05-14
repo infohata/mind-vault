@@ -236,7 +236,7 @@ def event_filter_clear(request):
     request.session[f'kb_event_filters_{org_id}'] = bucket
 
     response = render_event_list_region(request)               # re-render
-    response['HX-Push-Url'] = request.path                     # strip QS
+    response['HX-Push-Url'] = '/events/'                       # parent surface URL — NOT request.path (clear-endpoint path); strips any chip-driving QS
     return response
 ```
 
@@ -244,7 +244,7 @@ Three load-bearing details:
 
 - **POST-only**. GETs against this endpoint are rejected with 405. Otherwise a stray browser-history GET or a misclick on a copy-paste link would clear session state silently.
 - **Allowlist gate**. `?key=...` is validated against the entity's `_<SURFACE>_FILTER_KEYS` tuple before any session mutation. Defence-in-depth — never `del request.session[arbitrary_key]`.
-- **`HX-Push-Url` to a clean URL**. The chip click came from a URL that may carry `?linked_to_article=7` as part of the navigation; clearing the filter must also clean the address bar. `HX-Push-Url: <path>` (no QS) writes a clean URL into history without a navigation. Browser refresh afterwards lands the user at the filtered-by-nothing surface.
+- **`HX-Push-Url` to the surface URL, NOT `request.path`**. The chip click came from a URL that may carry `?linked_to_article=7` as part of the navigation; clearing the filter must also clean the address bar. `request.path` here is `/events/filter/clear/` — the *clear endpoint's* own path — which is what would land in the browser address bar if you push that. Push the *parent surface* URL (`/events/`) instead so refresh + bookmark land at the filtered-by-nothing surface. If the surface has a named route, prefer `reverse('events:list')` over a literal.
 
 ### Why this generalises
 

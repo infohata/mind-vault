@@ -230,9 +230,17 @@ function openWith(prefixFrames, topFrame) {
     }
 
     if (L === stack.length) {
-        // Current stack IS a prefix of intent: push remaining tail + top.
-        for (let i = L; i < prefixFrames.length; i++) {
-            surface.push(prefixFrames[i]);
+        // Current stack IS a prefix of intent: open|push remaining tail + top.
+        if (stack.length === 0) {
+            // Empty stack → drawer is closed; first frame needs open(), not push().
+            if (prefixFrames.length === 0) {
+                surface.open(topFrame);
+                return;
+            }
+            surface.open(prefixFrames[0]);
+            for (let i = 1; i < prefixFrames.length; i++) surface.push(prefixFrames[i]);
+        } else {
+            for (let i = L; i < prefixFrames.length; i++) surface.push(prefixFrames[i]);
         }
         surface.push(topFrame);
         return;
