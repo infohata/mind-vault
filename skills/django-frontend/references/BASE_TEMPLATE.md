@@ -176,8 +176,6 @@ When you set `max-height: 0` on an element to collapse its layout slot, ANY inhe
 
 Frameworks that bite this trap by default: Bulma (`.navbar { min-height: 3.25rem }`), Bootstrap (`.navbar { min-height: 56px }` in some themes), any Tailwind config that adds a navbar utility with min-height.
 
-Surfaced: teisutis IDEA-143 M20 cycle 5 — empty 3.25rem strip remained at top when navbar's `--hidden` class fired, despite `max-height: 0; transform: translateY(-100%)`. Cycles 1-4 chased the wrong trees (overflow:hidden on base broke dropdowns; margin-top: -3.25rem on shell-main broke sticky scroll context). The actual fix took 4 lines.
-
 ## Theme contrast picker (WCAG luminance)
 
 When picking a foreground colour (`#181818` dark vs `#ffffff` light) against an arbitrary themed background — avatar initials, badge text, alert text on a colour-coded surface — the W3C-correct relative luminance formula requires gamma-decoded RGB values before applying the BT.709 coefficients. Most hand-written shortcuts skip the linearization step and produce wrong contrast picks for medium-tone colours.
@@ -206,8 +204,6 @@ The 0.179 crossover threshold is calibrated against linearized luminance. Withou
 Reference: [WCAG 2.1 § Relative luminance](https://www.w3.org/TR/WCAG21/#dfn-relative-luminance).
 
 Implement once as a Django template filter (e.g. `on_color`) and reuse — the computation is a recurring need (avatar foreground, badge foreground, alert text, themed-pill text); each surface re-deriving it tends to drift back toward the shortcut.
-
-Surfaced: teisutis IDEA-143 — bugbot review 4240346456 caught the gamma-encoded shortcut in the project's `on_color` template filter. Fix collapsed the wrong-pick contrast across every themed surface in the app.
 
 ---
 

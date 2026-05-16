@@ -38,9 +38,9 @@ The finer the scope, the tighter the feedback loop.
 **Django test runner:**
 
 ```bash
-make test ARGS="teisutis_billing.tests.test_models.BillingPlanTest.test_upgrade_pro_to_enterprise"
+make test ARGS="billing.tests.test_models.BillingPlanTest.test_upgrade_pro_to_enterprise"
 # or without a Makefile:
-python manage.py test teisutis_billing.tests.test_models.BillingPlanTest.test_upgrade_pro_to_enterprise
+python manage.py test billing.tests.test_models.BillingPlanTest.test_upgrade_pro_to_enterprise
 ```
 
 **Plain pytest (nodeid or keyword):**
@@ -84,7 +84,7 @@ Useful alongside fully-qualified paths when pytest is the runner:
 | `-s`                  | No capture — see `print()` / logging output while iterating.                          |
 | `-p no:cacheprovider` | Disable cache — when debugging test-selection issues or running in CI.                |
 
-**Multi-tenant suites with schema pooling**: projects with django-tenants + `TEISUTIS_POOLING=1` env var (or equivalent) can stack a pool fixture on top of xdist for another ~15-20% wall-clock reduction — but pool mode is for full-suite runs, not surgical iteration. When a surgical run fails only under pooling, the test is exposing latent fragility (see `django/references/TESTING.md` "Parallel Execution" section for debugging flow).
+**Multi-tenant suites with schema pooling**: projects with django-tenants + an env-gated pool fixture (e.g. `<PROJECT>_POOLING=1`) can stack a pool fixture on top of xdist for another ~15-20% wall-clock reduction — but pool mode is for full-suite runs, not surgical iteration. When a surgical run fails only under pooling, the test is exposing latent fragility (see `django/references/TESTING.md` "Parallel Execution" section for debugging flow).
 
 ### 5. Handle schema / DB state strategically
 
@@ -96,7 +96,7 @@ Repeated runs against a dirty database can trigger cascading isolation errors th
 
 **pytest-django:** `pytest --create-db` (force recreate) or `--reuse-db` (default, faster).
 
-> *Example (Teisutis / django-tenants):* the Makefile exposes `make test-fresh ARGS="..."` which drops and recreates the tenant schema before running. Use it when tests interact with unique constraints or schema shape.
+> *Example (django-tenants):* the Makefile exposes `make test-fresh ARGS="..."` which drops and recreates the tenant schema before running. Use it when tests interact with unique constraints or schema shape.
 
 ### 6. Don't dismiss "unrelated" failures
 
@@ -125,13 +125,13 @@ Even with surgical-TDD as the default, zoom out for:
 
 ## End-to-end example
 
-> *Illustrative (Teisutis / django-tenants):*
+> *Illustrative (Django + django-tenants):*
 
 ```bash
 # Bug reported: billing upgrade fails on org with annual plan.
 
 # 1. Locate likely test surface
-rg -n "upgrade.*plan" web/teisutis_billing/tests/
+rg -n "upgrade.*plan" web/billing/tests/
 
 # 2. Write a probe in test_models.py:
 #    class BillingPlanTest(TenantTestCase):
@@ -139,15 +139,15 @@ rg -n "upgrade.*plan" web/teisutis_billing/tests/
 #            ...reproduce the bug...
 
 # 3. Run the probe — must fail
-make test-fresh ARGS="teisutis_billing.tests.test_models.BillingPlanTest.test_upgrade_annual_plan_preserves_remaining_period"
+make test-fresh ARGS="billing.tests.test_models.BillingPlanTest.test_upgrade_annual_plan_preserves_remaining_period"
 
 # 4. Fix the offending logic in billing/services.py
 
 # 5. Rerun — same command — now green
-make test-fresh ARGS="teisutis_billing.tests.test_models.BillingPlanTest.test_upgrade_annual_plan_preserves_remaining_period"
+make test-fresh ARGS="billing.tests.test_models.BillingPlanTest.test_upgrade_annual_plan_preserves_remaining_period"
 
 # 6. Before pushing: run the whole app file, not just the one test
-make test ARGS="teisutis_billing.tests.test_models"
+make test ARGS="billing.tests.test_models"
 ```
 
 ## References

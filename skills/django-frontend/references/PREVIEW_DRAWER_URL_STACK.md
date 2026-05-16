@@ -336,7 +336,7 @@ Lenient parse mirrors `parse_open_param`'s contract from the URL stack section a
 
 Cold-start hydration paths don't have this gap because the server-emitted seed JSON includes titles per frame. But the **closed-drawer-then-click path** that triggers `openWith()` bypasses cold-start entirely — it has only the tokens from `data-preview-stack-prefix`. The divergence-branch (`lcpLen === 0`) path has the same gap; it just gets exercised less often.
 
-Surfaced by teisutis PR #446 manual smoke after the `openWith()` empty-stack guard (above) made flow E reachable from a closed drawer. The empty-stack push gap had previously been hiding the title gap — when the drawer didn't open at all, no one noticed the prefix frames were title-less.
+Surfaced by manual smoke after the `openWith()` empty-stack guard (above) made flow E reachable from a closed drawer. The empty-stack push gap had previously been hiding the title gap — when the drawer didn't open at all, no one noticed the prefix frames were title-less.
 
 Fix: server emits a **parallel JSON array** of titles alongside the prefix CSV; JS parser pairs them by index.
 

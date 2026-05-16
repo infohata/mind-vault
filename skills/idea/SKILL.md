@@ -141,7 +141,7 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
 
 ## When NOT to use these patterns
 
-- **Mind-vault itself is not a target project.** The sprint workflow runs against projects that consume mind-vault (teisutis, future projects). Inside mind-vault, ideas about mind-vault's own evolution live in `mind-vault/docs/ideas/` — the skill treats mind-vault as just another project when explicitly invoked there (e.g. for dogfooding).
+- **Mind-vault itself is not a target project.** The sprint workflow runs against projects that consume mind-vault. Inside mind-vault, ideas about mind-vault's own evolution live in `mind-vault/docs/ideas/` — the skill treats mind-vault as just another project when explicitly invoked there (e.g. for dogfooding).
 - **One-off trivial work.** A typo fix does not need an IDEA entry. The skill refuses to create IDEA-NNN for work that should just be done.
 - **Legacy monolithic backlog still present.** If the project has `docs/execution/IDEAS.md` or similar with no `docs/ideas/` tree yet, route the user to `/ingest-backlog` first. Don't split the source of truth mid-adoption.
 - **Cross-project ideas.** An idea that applies to every project (e.g. "add a new reviewer persona") does not go in any one project's `docs/ideas/`. It goes in mind-vault through `/compound` promotion, not here.
@@ -155,8 +155,6 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
 - [skills/plan/SKILL.md](../plan/SKILL.md) — next stage; consumes the IDEA file and triggers `idea` → `in-progress` move
 - [skills/work/SKILL.md](../work/SKILL.md) — triggers the `in-progress` → `complete` move on PR merge
 - [skills/ingest-backlog/SKILL.md](../ingest-backlog/SKILL.md) — brownfield-takeover helper when the project has a legacy monolithic backlog
-- Origin: shape lifted from **teisutis IDEA-112** (split `docs/execution/IDEAS.md` into per-idea files) — the meta-idea that surfaced when teisutis's monolithic backlog past 1500 lines started producing painful edit PRs. PR1 execution validated the three-location split.
-
 ---
 
 **Last Updated**: 2026-04-20

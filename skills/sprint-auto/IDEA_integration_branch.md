@@ -1,10 +1,10 @@
 # sprint-auto: integration branch for cross-PR conflict detection
 
 **Status**: planned (v3.1, ready to implement)
-**Surfaced**: 2026-04-27 (during teisutis 2026-04-26 sprint-auto batch — PR #375 + #376 staged together produced a 12-file conflict that no per-PR check caught)
+**Surfaced**: 2026-04-27 (during a sprint-auto batch — two PRs staged together produced a 12-file conflict that no per-PR check caught)
 **Last revised**: 2026-04-27 v3.1 — all open design questions resolved through user redirects in this session. Implementation gated only on a green-light to open `feature/sprint-auto-integration-stage`.
 
-This document captures both the **problem** (the original idea, written by the teisutis agent overnight) and the **planned solution** (the implementation design, drafted with user redirects in this session). The single-file form replaces the earlier split across `IDEA_*` + `PLAN_*` per the user's preference.
+This document captures both the **problem** (the original idea, written by an agent overnight) and the **planned solution** (the implementation design, drafted with user redirects in this session). The single-file form replaces the earlier split across `IDEA_*` + `PLAN_*` per the user's preference.
 
 ---
 
@@ -14,9 +14,9 @@ This document captures both the **problem** (the original idea, written by the t
 
 What never gets tested: the **integrated state** of all N branches merged together. Two PRs may individually pass tests, individually clear bugbot, and individually look fine on staging — but conflict at merge time when both edit the same regions of the same files.
 
-## Worked example — teisutis 2026-04-27
+## Worked example — 2026-04-27
 
-- PR #375 (IDEA-124, audio playback fallback + dark theme) and PR #376 (IDEA-125, audio transcription pre-send) both modify `web/teisutis_ai/templates/teisutis_ai/chat.html` and 8 of the same `.po` files. Both passed bugbot. Both passed staging tests in isolation.
+- Two PRs (IDEA-124, audio playback fallback + dark theme; IDEA-125, audio transcription pre-send) both modify `web/<ai-app>/templates/<ai-app>/chat.html` and 8 of the same `.po` files. Both passed bugbot. Both passed staging tests in isolation.
 - When the user wanted to test #376 ON TOP of #375 to verify they work together, the local `git merge auto/audio-playback... into auto/audio-transcription...` produced **12 conflict files** to resolve manually. The conflicts were all "include both contributions" merges (each PR added independent translation keys near each other) — none were destructive, but resolving 12 files for a throwaway local test was overhead.
 
 The merge-conflict surface is invisible during the sprint-auto run itself. It only shows up after the human starts merging (and by then bugbot's clean signal on the per-PR state has nothing to say about the merge result).
@@ -207,7 +207,7 @@ First batches will calibrate; numbers above are starting points, not contracts.
 
 ## Stakes context
 
-There is no "low-stakes night" for this workflow. Teisutis has grown massive pre-release; the budget/timeline pressure is what makes sprint-auto necessary in the first place — every batch is high-risk-high-reward, and the workflow exists because the alternative is shipping slower than the project can afford. v3's design leans into that: results-oriented over performance, bugbot-everything, full DB reset between IDEAs. Validation framing throughout this plan is about the **first batch under v3 mechanics**, not about choosing safe IDEAs — the IDEAs in any given batch will be whatever's next in the queue.
+There is no "low-stakes night" for this workflow. The originating project has grown massive pre-release; the budget/timeline pressure is what makes sprint-auto necessary in the first place — every batch is high-risk-high-reward, and the workflow exists because the alternative is shipping slower than the project can afford. v3's design leans into that: results-oriented over performance, bugbot-everything, full DB reset between IDEAs. Validation framing throughout this plan is about the **first batch under v3 mechanics**, not about choosing safe IDEAs — the IDEAs in any given batch will be whatever's next in the queue.
 
 ## First-batch monitoring — what to watch on signal
 
@@ -233,7 +233,7 @@ When green-lit:
 2. Implement S(-1) bootstrap + S0 code-surface narrowing in `skills/sprint-auto/SKILL.md`
 3. Add verification routing in `skills/work/SKILL.md` + `commands/bugbot-loop.md`
 4. Add `--scope=idea-only` mode in `skills/wrap/SKILL.md`
-5. Add `--code-only` flag to `tools/sprint-auto-bootstrap.sh` (per project, e.g. teisutis first)
+5. Add `--code-only` flag to `tools/sprint-auto-bootstrap.sh` (per project)
 6. Implement S11.5–S11.13 + new reference docs
 7. Open implementation PR; bugbot it; merge after review
 8. First real batch under v3.1; monitor signals above
@@ -248,7 +248,6 @@ When green-lit:
 - [`../../commands/bugbot-loop.md`](../../commands/bugbot-loop.md) — touched by this plan (Phase 0 skip-bootstrap rule when env var set)
 - [`references/PARALLEL_WORKTREE_DOCKER.md`](references/PARALLEL_WORKTREE_DOCKER.md) — worktree pattern; v3.1 narrows the per-worktree stack assumption for sprint-auto
 - [`../../rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — confirms forward-sync (S11.11) is agent-allowed; the `[INTEGRATION]` draft PR is a non-merging artefact
-- Surfacing context: teisutis `docs/archive/auto-run-2026-04-26T02-31-00Z-summary.md` — the batch run that prompted this idea
 - Existing sprint-auto state machine: `skills/sprint-auto/SKILL.md` (S0–S15)
 
 ---
@@ -259,4 +258,4 @@ When green-lit:
 - **2026-04-27 v3**: post-redirect on hardware constraint + results-oriented call. Single integration stack as the test-runner; per-IDEA worktrees code-surface-only; full DB reset between IDEAs guarantees independently deliverable PRs
 - **2026-04-27 v2**: Q4/Q5/Q6 redirects, wrap-stage insight surfaced, but kept N+1 docker stacks (rejected by hardware constraint)
 - **2026-04-27 v1**: initial draft with v1 recommendations on Q4/Q5/Q6 (superseded by v2)
-- **2026-04-27 (initial)**: IDEA captured by teisutis agent during overnight 2026-04-26 batch test loop. 9 open design questions left for the parallel Claude session — all resolved through user redirects in this same session
+- **2026-04-27 (initial)**: IDEA captured by agent during overnight batch test loop. 9 open design questions left for the parallel Claude session — all resolved through user redirects in this same session

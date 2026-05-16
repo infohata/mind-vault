@@ -19,7 +19,7 @@ Adding a JavaScript library (editor, syntax highlighter, charting lib, drag-hand
 - The library shares dependencies with other libraries you're already bundling (transitive de-dup matters → you genuinely need a bundler).
 - Your project is React-/Vue-first and you already have Node — vendoring is then over-engineering.
 
-## The pattern (precedent: EasyMDE in teisutis)
+## The pattern
 
 Layout:
 
@@ -137,7 +137,7 @@ Skip unless you have a strong reason; vendoring (A or B) is the better default.
 
 ## Drift-protection guardrail (recommended for Path B)
 
-The `BUILD_INFO.txt` hash trick (architect F9 pattern from teisutis IDEA-123 plan):
+The `BUILD_INFO.txt` hash trick:
 
 ```python
 # tests/test_vendor_bundle_integrity.py
@@ -177,10 +177,6 @@ Independent of the bundle, the integration glue (`<library>-widget.js`) handles:
 5. **Form integration** — sync widget state to the underlying `<input>` / `<textarea>` so Django form submit picks up the value.
 
 Don't put any of this inside the bundle. The bundle is pure-library; the glue is your project's integration boundary.
-
-## Provenance
-
-Pattern documented during teisutis 2026-04-25 IDEA-123 planning (TipTap selection); precedent established by EasyMDE vendoring in earlier teisutis work; will see second project use when TipTap ships per IDEA-123 plan.
 
 ---
 

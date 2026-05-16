@@ -133,7 +133,7 @@ Key points:
 
 ❌ DON'T: use multi-line `{# … #}` comments **inside cotton component templates**. `{#` is single-line in Django; multi-line content between `{# … #}` is parsed as raw template content, and a literal `{% include %}` word inside the prose crashes the engine. Use `{% comment %}…{% endcomment %}` for prose blocks (full hazard write-up in [`../SKILL.md`](../SKILL.md) § *Template comment syntax — `{# inline #}` is single-line only* — same trap, applies inside cotton component templates too).
 
-❌ DON'T: import vendor CSS via `@import url(...)` from compiled SCSS. Browser resolves relative URLs against the compiled CSS file's URL at runtime — if the compiled CSS path moves (e.g. an app rename like `teisutis_core` → `teisutis_ui`), the import 404s. Link vendor CSS via a sibling `<link>` in `base.html` instead, and let SCSS only handle theme + component styles. Full hazard write-up in [`../SKILL.md`](../SKILL.md) § *SCSS vendor-import hazard — `@import url()` is runtime, not compile-time*.
+❌ DON'T: import vendor CSS via `@import url(...)` from compiled SCSS. Browser resolves relative URLs against the compiled CSS file's URL at runtime — if the compiled CSS path moves (e.g. an app rename like `core` → `ui`), the import 404s. Link vendor CSS via a sibling `<link>` in `base.html` instead, and let SCSS only handle theme + component styles. Full hazard write-up in [`../SKILL.md`](../SKILL.md) § *SCSS vendor-import hazard — `@import url()` is runtime, not compile-time*.
 
 ## Cotton `:prop` coercion is opaque — prefer JSON seed for cold-start client state
 

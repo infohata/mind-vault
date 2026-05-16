@@ -88,7 +88,7 @@ If no PR exists yet (branch pushed but PR not opened), treat as pre-merge defaul
 
 ### Self-mode: running on mind-vault itself
 
-Mind-vault does **not** track IDEA-NNN files of its own — per-project IDEA numbering would collide across the projects mind-vault serves (teisutis, etc.). If `/wrap` is invoked on the mind-vault repository itself, Steps 1–3 (IDEA resolution, frontmatter flip, ideas index re-sort) do not apply and must be skipped.
+Mind-vault does **not** track IDEA-NNN files of its own — per-project IDEA numbering would collide across the projects mind-vault serves. If `/wrap` is invoked on the mind-vault repository itself, Steps 1–3 (IDEA resolution, frontmatter flip, ideas index re-sort) do not apply and must be skipped.
 
 Detection (first match wins):
 
@@ -197,7 +197,7 @@ Living recap of the N-IDEA `<sprint-branch>` cohort (NNN→NNN). Read this first
 
 **When to skip**: cohort < ~10 IDEAs, or the IDEAs don't share enough context that re-reading their plans is expensive (typical for opportunistic backlog clearing). The recap pays off when there's a coherent sprint where late-cohort IDEAs need to know what early-cohort IDEAs decided.
 
-**Genesis**: introduced in 2026-05 during the 25-IDEA `sprint/ux-overhaul` cohort (teisutis project) — the context cost of re-reading 25 plan docs to remember decisions had crossed a pain threshold. A small `auto-memory` reference entry pointing at the recap location makes the pattern survive across agent sessions.
+**Genesis**: introduced in 2026-05 during a 25-IDEA `sprint/ux-overhaul` cohort — the context cost of re-reading 25 plan docs to remember decisions had crossed a pain threshold. A small `auto-memory` reference entry pointing at the recap location makes the pattern survive across agent sessions.
 
 ### Step 4 — Devlog entry
 

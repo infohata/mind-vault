@@ -373,7 +373,7 @@ Use `-n` equal to physical-core count. SMT adds negligible wall-clock once physi
 Per-class `CREATE SCHEMA + migrate TENANT_APPS + DROP SCHEMA` is the biggest cost pytest-xdist cannot touch. Pooling reuses ONE pre-migrated schema per worker with `TRUNCATE RESTART IDENTITY CASCADE` between classes. Opt-in via env var.
 
 ```bash
-TEISUTIS_POOLING=1 pytest -n 8 --dist loadscope --create-db  # ~17% faster
+TENANT_POOLING=1 pytest -n 8 --dist loadscope --create-db  # ~17% faster
 ```
 
 The pool fixture lives in `web/conftest.py`:
@@ -382,12 +382,12 @@ The pool fixture lives in `web/conftest.py`:
 @pytest.fixture(scope="session", autouse=True)
 def _tenant_schema_pool(django_db_setup, django_db_blocker):
     import os
-    if os.environ.get("TEISUTIS_POOLING") != "1":
+    if os.environ.get("TENANT_POOLING") != "1":
         yield
         return
 
     from django_tenants.test.cases import TenantTestCase
-    from teisutis_auth.models import Domain, Org
+    from tenants.models import Domain, Org
 
     worker = os.environ.get("PYTEST_XDIST_WORKER", "main")
     pool_schema = f"test_pool_{worker}"
@@ -489,7 +489,7 @@ def _tenant_schema_pool(django_db_setup, django_db_blocker):
           # teardown …
   ```
 
-  Held only during the migration; monkey-patching of `TenantTestCase.setUpClass` afterwards doesn't need the lock. (Teisutis PR #330 cycle 10.)
+  Held only during the migration; monkey-patching of `TenantTestCase.setUpClass` afterwards doesn't need the lock.
 
 ### When to use each lever
 

@@ -182,9 +182,9 @@ ______________________________________________________________________
 
 A skill in `mind-vault` is consumed by multiple projects. Concrete project names in the pattern body are **leaks**:
 
-- **Don't** assert "Teisutis uses X" as a universal rule — it's wrong for every other project.
+- **Don't** assert "Project X uses Y" as a universal rule — it's wrong for every other project.
 - **Do** generalise ("Projects with constraint X should Y") or visually fence as an example:
-  > *Example (Teisutis): the translation map lives at `tools/translation_maps/*.py`.*
+  > *Example (Django project): the translation map lives at `tools/translation_maps/*.py`.*
 - **Never hard-code paths from a consuming project** in `References`. `docs/artefacts/by-agent/…` paths do not exist from the agent's perspective when invoked from a sibling project.
 
 ______________________________________________________________________

@@ -176,10 +176,6 @@ If only one isolated PR remains and its review window is short, fold the docs co
 - **Skipping live-staging for SDK bumps.** Test suites typically mock SDK clients. Real-API smoke against the upgraded floor is the only signal that the new SDK shape works in production.
 - **Force-pushing the dep PR mid-review.** Forward-sync via `git merge origin/main` + regular push, not rebase + force-push. Review threads survive.
 
-## Provenance
-
-Compounded from the teisutis 2026-04-28 dependabot sweep — 9 open PRs triaged into 2 dups closed, 1 bundled merged PR (#390), 1 isolated PR pending merge (#391), 1 docs commit folded post-feedback. The duplicate-detection nuance specifically traces to feedback during that sweep when the user flagged "we have multiple requirements files now, don't mix duplicates up".
-
 ## Composes with
 
 - [`../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md`](../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — the worktree + override-file + sentinel-env mechanics this skill leans on for verification isolation.

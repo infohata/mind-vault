@@ -120,10 +120,6 @@ Cons:
 - ❌ **Override every view's `form_invalid` to return JSON `{"errors": ...}`**. Loses Django's form-rendering machinery; you'd be re-implementing it on the client.
 - ❌ **Detect form errors by parsing the response body's HTML**. Fragile; tied to template structure; breaks on every template refactor.
 
-## Surfaced
-
-teisutis IDEA-163 PR #443 cycles 3-5 — first fix gated modal close on `htmx:beforeSwap` + `xhr.status` 2xx. User manual eval revealed validation failure closed the modal because Django returned 200 + form-with-errors. Added `HX-Trigger: entityChanged` header check as third gate; modal stays open on form_invalid.
-
 See [`../../django-frontend/references/HTMX_PATTERNS.md`](../../django-frontend/references/HTMX_PATTERNS.md) § *Modal scoping* for the three-gate composition on the client side.
 
 **Last Updated**: 2026-05-14

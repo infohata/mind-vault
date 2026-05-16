@@ -110,7 +110,7 @@ The default is mind-vault. Auto-memory is the exception, not the equal-weight al
 
 This includes patterns that *feel* project-local but recur across the user's work: bugbot triage shortcuts, sprint-workflow refinements, debugging-loop conventions. Project-local *content* (a specific bug fix's recipe with project-specific function names) goes to project-local solution docs, not auto-memory; cross-project *patterns* go to mind-vault.
 
-The user direction that surfaced this rule (teisutis 2026-05-05): "When deciding compound local memory vs. mind-vault, always remember that mind-vault survives the machine. I use you remotely as well (especially for overnight sprint-auto work) on VPS. If you think the compound is THIS LOCAL MACHINE ONLY, then it's local memory. All other cases — mind-vault."
+The user direction that surfaced this rule: "When deciding compound local memory vs. mind-vault, always remember that mind-vault survives the machine. I use you remotely as well (especially for overnight sprint-auto work) on VPS. If you think the compound is THIS LOCAL MACHINE ONLY, then it's local memory. All other cases — mind-vault."
 
 ### 4. Mind-vault promotion — branch policy
 
@@ -141,7 +141,7 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
    - **Local filesystem paths** (`/Users/<name>/...`, `/home/<name>/...`) → drop.
    - **Customer domain hostnames** → drop or replace with `<tenant-host>`.
    - **PR / IDEA / commit references** → KEEP (these are project provenance, expected in mind-vault per existing convention; matches the "Last Updated" footer style in other mind-vault files).
-   - **Module / class / function names** (e.g. `AttachmentSerializer`, `_serialize_batch`, `teisutis_ai/`) → KEEP (these are public-API names that future readers need; they're already grep-able from the cited PR).
+   - **Module / class / function names** (e.g. `AttachmentSerializer`, `_serialize_batch`, `<app>/`) → KEEP (these are public-API names that future readers need; they're already grep-able from the cited PR).
 
    The "would this be safe in a public repo today?" test is the gate. If the answer is "no", scrub before commit.
 
@@ -152,7 +152,7 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
 
 ### 5. Cross-link and index
 
-- Every mind-vault promotion also references the project-local source that triggered it. If the learning started as a bugbot finding on a teisutis PR, the new skill/rule/agent entry cites the PR in its Last Updated / provenance section.
+- Every mind-vault promotion also references the project-local source that triggered it. If the learning started as a bugbot finding on a PR, the new skill/rule/agent entry cites the PR in its Last Updated / provenance section.
 - Project-local solution docs reference any mind-vault assets they generalised from, so future `/compound` invocations can detect duplicates.
 - Auto-memory entries include their one-line `MEMORY.md` pointer — that's the index.
 

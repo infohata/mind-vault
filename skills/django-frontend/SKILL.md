@@ -51,7 +51,7 @@ Compatibility: Django 4.2+ (tested through 5.2 LTS), any database.
 
 Three high-blast-radius traps that ship as user-visible regressions if you skim past them. Each has a full section below — but you need to know they exist before writing the next template line:
 
-1. **Multi-line `{# … #}` Django comments leak as visible page content.** `{#` is single-line only; multi-line content between `{#` and `#}` is parsed as raw template content. Always use `{% comment %} … {% endcomment %}` for any prose spanning more than one line. Full section: [`### Template comment syntax — `{# inline #}` is single-line only`](#template-comment-syntax--inline-is-single-line-only). *(Compounded twice now — teisutis IDEA-124 [PR #375](https://github.com/infohata/teisutis/pull/375) shipped one to a chat input; teisutis IDEA-136 [PR #409](https://github.com/infohata/teisutis/pull/409) shipped four more in filter-form templates two hours after I authored a cotton-section cross-ref to this rule. The pattern is recurrent enough that cross-refs aren't enough — the rule needs to be in the skill's first 100 lines.)*
+1. **Multi-line `{# … #}` Django comments leak as visible page content.** `{#` is single-line only; multi-line content between `{#` and `#}` is parsed as raw template content. Always use `{% comment %} … {% endcomment %}` for any prose spanning more than one line. Full section: [`### Template comment syntax — `{# inline #}` is single-line only`](#template-comment-syntax--inline-is-single-line-only). *(Recurrent — the rule needs to be in the skill's first 100 lines, not just buried in cross-refs.)*
 
 2. **Django tags inside JS `//` comments still compile.** `// fallback uses {% trans %}` in a `<script>` block is NOT a JS comment to Django — the `{% trans %}` parses and `'trans' takes at least one argument` 500s the entire template. Full section: [`### Sibling trap — Django tag literals inside JS // comments`](#sibling-trap--django-tag-literals-inside-js--comments).
 
@@ -370,7 +370,7 @@ Remove callers before removers. Silent function deletes are a common AI-refactor
 
 ### Audio playback feature-detection — `<audio>` `error` event, not `canPlayType`
 
-`HTMLMediaElement.canPlayType(mime)` returns one of `''`, `'maybe'`, `'probably'`. With a **bare MIME** (no codec parameters — e.g. `audio/webm`, `audio/ogg`), browsers disagree on what `'maybe'` means: Safari treats `'maybe'` as "I might fail to decode this", Chrome and Firefox treat it as "I will probably play this." Pick either interpretation and you false-negative on the other set of browsers. The teisutis IDEA-124 audio-playback fallback oscillated through four bugbot cycles trying to land a `canPlayType` thresholding rule that worked everywhere; none of them did.
+`HTMLMediaElement.canPlayType(mime)` returns one of `''`, `'maybe'`, `'probably'`. With a **bare MIME** (no codec parameters — e.g. `audio/webm`, `audio/ogg`), browsers disagree on what `'maybe'` means: Safari treats `'maybe'` as "I might fail to decode this", Chrome and Firefox treat it as "I will probably play this." Pick either interpretation and you false-negative on the other set of browsers. A worked audio-playback fallback oscillated through four bugbot cycles trying to land a `canPlayType` thresholding rule that worked everywhere; none of them did.
 
 Replace feature-detection with **the actual decode result** via the `<audio>` element's native `error` event:
 
@@ -470,7 +470,7 @@ When NOT to apply: one-direction-only renderers (server-only partial, or JS-only
 
 **Fires when** writing comments inside Django templates. `{# … #}` is single-line only; multi-line comments must use `{% comment %} … {% endcomment %}`. Mixing them produces a silent **content leak**: a multi-line `{#` opens, hits a newline before `#}`, and Django's tokeniser emits the entire block as plain text on the rendered page. No template error, no test failure — just literal comment text shown to end users.
 
-Mechanics — full syntax matrix, leak failure-mode example, teisutis IDEA-124 PR #375 worked example (audio-fallback comment leaked into chat-input UI), and the grep-based detection recipe (`{#` followed by a newline before `#}`) suitable for CI pre-commit lint — are in [`references/TEMPLATE_COMMENT_SYNTAX.md`](references/TEMPLATE_COMMENT_SYNTAX.md). Read that reference when this section fires.
+Mechanics — full syntax matrix, leak failure-mode example, worked example (audio-fallback comment leaked into chat-input UI), and the grep-based detection recipe (`{#` followed by a newline before `#}`) suitable for CI pre-commit lint — are in [`references/TEMPLATE_COMMENT_SYNTAX.md`](references/TEMPLATE_COMMENT_SYNTAX.md). Read that reference when this section fires.
 
 ### Sibling trap — Django tag literals inside JS `//` comments
 
@@ -503,7 +503,7 @@ Both traps are the same family — Django's template engine treats the file as o
 
 **Fires when** a Django project compiles SCSS to CSS via libsass / dart-sass / `compile_scss` and serves the result through `collectstatic`. The trap: `@import url('../vendor/bulma.min.css')` inside SCSS is NOT resolved by Sass at compile time — Sass copies the line verbatim into the compiled `.css`; the **browser** resolves the relative URL at runtime against the COMPILED CSS file's URL. App relocation, `STATIC_ROOT` change, or sibling-app reorg → `bulma.min.css` 404s; page renders unstyled while Sass compiled cleanly.
 
-The fix: vendor CSS goes in a `<link>` tag in base.html (`{% static %}` resolves through Django's staticfiles finders, settings-aware); SCSS only handles theme + component styles. Mechanics — full failure-mode walkthrough, four recurrence triggers, ❌/✅ syntax examples, teisutis IDEA-135 PR #409 worked example (`teisutis_core` → `teisutis_ui` rename broke the compiled-CSS URL), grep-based detection recipe, and the partial-import exception (`@import 'partial';` is Sass-time, not the hazard) — are in [`references/SCSS_VENDOR_IMPORT.md`](references/SCSS_VENDOR_IMPORT.md). Read that reference when this section fires.
+The fix: vendor CSS goes in a `<link>` tag in base.html (`{% static %}` resolves through Django's staticfiles finders, settings-aware); SCSS only handles theme + component styles. Mechanics — full failure-mode walkthrough, four recurrence triggers, ❌/✅ syntax examples, worked example (an app rename broke the compiled-CSS URL), grep-based detection recipe, and the partial-import exception (`@import 'partial';` is Sass-time, not the hazard) — are in [`references/SCSS_VENDOR_IMPORT.md`](references/SCSS_VENDOR_IMPORT.md). Read that reference when this section fires.
 
 ## Bulma template standards
 

@@ -6,7 +6,7 @@ The 6-destination taxonomy and the heuristics for picking the right one. Load on
 
 | # | Destination | When | Example |
 | --- | --- | --- | --- |
-| 1 | Project-local solution | Specific to one project, won't recur elsewhere | Teisutis webhook HMAC mismatch due to flat-payload edge case |
+| 1 | Project-local solution | Specific to one project, won't recur elsewhere | A webhook HMAC mismatch due to a flat-payload edge case |
 | 2 | Mind-vault skill update | Cross-project pattern or technique | "Always wrap async tenant context: `with tenant_context(tenant):`" → extends `skills/django/` |
 | 3 | Mind-vault rule update | Hard guardrail — "never do X", "always do Y" | "Never hand-edit `.po` files" (already in `RULE_i18n-workflow`) |
 | 4 | Mind-vault agent pass | Reviewer heuristic that a persona should catch | "Dictionary key collisions silently swallow overrides" → curator PASS 3 |

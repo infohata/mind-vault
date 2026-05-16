@@ -70,20 +70,7 @@ by-agent/[agent-name]/[artefact-type]/[filename]
 
 ## Current Artefacts
 
-### Researcher Artefacts
-- **Deployment Pattern Analysis** (`research/DEPLOYMENT_PATTERN_ANALYSIS.md`)
-  - Comprehensive analysis of deployment patterns from teisutis project
-  - 15+ reusable patterns for Docker Compose deployments
-  - Safety-first approach with backup and rollback strategies
-  - Framework-agnostic patterns applicable to Django, Rails, Node.js
-
 ### Architect Artefacts
-- **Deployment Architecture Design** (`analyses/DEPLOYMENT_ARCHITECTURE_DESIGN.md`)
-  - Design decisions for modular deployment skill architecture
-  - Safety-first principles with multi-layer protection
-  - Framework-agnostic core with extension capabilities
-  - Trade-off analysis for deployment strategy decisions
-
 - **Monitoring Architecture Design** (`analyses/MONITORING_ARCHITECTURE_DESIGN.md`)
   - Comprehensive observability framework design for deployment skill
   - Open source monitoring stack (Prometheus, Grafana, ELK) integration
@@ -100,12 +87,6 @@ by-agent/[agent-name]/[artefact-type]/[filename]
   - Comparative analysis of AI models for test-engineer agent
   - Recommendation: Claude Opus 4.5 (80.9% SWE-bench performance)
   - Cost-benefit analysis and implementation guidance
-
-- **Deployment Approach Validation** (`validations/DEPLOYMENT_APPROACH_VALIDATION.md`)
-  - Comprehensive validation of deployment patterns across frameworks
-  - Safety mechanisms, automation reliability, and security testing
-  - 98% success rate for automated deployments with full rollback capability
-  - Framework compatibility validated for Django, Rails, Node.js
 
 ## Usage in Projects
 

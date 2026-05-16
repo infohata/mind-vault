@@ -105,7 +105,7 @@ case "$SESSION_NAME" in
     *[!a-zA-Z0-9_.-]*)
         echo "❌ Invalid --session-name: $(printf '%q' "$SESSION_NAME")" >&2
         echo "   Allowed: letters, digits, underscore, dot, hyphen. No spaces, newlines," >&2
-        echo "   or shell metacharacters. Examples: main, dev, teisutis, sprint-042, team.api" >&2
+        echo "   or shell metacharacters. Examples: main, dev, myproject, sprint-042, team.api" >&2
         exit 1
         ;;
 esac

@@ -95,7 +95,7 @@ docs/            # Documentation, analysis, patterns
 **Documentation** (in `docs/`)
 
 - Format: `{PURPOSE}_{DATE_OR_VERSION}.md`
-- Example: `TEISUTIS_SCAN.md`, `SESSION_STATE_2026_01_26.md`
+- Example: `PROJECT_SCAN.md`, `SESSION_STATE_2026_01_26.md`
 - Keep dates in YYYY_MM_DD format
 
 ### Markdown Formatting
@@ -351,7 +351,7 @@ Before finishing work on skills/rules/documentation:
 
 ## Updating skills from project work
 
-When work in **other projects** (e.g. Teisutis) yields reusable patterns (formset abstractions, date/time handling, frontend conventions), update **generic** mind-vault skills so all projects benefit.
+When work in **other projects** yields reusable patterns (formset abstractions, date/time handling, frontend conventions), update **generic** mind-vault skills so all projects benefit.
 
 **When to update** (same bar as creating a skill):
 

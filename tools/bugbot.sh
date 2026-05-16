@@ -72,18 +72,14 @@ generate_commit_message() {
         type="i18n"
     fi
     
-    # Check for Python files to detect app scope
+    # Check for Python files to detect app scope.
+    # Customize this block per project: add elif branches matching your app-path prefixes.
+    # Example for a project with apps under <prefix>_<app>/ (e.g. acme_ai/, acme_kb/):
+    #     if echo "$files" | grep -qE "<prefix>_ai/"; then scope="ai"
+    #     elif echo "$files" | grep -qE "<prefix>_kb/"; then scope="kb"
+    #     fi
     if echo "$files" | grep -qE "\.py$"; then
-        # Try to detect app scope from path
-        if echo "$files" | grep -qE "teisutis_ai/"; then
-            scope="ai"
-        elif echo "$files" | grep -qE "teisutis_kb/"; then
-            scope="kb"
-        elif echo "$files" | grep -qE "teisutis_auth/"; then
-            scope="auth"
-        elif echo "$files" | grep -qE "teisutis_core/"; then
-            scope="core"
-        fi
+        : # add per-project app-scope detection here
     fi
     
     # Check for JavaScript files

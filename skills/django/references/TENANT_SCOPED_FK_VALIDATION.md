@@ -101,10 +101,6 @@ rg -n 'objects\.filter\(id__in=' --type=py | grep -iE 'prune|exist|valid|sanit|c
 
 For django-tenants projects, `SHARED_APPS` and `TENANT_APPS` lists in `settings.py` are the source of truth.
 
-## Provenance
-
-Surfaced in teisutis [PR #428](https://github.com/infohata/teisutis/pull/428) cycle 2 (bugbot review 4232905213, fix commit `f1cca20c`) — `_prune_stale_fk_filters` queried `Scope` and `Property` (both `OwnedModel` carrying `org_id` in the public schema) by `id__in` only, while `Category` and `Tag` queries (both tenant-schema, no `org_id`) were correctly schema-isolated. Cross-tenant ids in session counted as "valid" and survived pruning, producing an empty-list-no-toast regression for any foreign-tenant id. Fix introduced `tenant_scope_required` per-kind flag and conditional `org_id=org_id` filter.
-
 ---
 
 **Last Updated**: 2026-05-06

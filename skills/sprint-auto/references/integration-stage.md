@@ -2,7 +2,7 @@
 
 The batch-level integration phase (states **S(-1)** + **S11.5–S11.13**) introduced in v3.1 of `IDEA_integration_branch.md` and redesigned in v3.2 to make the integration branch the **merge gate** rather than a validation harness. This doc is the normative reference for: the integration worktree's lifecycle, the env-var-driven verification routing, the `[INTEGRATION]` PR (non-draft, the merge gate, in v3.2), the sequential-merge protocol, and the teardown contract.
 
-**v3.2 vs v3.1**: in v3.1 the integration branch was a disposable validation harness — `[INTEGRATION]` PR was draft + auto-closed; per-IDEA PRs targeted parent (main / sprint-*); after S11.10 cleared, S11.11 forward-synced the integrated state into every per-IDEA PR; S11.12 re-bugbotted each per-IDEA PR. In v3.2 the integration branch IS the merge gate — `[INTEGRATION]` PR is non-draft + the human merges it; per-IDEA PRs target the integration branch (kept IDEA-isolated for review); S11.11 + S11.12 deleted (no propagation needed; the integrated state lives only on integration). v3.2 was compounded after the teisutis sprint/ux-overhaul cohort surfaced "now we have 3 identical PRs" UX confusion from v3.1's forward-sync mechanism.
+**v3.2 vs v3.1**: in v3.1 the integration branch was a disposable validation harness — `[INTEGRATION]` PR was draft + auto-closed; per-IDEA PRs targeted parent (main / sprint-*); after S11.10 cleared, S11.11 forward-synced the integrated state into every per-IDEA PR; S11.12 re-bugbotted each per-IDEA PR. In v3.2 the integration branch IS the merge gate — `[INTEGRATION]` PR is non-draft + the human merges it; per-IDEA PRs target the integration branch (kept IDEA-isolated for review); S11.11 + S11.12 deleted (no propagation needed; the integrated state lives only on integration). v3.2 was compounded after a sprint/ux-overhaul cohort surfaced "now we have 3 identical PRs" UX confusion from v3.1's forward-sync mechanism.
 
 If this doc disagrees with `SKILL.md`, treat the discrepancy as a defect in this doc — `SKILL.md` is the source of behaviour.
 
@@ -10,7 +10,7 @@ If this doc disagrees with `SKILL.md`, treat the discrepancy as a defect in this
 
 Before v3.1: every parallel `auto/<slug>` PR's tests passed in isolation, every per-PR bugbot cleared in isolation, but two structural classes of conflict surfaced **only at human merge time**:
 
-1. **Surface conflicts** — two PRs that edit the same file regions (the teisutis 2026-04-26 batch's chat.html + 8 .po files = 12-conflict case)
+1. **Surface conflicts** — two PRs that edit the same file regions (e.g. chat.html + 8 .po files = 12-conflict case)
 2. **Wrap-stage conflicts** — every parallel `/wrap` commits to the same lines of `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md` and `docs/ideas/README.md`. Every batch ≥2 IDEAs guarantees N-way line-conflicts, silently taxing every batch
 
 The integration stage closes both. Surface conflicts are surfaced and resolved on the integration branch before the human sees them. Wrap-stage conflicts are eliminated at the source: per-IDEA `/wrap` narrows to frontmatter + downstream-docs only; devlog + index writes move to a **single** batch-wrap commit on the integration branch.

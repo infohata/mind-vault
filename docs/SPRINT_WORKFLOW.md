@@ -90,7 +90,7 @@ completed: null       # YYYY-MM-DD or null
 **Why now** / **Non-goals** / **Related** — free-form prose follows.
 ```
 
-Shape lifted from teisutis IDEA-112 — deliberately small so it maps 1:1 onto a future structured data model without field-name drift.
+Deliberately small so it maps 1:1 onto a future structured data model without field-name drift.
 
 ### Plan and solution frontmatter (stage handoff)
 

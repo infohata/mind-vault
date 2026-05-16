@@ -41,7 +41,7 @@ If the user supplies an explicit path, honour it regardless of filename. The ski
 
 ### 2. Detect the format
 
-Parse the source, identifying one of the recognised shapes in [`references/legacy-formats.md`](references/legacy-formats.md). The canonical shape (teisutis-style) uses H4 entries:
+Parse the source, identifying one of the recognised shapes in [`references/legacy-formats.md`](references/legacy-formats.md). The canonical shape uses H4 entries:
 
 ```markdown
 #### IDEA-NNN: Title
@@ -55,7 +55,7 @@ Parse the source, identifying one of the recognised shapes in [`references/legac
 Variants handled:
 
 - H3 entries (`### IDEA-NNN: Title`).
-- Completed-section promotion: in teisutis, completed ideas sit under `## Completed` / `## References — Implemented` using H3 headings with `✅ COMPLETE` suffix. These stay as footer lines in the regenerated index — they are NOT migrated into files.
+- Completed-section promotion: when the source places completed ideas under a separate `## Completed` / `## References — Implemented` heading using H3 headings with `✅ COMPLETE` suffix, those stay as footer lines in the regenerated index — they are NOT migrated into files.
 - Numbering gaps: IDs are parsed as-is; holes are preserved.
 - Missing fields: default to `status: idea`, `priority: medium`, empty relationship lists. Surface a warning per-entry.
 - Prose-only entries without `**Status**:` markers: skill parses the heading + body, infers `status: idea`, surfaces in the dry-run summary for user review.
@@ -140,7 +140,7 @@ Surface the cleanup plan in the dry-run so the user can approve before `--write`
 
 ### 6. Forward-only policy (load-bearing)
 
-Completed entries never get migrated into per-idea files, even if they have substantial body content. Rationale from teisutis IDEA-112:
+Completed entries never get migrated into per-idea files, even if they have substantial body content. Rationale:
 
 - Completed ideas live in existing execution archive directories (`docs/archive/YYYY-MM-idea-NNN-<slug>/`) when they have rich history. That's the canonical location.
 - Migrating a completed idea's body into a new file duplicates state and creates two sources of truth.
@@ -191,14 +191,9 @@ All modes end with a summary and next-step suggestions.
 - **Small backlogs (< 5 entries).** Hand-split is faster and cleaner than running the skill.
 - **Highly structured external backlogs (Jira, Linear export).** The skill targets markdown; structured JSON/CSV imports need a different tool.
 
-## When running against teisutis specifically
+## Known edge cases
 
-Teisutis IDEA-112 is the first real consumer. Validation gate for this skill's v1:
-
-- **Dry-run against teisutis `docs/execution/IDEAS.md` must complete cleanly** before merging this skill into mind-vault.
-- Expected output: ~30+ active IDEA files proposed, ~50+ completed IDEAs as footer lines.
-- Known edge cases in teisutis: IDEA-088 has `Phase 1 ✅ / Phase 2 ✅ / Phase 3 ✅` multi-phase completion — treat as one entry with `status: complete`. IDEA-042 has `Status: 🔄 Partially done` — treat as `status: in-progress`.
-- Do **not** run `--write` against teisutis from mind-vault's `ce-inspired-evolution` branch. That execution happens in a teisutis worktree *after* this PR merges.
+Multi-phase completion markers (e.g. `Phase 1 ✅ / Phase 2 ✅ / Phase 3 ✅` on one entry) — treat as a single entry with `status: complete`. Mixed-status markers (e.g. `Status: 🔄 Partially done`) — treat as `status: in-progress`. The first-run dry-run on any real project surfaces edge cases the format-detection heuristics didn't cover; capture them in `references/legacy-formats.md` as they're encountered.
 
 ## References
 
@@ -207,7 +202,6 @@ Teisutis IDEA-112 is the first real consumer. Validation gate for this skill's v
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — location-by-status routing contract honoured by step 3 and step 5
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — authoritative IDEA frontmatter schema
 - [skills/idea/SKILL.md](../idea/SKILL.md) — the skill that consumes the per-idea format this one produces
-- Origin: teisutis IDEA-112 (Split `docs/execution/IDEAS.md` into per-idea files). This skill is the execution vehicle for that idea. First end-to-end brownfield ingest validated the three-location split — see teisutis PR TBD.
 
 ---
 

@@ -25,7 +25,7 @@ CANON_REL="tools/sprint-auto-bootstrap.sh"
 # before any fallback candidate is tried. `|| true` makes `git_topdir`
 # empty on failure; the `${git_topdir:+...}` form then elides the
 # candidate entirely, so the existing `[[ -z "$c" ]] && continue` guard
-# drops it harmlessly. Bug first surfaced by bugbot on teisutis PR #332.
+# drops it harmlessly.
 git_topdir=$(git rev-parse --show-toplevel 2>/dev/null || true)
 
 # Candidate mind-vault roots, priority order. First existing hit wins.

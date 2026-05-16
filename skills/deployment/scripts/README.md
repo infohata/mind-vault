@@ -170,7 +170,7 @@ ssh user@production.com 'screen -X -S myapp-deploy-20260130-012343 quit'
 - Restarts services for code changes
 - Writes `.deploy_commit_state` after success — so a crashed rerun compares against the last good deploy instead of a broken HEAD@{1}
 
-**Change detection patterns** (customize these regex patterns; aligned with Teisutis `tools/deploy_update.sh`):
+**Change detection patterns** (customize these regex patterns; align with your project's `tools/deploy_update.sh`):
 
 - Migrations: `migrations/|db/migrate`
 - Static files: `\.(css|js|png|jpg|jpeg|gif|svg|ico|scss|sass)$` or paths containing `/scss/` or `/sass/`. When static changed, script runs theme build (host: `make build-scss` if present; container: Django `compile_scss` if present) then collectstatic.

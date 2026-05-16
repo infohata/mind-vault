@@ -56,7 +56,7 @@ el.addEventListener('touchend', () => {
 });
 ```
 
-Surfaced: teisutis IDEA-143 M24 cycles 3-6 — close-on-swipe-out logic mis-fired on click-driven preview opens because the touch flag was set, then mid-animation _onScroll ticks were classified as drags. Threshold-only solved 99% but missed dirty-screen/short-fast swipe (M24 c6); scroll-delta backup closed it.
+Failure mode this addresses: close-on-swipe-out logic mis-fires on click-driven preview opens because the touch flag is set, then mid-animation `_onScroll` ticks get classified as drags. A pure threshold gate solves 99% but misses dirty-screen / short-fast swipes; the scroll-delta backup closes the last 1%.
 
 ### 2. `_dragPendingClear` deferred-clear (NOT wall-clock timeout)
 
@@ -91,7 +91,7 @@ if (dragPendingClear) {
 
 The `dragPendingClear` flag survives ANY momentum duration and clears precisely when the snap settles, regardless of how long that takes.
 
-Surfaced: teisutis IDEA-143 M24 cycle 5 — fast swipe ending at workspace took ~600ms from touchend to scroll-stop; 500ms timeout cleared `isDragging` before the settle-timer fired, close was skipped, user stranded with broken state.
+Failure mode this addresses: a fast swipe ending at workspace can take ~600 ms from touchend to scroll-stop; a 500 ms wall-clock timeout clears `isDragging` before the settle-timer fires, the close is skipped, and the user is stranded with broken state.
 
 ### 3. Settle-timer debounce on scroll-snap state updates
 
@@ -118,7 +118,7 @@ function onScroll() {
 
 100ms is a good default — long enough to let smooth-scroll animations finish (typically 200-400ms but the LAST scroll event fires once at settle), short enough to feel responsive on user-driven swipes.
 
-Surfaced: teisutis IDEA-143 M24 cycle 3 — Alpine.effect synchronously set `activePane='preview'` on previewSurface depth change, then mid-animation `_onScroll` ticks read `scrollLeft` still at centre, reset to `'center'`, fired close logic. URL "blinked" — preview opened, immediately closed.
+Failure mode this addresses: `Alpine.effect` synchronously sets `activePane='preview'` on previewSurface depth change, then mid-animation `_onScroll` ticks read `scrollLeft` still at centre, reset to `'center'`, fire close logic. URL "blinks" — preview opens, immediately closes.
 
 ### 4. Cold-start `instant` vs runtime `smooth` scroll
 
@@ -145,7 +145,7 @@ goToPane(initialTarget, 'instant');
 goToPane('preview');  // smooth default
 ```
 
-Surfaced: teisutis IDEA-143 M24 cycle 3 — user reported "cold opens= reload plays animations from workspace through center to open preview on load". Single param flip fixed it.
+Failure mode this addresses: a user reports "cold opens / reload plays animations from workspace through centre to open preview on load". A single `behavior` param flip fixes it.
 
 ### 5. State-lag on close-paths to preserve animation
 
@@ -193,7 +193,7 @@ Then bind the collapse class to `shouldCollapse` (not directly to depth):
 
 Cold-start case (depth=0 from the start) collapses immediately on init — no animation needed when there's nothing to fade out.
 
-Surfaced: teisutis IDEA-143 M23 — clicking the preview's close-X dismissed the drawer instantly. `previewSurface.depth=0` triggered both the goToPane('center') smooth-scroll and the SCSS class collapse simultaneously. State-lag bound the class to a delayed signal; smooth-scroll plays cleanly.
+Failure mode this addresses: clicking the preview's close-X dismisses the drawer instantly. `previewSurface.depth=0` triggers both the `goToPane('center')` smooth-scroll and the SCSS class collapse simultaneously. State-lag binding the class to a delayed signal lets the smooth-scroll play cleanly first.
 
 ## Anti-patterns
 
@@ -226,9 +226,9 @@ Patterns surfaced in the same IDEA-143 cycle but applicable beyond mobile work �
 
 ## Provenance
 
-Surfaced 2026-05-07 in teisutis project, IDEA-143 (mobile bottom-tab nav + pane swipe + iOS Safari gotchas), [PR #432](https://github.com/infohata/teisutis/pull/432). 60+ commits, 26-issue manual-eval cycle (M0-M25). The five patterns above were lessons from M23-M25 specifically; four sibling patterns and one process artefact surfaced in the same cycle but apply beyond mobile work and live in their proper homes (see Related material elsewhere).
+Surfaced during a mobile-shell sprint (bottom-tab nav + pane swipe + iOS Safari gotchas, 60+ commits, 26-issue manual-eval cycle). The five patterns above were lessons from the closing M23-M25 segment of that cycle; sibling patterns that surfaced alongside but apply beyond mobile work live in their proper homes (see Related material elsewhere).
 
-Initial mind-vault landing was as `RULE_mobile-ux-polish-discipline` (PR #103, commit 54d98e6); reshaped into a progressive-disclosure skill in the same PR — the trigger surface (touch + scroll-snap + drawer + iOS quirks) is narrow enough that on-demand activation is the right tradeoff against context-budget spend on every conversation, and the broader patterns belong with their stack-mates rather than bundled under a "mobile" rubric.
+Initial mind-vault landing was as `RULE_mobile-ux-polish-discipline` (PR #103); reshaped into a progressive-disclosure skill in the same PR — the trigger surface (touch + scroll-snap + drawer + iOS quirks) is narrow enough that on-demand activation is the right tradeoff against context-budget spend on every conversation, and the broader patterns belong with their stack-mates rather than bundled under a "mobile" rubric.
 
 ---
 

@@ -35,10 +35,10 @@ Backfill migration for legacy rows uses `mimetypes.guess_type(filename)`; pair w
 
 ## 2. "One true list" enforced at import time
 
-When the canonical set lives in module A (e.g. `teisutis_core.attachment_types.AUDIO_MIMES`) and a parallel consumer module B carries a related dict (e.g. `{mime → pydub_format_hint}`), the two drift silently as new formats are added to A. Enforce coverage with a module-scope assert in B so any new format *has to* update both sides or the app physically won't start:
+When the canonical set lives in module A (e.g. `core.attachment_types.AUDIO_MIMES`) and a parallel consumer module B carries a related dict (e.g. `{mime → pydub_format_hint}`), the two drift silently as new formats are added to A. Enforce coverage with a module-scope assert in B so any new format *has to* update both sides or the app physically won't start:
 
 ```python
-from teisutis_core.attachment_types import AUDIO_MIMES
+from core.attachment_types import AUDIO_MIMES
 
 _MIME_TO_FORMAT = {
     "audio/webm": "webm",

@@ -86,7 +86,7 @@ If grep returns >5 callers and they're all in the project, judgement call:
 
 ### Reference
 
-- teisutis [PR #413](https://github.com/infohata/teisutis/pull/413) cycles 2 + 3 — `copyToClipboardWithFeedback` changed return from `undefined` to `Promise.reject` for the unavailable-clipboard early-exit. Cycle 2 patched `chat.js:2538` with `.catch()`; bugbot caught the symmetric oversight in cycle 3 — the SAME file's `initDataCopyUrlButtons` internal callback called the helper without `.catch()`. One extra cycle, one extra commit, one extra retrigger — all preventable by `grep -rn 'copyToClipboardWithFeedback(' --include="*.js"` before the cycle-2 push.
+Canonical shape: a helper's early-exit return changed from `undefined` to `Promise.reject(...)`. Cycle 2 patched the obvious caller with `.catch()`; bugbot caught the symmetric oversight in cycle 3 — the SAME file's internal callback called the helper without `.catch()`. One extra cycle preventable by `grep -rn '<helperName>(' --include="*.js"` before pushing cycle 2.
 
 ## Scope: Touched Files, Not Just New Edits
 

@@ -26,7 +26,7 @@ Without screen (or tmux), any of these kills the deploy partway through. With co
 {project}-deploy-{YYYYMMDD-HHMMSS}
 ```
 
-Example: `teisutis-deploy-20260417-012343`
+Example: `myapp-deploy-20260417-012343`
 
 Timestamping prevents collision when concurrent deploys overlap (e.g. staging + production).
 

@@ -2,7 +2,7 @@
 
 Parsing rules for the monolithic-backlog shapes `/ingest-backlog` supports. Load on demand at step 2 of the skill. Grows by addition — when a new legacy shape surfaces (third brownfield takeover, etc.), add a recognition block here rather than special-casing the core skill.
 
-## Canonical shape — teisutis-style (H4 entries)
+## Canonical shape — H4-entry style
 
 Detected by the presence of `#### IDEA-NNN:` headings in the source.
 
@@ -42,7 +42,7 @@ Field values often contain inline markdown formatting, bold markers, trailing me
 
 ### Status-value mapping
 
-Teisutis uses emoji-prefixed status indicators; normalise to the canonical `status:` enum:
+Many legacy backlogs use emoji-prefixed status indicators; normalise to the canonical `status:` enum:
 
 | Legacy value | Normalised `status:` |
 | --- | --- |
@@ -136,7 +136,7 @@ If the source file contains two entries with the same IDEA-NNN:
 
 - **Exact-duplicate bodies:** drop the later one, keep the earlier one, emit a warning.
 - **Different bodies:** refuse and surface the conflict. The user must resolve in the source file before re-running the skill.
-- **Full H4 entry in an active section + short footer line in a Completed section for the same ID:** interpret as "entry is actually complete but the active entry is stale". Classify as `status: complete`, use the footer line as the source of truth, drop the H4 body, emit a warning listing the dropped body so the user can decide whether to restore it as prose in the archive directory. This is the teisutis-style "IDEA shipped but someone forgot to remove the New-Ideas entry" pattern.
+- **Full H4 entry in an active section + short footer line in a Completed section for the same ID:** interpret as "entry is actually complete but the active entry is stale". Classify as `status: complete`, use the footer line as the source of truth, drop the H4 body, emit a warning listing the dropped body so the user can decide whether to restore it as prose in the archive directory. This is the "IDEA shipped but someone forgot to remove the New-Ideas entry" pattern.
 
 If two entries would slug-collide (different IDs, same title text slugified):
 

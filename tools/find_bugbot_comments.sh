@@ -160,7 +160,7 @@ fi
 # ------------------------------------------------------------------------------
 # Pass 1.5 — Check Runs API: bugbot's clean signal can also land here
 # ------------------------------------------------------------------------------
-# Surfaced 2026-05-06 in teisutis PR #429: bugbot posted a successful check-run
+# Surfaced 2026-05-06: bugbot posted a successful check-run
 # for the PR head while /reviews stayed empty for that commit. The loop wasted
 # ~35 min polling /reviews + /comments for a clean signal that lived on
 # /commits/<sha>/check-runs. Make the script tolerant: emit BUGBOT_CHECKRUN

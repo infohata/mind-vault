@@ -82,11 +82,11 @@ Walk back the wrap:
 - ❌ **Trusting the user's satisfaction with the visible behaviour over the plan's literal R-criteria.** The user may be happy with what shipped; the plan's R-criteria are the wrap-time contract. If they diverge, surface the divergence as a question before flipping status.
 - ❌ **Adding "Phase 2 (future)" to a wrap output without ⚠️.** The future framing softens the gap; combined with no marker, it's a recipe for the next reader to skip the deferred work.
 
-## Worked precedent — teisutis IDEA-163
+## Worked precedent
 
-Original wrap (2026-05-14): flipped `status: complete` after Phase 1 (PR #443) shipped canonical `entityChanged` alongside legacy per-name keys. R7 acceptance ("Per-name HX-Trigger emit sites and the corresponding per-name JS listeners are retired") was unmet — the legacy keys still fired and 2 JS consumers still listened on per-name events. Wrap output framed the gap as "Phase 2 (future)" with no ⚠️.
+Original wrap: flipped `status: complete` after Phase 1 shipped canonical `entityChanged` alongside legacy per-name keys. R7 acceptance ("Per-name HX-Trigger emit sites and the corresponding per-name JS listeners are retired") was unmet — the legacy keys still fired and 2 JS consumers still listened on per-name events. Wrap output framed the gap as "Phase 2 (future)" with no ⚠️.
 
-User caught the inconsistency mid-`/compound` when the compound PR body re-mentioned the deferred work ("wait IDEA-163 isn't fully implemented?"). IDEA re-opened, Phase 2 delivered as a sibling PR #444 on the same `sprint/ux-overhaul` cohort. Final close-out wrap landed on PR #444 with both phases satisfying R7.
+User caught the inconsistency mid-`/compound` when the compound PR body re-mentioned the deferred work ("wait, this IDEA isn't fully implemented?"). IDEA re-opened, Phase 2 delivered as a sibling PR on the same cohort. Final close-out wrap landed with both phases satisfying R7.
 
 The lesson driving this reference: the soft "Phase 2 (future)" framing without ⚠️ was the load-bearing failure. Had the original wrap output been `⚠️ Phase 2 pending — R7 unmet`, the next session's reader (the same agent post-compaction in /compound) would have seen the gap immediately and either deferred /compound until R7 closed OR opened a follow-up PR before the compound went out. Instead, the gap surfaced as a user catch-out.
 

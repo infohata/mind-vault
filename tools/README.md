@@ -145,7 +145,7 @@ sudo ./tools/install-mosh-tmux.sh
 sudo ./tools/install-mosh-tmux.sh --check
 
 # Custom session name (default: "main")
-sudo ./tools/install-mosh-tmux.sh --session-name teisutis
+sudo ./tools/install-mosh-tmux.sh --session-name myproject
 
 # Skip pieces you handle differently
 sudo ./tools/install-mosh-tmux.sh --no-ufw --no-tmux-config

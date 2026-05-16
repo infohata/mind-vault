@@ -74,7 +74,7 @@ HTTP-01 ACME works throughout because certbot doesn't use the app's `sync_domain
 2. **Add the deploy preflight** that refuses when `getent hosts $DOMAIN` returns loopback. Catches this class of misconfiguration before any app code runs.
 3. **Change the machine hostname** so it doesn't collide with a real domain. The convention `debian-app-01.internal` (or similar) keeps `hostname -f` useful without hijacking public-DNS names. This is the cleanest but often the hardest to retrofit.
 
-**Validated in:** teisutis IDEA-120 (2026-04-21) — fresh Debian 12 VPS, production domain also used as machine hostname, `sync_domains` NSS shadow dropped the production entry, HTTPS vhost missing after nominally-successful bootstrap.
+**Validated against:** fresh Debian 12 VPS, production domain also used as machine hostname, `sync_domains` NSS shadow dropped the production entry, HTTPS vhost missing after nominally-successful bootstrap.
 
 ## Related references
 

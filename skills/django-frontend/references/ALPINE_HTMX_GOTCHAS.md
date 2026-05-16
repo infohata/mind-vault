@@ -176,7 +176,7 @@ The `.camel` modifier is required because HTMX dispatches the event as `htmx:aft
 </span>
 ```
 
-Pattern C is the right default when the consumer just needs to "show this hidden region after the response lands and let a c-copy-button read its content." No Alpine state needed because the c-copy-button reads `target.textContent` at click time anyway. Reference: teisutis [PR #413 commit `a3344000`](https://github.com/infohata/teisutis/commit/a3344000) replaced an Alpine-bridge attempt with this pattern after the manual smoke caught the buttons doing nothing.
+Pattern C is the right default when the consumer just needs to "show this hidden region after the response lands and let a c-copy-button read its content." No Alpine state needed because the c-copy-button reads `target.textContent` at click time anyway.
 
 ## 5. `hx-trigger="click once"` doesn't fire on synthetic state changes — drive lazy-fetch from a state-watcher
 
@@ -207,8 +207,6 @@ The fix is to drive the side effect from the **state**, not the **input event**.
 `x-effect` re-runs whenever a reactive dep changes; the `open && !loaded` guard ensures exactly one fetch per primitive instance regardless of how `open` flipped — initial `expanded=true`, hash-deeplink, user click, programmatic `Alpine.$data(...).open = true`, all funnel through the same gate.
 
 The general principle: when an effect must fire on a state change rather than on a specific input event, use a state-watcher (`x-effect` in Alpine, `effect()` in Vue, `useEffect` in React, etc.). Click-handlers are for "user explicitly chose to do this," not for "the thing has now opened, regardless of cause."
-
-Reference: teisutis [PR #413 commit `4fcad0a0`](https://github.com/infohata/teisutis/commit/4fcad0a0) rewrote a `c-collapsible` cotton primitive from `hx-trigger="click once"` to `x-effect`-driven lazy-fetch after bugbot caught that hash-deeplink + lazy-fetch combo silently failed.
 
 ## Bringing it together: the safe-by-default boilerplate
 
@@ -429,12 +427,6 @@ The discipline generalises beyond modals — any function whose body has the sha
 - Verify that the side-effect installs are also paired with teardown in a corresponding close/cleanup function — and that the teardown uses the SAME reference the install captured (not the latest mutation of a shared `_state.X` field).
 - If the function is called multiple times for the same component, ensure the first install is idempotent or the function checks `if (already installed) return` before installing.
 
-References:
-
-- The IDEA-138 toast surface (teisutis [PR #412](https://github.com/infohata/teisutis/pull/412)) hit gotchas 1-3 within a single afternoon's work — first two during manual smoke, third caught by bugbot.
-- The IDEA-139 cotton primitives (teisutis [PR #413](https://github.com/infohata/teisutis/pull/413)) hit gotchas 4-5 in the same one-day cycle — gotcha 4 caught by manual smoke (Alpine reactive bridge from `hx-on` doesn't work), gotcha 5 caught by bugbot (lazy-fetch + hash-deeplink combo silently broken).
-- The IDEA-141 modal primitives (teisutis [PR #423](https://github.com/infohata/teisutis/pull/423)) hit gotchas 6 + 7 across THREE bugbot cycles — every i18n finding shared the same root cause (JS clobber), each surface needing one of the three patterns to fix it. Gotcha 7's listener leak in `confirm()` surfaced when the dev-preview demo's spam-click-during-modal-from-modal-refusal scenario was finally exercised; the same PR's `form()` already had the correct ordering.
-
 Each gotcha takes ≥30 minutes to diagnose because the symptoms always look unrelated to the actual cause.
 
 ## 8. Rebind-on-event listener migration is fragile — prefer permanent-bind + active-discriminator
@@ -464,8 +456,6 @@ function bindAllPaneListeners() {
 The active-discriminator is mirrored from reactive state via a single binding — Alpine `:data-active-pane="activePane"`, React `data-active-pane={activePane}`, Vue `:data-active-pane="activePane"`. Subscribers no longer migrate on `paneChanged` events; they self-route from a single source of truth.
 
 Trade: more listeners pinned simultaneously (one per candidate source), but each is cheap and the discriminator short-circuit makes the inactive ones zero-cost. Net win is robustness — no class of "the change event didn't fire because of an upstream early-return" bug.
-
-Surfaced: teisutis IDEA-143 M25 — `navbar-scroll.js` migrated its single scroll listener on `paneChanged`. Close paths whose `goToPane('center')` snap landed on a pane that was already `activePane='center'` short-circuited `paneChanged` (`next === activePane` early-return), so the rebind never fired. Listener stayed attached to the off-screen drawer's scroll container; nav-hide silently broke after every drawer close.
 
 ## 9. Alpine `x-init` / `x-effect` expressions must stay expression-only — `try/catch` and IIFEs both fail
 

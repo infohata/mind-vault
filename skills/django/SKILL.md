@@ -143,7 +143,7 @@ class IndexableSerializer(serializers.ModelSerializer):
         }
 ```
 
-**Compounded from**: teisutis IDEA-131 Phase B (PR #400) — `IndexableMixin.embed_failure_reason` was the worked example. The user articulated the convention during code review: *"I'm always making fields nullable if blankable to avoid forcing empty string value, also if it's not nullable, field requires default value for additive migration."* That sentence is the rule.
+The user articulated the convention during code review: *"I'm always making fields nullable if blankable to avoid forcing empty string value, also if it's not nullable, field requires default value for additive migration."* That sentence is the rule.
 
 ### Multi-tenancy vs. ForeignKey boundaries
 
@@ -522,8 +522,6 @@ Translations keep matching: lt → "Turinys" / "Pastabos", ru → "Содерж�
 **Exceptions that don't apply**: fields the AI never reads or writes (internal-only configuration, hidden audit fields, opaque foreign keys with `_id` suffix). For those, label freely.
 
 **Detection during code review**: grep the model file — for each `verbose_name=_("X")`, verify `X.lower().replace(' ', '_')` is the field name (modulo language). Mismatches are review fodder.
-
-Worked example — teisutis IDEA-127 collapsed `Article` / `Event` content fields. The Q5 decision picked `verbose_name=_("Contents")` and `verbose_name=_("Notes")` exactly because of this drift hazard; the alternative ("Body" / "Internal notes") was rejected on the same grounds. See [PR #371](https://github.com/infohata/teisutis/pull/371) for the field-by-field reasoning.
 
 ### LLM output post-processing — strip-and-trust pattern
 

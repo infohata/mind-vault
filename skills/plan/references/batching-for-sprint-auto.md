@@ -130,10 +130,6 @@ After merge:
 
 Mixed-eligibility batches are fine — IDEAs in the same PR can be flagged sprint-auto-eligible OR human-driven (`auto_safe: false`). Sprint-auto skips the human-driven ones; you `/work` those manually.
 
-## Provenance
-
-Pattern crystallised during teisutis 2026-04-25 planning sprint (PR #373 — 7 plans batched: IDEAs 122, 123, 124, 125, 126, 128, 129; six sprint-auto-eligible, one human-driven).
-
 ---
 
 **Last Updated**: 2026-04-25

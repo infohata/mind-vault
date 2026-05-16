@@ -74,7 +74,7 @@ Miss any box → fix before merging.
 
 ## Origin
 
-Captured from mind-vault PR #42 bugbot finding F1 (2026-04-19) on `skills/ingest-backlog/SKILL.md:103`. The original template hardcoded `../ideas/`, which worked for teisutis's `docs/execution/IDEAS.md` but would have broken the first non-teisutis brownfield takeover.
+Captured from mind-vault PR #42 bugbot finding F1 (2026-04-19) on `skills/ingest-backlog/SKILL.md:103`. The original template hardcoded `../ideas/`, which worked for a `docs/execution/IDEAS.md` source layout but would have broken the first brownfield takeover that used a different layout.
 
 Promoted into skill-writer via `/compound` because the underlying lesson is broader than the one skill that triggered it: any future skill with emitted templates faces the same ambiguity, and the skill-authoring meta-standard is the right place to prevent the next instance.
 

@@ -81,7 +81,7 @@ for f in ~/.cursor/plans/*.plan.md; do
 done
 
 # Find plans/artefacts matching a project keyword across all sources
-KEYWORDS="teisutis|IDEA-|ai_service|dashboard"
+KEYWORDS="myproject|IDEA-|ai_service|dashboard"
 grep -rlE "$KEYWORDS" \
     ~/.cursor/plans/ \
     ~/.gemini/antigravity/brain/ \
@@ -133,7 +133,7 @@ ln -sf ../../by-type/analyses/devlog_analysis.md \
 #!/bin/bash
 # Find IDE-generated artefacts not yet imported into the project tree.
 # Adjust PROJECT_KEYWORDS to match IDEA numbers, feature names, modules from AGENTS.md/CLAUDE.md.
-PROJECT_KEYWORDS="${1:-teisutis|IDEA-|ai_service|dashboard}"
+PROJECT_KEYWORDS="${1:-myproject|IDEA-|ai_service|dashboard}"
 
 echo "=== 🔍 IDE artefacts potentially related to this project ==="
 

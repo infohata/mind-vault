@@ -147,9 +147,9 @@ Why this matters: every line of `SKILL.md` is loaded into context on every activ
 
 A skill in `mind-vault` is consumed by multiple projects. Therefore:
 
-- **Concrete project names in the pattern body are leaks.** If the pattern says "Teisutis uses X" as a universal rule, the rule is wrong for every other project. Either generalise ("Projects with constraint Y should Z") or clearly fence as an example.
+- **Concrete project names in the pattern body are leaks.** If the pattern says "Project X uses Y" as a universal rule, the rule is wrong for every other project. Either generalise ("Projects with constraint Y should Z") or clearly fence as an example.
 - **Examples may name real projects**, but must be visually fenced:
-  > Example (Teisutis): the translation map lives at `tools/translation_maps/*.py`.
+  > Example (project-foo): the translation map lives at `tools/translation_maps/*.py`.
 - **Never hard-code paths from a consuming project** in `References`. `docs/artefacts/by-agent/researcher/…` paths do not exist from the agent's perspective when invoked from a sibling project.
 - **Never hard-code relative paths in templates the skill emits** when the skill supports multiple source locations. A template that writes `[docs/ideas/](../ideas/)` only works when the source file lives at `docs/execution/...`; it breaks for `docs/IDEAS.md` or root-level `IDEAS.md`. Parameterise with placeholders (`<IDEAS_REL>`), derive the path from the actual source location at emit time, and include a worked-examples table for the common cases. See [references/emitted-templates.md](references/emitted-templates.md) for the full rule + DO/DON'T.
 

@@ -120,7 +120,7 @@ Agents can reference artefacts for:
 ### Scalability Considerations
 - **Sub-topic organization**: `by-topic/django/models/`, `by-topic/django/views/`
 - **Temporal organization**: `by-date/2026-01/`, `by-date/2026-02/`
-- **Project attribution**: `by-project/teisutis/`, `by-project/mind-vault/`
+- **Project attribution**: `by-project/<project-name>/`, e.g. `by-project/mind-vault/`
 
 ---
 

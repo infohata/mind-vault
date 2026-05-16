@@ -34,7 +34,7 @@ Why a `<link>` survives where `@import url()` doesn't: `{% static %}` resolves t
 
 ## Worked example
 
-Compounded from teisutis IDEA-135 [PR #409](https://github.com/infohata/teisutis/pull/409) where the SCSS lived inside `teisutis_core` originally, the IDEA relocated it to `teisutis_ui` (a new shell app), and the compiled `theme.css`'s URL shifted from `/static/teisutis_core/css/theme.css` to `/static/teisutis_ui/css/theme.css`. The `@import url('../css/bulma.min.css')` line in the SCSS pointed at `../css/bulma.min.css` relative to the compiled CSS — now resolving to `/static/teisutis_ui/css/bulma.min.css`, but `bulma.min.css` was sitting at `/static/teisutis_core/css/bulma.min.css` (didn't move). Browser 404'd; UI rendered unstyled until the `<link>` migration landed.
+The SCSS lived inside `core` (an app) originally, an IDEA relocated it to `ui` (a new shell app), and the compiled `theme.css`'s URL shifted from `/static/core/css/theme.css` to `/static/ui/css/theme.css`. The `@import url('../css/bulma.min.css')` line in the SCSS pointed at `../css/bulma.min.css` relative to the compiled CSS — now resolving to `/static/ui/css/bulma.min.css`, but `bulma.min.css` was sitting at `/static/core/css/bulma.min.css` (didn't move). Browser 404'd; UI rendered unstyled until the `<link>` migration landed.
 
 ## Detection during review
 

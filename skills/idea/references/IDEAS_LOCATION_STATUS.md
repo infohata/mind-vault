@@ -23,7 +23,7 @@ An earlier version of this rule had `docs/execution/IDEA-NNN-<slug>.md` as a mid
 
 1. **Reference-link stability.** Every cross-reference written during active work (the plan doc linking to the IDEA, a research artefact linking to the plan, a `DEVELOPMENT_LOG` entry linking to session notes) has to resolve to the file's post-completion path, or every reference gets rewritten on merge. Making the start-of-work location = the end-of-life location means zero rewrites.
 2. **Artefacts already want to be co-located.** Plans, research notes, session prompts, screenshots, PR-handoff docs — these all end up inside `docs/archive/YYYY-MM-idea-NNN-<slug>/` eventually. Landing the IDEA file there on day one gives active work a single dir to write into. The alternative forces cross-tree references during exactly the phase those references are being written.
-3. **It matches what teisutis was already doing.** Archive dirs like `2026-04-idea-042/`, `2026-04-idea-088-content-indexing-phase2/` were created and populated while those ideas were in-progress, not retroactively. The convention was fighting the practice.
+3. **It matches existing practice in adopting projects.** Archive dirs like `2026-04-idea-042/`, `2026-04-idea-088-content-indexing-phase2/` were created and populated while those ideas were in-progress, not retroactively. The convention was fighting the practice.
 
 The word "archive" is a slight misnomer in this model — it's really "this idea's own directory, from first plan through shipping and beyond." But keeping the name keeps existing archive dirs compatible and the directory's purpose is clear in context.
 
@@ -132,7 +132,7 @@ The dir was in an earlier draft of this rule. It's gone. Two dirs:
 - `docs/ideas/` — backlog
 - `docs/archive/` — everything else (active-idea dirs, completed-idea dirs, monthly logs, historical epic dirs)
 
-Projects adopting this rule retire any existing `docs/execution/` directory during takeover — move its current contents to appropriate archive locations (per-IDEA archive dirs for in-progress work, monthly-log files for chronological logs) and `rmdir`. See the teisutis IDEA-112 takeover for the worked example.
+Projects adopting this rule retire any existing `docs/execution/` directory during takeover — move its current contents to appropriate archive locations (per-IDEA archive dirs for in-progress work, monthly-log files for chronological logs) and `rmdir`.
 
 ## Index maintenance — `docs/ideas/README.md`
 

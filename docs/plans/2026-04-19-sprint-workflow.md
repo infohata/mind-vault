@@ -23,7 +23,7 @@ Ship four new skills and light glue. Do **not** vendor CE code; CE is inspiratio
 
 Mind-vault today is strong on two fronts:
 
-- **Review:** `AGENT_bugbot`, `AGENT_curator`, `AGENT_architect`, `/bugbot`, `/bugbot-loop` — a mature, opinionated review stack tuned on Teisutis.
+- **Review:** `AGENT_bugbot`, `AGENT_curator`, `AGENT_architect`, `/bugbot`, `/bugbot-loop` — a mature, opinionated review stack tuned on a multi-tenant Django SaaS.
 - **Execution rules:** `RULE_git-safety`, `RULE_parallel-worktree-docker`, `RULE_i18n-workflow` — hard guardrails the agent enforces during work.
 
 Mind-vault is weak on two fronts:
@@ -37,7 +37,7 @@ The second gap is the expensive one. Every un-promoted learning is a cross-proje
 
 From the conversation that spawned this plan:
 
-- **R1.** Six-stage workflow: `ideate (optional) → brainstorm → plan → work → review → compound`. Each stage is independently invocable; stages may be skipped when right-sized for the task. The **ideate** stage writes one atomic file per idea — `<project>/docs/ideas/IDEA-NNN-<slug>.md` — with structured YAML frontmatter (`id`, `title`, `status`, `priority`, `supersedes`, `superseded_by`, `depends_on`, `related`, `created`, `completed`) plus the prose body. The shape is lifted from teisutis IDEA-112 (the meta-idea that surfaced while scoping IDEA-110/111 when `docs/execution/IDEAS.md` had grown past 1500 lines and every edit produced painful reviews). Each new idea appends a one-line entry to a lightweight `<project>/docs/ideas/README.md` index grouped by priority. No monolithic `IDEAS.md` — the idea file IS the record.
+- **R1.** Six-stage workflow: `ideate (optional) → brainstorm → plan → work → review → compound`. Each stage is independently invocable; stages may be skipped when right-sized for the task. The **ideate** stage writes one atomic file per idea — `<project>/docs/ideas/IDEA-NNN-<slug>.md` — with structured YAML frontmatter (`id`, `title`, `status`, `priority`, `supersedes`, `superseded_by`, `depends_on`, `related`, `created`, `completed`) plus the prose body. The shape comes from a meta-idea that surfaced when a real project's `docs/execution/IDEAS.md` had grown past 1500 lines and every edit produced painful reviews — splitting into per-idea files made each addition independently reviewable. Each new idea appends a one-line entry to a lightweight `<project>/docs/ideas/README.md` index grouped by priority. No monolithic `IDEAS.md` — the idea file IS the record.
 - **R2.** Stage outputs are markdown artifacts with dated filenames and standard frontmatter, written to the **target project's** `docs/` tree — not into mind-vault itself. Mind-vault is the library; projects are the journal.
 - **R3.** Handoff between stages happens via artifact paths. Each stage reads the previous stage's output if supplied, or bootstraps from a raw description.
 - **R4.** The compound stage is a **router**, not a writer. It classifies the learning and writes to one of six destinations: project-local solution doc, mind-vault skill update, mind-vault rule update, mind-vault agent-persona update, mind-vault command/tool, or auto-memory entry. Promotions into mind-vault must produce a reviewable diff on the current mind-vault feature branch — never an unattended commit on `main`.
@@ -45,9 +45,9 @@ From the conversation that spawned this plan:
 - **R6.** Cross-host portable: skills stay under the mind-vault `skills/` layout (SKILL.md + `references/` + `assets/`) and work through the existing symlink setup for Claude Code, Cursor, OpenCode, Copilot, Antigravity. No host-specific tricks inside SKILL bodies.
 - **R7.** No `ce-` prefix collision with the upstream plugin. Naming decision (bare vs. prefixed) is an open question — default to bare unless prefix conflict surfaces.
 - **R8.** Branch for this work: `ce-inspired-evolution`. This plan file itself is the first artifact — dogfooding the handoff contract on the plan that proposes it.
-- **R9.** A separate **backlog-ingest skill** exists for brownfield takeovers. When the mind-vault user adopts the sprint workflow on a project that already has a monolithic backlog document (teisutis-style `IDEAS.md`, or `BACKLOG.md`, `ROADMAP.md`, `TODO.md`, `FEATURES.md`, or a giant GitHub issues export), the skill scans the file, atomises each entry into the `<project>/docs/ideas/IDEA-NNN-<slug>.md` shape from R1, regenerates the index, and leaves completed/archived entries as index footers (not as migrated files). Forward-only, mechanical, one-pass. This is not part of the sprint loop; it is a bootstrap step run once per brownfield adoption.
+- **R9.** A separate **backlog-ingest skill** exists for brownfield takeovers. When the mind-vault user adopts the sprint workflow on a project that already has a monolithic backlog document (`IDEAS.md`, `BACKLOG.md`, `ROADMAP.md`, `TODO.md`, `FEATURES.md`, or a giant GitHub issues export), the skill scans the file, atomises each entry into the `<project>/docs/ideas/IDEA-NNN-<slug>.md` shape from R1, regenerates the index, and leaves completed/archived entries as index footers (not as migrated files). Forward-only, mechanical, one-pass. This is not part of the sprint loop; it is a bootstrap step run once per brownfield adoption.
 
-  **Near-term consumer:** teisutis is the first (and currently only) brownfield target. Teisutis IDEA-112 is scheduled to execute downstream of this mind-vault work — the skill *is* the execution vehicle for IDEA-112, not a separate effort that happens to overlap. **Future-proofing is explicit, not hypothetical.** V1 is validated end-to-end on teisutis's `docs/execution/IDEAS.md`, but the parser, schema, and CLI must accept arbitrary target files and common alternative shapes so the second brownfield takeover (whenever one appears) does not force a rewrite. Legacy-format recognition lives in `references/legacy-formats.md` and grows by addition, never by special-casing the core skill.
+  **Future-proofing is explicit, not hypothetical.** V1 is validated end-to-end on one real brownfield backlog, but the parser, schema, and CLI must accept arbitrary target files and common alternative shapes so the second brownfield takeover (whenever one appears) does not force a rewrite. Legacy-format recognition lives in `references/legacy-formats.md` and grows by addition, never by special-casing the core skill.
 
 ## Scope Boundaries
 
@@ -63,7 +63,7 @@ From the conversation that spawned this plan:
 
 **In scope (Phase 1.5, separate small PR on the same branch, immediately after Phase 1):**
 
-- `skills/ingest-backlog/SKILL.md` + `references/legacy-formats.md` + `assets/idea-template.md` — brownfield-takeover helper per R9. V1 validated on teisutis's `docs/execution/IDEAS.md`; parser/CLI accept arbitrary target files and recognised legacy shapes. Runs once per brownfield project. Read-only dry-run mode prints the proposed file tree without writing. Unblocks teisutis IDEA-112 execution.
+- `skills/ingest-backlog/SKILL.md` + `references/legacy-formats.md` + `assets/idea-template.md` — brownfield-takeover helper per R9. V1 validated on one real brownfield `docs/execution/IDEAS.md`; parser/CLI accept arbitrary target files and recognised legacy shapes. Runs once per brownfield project. Read-only dry-run mode prints the proposed file tree without writing.
 
 **In scope (Phase 2, gated behind Phase 1 + 1.5 dogfood):**
 
@@ -86,7 +86,7 @@ From the conversation that spawned this plan:
 ### Existing mind-vault assets the workflow leans on
 
 - **`AGENT_architect`** (`agents/AGENT_architect.md`) — 4-pass structural architecture workflow. Consumed by `skills/plan/` as a reviewer pass over draft plans.
-- **`AGENT_bugbot`** + **`AGENT_curator`** (`agents/AGENT_bugbot.md`, `agents/AGENT_curator.md`) — the 6-pass pre-commit review personas validated on Teisutis. Review stage delegates here unchanged.
+- **`AGENT_bugbot`** + **`AGENT_curator`** (`agents/AGENT_bugbot.md`, `agents/AGENT_curator.md`) — the 6-pass pre-commit review personas validated on a multi-tenant Django SaaS. Review stage delegates here unchanged.
 - **`AGENT_backend`, `AGENT_frontend`, `AGENT_devops`, `AGENT_test-engineer`** — implementation personas dispatched by `skills/work/`.
 - **`RULE_parallel-worktree-docker`** (`../../skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md`) — isolation contract for parallel work streams. `skills/work/` cites it as the prerequisite when the plan flags parallel execution.
 - **`RULE_git-safety`** (`rules/RULE_git-safety.md`) — HITL merge gate on `main` / `production`. Governs `skills/compound/`'s mind-vault promotion path (stage files, never commit to main).
@@ -168,7 +168,7 @@ These are the decisions we'll tune before executing Phase 1. Each has a suggeste
 
 ### Q5b. Ingest-backlog — Phase 1, Phase 1.5, or Phase 2?
 
-**Resolved → Phase 1.5.** Teisutis IDEA-112 executes downstream of this mind-vault work, most likely the day after mind-vault Phase 1 lands. The ingest skill is the execution vehicle for IDEA-112 — not a nice-to-have follow-up. Placing it in Phase 2 would block IDEA-112; placing it in Phase 1 would bloat the first PR with a skill that isn't needed for ordinary per-feature cycles. Phase 1.5 (a second small PR on the same branch, landing immediately after Phase 1) is the right slot: it means the target-shape decision in Phase 1 fixes the schema once, then ingest reuses it without waiting on ideate.
+**Resolved → Phase 1.5.** A real-project brownfield-backlog split executes downstream of this mind-vault work, most likely the day after mind-vault Phase 1 lands. The ingest skill is the execution vehicle for that split — not a nice-to-have follow-up. Placing it in Phase 2 would block the brownfield consumer; placing it in Phase 1 would bloat the first PR with a skill that isn't needed for ordinary per-feature cycles. Phase 1.5 (a second small PR on the same branch, landing immediately after Phase 1) is the right slot: it means the target-shape decision in Phase 1 fixes the schema once, then ingest reuses it without waiting on ideate.
 
 **Implication for Phase 1:** the `docs/ideas/IDEA-NNN-<slug>.md` frontmatter schema must be fixed and documented during Phase 1 (not deferred into ideate), because ingest in Phase 1.5 depends on it. The schema lives in `docs/SPRINT_WORKFLOW.md` as authoritative — ideate (Phase 2) and ingest (Phase 1.5) both consume it.
 
@@ -205,11 +205,11 @@ Phase 1 (single PR, ~2–3 working days of curation/authoring):
 7. README update: new "Sprint workflow" section.
 8. Register the four new skills in the setup scripts' target lists (`scripts/setup-*-symlinks.sh`) — zero change expected since the symlink pattern is `skills/*/SKILL.md` already.
 
-Phase 1.5 (separate small PR, same branch, lands immediately after Phase 1 — unblocks teisutis IDEA-112):
+Phase 1.5 (separate small PR, same branch, lands immediately after Phase 1 — unblocks brownfield consumer):
 
 - `skills/ingest-backlog/SKILL.md` + `skills/ingest-backlog/references/legacy-formats.md` + `skills/ingest-backlog/assets/idea-template.md`.
 - Dry-run mode flag + destructive-write mode flag — default dry-run.
-- Validate end-to-end against teisutis `docs/execution/IDEAS.md` before merging. Do not execute IDEA-112 from this branch; leave that to the teisutis worktree once the skill is in place.
+- Validate end-to-end against a real `docs/execution/IDEAS.md` source before merging. Execute the actual split from the consuming project's worktree once the skill is in place.
 
 Phase 2 (follow-up branch, decided after Phase 1 + 1.5 dogfood):
 

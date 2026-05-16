@@ -37,7 +37,6 @@ This directory contains analysis, specifications, and guides for the mind-vault 
 Research documents have been consolidated and archived for reference:
 
 - **OpenCode Analysis**: `docs/archive/opencode-research/` (4 consolidated into SKILL_SPECIFICATION.md)
-- **Teisutis Patterns**: `docs/archive/teisutis-analysis/` (completed pattern extraction)
 - **Session Notes**: `docs/archive/session-notes/` (historical development records)
 
 ---

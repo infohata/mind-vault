@@ -130,7 +130,7 @@ body {
     (function applyEmbedTheme() {
         var t = "{{ embed_theme|escapejs }}";
         localStorage.setItem('theme', t);
-        document.cookie = "teisutis_theme=" + t + "; path=/";
+        document.cookie = "app_theme=" + t + "; path=/";
         var isDark = t === 'dark' || (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.classList.toggle('dark', isDark);
         if (t === 'light' || t === 'dark') {
@@ -457,7 +457,7 @@ Three properties make this generalisable:
 
 Existing per-entity tag-filters / scope-filters modules can be retired in favour of this single shared module. The visual sync is the same operation regardless of which entity's filter is being toggled.
 
-Surfaced: teisutis IDEA-147 M1 — three near-identical per-entity modules existed; user direction was "cannot micromanage filter states with every object functionality porting". The generic module replaced all three at ~25 LoC.
+User direction motivating this generalisation: "cannot micromanage filter states with every object functionality porting". The generic module replaced three near-identical per-entity modules at ~25 LoC.
 
 ---
 

@@ -419,8 +419,6 @@ When an HTMX swap target wraps a form input, every keystroke that triggers a hx-
 
 The form/input is never touched across requests; focus + caret + IME state are preserved by structure, not by preservation tricks.
 
-Surfaced: teisutis IDEA-143 M14 cycles 1-2 — initial fix was `hx-preserve="true"` on the input; focus still dropped after 1-2 keystrokes (form's trigger re-bind via outerHTML on the wrapper id swapped the form node anyway). List-scoped target retained focus indefinitely.
-
 ## HX-Trigger: multi-event payload REQUIRES JSON-object form
 
 The HTMX docs are quiet about this — string-shaped multi-event triggers silently mangle when the response passes through any middleware that parses+re-serialises the header:
@@ -496,8 +494,6 @@ The 3-gate composition matters:
 1. **Bind on `htmx:beforeSwap`, not `htmx:afterRequest`**: `afterRequest` fires after the form is detached from the DOM during the swap → the event source disappears → listeners that try to walk back to the form get null.
 2. **`xhr.status` 2xx is necessary but not sufficient**: Django's default `form_invalid()` returns status 200 + form-with-errors. Without override, status-only gating closes the modal on validation failure. See [`../../django/references/DJANGO_FORM_INVALID_STATUS.md`](../../django/references/DJANGO_FORM_INVALID_STATUS.md) for the override pattern that makes status-only gating safe.
 3. **Response `HX-Trigger` header contains the canonical success signal**: the server emits `entityChanged` only on form_valid; absent on form_invalid. The header check is the actual distinguisher.
-
-Surfaced: teisutis IDEA-163 PR #443 cycles 3 → 5 — bugbot caught each broken approach (htmx:afterRequest detached form, status-only gate closes modal on form_invalid). Final form: bugbot CLEAN.
 
 ## Single-event vs multi-event toast dispatch — pick ONE source per flow
 

@@ -161,8 +161,6 @@ When a translation isn't updating:
 3. If populated, add the msgid to `FORCE_SYNC_MSGIDS` and re-run translate-fill.
 4. Re-check the `.po` to confirm the new value landed.
 
-Surfaced: teisutis IDEA-147 — filter-label disambiguation needed to overwrite previously-shipped (wrong) translations across lt/ru/pl/nb. The first fill pass left the original values intact; bug only surfaced when manual eval re-tested in non-English locales.
-
 ## Don't translate developer notes — they leak into `.po` and ship to users
 
 A `{% trans "TODO: refactor this in Phase 2" %}` block extracts into `.po`, translation maps add msgstr entries, the result ships to end users as page copy. The fix is at the template layer (`{% comment %}` instead of `{% trans %}`) — see [`../../django-frontend/references/TEMPLATE_COMMENT_SYNTAX.md`](../../django-frontend/references/TEMPLATE_COMMENT_SYNTAX.md) § *Don't translate developer notes* for the canonical template-side recipe + audit grep.

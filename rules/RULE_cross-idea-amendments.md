@@ -49,6 +49,6 @@ When amending another IDEA's shipped files in scope of a current IDEA's work, AL
 - ❌ **Filing a "supersede" relationship** on the original IDEA. Amendments aren't supersessions — the original IDEA's main work is still the canonical implementation; the amendment is a tweak.
 - ❌ **Spinning up a new "fix the upstream IDEA" IDEA**. That defers the fix indefinitely (small docs/refactor IDEAs rarely ship). The right place is the IDEA whose work *needed* the upstream change.
 - ❌ **Silent amendments** with no commit-message tag, no inline comment refresh, no archive backref. The next reader has no way to discover the amendment exists.
-- ❌ **Size caps** ("≤ N lines", "single file only"). The original draft of this rule had bounded the precedent — explicitly retired per user direction (project: teisutis 2026-05-05): "implemented ideas are not stones".
+- ❌ **Size caps** ("≤ N lines", "single file only"). The original draft of this rule had bounded the precedent — explicitly retired per user direction (2026-05-05): "implemented ideas are not stones".
 
 **Last Updated**: 2026-05-05

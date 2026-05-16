@@ -210,10 +210,6 @@ The math is unit-testable in JSDOM with a fake layout. The trickier verification
 
 If the project supports Playwright/Selenium, automate (1)-(3). Otherwise the manual checklist is the merge gate.
 
-## Provenance
-
-Reference: teisutis [PR #415](https://github.com/infohata/teisutis/pull/415) cycle 1 finding `3183742926` (HIGH severity). The initial design used Approach B (sibling-summation). Manual smoke didn't catch it because the dev-preview demo's actual behaviour APPEARED to preserve scroll — but only because the browser's natural behaviour on prepend (rare and inconsistent across browsers) coincidentally produced a similar visual effect. Bugbot's per-file static review cross-referenced the wrapper template (`<div style="display: contents">`) against the JS math and surfaced the silent-zero bug. Fix `a948f6d9` rewrote to Approach C.
-
 The lesson generalises beyond HTMX: any DOM math that walks `previousElementSibling`/`nextElementSibling` summing `offsetHeight` is fragile to `display: contents` wrappers. The `offsetTop`-diff approach (capture before, measure after, subtract) is the more robust idiom — works for any "how much did THIS element move" question regardless of subtree shape.
 
 ---

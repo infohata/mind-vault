@@ -272,7 +272,7 @@ The same bug class bites any project that:
 Build a **request stub** at the call site that carries the four attributes DRF actually reads — `.scheme`, `.get_host()`, `.user`, `.build_absolute_uri()` — and put it in serializer context. The stub is duck-typed; DRF doesn't introspect the type, only attribute access.
 
 ```python
-# teisutis_core/utils.py (or equivalent in your project)
+# core/utils.py (or equivalent in your project)
 
 def make_request_for_host(public_host: str, user=None):
     """Duck-typed HTTP request for callers without a real one.
@@ -339,10 +339,6 @@ The temptation is to set `AWS_S3_CUSTOM_DOMAIN` (or equivalent) to a single publ
 ### Don't refactor `generate_presigned_url`
 
 It's tempting to make `generate_presigned_url` smart enough to call `get_current_tenant()` itself when `request=None`. Resist — that couples a low-level signing helper to tenant context, fighting separation of concerns. The helper's contract (give me a request, I'll sign for that domain; give me nothing, I'll sign for the internal endpoint) is correct; the bug is callers passing `None` when they shouldn't.
-
-### Origin
-
-Compounded from teisutis [IDEA-133 / PR #403](https://github.com/infohata/teisutis/pull/403) (2026-04-30). A production multi-tenant chat surface returned dead `http://minio:9000/...` links via an AI tool's serializer path. Root cause: 5 serializer call sites (4 semantic-search loaders + a `_serialize_batch` text-fallback in the search adapter) invoking DRF serializers without `context={'request': ...}`. The symmetric bug had been fixed once before on the chat-history-render path (commit `696f7563`, 2026-04-23) where an HttpRequest was available — IDEA-133 closed the request-less side of the same gap.
 
 ## Schema Context Management
 
@@ -619,7 +615,7 @@ class ArticleSerializer(serializers.ModelSerializer):
 
 **✅ GOOD**: Validate scope change permissions before database operations
 ```python
-from teisutis_kb.utils import check_scope_change_permissions
+from kb.utils import check_scope_change_permissions
 
 if 'scope' in update_data:
     is_allowed, error_message = check_scope_change_permissions(
