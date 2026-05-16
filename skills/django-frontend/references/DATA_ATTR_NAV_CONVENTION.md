@@ -173,4 +173,4 @@ def event_list_view(request):
 
 ---
 
-**Last Updated**: 2026-05-16 (initial — sourced from teisutis IDEA-172 K-D-12 convention; previously held as auto-memory `project_data_attr_navigation_convention`, promoted to mind-vault here per cross-project applicability)
+**Last Updated**: 2026-05-16

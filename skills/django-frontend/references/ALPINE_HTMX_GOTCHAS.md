@@ -622,4 +622,4 @@ The cleanest variant is the [`ACTIVE_STATE_TRACKING.md`](ACTIVE_STATE_TRACKING.m
 
 ---
 
-**Last Updated**: 2026-05-16 (gotcha 10 — `:class` short-circuit vs object syntax for SSR + reactive dual binding)
+**Last Updated**: 2026-05-16

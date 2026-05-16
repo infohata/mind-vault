@@ -71,27 +71,21 @@ The original direct-child selectors stay (so `pane-wrapper-B` and any future dir
 
 The bug typically lands NOT when the wrapper is introduced and the developer forgets to widen anything, but when **only some breakpoints get the widening** while others are missed.
 
-The teisutis IDEA-172 → IDEA-173 sequence is the canonical example:
+The canonical shape:
 
-1. IDEA-172 introduces `<div id="shell-swap-target">` with `display: contents` to enable shell-level HTMX `outerHTML` swaps.
-2. The desktop pane-snap SCSS gets widened in the same commit:
-   ```scss
-   > .shell-pane-snap__workspace-wrapper,
-   > .shell-pane-snap__preview-wrapper,
-   > #shell-swap-target > .shell-pane-snap__workspace-wrapper { … }
-   ```
-3. The mobile pane-snap SCSS in a sibling `@media` block is **missed** — its selectors only listed direct-child variants.
-4. Tests pass (no SCSS test layer; render-and-assert lives at the HTML level).
-5. Desktop works fine. Mobile drawer-pane swipe is broken at ~50px; cold-load workspace pane is dead.
-6. Symptom appears unrelated to the wrapper introduction. Initial diagnosis chases a JavaScript drawer-coordinator bug (visible side effect: drawer "wedged" state); a JS band-aid recovers the user-visible symptom by full-reloading the page. The actual CSS-selector-miss stays invisible for the entire PR cycle.
-7. Months later, when the JS band-aid is investigated for retirement, the mobile SCSS selector miss is the load-bearing finding.
+1. Wrapper insertion ships in commit N. The desktop selector block gets widened in the same commit (it's the breakpoint the developer is testing in).
+2. The mobile / tablet `@media` block in a sibling section of the SCSS file is **missed** — its selectors still only list direct-child variants.
+3. Tests pass (no SCSS test layer; render-and-assert lives at the HTML level).
+4. The widened breakpoint works fine. The missed breakpoint silently breaks for any user on that viewport.
+5. Symptom appears unrelated to the wrapper introduction. Initial diagnosis chases a JavaScript bug (visible side effect on the missed breakpoint, often a drawer/snap-container that "wedges"). A JS band-aid recovers the user-visible symptom by full-reloading the page. The actual CSS-selector-miss stays invisible for the entire PR cycle.
+6. Months later, when the JS band-aid is investigated for retirement, the missed-breakpoint selector is the load-bearing finding.
 
-**Cost**: a JS band-aid that fires `window.location.reload()` on every popstate-with-frames (destroying every UX continuity guarantee the application makes), plus a multi-cycle IDEA filed to "investigate the drawer-coordinator wipe" that doesn't exist. All from one SCSS rule block missed during a structural insertion.
+**Cost**: a JS band-aid that fires `window.location.reload()` on every state change (destroying every UX continuity guarantee the application makes), plus a multi-cycle follow-up investigation. All from one SCSS rule block missed during a structural insertion.
 
 **Lesson**: when you insert a `display: contents` intermediate, audit **every** breakpoint's selectors that match the wrapped children — not just the breakpoint you happen to be testing in. Grep for the affected class names across the full SCSS tree:
 
 ```bash
-grep -rn 'shell-pane-snap__workspace-wrapper\|shell-pane-snap__preview-wrapper\|shell-center' web/<app>/static/<app>/scss/
+grep -rn '<wrapped-class-a>\|<wrapped-class-b>' web/<app>/static/<app>/scss/
 ```
 
 For each hit, check whether the selector path includes a route through the new intermediate. If not, widen it.
@@ -121,4 +115,4 @@ Add to the structural-change checklist for any commit that introduces or moves a
 
 ---
 
-**Last Updated**: 2026-05-16 (initial — sourced from teisutis IDEA-173 root-cause attribution of the mobile pane-snap selector miss introduced during IDEA-172)
+**Last Updated**: 2026-05-16
