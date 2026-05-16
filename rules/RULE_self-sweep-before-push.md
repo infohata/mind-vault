@@ -88,6 +88,123 @@ If grep returns >5 callers and they're all in the project, judgement call:
 
 - teisutis [PR #413](https://github.com/infohata/teisutis/pull/413) cycles 2 + 3 — `copyToClipboardWithFeedback` changed return from `undefined` to `Promise.reject` for the unavailable-clipboard early-exit. Cycle 2 patched `chat.js:2538` with `.catch()`; bugbot caught the symmetric oversight in cycle 3 — the SAME file's `initDataCopyUrlButtons` internal callback called the helper without `.catch()`. One extra cycle, one extra commit, one extra retrigger — all preventable by `grep -rn 'copyToClipboardWithFeedback(' --include="*.js"` before the cycle-2 push.
 
+## Defensive-Code Sweep: Verify Against the Producer's Write Site, Not the Read Site
+
+Sibling to the Contract-Change Sweep, fires on a different trigger: **whenever you add a defensive code path that reads a field, method, or attribute, grep for the WRITE site of that field in the producer code BEFORE shipping the defense.** If grep returns zero writes, the field doesn't exist — your defensive code is a phantom-field guard that will fire (or fail-open) on every run because its condition is `undefined`.
+
+The single most expensive bug class this rule prevents: a defensive `if (state.someField)` check (or `try { state.someField.method() }`) reading a field that was renamed, never existed, or lives on a different object than the author assumed. The guard appears to work — the field is always falsy, so the defensive branch always fires. The defensive branch's "recovery" action (reload, retry, fallback) then masks any deeper bug that would otherwise have surfaced. Months later when the defense is investigated, the field-name typo is the load-bearing finding and the "recovered" symptom turns out to be a completely unrelated bug the defense was accidentally papering over.
+
+### The grep that catches it
+
+```bash
+# Whatever field your defensive code reads — grep the producer's source
+# for the WRITE site. The producer should ASSIGN to the field somewhere.
+grep -rn '\b<fieldName>\s*=' web/<owner-module>/  # JS / Python
+grep -rn '\b<fieldName>\b' web/<owner-module>/    # widen if assignment uses computed keys
+```
+
+For object properties on a JS module-level store / Alpine store / class instance, search for the constructor / initialiser that creates the object literal:
+
+```bash
+grep -B 2 -A 20 'function ensure<StoreName>' web/<module>/static/<module>/js/<store>.js
+grep -B 2 -A 20 'Alpine.store(.<storeName>' web/<module>/static/<module>/js/
+```
+
+Look at every key in the literal. If the field your defense reads isn't there (and isn't ASSIGNED to in any other code path you can find), the field doesn't exist. Stop and either:
+
+1. Find the correct field name (the actual key in the producer's literal) and use it.
+2. Remove the defense entirely if no real failure mode requires it.
+
+### Worked example — what costs you a multi-cycle PR
+
+Project ships a drawer-coordinator Alpine store with this shape (in `drawer.js`):
+
+```javascript
+Alpine.store('drawerCoordinator', {
+    currentByEdge: {},  // ← the real registry key
+    register(name, edge, instance) {
+        this.currentByEdge[name] = { edge, instance };
+    },
+    // …
+});
+```
+
+Later, in `preview_surface.js`, someone adds a defensive guard intended to recover a "drawer-wedged" state:
+
+```javascript
+function _enforceDrawerStateForDepth() {
+    var coord = Alpine.store('drawerCoordinator');
+    var previewEntry = coord && coord.byName && coord.byName.preview;
+    //                                  ^^^^^^ phantom field — never set anywhere
+    if (store.depth > 0 && (!previewEntry || !previewEntry.instance)) {
+        window.location.reload();  // recovery action
+    }
+    // … real work
+}
+```
+
+What happens:
+
+- `coord.byName` evaluates to `undefined` every single time (the literal has `currentByEdge`, not `byName`).
+- `coord.byName && coord.byName.preview` short-circuits to `undefined`.
+- `!previewEntry || !previewEntry.instance` is `true || true` → guard always fires.
+- `window.location.reload()` runs on **every** call to the function, regardless of actual state.
+
+The author's pre-push test: opened drawer, browsed normally, things appeared to work (because the page reloaded between every popstate cycle, hiding the actual symptom they were targeting). The guard "worked" in the only sense that matters during manual smoke testing — the dead-end UX state never persisted, because a full reload always intervened.
+
+What it took to discover the phantom: a separate IDEA filed to "investigate the drawer-coordinator wipe" months later, a bugbot cycle on a different PR, then the actual root-cause investigation — which surfaced the real bug (CSS selector miss on a different breakpoint) plus the phantom-field finding as a coincidence.
+
+**Cost prevented by a 1-second grep**: `grep -n 'byName' web/<owner-module>/static/<owner-module>/js/drawer.js` returns zero hits → defense doesn't compile against reality → don't write it. Or write it correctly the first time: `coord.currentByEdge.preview`.
+
+### When this sweep especially matters
+
+- Adding any `try` / `catch` whose `try` body reads a field you didn't author (the catch will silently swallow `TypeError: Cannot read property X of undefined`).
+- Adding any `if (obj.field)` guard where `obj` is from a different module / store / library.
+- Refactoring a producer that renames internal fields — every consumer's defensive guard now reads a stale name. The rename-before-drop discipline catches the call sites; this rule catches the field accesses.
+- Diagnostic logging that reads state from another module (`console.log('depth:', store.depth, 'frames:', store.frames)` — if `frames` was renamed to `stack`, the log always prints `frames: undefined` and the diagnostic appears to confirm that "frames is empty" when actually the field doesn't exist).
+
+### Reference
+
+teisutis IDEA-172 → IDEA-173. The phantom-field band-aid (`_enforceDrawerStateForDepth` reading `coord.byName.preview`) shipped in IDEA-172 PR #452 cycle 5; cost a full follow-up IDEA-173 cycle to retire after the actual root cause (mobile SCSS selector miss) was found independently. Documented in the project's conventions doc as Pitfall 12.
+
+## Touched-Suite Sweep: Fix Pre-Existing Failures in Suites You Run
+
+Sibling to the dead-imports sweep, applies to a different artefact: **whenever you run a test suite (full or partial) for any reason and observe a pre-existing failure that's unrelated to your current change, FIX IT in the same PR.** Do not file it as "out-of-scope" or "pre-existing — not my problem". The cost calculus is identical to the dead-imports sweep: a test failure that's known but not fixed becomes either (a) a habituation point where the team learns to ignore failures, or (b) a noise-floor that masks real regressions on the next PR.
+
+### When this fires
+
+- Running `make test` to verify YOUR change doesn't break anything, and the report shows N failures, of which M were already failing on the parent branch BEFORE your change.
+- The forward-merge of an upstream branch surfaces failures that weren't visible when the upstream PR landed (the upstream PR's test pass was on a pre-merge branch state; post-merge state combines with your branch and reveals the gap).
+- A bugbot review reports findings on tests that were already failing — bugbot doesn't distinguish "your fault" from "pre-existing" and neither should you.
+
+### The rule
+
+If the suite reports M pre-existing failures and N new failures from your change:
+
+1. Triage all M+N failures together. Don't draw a "mine vs theirs" boundary.
+2. For each pre-existing failure, identify the actual cause (look at the source, the test, the commit that introduced the change that broke the test).
+3. Fix or update each test in the SAME PR as your work. If the test is broken because its EXPECTED constant was never updated after a related refactor, update the EXPECTED constant. If the test's contract is genuinely obsolete (the behaviour it asserts was intentionally retired), delete the test with a one-line commit message explaining why.
+4. The commit message for the test fixes should attribute the introducing change ("Pre-existing failures from IDEA-XXX refactor — EXPECTED constants weren't updated alongside the source change") so future readers understand the recovery story.
+
+### Why this matters
+
+- **Habituation**: a known-failing test that ships green-on-PR-because-CI-doesn't-run-it (or red-but-ignored) trains the team to ignore red. The next genuine regression hides behind the same dismissal.
+- **Bisect-poisoning**: if you ship code while pre-existing tests are red, `git bisect` against a future regression can't distinguish "this commit introduced the failure" from "the failure existed all along".
+- **Reviewer confusion**: a reviewer who sees N failures on a PR's CI run can't tell which N-K are your responsibility. The reviewer either approves blind or asks you to attribute, neither of which scales.
+- **Compound interest**: every PR shipped with M pre-existing failures grows the noise floor by M (unless someone happens to fix the failure as a one-off). The dominant strategy if everyone follows this discipline is to monotonically decrease the failure count.
+
+### Anti-pattern
+
+❌ "These 4 failures are pre-existing — I'll file a follow-up issue and continue with my work."
+
+This is the noise-floor growth path. The follow-up issue rarely ships because it's not attached to a feature delivery cycle. Other engineers see the same failures on their PRs and apply the same dismissal. Six months later the test suite has 40 known-failing tests that nobody trusts.
+
+The correct response, even when the failures are genuinely unrelated to your work: triage and fix in your PR, attributed to the introducing change in the commit message. The cost is bounded (typically 5-30 minutes per pre-existing failure once the diagnosis is in hand); the benefit compounds.
+
+### Reference
+
+teisutis IDEA-173 PR #455. Forward-merge of `sprint/ux-overhaul` surfaced 4 pre-existing failures in `test_preview_surface_openwith.py` — source-substring assertions obsolete after an IDEA-164 axis #3 refactor extracted click-handler logic into `_routeIntent` + `_dispatchIntent`. Tests had been failing on the sprint branch since IDEA-164 merged. Fixed in the same PR, commit message attributed to IDEA-164.
+
 ## Scope: Touched Files, Not Just New Edits
 
 When pyflakes flags pre-existing dead imports / unused locals in a file you're editing, **clean them up in the same commit** (or a separate `chore(tests):` commit if the diff would otherwise be confusing). Pre-existing findings in touched files are in scope, not out of scope.
@@ -127,4 +244,4 @@ Don't go deeper than this — full ruff / mypy passes are PR-time / CI-time conc
 
 ---
 
-**Last Updated**: 2026-05-04
+**Last Updated**: 2026-05-16 (added Defensive-Code Sweep + Touched-Suite Sweep — sourced from teisutis IDEA-173 phantom-field band-aid retirement + pre-existing-failure recovery patterns)
