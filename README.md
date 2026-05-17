@@ -18,12 +18,12 @@ flowchart LR
     I1(["/idea — capture"]) --> P
     P(["/plan · /brainstorm — what + how"]) --> W
     W(["/work — execute"]) --> R
-    R(["/bugbot-loop\n+ bugbot · curator · architect"]) --> C
+    R(["/<engine>-loop\n+ AGENT_bugbot / AGENT_copilot · curator · architect"]) --> C
     C(["/compound — router"]) -.promotes.-> V[("mind-vault\nskills · rules · agents\ncommands · memory")]
     C -.next sprint.-> I1
 ```
 
-**Design note on the review stage.** Stages 1–2–3–5 each have a dedicated skill (`/idea`, `/plan`, `/work`, `/compound`). Stage 4 (review) intentionally does not — mind-vault's review subsystem is mature and loop-driven: `AGENT_bugbot` + `AGENT_curator` + `AGENT_architect` personas invoked via `/bugbot-loop`. Adding a wrapper skill would duplicate infrastructure without adding value. The loop IS the stage.
+**Design note on the review stage.** Stages 1–2–3–5 each have a dedicated skill (`/idea`, `/plan`, `/work`, `/compound`). Stage 4 (review) is engine-selectable: `/bugbot-loop` (Cursor Bugbot) and `/copilot-loop` (GitHub Copilot) are the two engine-specific loops, both backed by `AGENT_bugbot` / `AGENT_copilot` / `AGENT_curator` / `AGENT_architect` personas with identical phase structure. Adding a generic wrapper skill would duplicate infrastructure without adding value — the per-engine loop IS the stage.
 
 See [docs/SPRINT_WORKFLOW.md](docs/SPRINT_WORKFLOW.md) for the full explainer — authoritative frontmatter schemas, compound-routing table, right-sizing guidance, and the handoff contract between stages.
 
@@ -55,7 +55,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **wrap** | Stage 4.5 — post-merge documentation + cleanup sweep. Flips IDEA frontmatter to `complete`, re-sorts the ideas index, appends a devlog entry, tears down the worktree stack (if one was in use), scans project docs for stale references. Sits between a merged PR and `/compound`. |
 | **compound** | Stage 5 — **the novel piece.** Routes a post-incident learning through a hybrid Shape-C probe to one of six destinations (project-local, mind-vault skill / rule / agent pass / command, or auto-memory). |
 | **ingest-backlog** | Brownfield-takeover helper (one-time). Atomises a monolithic `IDEAS.md` / `BACKLOG.md` / `ROADMAP.md` into per-idea files matching the sprint-workflow schema. Default dry-run. |
-| **sprint-auto** | Overnight unattended wrapper around the **full sprint workflow** (stages 2–5). Per IDEA: `/plan → /work → /bugbot-loop (deliverables) → /wrap (pre-merge) → /bugbot-loop (docs) → teardown` in per-IDEA git worktrees with independent docker-compose stacks; per-pass escalation caps 20/5/5 (deliverables/docs/mind-vault compound), rollback-able fresh commits. Batch end: `/compound` per candidate + `/bugbot-loop` on each mind-vault PR produced. Belt-and-suspenders gates (`auto_safe: true` frontmatter + explicit arg allowlist); stops at the HITL merge boundary per `RULE_git-safety`. |
+| **sprint-auto** | Overnight unattended wrapper around the **full sprint workflow** (stages 2–5). Per IDEA: `/plan → /work → /<engine>-loop (deliverables) → /wrap (pre-merge) → /<engine>-loop (docs) → teardown` in per-IDEA git worktrees with independent docker-compose stacks; `/<engine>-loop` dispatches to `/bugbot-loop` and/or `/copilot-loop` per project config (`SPRINT_AUTO_REVIEW_ENGINE`). Per-pass escalation caps 20/5/5 (deliverables/docs/mind-vault compound), rollback-able fresh commits. Batch end: `/compound` per candidate + the review-loop on each mind-vault PR produced. Belt-and-suspenders gates (`auto_safe: true` frontmatter + explicit arg allowlist); stops at the HITL merge boundary per `RULE_git-safety`. |
 
 ### Cross-project engineering
 
@@ -82,16 +82,18 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | --- | --- | --- |
 | **architect** | Structural + abstraction + coupling review; author mode for cross-cutting refactors | Stage 2 reviewer (plan), Stage 3 author (cross-cutting) |
 | **backend / frontend / devops / test-engineer** | Implementation personas by domain | Stage 3 dispatch targets from `/work` |
-| **bugbot** | Pre-commit rigorous code review (6-pass workflow) | Stage 4 reviewer (invoked via `/bugbot-loop`) |
+| **bugbot / copilot** | Pre-commit rigorous code review (6-pass workflow); engine-specific personas with identical pattern catalogue | Stage 4 reviewer (invoked via `/bugbot-loop` or `/copilot-loop`) |
 | **curator** | Pre-commit sister to the review bots + **sprint-end promotion sweep** mode | Stage 4 reviewer + cross-sprint retrospective |
 | **documentation** | Docs-only authorship and review | Standalone |
 | **researcher** | Ad-hoc investigation / literature review | Standalone |
 
-## Commands (15 slash commands)
+## Commands (15 slash commands across `commands/` and `skills/`)
+
+Slash commands come from two sources: 7 in `commands/` (review/PR/utility) and 8 from sprint-workflow skills' frontmatter (one slash command per stage).
 
 **Sprint workflow:** `/ideate`, `/idea`, `/plan` (alias `/brainstorm`), `/work`, `/wrap`, `/compound`, `/ingest-backlog`.
 
-**Automation:** `/sprint-auto` — overnight unattended orchestrator that chains the full sprint workflow (stages 2–5: `/plan → /work → /bugbot-loop → /wrap (pre-merge) → /bugbot-loop → teardown → /compound → /bugbot-loop`) for curated IDEAs; see [`skills/sprint-auto/SKILL.md`](skills/sprint-auto/SKILL.md).
+**Automation:** `/sprint-auto` — overnight unattended orchestrator that chains the full sprint workflow (stages 2–5: `/plan → /work → /<engine>-loop → /wrap (pre-merge) → /<engine>-loop → teardown → /compound → /<engine>-loop`) for curated IDEAs; `/<engine>-loop` resolves to `/bugbot-loop` and/or `/copilot-loop` per project config. See [`skills/sprint-auto/SKILL.md`](skills/sprint-auto/SKILL.md).
 
 **Review + PR flow:** `/bugbot-loop` (Cursor Bugbot), `/copilot-loop` (GitHub Copilot), `/create-pr`, `/test`. See `docs/ONBOARDING.md` § "Pick a code-review engine" for the three-way choice (bugbot / copilot / curator-only).
 
@@ -117,7 +119,7 @@ Domain-specific patterns that used to live in `rules/`. Each is loaded by its ow
 - **[PARALLEL_WORKTREE_DOCKER](skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md)** *(was RULE_parallel-worktree-docker)* — Worktree + docker-compose isolation contract for parallel work streams (port offsets, subnet remap, MinIO bucket re-init, env-var sentinel-rewrite). **Loaded by:** `/work` (parallel plans), `/sprint-auto` (per-IDEA worktree bootstrap). Reachable from `/deployment` via its `CONTAINER_DNS_NSS.md` and `SHELL_INSTALLERS.md` references (privileged-fileops escape hatch).
 - **[TENANT_SCOPED_FK_VALIDATION](skills/django/references/TENANT_SCOPED_FK_VALIDATION.md)** *(was RULE_tenant-scoped-fk-validation)* — Validate-and-prune FK helpers must scope existence checks explicitly when a model carries `org_id` (or equivalent tenant column). Schema routing alone is insufficient for shared/public-schema tables. **Loaded by:** multi-tenant Django work via `skills/django`.
 - **[VISUAL_BASELINE_BUMPS](skills/django-frontend/references/VISUAL_BASELINE_BUMPS.md)** *(was RULE_visual-baseline-bumps)* — AI agents NEVER auto-`--update-snapshots`; baseline regen requires explicit human invocation. **Loaded by:** `skills/django-frontend` (Playwright work), `skills/sprint-auto` (Direction-1 IDEAs).
-- **[WATCHER_HYGIENE](skills/work/references/WATCHER_HYGIENE.md)** *(was RULE_orchestrator-trash-collection)* — Explicit-stop discipline for `run_in_background` watchers (test runs, log tails, polling loops); no wall-clock timeouts; `pgrep -f` self-match avoidance. **Loaded by:** `/work`, `/sprint-auto`, `/bugbot-loop`.
+- **[WATCHER_HYGIENE](skills/work/references/WATCHER_HYGIENE.md)** *(was RULE_orchestrator-trash-collection)* — Explicit-stop discipline for `run_in_background` watchers (test runs, log tails, polling loops); no wall-clock timeouts; `pgrep -f` self-match avoidance. **Loaded by:** `/work`, `/sprint-auto`, `/bugbot-loop`, `/copilot-loop`.
 
 ## Setup
 

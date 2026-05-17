@@ -3,15 +3,19 @@
 # comments, and reviews.
 # Used by the /copilot-loop skill (mind-vault) as well as human inspection.
 #
-# Bot user.login constant — confirmed empirically on mind-vault PR #118
-# (2026-05-17): GitHub Copilot's PR-review bot exposes user.login as
-# `Copilot` (capital C, no `[bot]` suffix), despite the GitHub app slug
-# being `copilot-pull-request-reviewer`. The /requested_reviewers endpoint
-# returns the same `Copilot` login. The check-run app-slug filter
-# ('copilot' substring match) is still best-guess — calibrate when the
-# first check-run-bearing PR runs through. If a future repo or Copilot
-# product change shifts the bot login, update the filter below +
-# AGENT_copilot.md + the commands/copilot-loop.md banner.
+# Bot user.login dual identity — confirmed empirically on mind-vault PR
+# #118 (2026-05-17 cycle 2): GitHub Copilot's PR-review bot exposes
+# DIFFERENT user.login values across endpoints:
+#   - /pulls/<N>/reviews          → 'copilot-pull-request-reviewer[bot]'
+#   - /pulls/<N>/comments         → 'Copilot'
+#   - /pulls/<N>/requested_reviewers → 'Copilot'
+# This is GitHub-side, not a script bug — the bracket-bot form on /reviews
+# and the bare 'Copilot' on /comments are the actual API responses. The
+# filter below matches both spellings to catch every endpoint's authored
+# entries. The check-run app-slug filter ('copilot' substring match) is
+# still best-guess — calibrate when the first check-run-bearing PR runs
+# through. If a future Copilot product change adds a third spelling,
+# extend the tuple below + AGENT_copilot.md + commands/copilot-loop.md.
 #
 # Output contract:
 #   - Prints a single `COPILOT_CLEAN_SIGNAL=<id> COMMIT=<sha> AT=<iso-timestamp>` line
@@ -140,7 +144,7 @@ try:
     reviews = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-copilot = [r for r in reviews if (r.get('user') or {}).get('login') == 'Copilot']
+copilot = [r for r in reviews if (r.get('user') or {}).get('login') in ('Copilot', 'copilot-pull-request-reviewer[bot]')]
 # Newest first
 copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
 # The output contract (file header, lines 5-8) says the marker fires iff copilot's
@@ -254,7 +258,7 @@ try:
     reviews = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-copilot = [r for r in reviews if (r.get('user') or {}).get('login') == 'Copilot']
+copilot = [r for r in reviews if (r.get('user') or {}).get('login') in ('Copilot', 'copilot-pull-request-reviewer[bot]')]
 if not copilot:
     sys.exit(0)
 copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
@@ -282,7 +286,7 @@ try:
     reviews = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-copilot = [r for r in reviews if (r.get('user') or {}).get('login') == 'Copilot']
+copilot = [r for r in reviews if (r.get('user') or {}).get('login') in ('Copilot', 'copilot-pull-request-reviewer[bot]')]
 copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
 shown = 0
 for r in copilot:
@@ -318,7 +322,7 @@ try:
     comments = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-copilot = [c for c in comments if (c.get('user') or {}).get('login') == 'Copilot']
+copilot = [c for c in comments if (c.get('user') or {}).get('login') in ('Copilot', 'copilot-pull-request-reviewer[bot]')]
 if copilot:
     print(json.dumps(copilot))
 " 2>/dev/null || true)
@@ -421,7 +425,7 @@ try:
     comments = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-copilot = [c for c in comments if (c.get('user') or {}).get('login') == 'Copilot']
+copilot = [c for c in comments if (c.get('user') or {}).get('login') in ('Copilot', 'copilot-pull-request-reviewer[bot]')]
 if copilot:
     print(json.dumps(copilot))
 " 2>/dev/null || true)

@@ -65,14 +65,14 @@ docker_teardown: skipped_v3_no_per_idea_stack  # v3.1 always | v1 also: stopped 
 - 22:21:10Z — /work invoked
 - 22:48:33Z — Verification passed
 - 22:51:40Z — PR opened at <pr_url>
-- 22:51:45Z — /review-loop invoked (deliverables pass, state S3)
+- 22:51:45Z — /<engine>-loop invoked (deliverables pass, state S3)
 - 22:58:12Z — review posted review, 1 T2 finding
 - 22:58:45Z — Deliverables escalation attempt 1 (sha jkl0123) — added null-check
-- 23:02:00Z — review re-triggered; BUGBOT_CLEAN_SIGNAL on deliverables pass
+- 23:02:00Z — review re-triggered; ${ENGINE}_CLEAN_SIGNAL on deliverables pass
 - 23:02:10Z — /wrap-docs started (state S5) — devlog entry + downstream docs scan
 - 23:04:30Z — docs commit pushed (sha mno4567)
-- 23:04:35Z — /review-loop invoked (docs pass, state S6)
-- 23:11:20Z — BUGBOT_CLEAN_SIGNAL on docs pass
+- 23:04:35Z — /<engine>-loop invoked (docs pass, state S6)
+- 23:11:20Z — ${ENGINE}_CLEAN_SIGNAL on docs pass
 - 23:11:30Z — S8 N/A in v3.1 (no per-IDEA stack); integration stack stays up for next IDEA
 - 23:11:45Z — compound candidates harvested (1 recurrence; state S9)
 # v3.1 only — re-review pass timeline events appear after the integration phase (state S11.12)

@@ -2,7 +2,7 @@
 
 The batch-level integration phase (states **S(-1)** + **S11.5–S11.13**) introduced in v3.1 of `IDEA_integration_branch.md` and redesigned in v3.2 to make the integration branch the **merge gate** rather than a validation harness. This doc is the normative reference for: the integration worktree's lifecycle, the env-var-driven verification routing, the `[INTEGRATION]` PR (non-draft, the merge gate, in v3.2), the sequential-merge protocol, and the teardown contract.
 
-**v3.2 vs v3.1**: in v3.1 the integration branch was a disposable validation harness — `[INTEGRATION]` PR was draft + auto-closed; per-IDEA PRs targeted parent (main / sprint-*); after S11.10 cleared, S11.11 forward-synced the integrated state into every per-IDEA PR; S11.12 re-reviewted each per-IDEA PR. In v3.2 the integration branch IS the merge gate — `[INTEGRATION]` PR is non-draft + the human merges it; per-IDEA PRs target the integration branch (kept IDEA-isolated for review); S11.11 + S11.12 deleted (no propagation needed; the integrated state lives only on integration). v3.2 was compounded after a sprint/ux-overhaul cohort surfaced "now we have 3 identical PRs" UX confusion from v3.1's forward-sync mechanism.
+**v3.2 vs v3.1**: in v3.1 the integration branch was a disposable validation harness — `[INTEGRATION]` PR was draft + auto-closed; per-IDEA PRs targeted parent (main / sprint-*); after S11.10 cleared, S11.11 forward-synced the integrated state into every per-IDEA PR; S11.12 re-reviewed each per-IDEA PR. In v3.2 the integration branch IS the merge gate — `[INTEGRATION]` PR is non-draft + the human merges it; per-IDEA PRs target the integration branch (kept IDEA-isolated for review); S11.11 + S11.12 deleted (no propagation needed; the integrated state lives only on integration). v3.2 was compounded after a sprint/ux-overhaul cohort surfaced "now we have 3 identical PRs" UX confusion from v3.1's forward-sync mechanism.
 
 If this doc disagrees with `SKILL.md`, treat the discrepancy as a defect in this doc — `SKILL.md` is the source of behaviour.
 
@@ -58,7 +58,7 @@ The `--force-recreate web celery` refreshes the Python services with the per-IDE
 
 ### `/<engine>-loop` (S3, S6)
 
-Default behaviour: Phase 0 brings up the current worktree's stack (`.env` template-rewrite + `docker compose up`). Sprint-auto override: **skip Phase 0 entirely**. Per-IDEA worktrees are code-surface-only and have no `.env`. Review-loop's review is remote (Cursor Review-loop reads the PR diff over the GitHub API); review-loop's local role is reading findings + committing fixes — neither needs a runtime in the per-IDEA worktree.
+Default behaviour: Phase 0 brings up the current worktree's stack (`.env` template-rewrite + `docker compose up`). Sprint-auto override: **skip Phase 0 entirely**. Per-IDEA worktrees are code-surface-only and have no `.env`. The review is performed remotely by the configured bot (Cursor Bugbot or GitHub Copilot reading the PR diff over the GitHub API); the local review-loop's role is reading findings + committing fixes — neither needs a runtime in the per-IDEA worktree.
 
 When a fix's verification needs a runtime (e.g. running a targeted test to confirm the fix works): review-loop's Phase 2 routes the test command to `$SPRINT_AUTO_INTEGRATION_WORKTREE` (same routing as `/work`).
 
@@ -226,7 +226,7 @@ Two cases — both fix directly on the integration branch:
 
 2. **Finding is per-PR-specific that review missed during the deliverables/docs passes**: also fix on the integration branch. Don't back-port to the per-IDEA branch — the per-IDEA PR's review surface is "what the IDEA introduced *before* integration", and re-opening it after S6 would require another review pass on a SHA that's no longer the per-IDEA boundary. The fix on integration is the right surface; the morning reviewer sees it on the [INTEGRATION] PR's combined diff alongside the IDEA's content.
 
-(v3.1 had this same fix-on-integration discipline but the fix then forward-synced into per-IDEA PRs at S11.11 + re-reviewted at S11.12. v3.2 deletes both — the fix lives only on integration, and the morning reviewer reads it there as part of the merge-gate diff.)
+(v3.1 had this same fix-on-integration discipline but the fix then forward-synced into per-IDEA PRs at S11.11 + re-reviewed at S11.12. v3.2 deletes both — the fix lives only on integration, and the morning reviewer reads it there as part of the merge-gate diff.)
 
 ## Integration teardown (S11.13) — v3.2
 
