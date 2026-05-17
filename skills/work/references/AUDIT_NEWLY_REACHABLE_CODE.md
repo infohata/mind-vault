@@ -37,7 +37,7 @@ At the moment of writing the fix, **before pushing the commit**:
    - **Fix as a follow-on commit on the same branch** when the latent issue needs server-side template changes or cross-app coordination that would balloon the primary fix's diff. Still ship in the same PR, but as a discrete commit so the trail is clear.
    - **File a follow-up IDEA / issue** only when the latent issue requires substantially more work than the primary fix and shipping the primary alone is genuinely better than holding both. Document the trade-off explicitly in the PR body so the reviewer sees the scope decision.
 
-The **most common wrong response** to finding a latent issue during the audit: shipping the primary fix alone and "leaving the latent for later". This is the path the cycle math punishes — the latent surfaces in user smoke or in a review follow-up review, costing the second-fix cycle the audit was meant to prevent.
+The **most common wrong response** to finding a latent issue during the audit: shipping the primary fix alone and "leaving the latent for later". This is the path the cycle math punishes — the latent surfaces in user smoke or in a follow-up review, costing the second-fix cycle the audit was meant to prevent.
 
 ## Anti-patterns
 

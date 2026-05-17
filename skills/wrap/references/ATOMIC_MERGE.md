@@ -46,9 +46,12 @@ The wrap skill's default is **wait for re-clean**, because (a) it's the conserva
 
 ```bash
 # 1. Confirm review clean signal at current HEAD (skip if WRAP_SKIP_REVIEW_RECLEAR).
-#    Use the project's find-review-comments tool; abort if not clean.
-clean_sha=$(./tools/find_review_comments.sh "$PR_NUMBER" 2>/dev/null \
+#    Use the engine-specific find-comments tool (find_bugbot_comments.sh or
+#    find_copilot_comments.sh, per the project's configured review engine);
+#    abort if not clean. Example for the bugbot engine:
+clean_sha=$(./tools/find_bugbot_comments.sh "$PR_NUMBER" 2>/dev/null \
     | grep -oP 'BUGBOT_CLEAN_SIGNAL=\d+ COMMIT=\K[a-f0-9]+' | head -1)
+# For Copilot, swap to: ./tools/find_copilot_comments.sh + grep COPILOT_CLEAN_SIGNAL.
 head_sha=$(git rev-parse HEAD)
 if [[ "$clean_sha" != "$head_sha" && -z "${WRAP_SKIP_REVIEW_RECLEAR:-}" ]]; then
     echo "Review-loop clean signal is at $clean_sha but HEAD is $head_sha — re-trigger + wait + merge in another wrap pass."

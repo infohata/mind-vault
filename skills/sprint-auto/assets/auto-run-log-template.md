@@ -249,7 +249,7 @@ Cosmetic UI quirk you'll see before the first merge: every PR in the batch shows
 2. Review + merge (or close) mind-vault PRs #78, #79. PR #79 has an unresolved review finding (cap hit at 5); decide merge-anyway / fix-forward / close.
 3. Read the per-IDEA log for IDEA-052 — architect's rejection is usually a plan-revision signal.
 4. Read the per-IDEA log for IDEA-053 — check which test failed; decide fix-forward / plan revision.
-5. **v3.1**: Read the [INTEGRATION] PR's review review (auto-closed; URL above) for any integration-state-only findings the morning reviewer should weigh.
+5. **v3.1**: Read the [INTEGRATION] PR's review (auto-closed; URL above) for any integration-state-only findings the morning reviewer should weigh.
 6. For each PR merged: run `/wrap NNN` to finalise. v3.1's `/wrap NNN` post-merge:
    - Per-IDEA worktree teardown: just `git worktree remove` + `git branch -d` (no docker — there's no per-IDEA stack)
    - **Last-of-batch IDEA additionally**: `cd $integration_worktree && docker compose down -v && cd - && git worktree remove $integration_worktree && git branch -d integration/sprint-auto-<batch-iso>`
