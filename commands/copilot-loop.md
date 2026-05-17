@@ -128,7 +128,14 @@ if [[ -n "${SPRINT_AUTO_INTEGRATION_WORKTREE:-}" ]]; then
     #   (a) WIP commit on the per-IDEA branch + push, integration worktree
     #       fetches and `git checkout --detach` to the WIP SHA. Phase 3 later
     #       squashes / rewrites the WIP into the proper batch commit.
-    #       Costs: branch tip churns; force-with-lease push needed at Phase 3.
+    #       NOT ALLOWED under the default bounded-autonomy policy: the
+    #       squash-on-Phase-3 step requires `--force-with-lease`, and
+    #       force-pushing to a branch with an open PR invalidates earlier
+    #       review-anchor comments (which the loop's escalation discipline
+    #       depends on). Use only if the human explicitly authorizes a
+    #       history rewrite for this PR (e.g. `--allow-force-rewrite` arg
+    #       to sprint-auto, not yet implemented). The repo's review-loop
+    #       discipline is "fresh commits + git revert; avoid force-push."
     #
     #   (b) `rsync --exclude='.git' <per-idea-worktree>/ <integration-worktree>/`
     #       or a project-local bind-mount in docker-compose so the integration
@@ -140,8 +147,9 @@ if [[ -n "${SPRINT_AUTO_INTEGRATION_WORKTREE:-}" ]]; then
     #       post-commit Copilot retrigger to surface failures via the next
     #       review cycle. Costs: a regression slips one cycle later.
     #
-    # The v1 of v3.1 ships (c) as the safe default. (a) and (b) are project
-    # opt-ins via `tools/sprint-auto-hooks.sh:sync_per_idea_to_integration`.
+    # The v1 of v3.1 ships (c) as the safe default. (b) is the project opt-in
+    # via `tools/sprint-auto-hooks.sh:sync_per_idea_to_integration`. (a) is
+    # disallowed by default per the force-push prohibition above.
     # After Phase 3 commits + pushes, the integration worktree can always
     # `cd $integration_wt && git fetch origin <branch> &&
     #   git checkout --detach origin/<branch>` (NOT plain `git checkout

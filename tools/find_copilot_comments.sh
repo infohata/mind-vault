@@ -54,7 +54,11 @@ if [ -z "$1" ]; then
 
     PR_NUMBER=$(gh pr list --head "$BRANCH" --json number -q '.[0].number' 2>/dev/null)
 
-    if [ -z "$PR_NUMBER" ]; then
+    # `gh pr list -q .[0].number` returns the literal string "null" when no
+    # PR exists (not empty), so the bare -z guard misses that case and later
+    # `gh api .../pulls/null/...` calls fail mysteriously. Reject both empty
+    # and "null" + require a numeric PR id.
+    if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ] || ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
         echo "❌ No PR found for branch: $BRANCH"
         echo "   Create a PR first or specify PR number: $0 <PR_NUMBER>"
         exit 1

@@ -22,7 +22,10 @@ if [ -z "$1" ]; then
         exit 1
     fi
     PR_NUMBER=$(gh pr list --head "$BRANCH" --json number -q '.[0].number' 2>/dev/null)
-    if [ -z "$PR_NUMBER" ]; then
+    # `gh pr list -q .[0].number` returns the literal string "null" (not empty)
+    # when no PR exists, which would bypass the -z guard and call
+    # `gh pr edit "null" ...` later. Reject "null" + require numeric.
+    if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ] || ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
         echo "❌ No PR found for branch: $BRANCH" >&2
         exit 1
     fi
