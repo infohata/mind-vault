@@ -259,7 +259,7 @@ titleEl.textContent = opts.title || 'Confirm';
 // `Bekreft` (Norwegian), etc. The user sees English.
 ```
 
-Bugbot will catch this as an "i18n regression — non-English users see English text". Bugbot's stated diagnosis ("missing translation map entry") is often **wrong** — the map entry is present, the .po catalog has the translation, the cotton template renders it correctly at request time. The bug is the JS overwrite that happens *after* render.
+PR review bots will catch this as an "i18n regression — non-English users see English text". The bot's stated diagnosis ("missing translation map entry") is often **wrong** — the map entry is present, the .po catalog has the translation, the cotton template renders it correctly at request time. The bug is the JS overwrite that happens *after* render.
 
 **Three fix patterns** (use whichever fits the JS surface):
 
@@ -371,7 +371,7 @@ window.confirmDelete = function (url, itemName) {
 
 - ❌ **Hardcoded English literal in `||` fallback chain**: `opts.title || 'Confirm'`, `messageEl.textContent = 'Are you sure?'`, `bodyEl.innerHTML = '<div>Loading…</div>'`. Every one of these clobbers the template's translated value when opts is partial.
 - ❌ **"It's just a defensive fallback, the caller always passes opts.title"**: that's a runtime assertion that decays as the codebase grows. Two months later, a new caller forgets opts.title, the fallback fires, and non-English users see English. The defensive fallback is exactly the bug.
-- ❌ **Adding the missing string to the translation map** when the bug is JS clobber. The map IS already populated. The fix is JS-side, not catalog-side. Bugbot's surface diagnosis frequently misdirects here — verify the catalog state before "filling the gap".
+- ❌ **Adding the missing string to the translation map** when the bug is JS clobber. The map IS already populated. The fix is JS-side, not catalog-side. PR review bots' surface diagnosis frequently misdirects here — verify the catalog state before "filling the gap".
 
 ## 7. Event listeners installed before a refusable gate leak on refusal
 

@@ -330,7 +330,7 @@ def tenant_aware_serializer_context(tenant=None, user=None) -> dict:
 
 ### Four attributes, not two
 
-A naive stub with only `.scheme` and `.get_host()` will crash on `request.build_absolute_uri(file.url)` — DRF's `FileField.to_representation` calls it on the bare `file` field, separately from any custom `SerializerMethodField`. Likewise `.user` is read by `EventSerializer.to_representation` for permission probes (e.g. notes-stripping) and `ArticleSerializer.create` for `validated_data['author']`. Build the stub with all four upfront — discovering each gap mid-bugbot-loop adds cycles.
+A naive stub with only `.scheme` and `.get_host()` will crash on `request.build_absolute_uri(file.url)` — DRF's `FileField.to_representation` calls it on the bare `file` field, separately from any custom `SerializerMethodField`. Likewise `.user` is read by `EventSerializer.to_representation` for permission probes (e.g. notes-stripping) and `ArticleSerializer.create` for `validated_data['author']`. Build the stub with all four upfront — discovering each gap mid-PR-review adds cycles.
 
 ### Don't try to "fix it in env"
 

@@ -37,7 +37,7 @@ At the moment of writing the fix, **before pushing the commit**:
    - **Fix as a follow-on commit on the same branch** when the latent issue needs server-side template changes or cross-app coordination that would balloon the primary fix's diff. Still ship in the same PR, but as a discrete commit so the trail is clear.
    - **File a follow-up IDEA / issue** only when the latent issue requires substantially more work than the primary fix and shipping the primary alone is genuinely better than holding both. Document the trade-off explicitly in the PR body so the reviewer sees the scope decision.
 
-The **most common wrong response** to finding a latent issue during the audit: shipping the primary fix alone and "leaving the latent for later". This is the path the cycle math punishes — the latent surfaces in user smoke or in a bugbot follow-up review, costing the second-fix cycle the audit was meant to prevent.
+The **most common wrong response** to finding a latent issue during the audit: shipping the primary fix alone and "leaving the latent for later". This is the path the cycle math punishes — the latent surfaces in user smoke or in a review follow-up review, costing the second-fix cycle the audit was meant to prevent.
 
 ## Anti-patterns
 
@@ -58,7 +58,7 @@ The same pattern recurs across stacks: a guard added to a primitive unmasks a co
 - [`rules/RULE_rename-before-drop`](../../../rules/RULE_rename-before-drop.md) — the "post-drop re-test" guidance there is the same shape as this reference's audit pass: a fix changes a code path's reach, and re-test catches the latent issues the prior code's behaviour was hiding. This reference generalises the discipline beyond rename-drop sequences.
 - [`agents/AGENT_curator`](../../../agents/AGENT_curator.md) — surfaces during PASS 3 (Architecture & DRY)'s asymmetric-fix sweep when reviewing a bug-fix PR that removed a short-circuit.
 - [`agents/AGENT_test-engineer`](../../../agents/AGENT_test-engineer.md) — surfaces during PASS 1 (Boundary Contradiction Sweep) when the fix newly exposes a code branch the boundary matrix didn't previously have to enumerate.
-- [`commands/bugbot-loop`](../../../commands/bugbot-loop.md) — fires Phase 2, right after applying a Tier 1 / Tier 2 finding's edit and before committing: audit what the fix newly reaches, fold the latent fix into the same Phase 3 commit if scope allows.
+- the review loop ([`commands/bugbot-loop.md`](../../../commands/bugbot-loop.md) / [`commands/copilot-loop.md`](../../../commands/copilot-loop.md)) — fires Phase 2, right after applying a Tier 1 / Tier 2 finding's edit and before committing: audit what the fix newly reaches, fold the latent fix into the same Phase 3 commit if scope allows.
 
 ---
 

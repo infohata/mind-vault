@@ -35,7 +35,7 @@
 
 ## Provenance
 
-- Source: {{bugbot-loop run / PR comment thread / direct user report}}
+- Source: {{PR-review run (bugbot / copilot) / PR comment thread / direct user report}}
 - Routed via: `/compound` ({{date}})
 - Cross-project candidate: {{yes — see mind-vault/<path> | no — project-specific}}
 

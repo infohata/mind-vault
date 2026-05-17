@@ -1,8 +1,12 @@
 # mind-vault
 
+**v4 — Multi-engine code review · Open-source release candidate.**
+
 Cross-host configuration library for AI coding agents — skills, commands, subagent personas, and shared rules, authored once and symlinked into every agent-aware tool.
 
 > **Single source of truth.** You edit in `mind-vault/`; one setup script per host drops symlinks into each tool's native config directory. No copy-paste drift between Cursor, Claude Code, OpenCode, VS Code Copilot, or Antigravity.
+>
+> **v4 highlights.** The Stage 4 review surface is now engine-agnostic — opt into Cursor Bugbot (`/bugbot-loop`), GitHub Copilot (`/copilot-loop`), both concurrently, or neither (curator-only fallback). See [`docs/ONBOARDING.md`](docs/ONBOARDING.md) for the 30-minute tour, project-level config, and the engine-selector contract.
 
 ## Sprint workflow — the compound loop
 
@@ -33,7 +37,7 @@ mind-vault/
 ├── rules/         Always-on behavioural rules (RULE_*.md — auto-loaded every session)
 ├── docs/          Specs, plans, solutions, artefacts
 ├── scripts/       Per-host symlink setup + shared helpers
-└── tools/         Utilities (bugbot helpers, emoji support, etc.)
+└── tools/         Utilities (review-loop helpers, emoji support, etc.)
 ```
 
 ## Skills (15)
@@ -79,17 +83,17 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **architect** | Structural + abstraction + coupling review; author mode for cross-cutting refactors | Stage 2 reviewer (plan), Stage 3 author (cross-cutting) |
 | **backend / frontend / devops / test-engineer** | Implementation personas by domain | Stage 3 dispatch targets from `/work` |
 | **bugbot** | Pre-commit rigorous code review (6-pass workflow) | Stage 4 reviewer (invoked via `/bugbot-loop`) |
-| **curator** | Pre-commit sister to bugbot + **sprint-end promotion sweep** mode | Stage 4 reviewer + cross-sprint retrospective |
+| **curator** | Pre-commit sister to the review bots + **sprint-end promotion sweep** mode | Stage 4 reviewer + cross-sprint retrospective |
 | **documentation** | Docs-only authorship and review | Standalone |
 | **researcher** | Ad-hoc investigation / literature review | Standalone |
 
-## Commands (16 slash commands)
+## Commands (15 slash commands)
 
 **Sprint workflow:** `/ideate`, `/idea`, `/plan` (alias `/brainstorm`), `/work`, `/wrap`, `/compound`, `/ingest-backlog`.
 
 **Automation:** `/sprint-auto` — overnight unattended orchestrator that chains the full sprint workflow (stages 2–5: `/plan → /work → /bugbot-loop → /wrap (pre-merge) → /bugbot-loop → teardown → /compound → /bugbot-loop`) for curated IDEAs; see [`skills/sprint-auto/SKILL.md`](skills/sprint-auto/SKILL.md).
 
-**Review + PR flow:** `/bugbot`, `/bugbot_comments`, `/bugbot-loop`, `/create-pr`, `/test`.
+**Review + PR flow:** `/bugbot-loop` (Cursor Bugbot), `/copilot-loop` (GitHub Copilot), `/create-pr`, `/test`. See `docs/ONBOARDING.md` § "Pick a code-review engine" for the three-way choice (bugbot / copilot / curator-only).
 
 **Utility:** `/git-status`, `/load-rules`.
 
@@ -99,8 +103,8 @@ Invoke as `/<command-name>` in any host that supports slash commands. See [docs/
 
 The four rules under `rules/` are auto-loaded into every session via `~/.claude/rules` symlink. They cover guardrails that apply broadly across stages — not domain-specific patterns. Domain-specific patterns that used to be rules now live as **skill references** that load on-demand when the relevant skill activates (see § Skill references below).
 
-- **[RULE_git-safety](rules/RULE_git-safety.md)** — HITL gate on `main` and the release branch; feature branches are the agent's sandbox. Governs `/compound`'s branch policy and the bugbot-loop's autonomous-commit permissions.
-- **[RULE_self-sweep-before-push](rules/RULE_self-sweep-before-push.md)** — Pyflakes touched-files sweep + Contract-Change Sweep (grep ALL callers when a shared helper's signature/return type changes) between bugbot-loop's Phase 2 and Phase 3. Saves 5-10 min of bugbot-cycle wall-time per trivial dead-import / unused-local / missed-caller finding.
+- **[RULE_git-safety](rules/RULE_git-safety.md)** — HITL gate on `main` and the release branch; feature branches are the agent's sandbox. Governs `/compound`'s branch policy and the review-loop's autonomous-commit permissions.
+- **[RULE_self-sweep-before-push](rules/RULE_self-sweep-before-push.md)** — Pyflakes touched-files sweep + Contract-Change Sweep (grep ALL callers when a shared helper's signature/return type changes) between the review-loop's Phase 2 and Phase 3. Saves 5-10 min of review-cycle wall-time per trivial dead-import / unused-local / missed-caller finding.
 - **[RULE_rename-before-drop](rules/RULE_rename-before-drop.md)** — Refactor commit-sequence discipline: rename references first, full test pass, then drop the legacy symbol, re-test for regressions. Per-commit compilability + bisectability; missed references surface during the rename-only test pass instead of hiding inside post-drop noise.
 - **[RULE_cross-idea-amendments](rules/RULE_cross-idea-amendments.md)** — Shipped IDEAs are not stones — amend freely as conditions change, with bidirectional documentation between the amending and amended IDEAs. Fires at any workflow stage when downstream work needs to modify an upstream IDEA's files.
 

@@ -126,7 +126,7 @@ After merge:
 1. `/sprint-auto` (in a fresh session — sprint-auto reads from disk, doesn't need the planning context).
 2. It discovers all `auto_safe: true` + `sensitive_paths_cleared: true` IDEAs from `docs/archive/*/IDEA-*.md` with plan files present.
 3. Dependencies in `depends_on:` arrays are honoured: dependents wait until their dependencies merge.
-4. Per-IDEA worktree spin-up runs through `/work → /bugbot-loop → /wrap → /compound`.
+4. Per-IDEA worktree spin-up runs through `/work → /<engine>-loop → /wrap → /compound`.
 
 Mixed-eligibility batches are fine — IDEAs in the same PR can be flagged sprint-auto-eligible OR human-driven (`auto_safe: false`). Sprint-auto skips the human-driven ones; you `/work` those manually.
 

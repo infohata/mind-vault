@@ -49,12 +49,12 @@ Full state machine for the sprint-auto loop: pre-batch (S(-1)), per-IDEA (S0–S
 │      ├── verification failed, no PR ────────────────────────────→ S9        │
 │      ├── /work crashed (rare in v3.1: stack lives elsewhere) ───→ S9*       │
 │      ↓ PR opened                                                             │
-│ S3  /bugbot-loop — deliverables pass                                         │
+│ S3  /<engine>-loop — deliverables pass                                         │
 │      Phase 0 SKIPS (env var detected); fix-verification routes to           │
-│      integration worktree (no DB reset within bugbot session)                │
+│      integration worktree (no DB reset within review session)                │
 │      │                                                                       │
 │      ├── BUGBOT_CLEAN_SIGNAL ───────────────────────────────────→ S5        │
-│      ├── bugbot budget exhausted ───────────────────────────────→ S5        │
+│      ├── review budget exhausted ───────────────────────────────→ S5        │
 │      ↓ handback with T2/T3 findings                                          │
 │ S4  escalation — deliverables pass (≤20 attempts, own budget)                │
 │      │                                                                       │
@@ -64,10 +64,10 @@ Full state machine for the sprint-auto loop: pre-batch (S(-1)), per-IDEA (S0–S
 │      KEEP: frontmatter flip + downstream-docs scan                           │
 │      DEFER: devlog + ideas-index → S11.7 batch wrap                          │
 │      ↓                                                                       │
-│ S6  /bugbot-loop — docs pass (Phase 0 SKIPS)                                 │
+│ S6  /<engine>-loop — docs pass (Phase 0 SKIPS)                                 │
 │      │                                                                       │
 │      ├── BUGBOT_CLEAN_SIGNAL ───────────────────────────────────→ S9        │
-│      ├── bugbot budget exhausted ───────────────────────────────→ S9        │
+│      ├── review budget exhausted ───────────────────────────────→ S9        │
 │      ↓ handback with T2/T3 findings                                          │
 │ S7  escalation — docs pass (≤5 attempts, own budget, independent of S4)      │
 │      │                                                                       │
@@ -112,10 +112,10 @@ After all per-IDEA loops complete:
 │      ↓                                                                       │
 │ S11.9 Full test suite (sprint-end gate, cap 10 attempts on failure)          │
 │      ↓                                                                       │
-│ S11.10 Bugbot-loop on integration branch via [INTEGRATION] draft PR          │
+│ S11.10 Review-loop on integration branch via [INTEGRATION] draft PR          │
 │        (cap 20 — elephants; deliverables-class review of integrated state)   │
 │        - gh pr create --draft --title "[INTEGRATION] sprint-auto-<iso>"     │
-│        - /bugbot-loop <draft-pr-number>                                      │
+│        - /<engine>-loop <draft-pr-number>                                      │
 │      ↓                                                                       │
 │ S11.11 Forward-sync integration into each auto/<slug>                        │
 │        - integration worktree pushes integration/sprint-auto-<batch-iso>    │
@@ -128,9 +128,9 @@ After all per-IDEA loops complete:
 │        - feature-branch tip moves; integration branch stays put             │
 │        - NO force-push; RULE_git-safety compliant                           │
 │      ↓                                                                       │
-│ S11.12 Per-PR PR re-bugbot + verification (cap 5 each)                       │
+│ S11.12 Per-PR PR re-review + verification (cap 5 each)                       │
 │        - foreach slug: route to integration worktree, checkout auto/<slug>, │
-│          reset DB, run targeted tests, /bugbot-loop                          │
+│          reset DB, run targeted tests, /<engine>-loop                          │
 │      ↓                                                                       │
 │ S11.13 Integration teardown                                                   │
 │        - docker compose down (NOT -v; volumes preserved for inspection)      │
@@ -147,7 +147,7 @@ After all per-IDEA loops complete:
 │ S12 foreach consolidated compound candidate: /compound (autonomous mode)     │
 │      → opens mind-vault PR on compound/YYYY-MM-DD-<slug>                     │
 │      ↓                                                                       │
-│ S13 /bugbot-loop on each mind-vault PR                                       │
+│ S13 /<engine>-loop on each mind-vault PR                                       │
 │      │                                                                       │
 │      ├── clean OR budget exhausted ─────────────────────────────→ next S12  │
 │      ↓ handback                                                              │
@@ -155,12 +155,12 @@ After all per-IDEA loops complete:
 │      │                                                                       │
 │      ├── attempt < 5 ───────────────────────────── retry S13                 │
 │      ↓ clean OR cap hit                                                      │
-│     (update compound PR body with bugbot summary; proceed to next candidate) │
+│     (update compound PR body with review summary; proceed to next candidate) │
 │      ↓                                                                       │
 │ S15 batch summary + HITL handoff                                             │
 │      → docs/archive/auto-run-<ISO-timestamp>-summary.md (primary tree)       │
 │        includes Integration check section (merge results, test results,      │
-│        bugbot results, forward-sync results, re-bugbot results)              │
+│        review results, forward-sync results, re-review results)              │
 │      → stdout summary block                                                  │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -173,11 +173,11 @@ After all per-IDEA loops complete:
 | S7 | docs (project PR) | **5** attempts | Stylistic/reference-drift; converges fast or not at all |
 | S11.8 | union tests (integration) | **10** attempts | Cross-cutting failures have shorter tails than per-IDEA |
 | S11.9 | full suite (integration) | **10** attempts | Same |
-| S11.10 | bugbot (integration via [INTEGRATION] draft PR) | **20** attempts | Elephants — N-times-larger review surface; deliverables-class |
-| S11.12 | re-bugbot per-PR PR after forward-sync | **5** attempts | Small surface — wrap + resolutions only on already-clean PR |
+| S11.10 | review (integration via [INTEGRATION] draft PR) | **20** attempts | Elephants — N-times-larger review surface; deliverables-class |
+| S11.12 | re-review per-PR PR after forward-sync | **5** attempts | Small surface — wrap + resolutions only on already-clean PR |
 | S14 | mind-vault compound PR | **5** attempts | Documentation by nature; same logic as docs pass |
 
-Each cap is **independent**. A single IDEA may use up to **30 attempts** (20 deliverables + 5 docs + 5 re-bugbot). The integration phase adds **40 fixed** attempts (10 union + 10 full + 20 bugbot) — the re-bugbot 5 attempts are per-IDEA (S11.12) and already counted in the per-IDEA 30. So a batch of N IDEAs plus M compound PRs has theoretical maximum `N × 30 + 40 + M × 5` attempts; real runs consume a small fraction.
+Each cap is **independent**. A single IDEA may use up to **30 attempts** (20 deliverables + 5 docs + 5 re-review). The integration phase adds **40 fixed** attempts (10 union + 10 full + 20 review) — the re-review 5 attempts are per-IDEA (S11.12) and already counted in the per-IDEA 30. So a batch of N IDEAs plus M compound PRs has theoretical maximum `N × 30 + 40 + M × 5` attempts; real runs consume a small fraction.
 
 See [`escalation-policy.md`](escalation-policy.md) for the rollback discipline and ship-non-clean contract that surrounds these caps.
 
@@ -194,9 +194,9 @@ Concretely:
 | S1.5 DB reset failed | S9 → S10 → S11 (skip rest of IDEA) | S10 outcome: `db_reset_failed`; the integration worktree's stack may need manual recovery before next IDEA — surface as abort-the-batch trigger candidate |
 | S2 /work failed, no PR | S9 → S10 → S11 | S9 may queue test-env fragility candidates; S10 outcome: `verification_failed` |
 | S2 /work crashed (rare in v3.1) | S9 → S10 → S11 | The integration stack is shared; preserving it would taint the next IDEA. Force-recreate the integration stack (`docker compose down -v && up -d`) before next IDEA. S10 outcome: `verification_failed`, note the recovery in the log. |
-| S3 bugbot budget exhausted | (not failure) → S5 | Deliverables pass ends with `deliverables_bugbot_outcome: budget_exceeded`; docs pass still runs |
+| S3 review budget exhausted | (not failure) → S5 | Deliverables pass ends with `deliverables_review_outcome: budget_exceeded`; docs pass still runs |
 | S4 cap hit on deliverables | (not failure) → S5 | Ship-non-clean for deliverables; docs pass still runs |
-| S6 bugbot budget exhausted | (not failure) → S9 | Docs pass ends with `docs_bugbot_outcome: budget_exceeded` |
+| S6 review budget exhausted | (not failure) → S9 | Docs pass ends with `docs_review_outcome: budget_exceeded` |
 | S7 cap hit on docs | (not failure) → S9 | Ship-non-clean for docs |
 
 **Why S10 (log finalization) always runs:** the log IS the diagnostic artefact. Skipping it would silently drop the failure from the paper trail.
@@ -210,12 +210,12 @@ Concretely:
 | Where | Re-entry / next | What changes |
 |---|---|---|
 | S(-1) bootstrap fails | ABORT BATCH | No per-IDEA work proceeds; record `integration_outcome: bootstrap_failed` in S15 summary |
-| S11.5 reset fails | jump to S15 | Skip integration phase entirely; per-PR PRs ship with their per-IDEA bugbot states intact (no integration validation) |
+| S11.5 reset fails | jump to S15 | Skip integration phase entirely; per-PR PRs ship with their per-IDEA review states intact (no integration validation) |
 | S11.6 per-merge resolution fails | continue with next branch | Failed branch's per-PR PR doesn't get S11.11 forward-sync; merges to main on its own merits with cosmetic conflicts intact. Log `merge_results: [{slug, outcome: failed, reason}]` |
 | S11.8/S11.9 cap exceeded | continue to next state | Ship integration-non-clean (flagged); reviewer decides at PR-merge time |
-| S11.10 bugbot cap exceeded | continue to S11.11 | Same — integration ships flagged |
+| S11.10 review cap exceeded | continue to S11.11 | Same — integration ships flagged |
 | S11.11 forward-sync per-branch fails | log, skip that branch's S11.12 | Per-PR PR doesn't get the integration's resolutions — same failure mode as S11.6 fail for that branch |
-| S11.12 cap exceeded per branch | log, continue (each PR independent) | Per-PR PR ships with re-bugbot-non-clean state |
+| S11.12 cap exceeded per branch | log, continue (each PR independent) | Per-PR PR ships with re-review-non-clean state |
 | S11.13 teardown fails | log; the human's /wrap catches leftover state | Worktree state stays; branch stays; human cleans up |
 
 ## Per-state contract
@@ -282,11 +282,11 @@ docker compose exec -T web pytest <targeted paths>
 
 If verification passes, /work opens a PR. If it fails, re-enter at S9.
 
-### S3 — /bugbot-loop (deliverables pass, Phase 0 SKIPS)
+### S3 — /<engine>-loop (deliverables pass, Phase 0 SKIPS)
 
 Inputs: PR number. Outputs: one of `{clean, handback-with-findings, budget-exceeded}`.
 
-`/bugbot-loop`'s Phase 0 detects `SPRINT_AUTO_INTEGRATION_WORKTREE` and skips its own worktree-stack bootstrap entirely (no `.env`, no `docker compose up` in per-IDEA worktree). When fix-verification needs a runtime, Phase 2 routes test commands to `$SPRINT_AUTO_INTEGRATION_WORKTREE`. No DB reset within the bugbot session — fix commits don't typically migrate; reset cost would explode.
+`/<engine>-loop`'s Phase 0 detects `SPRINT_AUTO_INTEGRATION_WORKTREE` and skips its own worktree-stack bootstrap entirely (no `.env`, no `docker compose up` in per-IDEA worktree). When fix-verification needs a runtime, Phase 2 routes test commands to `$SPRINT_AUTO_INTEGRATION_WORKTREE`. No DB reset within the review session — fix commits don't typically migrate; reset cost would explode.
 
 ### S4 — escalation resolution (deliverables pass)
 
@@ -300,14 +300,14 @@ Work performed (narrowed from full /wrap):
 
 1. **IDEA frontmatter flip** — `status: in-progress` → `status: complete`, `completed: <today>` (per pre-merge convention; `/wrap` skill detects pre-merge mode automatically).
 2. **Downstream docs scan** — for each path the PR touched, grep for references in `README.md`, `docs/guides/`, `docs/reference/`, `CLAUDE.md`, `AGENTS.md`; update any that now point at renamed/removed/changed symbols. PER-IDEA ONLY — does not touch DEVELOPMENT_LOG or ideas-index.
-3. **Eval-gate checklist emission (conditional)** — fires when the IDEA's frontmatter has `auto_safe_with_eval_gate: true`. `/wrap` Step 7 copies the manual-evaluation template from `<mind-vault>/skills/wrap/assets/manual-evaluation-template.md` to `docs/archive/<YYYY-MM-idea-NNN-slug>/<today>-manual-evaluation.md`, fills mechanical placeholders (IDEA number, plan-doc filename, PR number, date), commits to `auto/<slug>`. The plan author's "Manual evaluation scenarios" section (if present) seeds the per-scenario blocks; otherwise the skeleton lands and the integration-PR reviewer fills scenarios from the per-IDEA diff. See [`../../wrap/SKILL.md`](../../wrap/SKILL.md) § Step 7 for emission mechanics. The S6 docs-pass bugbot reviews the checklist alongside the rest of the wrap commits.
+3. **Eval-gate checklist emission (conditional)** — fires when the IDEA's frontmatter has `auto_safe_with_eval_gate: true`. `/wrap` Step 7 copies the manual-evaluation template from `<mind-vault>/skills/wrap/assets/manual-evaluation-template.md` to `docs/archive/<YYYY-MM-idea-NNN-slug>/<today>-manual-evaluation.md`, fills mechanical placeholders (IDEA number, plan-doc filename, PR number, date), commits to `auto/<slug>`. The plan author's "Manual evaluation scenarios" section (if present) seeds the per-scenario blocks; otherwise the skeleton lands and the integration-PR reviewer fills scenarios from the per-IDEA diff. See [`../../wrap/SKILL.md`](../../wrap/SKILL.md) § Step 7 for emission mechanics. The S6 docs-pass review reviews the checklist alongside the rest of the wrap commits.
 
 **Skipped at this stage** (deferred to S11.7 batch wrap):
 
 - DEVELOPMENT_LOG entry append
 - ideas-index entry move
 
-### S6 — /bugbot-loop (docs pass, Phase 0 SKIPS)
+### S6 — /<engine>-loop (docs pass, Phase 0 SKIPS)
 
 Identical contract to S3, on the PR with S5's commit(s) on top. Same Phase 0 skip rule.
 
@@ -323,11 +323,11 @@ No per-IDEA stack to tear down. The auto-run log records `docker_teardown: skipp
 
 Same as v1 — queue only, actual `/compound` in S12. Categories:
 
-- **Recurrence**: same bugbot finding category appeared in ≥2 IDEAs this batch (on either pass, including S11.10 integration bugbot)
+- **Recurrence**: same review finding category appeared in ≥2 IDEAs this batch (on either pass, including S11.10 integration review)
 - **Novel escape**: T3 finding sprint-auto resolved for the first time
 - **Infrastructure gap**: bootstrap script gap discovered during S(-1) or per-IDEA verification
 - **Docs-drift pattern**: S5 downstream-docs scan finding repeated across IDEAs
-- **Integration-state pattern**: NEW v3.1 — patterns surfaced only by the integration phase (S11.6 conflict-resolution patterns, S11.8/S11.9 cross-IDEA test failures, S11.10 integrated-state bugbot findings)
+- **Integration-state pattern**: NEW v3.1 — patterns surfaced only by the integration phase (S11.6 conflict-resolution patterns, S11.8/S11.9 cross-IDEA test failures, S11.10 integrated-state review findings)
 - **Generic noise**: stays local
 
 ### S10 — finalise per-IDEA log
@@ -335,9 +335,9 @@ Same as v1 — queue only, actual `/compound` in S12. Categories:
 Fields written (see [`../assets/auto-run-log-template.md`](../assets/auto-run-log-template.md)):
 
 - `outcome`, `pr_url`
-- `deliverables_bugbot_outcome` ∈ `clean | unresolved | budget_exceeded | skipped_no_pr`
+- `deliverables_review_outcome` ∈ `clean | unresolved | budget_exceeded | skipped_no_pr`
 - `deliverables_escalation_attempts`: list (cap 20)
-- `docs_bugbot_outcome` ∈ `clean | unresolved | budget_exceeded | skipped_no_pr | skipped_failure_pre_pr`
+- `docs_review_outcome` ∈ `clean | unresolved | budget_exceeded | skipped_no_pr | skipped_failure_pre_pr`
 - `docs_escalation_attempts`: list (cap 5)
 - `db_reset_at_idea_entry` ∈ `ok | failed`
 - `verification_location` (must be the integration worktree path; flag if otherwise)
@@ -380,7 +380,7 @@ Cap **10** attempts on failure. Reads each IDEA's plan-doc Verification section.
 
 Cap **10** attempts on failure. Sprint-end gate.
 
-### S11.10 — bugbot via [INTEGRATION] draft PR
+### S11.10 — review via [INTEGRATION] draft PR
 
 ```bash
 gh pr create \
@@ -390,7 +390,7 @@ gh pr create \
     --title "[INTEGRATION] sprint-auto-<batch-iso>" \
     --body "Auto-generated integration validation. NOT FOR MERGE."
 # capture the PR number
-/bugbot-loop <draft-pr-number>
+/<engine>-loop <draft-pr-number>
 ```
 
 Cap **20** attempts. Same escalation discipline as S4.
@@ -417,9 +417,9 @@ for slug in $batch_slugs; do
 done
 ```
 
-### S11.12 — per-PR PR re-bugbot + verification
+### S11.12 — per-PR PR re-review + verification
 
-Per per-PR PR: `cd $SPRINT_AUTO_INTEGRATION_WORKTREE && git fetch origin auto/<slug> && git checkout --detach origin/auto/<slug>` (post-forward-sync state; `--detach` because the per-IDEA worktree still claims the branch ref), reset DB, run targeted tests, `/bugbot-loop`. Cap **5**.
+Per per-PR PR: `cd $SPRINT_AUTO_INTEGRATION_WORKTREE && git fetch origin auto/<slug> && git checkout --detach origin/auto/<slug>` (post-forward-sync state; `--detach` because the per-IDEA worktree still claims the branch ref), reset DB, run targeted tests, `/<engine>-loop`. Cap **5**.
 
 ### S11.13 — integration teardown
 
@@ -434,13 +434,13 @@ gh pr close <draft-pr-number> \
 
 Unchanged from v1. Compound candidates from per-IDEA S9 + integration-phase candidates surfaced during S11.6/S11.8/S11.9/S11.10.
 
-### S13 — /bugbot-loop (mind-vault compound PR)
+### S13 — /<engine>-loop (mind-vault compound PR)
 
 Unchanged from v1. Cap **5**.
 
 ### S14 — escalation (mind-vault compound PR)
 
-Cap **5**. Update mind-vault PR body with bugbot summary at end.
+Cap **5**. Update mind-vault PR body with review summary at end.
 
 ### S15 — batch summary + HITL handoff
 

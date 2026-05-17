@@ -16,7 +16,7 @@ Discipline for parallel work streams in git worktrees with independent docker co
 
 Any time two (or more) work streams must proceed concurrently without blocking each other on branch switches, container rebuilds, or DB migrations. Typical triggers:
 
-- One PR is open and awaiting bugbot / human review; a second track depends on the first but can start in parallel.
+- One PR is open and awaiting review / human review; a second track depends on the first but can start in parallel.
 - A long-running experiment (benchmark, parallel-test harness, migration replay) needs isolated state so it can't corrupt the primary dev loop.
 - Two agents need to collaborate on the same sprint without stepping on each other's docker state.
 

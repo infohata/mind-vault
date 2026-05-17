@@ -56,7 +56,7 @@ From `agents/AGENT_architect.md`:
 - **Boundary contradictions.** Record deletion vs. attached CMS metadata — where are the fallback contracts?
 - **Horizontal scalability.** Can it run on 5 load-balanced instances, or is state trapped in local sqlite / in-memory?
 
-These are structural, not stylistic. If the plan passes architect but has, say, N+1 query risks, that's for `/bugbot-loop` in the review stage, not here.
+These are structural, not stylistic. If the plan passes architect but has, say, N+1 query risks, that's for `/<engine>-loop` in the review stage, not here.
 
 ## What NOT to pass to architect
 

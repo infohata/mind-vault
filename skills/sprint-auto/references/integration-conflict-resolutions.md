@@ -1,6 +1,6 @@
 # sprint-auto — integration-stage conflict-resolution catalogue
 
-When **S11.6** (sequential merge of `auto/<slug>` branches into `integration/sprint-auto-<batch-iso>`) hits a conflict, this catalogue is the algorithm reference. Most conflicts are mechanical and fall into one of the patterns below; only a small minority need genuinely judgement-laden resolution, and those are flagged for extra scrutiny in S11.10's bugbot pass.
+When **S11.6** (sequential merge of `auto/<slug>` branches into `integration/sprint-auto-<batch-iso>`) hits a conflict, this catalogue is the algorithm reference. Most conflicts are mechanical and fall into one of the patterns below; only a small minority need genuinely judgement-laden resolution, and those are flagged for extra scrutiny in S11.10's review pass.
 
 The principle: **resolutions preserve every IDEA's contribution** unless the conflict shape unambiguously indicates a destructive overlap. When in doubt, "include both contributions" is always safer than picking one side.
 
@@ -8,7 +8,7 @@ The principle: **resolutions preserve every IDEA's contribution** unless the con
 
 **Conflict shape**: each merged-in IDEA's `/wrap --scope=idea-only` (S5) leaves frontmatter alone but doesn't write devlog. The batch wrap on integration (S11.7) writes ONE devlog commit covering all N IDEAs at the top of the chronological section. So under v3.1, this conflict pattern should never surface during S11.6 — it's already eliminated at the source.
 
-**If it does surface** (because some IDEA's `/work` accidentally appended a devlog entry, or someone hand-edited): the resolution is to remove the partial entry from the conflicted file (delete it from the merge resolution) and trust S11.7 to re-author the unified entry. The S11.10 bugbot pass catches if S11.7's compose missed something.
+**If it does surface** (because some IDEA's `/work` accidentally appended a devlog entry, or someone hand-edited): the resolution is to remove the partial entry from the conflicted file (delete it from the merge resolution) and trust S11.7 to re-author the unified entry. The S11.10 review pass catches if S11.7's compose missed something.
 
 **Algorithm**:
 ```
@@ -34,13 +34,13 @@ The principle: **resolutions preserve every IDEA's contribution** unless the con
 1. Find the conflict region.
 2. The two branches of the conflict each contain a sequence of msgid/msgstr blocks.
 3. Concatenate them: take all blocks from <branch A> followed by all blocks from <branch B>.
-4. Deduplicate by msgid: if the same msgid appears in both, keep ONE (prefer branch B's translation since it merges later — but flag this case in the resolution commit message because the duplicate suggests two IDEAs translating the same string differently, which is worth bugbot's attention in S11.10).
+4. Deduplicate by msgid: if the same msgid appears in both, keep ONE (prefer branch B's translation since it merges later — but flag this case in the resolution commit message because the duplicate suggests two IDEAs translating the same string differently, which is worth review's attention in S11.10).
 5. Save; commit the resolution.
 ```
 
 **Edge case — fuzzy translations**: if either side has `#, fuzzy` markers, preserve them in the resolution. The next `makemessages` pass cleans up; pretending the translation is final at integration time is wrong per `RULE_i18n-workflow`.
 
-**Edge case — placeholder mismatch**: if the two branches' msgstrs use different placeholder counts (`%(name)s` vs `%(name)s %(count)s`), this is a substantive bug — flag the resolution commit with `[INTEGRATION-FLAG]` prefix so S11.10's bugbot pass surfaces it.
+**Edge case — placeholder mismatch**: if the two branches' msgstrs use different placeholder counts (`%(name)s` vs `%(name)s %(count)s`), this is a substantive bug — flag the resolution commit with `[INTEGRATION-FLAG]` prefix so S11.10's review pass surfaces it.
 
 ## Pattern 4 — HTML/template collisions
 
@@ -64,7 +64,7 @@ The principle: **resolutions preserve every IDEA's contribution** unless the con
 4. Save; commit the resolution.
 ```
 
-**S11.10 bugbot pass** picks up the `[INTEGRATION-FLAG-HTML]` commits and is given priority in the review.
+**S11.10 review pass** picks up the `[INTEGRATION-FLAG-HTML]` commits and is given priority in the review.
 
 ## Pattern 5 — JS/TS collisions
 
@@ -79,7 +79,7 @@ The principle: **resolutions preserve every IDEA's contribution** unless the con
 5. Save; commit the resolution.
 ```
 
-S11.8 (union tests) and S11.10 (bugbot) catch most JS regressions; the `[INTEGRATION-FLAG-JS]` markers ensure flagged commits get human attention.
+S11.8 (union tests) and S11.10 (review) catch most JS regressions; the `[INTEGRATION-FLAG-JS]` markers ensure flagged commits get human attention.
 
 ## Pattern 6 — Python source collisions (views, models, helpers)
 
@@ -90,7 +90,7 @@ S11.8 (union tests) and S11.10 (bugbot) catch most JS regressions; the `[INTEGRA
 1. Read both branches.
 2. If the conflict is in non-overlapping import statements: include both, sort/dedup imports per `isort` if the project uses it.
 3. If the conflict is in a function body where both branches added independent statements: cautiously include both, in the order they appear (branch A's first). Run the union tests after the merge (S11.8) and the full suite (S11.9) — if either fails, the resolution was wrong and the cap-of-10 attempts kick in.
-4. If the conflict is in a function body where both branches modified the same statement: STOP. Auto-resolution is unsafe. Flag the resolution commit with [INTEGRATION-FLAG-PY-COMPETING], commit the file in conflicted state if the project's pre-commit hooks allow it (otherwise pick branch B and flag), and let S11.10's bugbot pass + human reviewer decide. This case is rare in well-curated batches.
+4. If the conflict is in a function body where both branches modified the same statement: STOP. Auto-resolution is unsafe. Flag the resolution commit with [INTEGRATION-FLAG-PY-COMPETING], commit the file in conflicted state if the project's pre-commit hooks allow it (otherwise pick branch B and flag), and let S11.10's review pass + human reviewer decide. This case is rare in well-curated batches.
 5. If the conflict involves a method signature change in one branch and a new caller in the other: branch A's signature wins (the change is intentional); the new caller must be updated to match. Flag with [INTEGRATION-FLAG-PY-SIGNATURE].
 6. If conflict involves a model field migration (Django `migrations/`): treat as the most dangerous case. The two migrations may not commute. Run them in order, then `makemigrations --check` in S11.5's reset; if it complains, bail and flag with [INTEGRATION-FLAG-MIGRATION].
 ```

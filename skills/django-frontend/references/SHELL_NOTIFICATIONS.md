@@ -104,7 +104,7 @@ The pattern is reusable for any `outerHTML`-swap target containing the trigger e
 
 ## Cross-cohort impact
 
-This rule applies across every surface migration in a multi-IDEA shell-frontend cohort — every list/detail surface (article / event / FAQ / dashboard / chat / admin surfaces) will hit the same regression unless the rule is part of the migration checklist from the start. Cheaper to enforce as a self-sweep step than to surface as bugbot finding cycles.
+This rule applies across every surface migration in a multi-IDEA shell-frontend cohort — every list/detail surface (article / event / FAQ / dashboard / chat / admin surfaces) will hit the same regression unless the rule is part of the migration checklist from the start. Cheaper to enforce as a self-sweep step than to surface as review-loop finding cycles.
 
 ## Pick ONE source per flow — server `messages.*` OR client `HX-Trigger` handler, never both
 

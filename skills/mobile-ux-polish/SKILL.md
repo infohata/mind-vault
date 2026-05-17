@@ -9,7 +9,7 @@ metadata:
 
 # mobile-ux-polish
 
-Touch + scroll-snap + animation-timing patterns for shell-extending mobile surfaces. The work isn't intellectually deep but its bug-density is — a 26-issue manual-eval cycle on a single shell-mobile IDEA isn't anomalous, it's the steady-state cost of mobile UX work that touches scroll-snap + touch + flex + reactive bindings simultaneously. Each pattern below is a tested defence against a class of bug that recurs every time a project adds or modifies a shell-extending touch surface. Apply at first authoring, not in the post-bugbot iteration.
+Touch + scroll-snap + animation-timing patterns for shell-extending mobile surfaces. The work isn't intellectually deep but its bug-density is — a 26-issue manual-eval cycle on a single shell-mobile IDEA isn't anomalous, it's the steady-state cost of mobile UX work that touches scroll-snap + touch + flex + reactive bindings simultaneously. Each pattern below is a tested defence against a class of bug that recurs every time a project adds or modifies a shell-extending touch surface. Apply at first authoring, not in the post-PR-review iteration.
 
 **Pairs with:** [django-frontend](../django-frontend/SKILL.md) for HTMX / Alpine / Bulma / theming fundamentals — broader patterns surfaced in the same cycle (CSS min/max-height clamp, list-scoped HTMX swap, WCAG luminance picker, permanent-bind active-discriminator listeners) live in its references and apply beyond mobile work.
 
@@ -220,7 +220,7 @@ Patterns surfaced in the same IDEA-143 cycle but applicable beyond mobile work �
 
 ## Relationship to rules
 
-- [`RULE_self-sweep-before-push`](../../rules/RULE_self-sweep-before-push.md) — pre-push pyflakes / dead-import sweep applies inside mobile-UX-polish cycles too; the bugbot-cycle math is even more painful when manual-eval iteration is happening in parallel.
+- [`RULE_self-sweep-before-push`](../../rules/RULE_self-sweep-before-push.md) — pre-push pyflakes / dead-import sweep applies inside mobile-UX-polish cycles too; the PR-review-cycle math is even more painful when manual-eval iteration is happening in parallel.
 - [`RULE_cross-idea-amendments`](../../rules/RULE_cross-idea-amendments.md) — mobile-UX-polish IDEAs almost always amend earlier shell IDEAs' SCSS/JS; the bidirectional documentation contract is load-bearing here.
 - [`RULE_rename-before-drop`](../../rules/RULE_rename-before-drop.md) — when a mobile cycle touches shared helpers (e.g. `goToPane` signature gains a `behavior` parameter), the per-commit-compilability discipline catches missed callers.
 

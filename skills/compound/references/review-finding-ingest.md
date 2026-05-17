@@ -1,15 +1,15 @@
-# Bugbot-finding ingest
+# Review-finding ingest
 
-Parsing rules for `/bugbot-loop` output when it's supplied as the `/compound` input source. Load on demand when step 1 selects a bugbot file as input.
+Parsing rules for review-loop output (`/bugbot-loop` for Cursor Bugbot, `/copilot-loop` for GitHub Copilot) when supplied as the `/compound` input source. Load on demand when step 1 selects a review-loop output file as input. The parsing rules are engine-agnostic — the file shape and finding fields are the same regardless of which bot's findings the loop ingested.
 
 ## Source file shape
 
-`/bugbot-loop` writes its run artifact to a project-local location (typical: `<project>/.bugbot-loop/<run-id>/findings.md` or a similar path — projects may vary). Check `commands/bugbot-loop.md` in mind-vault for the exact convention.
+The review loop writes its run artifact to a project-local location (typical: `<project>/.bugbot-loop/<run-id>/findings.md` or `<project>/.copilot-loop/<run-id>/findings.md` — projects may vary). Check the corresponding command file in mind-vault (`commands/bugbot-loop.md` / `commands/copilot-loop.md`) for the exact convention.
 
 Typical findings file structure:
 
 ```markdown
-# Bugbot loop run <run-id>
+# Review loop run <run-id>
 
 ## Findings
 
@@ -25,13 +25,13 @@ Typical findings file structure:
 ...
 ```
 
-Not every bugbot-loop writes in this exact shape — be tolerant of minor variants. Grep for `### Finding`, `Category:`, `Severity:`, `Fix applied:` heuristically.
+Not every review loop writes in this exact shape — be tolerant of minor variants. Grep for `### Finding`, `Category:`, `Severity:`, `Fix applied:` heuristically.
 
 ## What makes a finding compound-worthy
 
 Compound-worthy findings generally meet ≥ 2 of these:
 
-- **Recurring category.** The finding category (N+1, tenant leakage, format-html migration drift, etc.) has appeared in prior bugbot runs on this project, OR in `docs/solutions/` on any project.
+- **Recurring category.** The finding category (N+1, tenant leakage, format-html migration drift, etc.) has appeared in prior review-loop runs on this project, OR in `docs/solutions/` on any project.
 - **Cross-project applicability.** The cause is not a one-off — it's a pattern any Django / Celery / HTMX project could hit.
 - **Non-obvious.** A careful implementer might reasonably miss it the first time.
 - **High-severity.** Critical or major findings have higher compound value than minor.
@@ -62,7 +62,7 @@ If a prior match exists:
 
 ## Grouping related findings
 
-Bugbot often produces multiple findings that share a root cause. Group them:
+Review bots often produce multiple findings that share a root cause. Group them:
 
 - Same file + same category + same session → one compound entry with all findings listed.
 - Different files, same pattern (e.g. three N+1 queries in three different ViewSets) → one compound entry noting "appeared in X, Y, Z — pattern: …".
@@ -74,18 +74,20 @@ The grouping is mechanical: re-read each finding's Category and Description, gro
 
 For each compound-worthy finding (or group):
 
-1. **Narrative probe** as normal — most bugbot findings route to mind-vault agent passes or skill updates because bugbot's reviewer persona caught them. That's the pattern's natural home.
+1. **Narrative probe** as normal — most review findings route to mind-vault agent passes or skill updates because the reviewer persona caught them. That's the pattern's natural home.
 2. **Taxonomy quiz** fallback as normal.
-3. **Cite the finding** in the destination file's provenance section: "Captured from bugbot-loop run `<run-id>` on PR #<n>."
+3. **Cite the finding** in the destination file's provenance section: "Captured from `<engine>`-loop run `<run-id>` on PR #<n>." (engine = `bugbot` or `copilot`).
 
 ## Ingest mode invocation
 
-The skill can be invoked specifically for bugbot ingest:
+The skill can be invoked specifically for review-finding ingest:
 
 ```text
-/compound --bugbot-file <path>
-/compound from PR #123 bugbot review
+/compound --review-file <path>
+/compound from PR #123 review
 ```
+
+Aliases: `--bugbot-file` and `--copilot-file` are accepted shorthands that pre-tag the engine in the provenance citation; otherwise the engine is inferred from the source path (`.bugbot-loop/` vs `.copilot-loop/`).
 
 In ingest mode:
 
@@ -94,7 +96,7 @@ In ingest mode:
 - Route each finding (or group) through the Shape-C probe individually.
 - One commit per routed finding (not per invocation). Several findings may land in one `/compound` session as several commits on the same branch.
 
-## When bugbot output is unavailable
+## When review-loop output is unavailable
 
 If the findings file is missing or malformed:
 

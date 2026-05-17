@@ -16,8 +16,8 @@ For Python files, `python -m pyflakes <path>` (already in dev-image for most pro
 ## When This Applies
 
 - Every commit on a feature branch that touches `.py` or `.js` source.
-- Mandatory before push if a bugbot-equivalent code-review bot is wired up to the PR — the self-sweep saves an entire bugbot cycle (review + commit + retrigger + re-review) per trivial finding.
-- Especially valuable inside `bugbot-loop` skills: between Phase 2 (apply edits) and Phase 3 (commit + push + retrigger), so trivial issues never reach bugbot.
+- Mandatory before push if a review-bot-equivalent code-review bot is wired up to the PR — the self-sweep saves an entire review-bot cycle (review + commit + retrigger + re-review) per trivial finding.
+- Especially valuable inside `review-loop` skills: between Phase 2 (apply edits) and Phase 3 (commit + push + retrigger), so trivial issues never reach review-bot.
 
 ## The Pyflakes Pipe Pattern
 
@@ -44,7 +44,7 @@ The pip install is idempotent (no-op if already installed) and free in any reaso
 
 Distinct discipline from the touched-files sweep, applies on a different trigger: **whenever you change a public-facing function's return type, parameter signature, or thrown exceptions, grep for ALL callers in the SAME commit.** Not just the most-prominent caller, not just the one you remembered, not just the one a test happened to cover. Every caller.
 
-The single most common "wasted bugbot cycle" pattern this rule prevents: a helper changes its contract, you patch the obvious caller, ship it. Bugbot reviews the diff, spots a second caller — often in the SAME file — that wasn't updated. You fix that one, ship it. Bugbot reviews again, spots a third caller in another file. By the time you're clean, you've burned three cycles on what was one self-contained refactor.
+The single most common "wasted review-bot cycle" pattern this rule prevents: a helper changes its contract, you patch the obvious caller, ship it. review-bot reviews the diff, spots a second caller — often in the SAME file — that wasn't updated. You fix that one, ship it. review-bot reviews again, spots a third caller in another file. By the time you're clean, you've burned three cycles on what was one self-contained refactor.
 
 ### The grep that catches it
 
@@ -61,7 +61,7 @@ For Python specifically, when the change is to a method on a class:
 grep -rn '\.methodName(' --include="*.py"
 ```
 
-Both should be run from the project root, not the file's directory — bugbot will catch any caller anywhere in the repo, so the sweep needs the same scope.
+Both should be run from the project root, not the file's directory — review-bot will catch any caller anywhere in the repo, so the sweep needs the same scope.
 
 ### What counts as a contract change worth sweeping
 
@@ -121,7 +121,7 @@ Sibling to the dead-imports sweep, applies to a different artefact: **whenever y
 
 - Running `make test` to verify YOUR change doesn't break anything, and the report shows N failures, of which M were already failing on the parent branch BEFORE your change.
 - The forward-merge of an upstream branch surfaces failures that weren't visible when the upstream PR landed (the upstream PR's test pass was on a pre-merge branch state; post-merge state combines with your branch and reveals the gap).
-- A bugbot review reports findings on tests that were already failing — bugbot doesn't distinguish "your fault" from "pre-existing" and neither should you.
+- A review-bot review reports findings on tests that were already failing — review-bot doesn't distinguish "your fault" from "pre-existing" and neither should you.
 
 ### The rule
 
@@ -157,15 +157,15 @@ The reasoning: leaving known dead code in a file you just touched is a "loose en
 
 ## Why This Matters
 
-### The bugbot-cycle math
+### The review-bot-cycle math
 
-Bugbot (or any equivalent code-review bot) takes 3-10 minutes per review cycle: comment posted → fetch via API → triage → apply fix → push → bot re-reviews. A 1-second pyflakes sweep that catches the same finding eliminates that cycle entirely.
+review-bot (or any equivalent code-review bot) takes 3-10 minutes per review cycle: comment posted → fetch via API → triage → apply fix → push → bot re-reviews. A 1-second pyflakes sweep that catches the same finding eliminates that cycle entirely.
 
-For a multi-cycle bugbot loop on a single PR, every avoided cycle compounds: each saved cycle reduces wall-clock time by 3-10 min AND reduces context-window cost AND avoids billing the code-review bot.
+For a multi-cycle review-bot loop on a single PR, every avoided cycle compounds: each saved cycle reduces wall-clock time by 3-10 min AND reduces context-window cost AND avoids billing the code-review bot.
 
 ### Trivial findings dominate the no-progress-loop budget
 
-The bugbot-loop's no-progress detector treats every category-attempt as a budget hit. A trivial dead-import finding consumes the same per-category counter as a substantive bug. Pre-sweeping trivial findings keeps the budget free for the actual subtle bugs bugbot catches.
+The review-loop's no-progress detector treats every category-attempt as a budget hit. A trivial dead-import finding consumes the same per-category counter as a substantive bug. Pre-sweeping trivial findings keeps the budget free for the actual subtle bugs review-bot catches.
 
 ### "Is this commit obviously sloppy" — not "is this commit perfectly clean"
 
@@ -173,16 +173,16 @@ Don't go deeper than this — full ruff / mypy passes are PR-time / CI-time conc
 
 ## Anti-Patterns
 
-- ❌ "It'll get caught in CI / by bugbot eventually" — yes, and each catch is a 3-10 minute cycle. The sweep is 1 second.
+- ❌ "It'll get caught in CI / by review-bot eventually" — yes, and each catch is a 3-10 minute cycle. The sweep is 1 second.
 - ❌ Skip-on-pre-existing — if the file has 5 dead imports and you add a 6th, fixing only the 6th leaves the file in the same state. Sweep all 6.
-- ❌ Run pyflakes from inside an IDE that lints on save — sometimes works, sometimes doesn't, depends on Python interpreter resolution + venv config. The container-side run is authoritative because it matches what bugbot's review will see.
+- ❌ Run pyflakes from inside an IDE that lints on save — sometimes works, sometimes doesn't, depends on Python interpreter resolution + venv config. The container-side run is authoritative because it matches what review-bot's review will see.
 - ❌ Suppress with `# noqa: F401` when the import is actually dead — that's masking the issue, not fixing it. Suppress only when the import has a side effect (e.g. registers a Django app's signal handlers via import-time code).
 
 ## Relationship to Other Rules
 
 - [`RULE_git-safety`](RULE_git-safety.md) — the sweep runs on the feature branch before push; doesn't change branch policy.
 - [`RULE_rename-before-drop`](RULE_rename-before-drop.md) — sweeps also catch leftover imports after a rename (the dropped symbol's import stays, pyflakes flags it).
-- The bugbot-loop skill (where it exists) should run pyflakes self-sweep between Phase 2 and Phase 3 as a built-in step.
+- The review-loop skill (where it exists) should run pyflakes self-sweep between Phase 2 and Phase 3 as a built-in step.
 
 ---
 

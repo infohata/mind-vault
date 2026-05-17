@@ -20,7 +20,7 @@ A single Markdown file at `docs/archive/<YYYY-MM-idea-NNN-slug>/MANUAL_EVAL_ISSU
 ```markdown
 | ID  | Surface / scope        | Severity | Description                                                  | Status        | Fix SHA                                  |
 |-----|------------------------|----------|--------------------------------------------------------------|---------------|------------------------------------------|
-| M0  | Bugbot review          | medium   | Scroll events don't bubble; drilling fix.                    | 🟢 VERIFIED  | abc1234 — confirmed 2026-05-06           |
+| M0  | Review-bot review          | medium   | Scroll events don't bubble; drilling fix.                    | 🟢 VERIFIED  | abc1234 — confirmed 2026-05-06           |
 | M1  | Centre / drawer panes  | high     | Long Lithuanian compounds overflow narrow panes.             | 🟢 VERIFIED  | def5678                                  |
 | M2  | Mobile dropdown        | low      | Theme picker chevron mis-aligned on iOS Safari < 16.         | 🟡 IN PROGRESS | (none yet)                              |
 | M3  | Drawer dismiss         | high     | Swipe-down to close fires on intra-drawer scroll.            | 🔴 OPEN      | (regression report 2026-05-07)            |

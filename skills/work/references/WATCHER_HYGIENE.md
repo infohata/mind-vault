@@ -6,7 +6,7 @@ Orchestrator agents that arm `run_in_background` Bash watchers to poll external 
 
 ## Hard Rules
 
-1. **Explicit stop on supersede.** When arming a new background-poll watcher that supersedes a prior one (same purpose, different state target — e.g. polling next-cycle bugbot review after the current cycle landed), `TaskStop` (or kill / equivalent) the prior watcher BEFORE arming the next. The orchestrator OWNS its watchers; it MUST track them and retire them explicitly.
+1. **Explicit stop on supersede.** When arming a new background-poll watcher that supersedes a prior one (same purpose, different state target — e.g. polling the next-cycle review after the current cycle landed), `TaskStop` (or kill / equivalent) the prior watcher BEFORE arming the next. The orchestrator OWNS its watchers; it MUST track them and retire them explicitly.
 
 2. **Explicit stop when the reason-to-poll resolves.** When the watcher's terminal condition fires (clean signal, findings detected, supersede event), the orchestrator MUST stop the watcher rather than relying on it to "exit naturally". An exit condition with a subtle bug (see Failure Mode D below) can hang indefinitely; an explicit stop is bug-resistant.
 
@@ -24,8 +24,8 @@ Any orchestrator using `run_in_background` Bash watchers for polling external-st
 
 Specifically:
 
-- `/sprint-auto` S3 + S6 + S11.10 + S13 bugbot loops (one watcher per cycle, ~18 cycles per batch in a typical overnight run).
-- `/bugbot-loop` standalone — same pattern at smaller scale.
+- `/sprint-auto` S3 + S6 + S11.10 + S13 review loops (one watcher per cycle, ~18 cycles per batch in a typical overnight run).
+- `/<engine>-loop` standalone — same pattern at smaller scale.
 - Any custom orchestrator that does "wait for X to change" via repeated polling.
 
 Does NOT apply to:
@@ -37,7 +37,7 @@ Does NOT apply to:
 
 **A. Hanging watchers wasting GitHub API quota.** Orchestrator arms watcher #1 polling PR review every 60s. State changes; orchestrator arms watcher #2 to poll the next state. If watcher #1 isn't explicitly killed it keeps polling indefinitely (no timeout per Hard Rule 3). For each unkilled watcher, the orchestrator double-polls (effectively shorter cadence + duplicate API calls). Multiplied by 15+ cycles in a sprint-auto batch, the per-cycle waste compounds.
 
-**B. Wrong-cwd watcher polling the wrong repo.** Tool `find_bugbot_comments.sh` auto-detects the GitHub repo via `git rev-parse --show-toplevel`. Orchestrator armed a watcher that ran the tool from a subshell where cwd had been reset to a different project's checkout. Result: 10+ minutes spent polling the wrong repo's PR for a clean signal that would never arrive. Fix: explicit `cd <project-root>` at the top of the watcher's loop body (Hard Rule 4).
+**B. Wrong-cwd watcher polling the wrong repo.** Tool `find_review_comments.sh` auto-detects the GitHub repo via `git rev-parse --show-toplevel`. Orchestrator armed a watcher that ran the tool from a subshell where cwd had been reset to a different project's checkout. Result: 10+ minutes spent polling the wrong repo's PR for a clean signal that would never arrive. Fix: explicit `cd <project-root>` at the top of the watcher's loop body (Hard Rule 4).
 
 **C. `/tmp` pollution.** 63 task-output files at ~280 KB total per single overnight session. Acceptable as forensic artefacts but accumulates if multiple long sessions land on the same machine without cleanup, and the per-session orchestrator state files start visually drowning out the meaningful artefacts when listing the dir.
 
@@ -56,7 +56,7 @@ TaskStop watcher_a_id
 run_in_background watcher_b.sh   # only one watcher live
 ```
 
-For the orchestrator's tooling: keep a single state variable `current_watcher_id`; before arming a new watcher, `TaskStop $current_watcher_id` (or whatever the platform's equivalent kill is). Update the variable atomically with the new id. The pattern generalises beyond bugbot polling — any "wait for X to change" loop in a multi-cycle orchestrator follows the same shape.
+For the orchestrator's tooling: keep a single state variable `current_watcher_id`; before arming a new watcher, `TaskStop $current_watcher_id` (or whatever the platform's equivalent kill is). Update the variable atomically with the new id. The pattern generalises beyond review polling — any "wait for X to change" loop in a multi-cycle orchestrator follows the same shape.
 
 When the watcher's terminal condition fires, the orchestrator should ALSO `TaskStop` it as a belt-and-suspenders against bugs in the exit condition itself (Hard Rule 2). Even when the loop is well-formed and would exit cleanly, the explicit stop is cheap insurance against the Failure Mode D class of bug where a future edit introduces a self-match.
 

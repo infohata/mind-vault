@@ -373,7 +373,7 @@ Remove callers before removers. Silent function deletes are a common AI-refactor
 
 ### Audio playback feature-detection — `<audio>` `error` event, not `canPlayType`
 
-`HTMLMediaElement.canPlayType(mime)` returns one of `''`, `'maybe'`, `'probably'`. With a **bare MIME** (no codec parameters — e.g. `audio/webm`, `audio/ogg`), browsers disagree on what `'maybe'` means: Safari treats `'maybe'` as "I might fail to decode this", Chrome and Firefox treat it as "I will probably play this." Pick either interpretation and you false-negative on the other set of browsers. A worked audio-playback fallback oscillated through four bugbot cycles trying to land a `canPlayType` thresholding rule that worked everywhere; none of them did.
+`HTMLMediaElement.canPlayType(mime)` returns one of `''`, `'maybe'`, `'probably'`. With a **bare MIME** (no codec parameters — e.g. `audio/webm`, `audio/ogg`), browsers disagree on what `'maybe'` means: Safari treats `'maybe'` as "I might fail to decode this", Chrome and Firefox treat it as "I will probably play this." Pick either interpretation and you false-negative on the other set of browsers. A worked audio-playback fallback oscillated through four review-loop cycles trying to land a `canPlayType` thresholding rule that worked everywhere; none of them did.
 
 Replace feature-detection with **the actual decode result** via the `<audio>` element's native `error` event:
 

@@ -6,7 +6,7 @@ The wrap SKILL.md body's Step 8 holds the firing-conditions stub; this reference
 
 ## Why this exists
 
-Sprint-auto already does atomic-merge at the multi-IDEA scale (S11.10 integration PR creation → S11.12 docs-bugbot → integration PR merge produces a single shipping moment for the batch). The single-IDEA wrap should follow the same principle: when nothing about the merge target is protected, the wrap is the deliverer. The previous default — "wrap pre-merge then hand back PR URL for human to click merge" — split the IDEA's shipping moment into two operator interactions for no safety reason. The HITL gate is *protected-branch* merge, not *every* merge; the gate stays exactly where `RULE_git-safety` puts it.
+Sprint-auto already does atomic-merge at the multi-IDEA scale (S11.10 integration PR creation → S11.12 docs-review → integration PR merge produces a single shipping moment for the batch). The single-IDEA wrap should follow the same principle: when nothing about the merge target is protected, the wrap is the deliverer. The previous default — "wrap pre-merge then hand back PR URL for human to click merge" — split the IDEA's shipping moment into two operator interactions for no safety reason. The HITL gate is *protected-branch* merge, not *every* merge; the gate stays exactly where `RULE_git-safety` puts it.
 
 ## Detection
 
@@ -33,25 +33,25 @@ if $is_protected; then
 fi
 ```
 
-## Pre-merge bugbot re-clearance
+## Pre-merge review re-clearance
 
-Pushing the wrap commits invalidates any prior bugbot clean signal because the head SHA changed. Two options before merging:
+Pushing the wrap commits invalidates any prior review clean signal because the head SHA changed. Two options before merging:
 
-- **Wait for bugbot re-clean** (cautious; recommended when the project rate-limits bugbot per PR or when wrap touched code-adjacent files). Trigger via the project's `tools/bugbot_retrigger.sh` after the wrap commits push, then `/bugbot-loop` until clean. THEN run merge.
-- **Merge without re-clearance** (faster; defensible when the wrap commits are pure docs — `docs/`, no code changes whatsoever). The pre-wrap clean signal already covered the substantive code; the wrap commits add only frontmatter, devlog, README, and grep-driven downstream-doc fixes. Bugbot has near-zero learnable signal on those.
+- **Wait for review re-clean** (cautious; recommended when the project rate-limits review per PR or when wrap touched code-adjacent files). Trigger via the project's `tools/bugbot_retrigger.sh` or `tools/copilot_retrigger.sh` (per the configured engine) after the wrap commits push, then `/<engine>-loop` until clean. THEN run merge.
+- **Merge without re-clearance** (faster; defensible when the wrap commits are pure docs — `docs/`, no code changes whatsoever). The pre-wrap clean signal already covered the substantive code; the wrap commits add only frontmatter, devlog, README, and grep-driven downstream-doc fixes. Review-loop has near-zero learnable signal on those.
 
-The wrap skill's default is **wait for re-clean**, because (a) it's the conservative path, (b) docs-only commits clear bugbot in a single short cycle anyway, and (c) detecting "purely docs" mechanically is messier than just running the loop. Project-level override via a `WRAP_SKIP_BUGBOT_RECLEAR=1` env var or `--no-bugbot-reclear` flag for projects that prefer the faster path.
+The wrap skill's default is **wait for re-clean**, because (a) it's the conservative path, (b) docs-only commits clear review in a single short cycle anyway, and (c) detecting "purely docs" mechanically is messier than just running the loop. Project-level override via a `WRAP_SKIP_BUGBOT_RECLEAR=1` env var or `--no-review-reclear` flag for projects that prefer the faster path.
 
 ## Merge sequence
 
 ```bash
-# 1. Confirm bugbot clean signal at current HEAD (skip if WRAP_SKIP_BUGBOT_RECLEAR).
-#    Use the project's find-bugbot-comments tool; abort if not clean.
-clean_sha=$(./tools/find_bugbot_comments.sh "$PR_NUMBER" 2>/dev/null \
+# 1. Confirm review clean signal at current HEAD (skip if WRAP_SKIP_BUGBOT_RECLEAR).
+#    Use the project's find-review-comments tool; abort if not clean.
+clean_sha=$(./tools/find_review_comments.sh "$PR_NUMBER" 2>/dev/null \
     | grep -oP 'BUGBOT_CLEAN_SIGNAL=\d+ COMMIT=\K[a-f0-9]+' | head -1)
 head_sha=$(git rev-parse HEAD)
 if [[ "$clean_sha" != "$head_sha" && -z "${WRAP_SKIP_BUGBOT_RECLEAR:-}" ]]; then
-    echo "Bugbot clean signal is at $clean_sha but HEAD is $head_sha — re-trigger + wait + merge in another wrap pass."
+    echo "Review-loop clean signal is at $clean_sha but HEAD is $head_sha — re-trigger + wait + merge in another wrap pass."
     exit 1
 fi
 

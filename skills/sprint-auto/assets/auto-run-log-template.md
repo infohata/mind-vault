@@ -16,18 +16,18 @@ idea: IDEA-NNN
 slug: <slug>
 run_started: 2026-04-20T22:14:03Z
 run_finished: 2026-04-20T23:51:40Z
-outcome: success          # success | bugbot_clean | bugbot_unresolved | plan_rejected | verification_failed | bootstrap_failed | budget_exceeded | aborted
+outcome: success          # success | review_clean | review_unresolved | plan_rejected | verification_failed | bootstrap_failed | budget_exceeded | aborted
 pr_url: https://github.com/<owner>/<repo>/pull/<n>   # null if no PR opened
 worktree_path: ~/projects/<project>-auto-<slug>
 branch: auto/<slug>
 port_offset: +15000
 
-# Deliverables-pass bugbot (state S3+S4 in post-pr-sequence.md)
-deliverables_bugbot_outcome: clean     # clean | unresolved | budget_exceeded | skipped_no_pr
+# Deliverables-pass review (state S3+S4 in post-pr-sequence.md)
+deliverables_review_outcome: clean     # clean | unresolved | budget_exceeded | skipped_no_pr
 deliverables_escalation_attempts: 1    # integer 0-20; cap is 20 per escalation-policy.md
 
-# Docs-pass bugbot (state S6+S7; runs after /wrap --scope=idea-only commits docs to the same branch)
-docs_bugbot_outcome: clean             # clean | unresolved | budget_exceeded | skipped_no_pr | skipped_failure_pre_pr
+# Docs-pass review (state S6+S7; runs after /wrap --scope=idea-only commits docs to the same branch)
+docs_review_outcome: clean             # clean | unresolved | budget_exceeded | skipped_no_pr | skipped_failure_pre_pr
 docs_escalation_attempts: 0            # integer 0-5; cap is 5 per escalation-policy.md
 
 # v3.1 fields — verification routing + DB reset at IDEA entry
@@ -35,10 +35,10 @@ verification_location: ~/projects/<project>-auto-integration-<batch-iso>   # MUS
 db_reset_at_idea_entry: ok             # ok | failed
 sprint_auto_integration_worktree: ~/projects/<project>-auto-integration-<batch-iso>
 
-# v3.1 — re-bugbot pass after S11.11 forward-sync (state S11.12)
+# v3.1 — re-review pass after S11.11 forward-sync (state S11.12)
 # Only present for IDEAs that reached integration phase; absent if pre-integration failure
-re_bugbot_outcome: clean               # clean | unresolved | budget_exceeded | skipped_no_forward_sync
-re_bugbot_attempts: 0                  # integer 0-5; cap is 5 per escalation-policy.md
+re_review_outcome: clean               # clean | unresolved | budget_exceeded | skipped_no_forward_sync
+re_review_attempts: 0                  # integer 0-5; cap is 5 per escalation-policy.md
 
 compound_candidates_queued:
   - type: recurrence
@@ -49,11 +49,11 @@ docker_teardown: skipped_v3_no_per_idea_stack  # v3.1 always | v1 also: stopped 
 
 # sprint-auto run — IDEA-NNN <slug>
 
-**Outcome**: ✅ PR opened at <pr_url> · bugbot: deliverables clean (1 attempt) / docs clean (0 attempts)
+**Outcome**: ✅ PR opened at <pr_url> · review: deliverables clean (1 attempt) / docs clean (0 attempts)
 
 ## Summary
 
-<one paragraph — what shipped, bugbot outcome on each pass, how many escalation cycles per pass>
+<one paragraph — what shipped, review outcome on each pass, how many escalation cycles per pass>
 
 ## Timeline
 
@@ -65,49 +65,49 @@ docker_teardown: skipped_v3_no_per_idea_stack  # v3.1 always | v1 also: stopped 
 - 22:21:10Z — /work invoked
 - 22:48:33Z — Verification passed
 - 22:51:40Z — PR opened at <pr_url>
-- 22:51:45Z — /bugbot-loop invoked (deliverables pass, state S3)
-- 22:58:12Z — bugbot posted review, 1 T2 finding
+- 22:51:45Z — /review-loop invoked (deliverables pass, state S3)
+- 22:58:12Z — review posted review, 1 T2 finding
 - 22:58:45Z — Deliverables escalation attempt 1 (sha jkl0123) — added null-check
-- 23:02:00Z — bugbot re-triggered; BUGBOT_CLEAN_SIGNAL on deliverables pass
+- 23:02:00Z — review re-triggered; BUGBOT_CLEAN_SIGNAL on deliverables pass
 - 23:02:10Z — /wrap-docs started (state S5) — devlog entry + downstream docs scan
 - 23:04:30Z — docs commit pushed (sha mno4567)
-- 23:04:35Z — /bugbot-loop invoked (docs pass, state S6)
+- 23:04:35Z — /review-loop invoked (docs pass, state S6)
 - 23:11:20Z — BUGBOT_CLEAN_SIGNAL on docs pass
 - 23:11:30Z — S8 N/A in v3.1 (no per-IDEA stack); integration stack stays up for next IDEA
 - 23:11:45Z — compound candidates harvested (1 recurrence; state S9)
-# v3.1 only — re-bugbot pass timeline events appear after the integration phase (state S11.12)
+# v3.1 only — re-review pass timeline events appear after the integration phase (state S11.12)
 # logged once the per-IDEA archive dir gets the post-batch update; the per-IDEA log itself is
-# updated again post-S11.12 with the re-bugbot outcome.
+# updated again post-S11.12 with the re-review outcome.
 
 ## Commits (on auto/<slug>)
 
 - `abc1234` — feat(ui): ...
 - `def5678` — test(ui): ...
 - `ghi9abc` — docs(archive): IDEA-NNN mark in-progress
-- `jkl0123` — fix(ui): escalation attempt 1 — null-guard context-processor (bugbot #M)
+- `jkl0123` — fix(ui): escalation attempt 1 — null-guard context-processor (review #M)
 - `mno4567` — docs(archive): IDEA-NNN pre-merge documentation sweep
 
 ## Deliverables-pass escalation attempts (cap: 20)
 
 (see [`references/escalation-policy.md`](../../skills/sprint-auto/references/escalation-policy.md))
 
-| # | SHA | Approach | Bugbot outcome |
+| # | SHA | Approach | Review outcome |
 |---|---|---|---|
 | 1 | jkl0123 | null-guard in context-processor | clean |
 
 ## Docs-pass escalation attempts (cap: 5)
 
-| # | SHA | Approach | Bugbot outcome |
+| # | SHA | Approach | Review outcome |
 |---|---|---|---|
-| — | — | (no escalation needed — clean on first bugbot pass after /wrap --scope=idea-only) | — |
+| — | — | (no escalation needed — clean on first review pass after /wrap --scope=idea-only) | — |
 
-## Re-bugbot escalation attempts (cap: 5) — v3.1 only
+## Re-review escalation attempts (cap: 5) — v3.1 only
 
 (Populated post-S11.12. Empty if IDEA pre-integration failure or forward-sync skipped.)
 
-| # | SHA | Approach | Bugbot outcome |
+| # | SHA | Approach | Review outcome |
 |---|---|---|---|
-| — | — | (no re-bugbot escalation needed — clean on first pass after S11.11 forward-sync) | — |
+| — | — | (no re-review escalation needed — clean on first pass after S11.11 forward-sync) | — |
 
 ## Diagnostic excerpt
 
@@ -115,7 +115,7 @@ docker_teardown: skipped_v3_no_per_idea_stack  # v3.1 always | v1 also: stopped 
   - plan_rejected → the architect's verdict section
   - verification_failed → tail of pytest / build output
   - bootstrap_failed → tail of tools/sprint-auto-bootstrap.sh stderr
-  - bugbot_unresolved → final attempt's diff + bugbot's remaining finding
+  - review_unresolved → final attempt's diff + review's remaining finding
   - budget_exceeded → last activity before timeout>
 
 ## Cleanup
@@ -149,13 +149,13 @@ batch_finished: 2026-04-21T05:17:55Z
 invocation: "/sprint-auto IDEA-050 IDEA-051 IDEA-052 IDEA-053"
 batch_budget_minutes: 1380          # len(ideas) * 300 default + 180 integration = 1380; --budget-minutes overrides
 ideas_attempted: 4
-ideas_bugbot_clean: 1
-ideas_bugbot_unresolved: 1
+ideas_review_clean: 1
+ideas_review_unresolved: 1
 ideas_failed_pre_pr: 2
 batch_aborted: false
 compound_prs_opened: 2
-compound_prs_bugbot_clean: 1
-compound_prs_bugbot_unresolved: 1
+compound_prs_review_clean: 1
+compound_prs_review_unresolved: 1
 
 # v3.1 integration phase (states S(-1) + S11.5–S11.13)
 integration_branch: integration/sprint-auto-2026-04-20T22-14-03Z
@@ -164,8 +164,8 @@ integration_draft_pr_url: https://github.com/<owner>/<repo>/pull/<int-pr>   # au
 integration_outcome: clean          # clean | with_flags | bootstrap_failed | aborted
 union_test_outcome: clean           # clean | unresolved | cap_exceeded
 full_suite_outcome: clean           # clean | unresolved | cap_exceeded
-integration_bugbot_outcome: clean   # clean | unresolved | budget_exceeded
-integration_bugbot_attempts: 3      # integer 0-20; cap is 20 (elephants — deliverables-class)
+integration_review_outcome: clean   # clean | unresolved | budget_exceeded
+integration_review_attempts: 3      # integer 0-20; cap is 20 (elephants — deliverables-class)
 integration_teardown: stopped_clean # stopped_clean | teardown_failed
 ---
 
@@ -175,12 +175,12 @@ Invocation: `/sprint-auto IDEA-050 IDEA-051 IDEA-052 IDEA-053`
 
 ## IDEA results (project PRs)
 
-Escalation column shows `deliverables/docs/re-bugbot` attempts against caps `20/5/5`. Re-bugbot only present if forward-sync (S11.11) ran for this IDEA; otherwise `—`.
+Escalation column shows `deliverables/docs/re-review` attempts against caps `20/5/5`. Re-review only present if forward-sync (S11.11) ran for this IDEA; otherwise `—`.
 
-| IDEA | Slug | Outcome | PR | Deliverables bugbot | Docs bugbot | Re-bugbot | Escalation (D/d/r) | Worktree |
+| IDEA | Slug | Outcome | PR | Deliverables review | Docs review | Re-review | Escalation (D/d/r) | Worktree |
 |---|---|---|---|---|---|---|---|---|
 | 050 | sync-retry-backoff | ✅ PR open | #123 | clean | clean | clean | 0/0/0 | `../<project>-auto-sync-retry-backoff` (code-surface only; nothing to tear down) |
-| 051 | modal-dismiss-focus | ⚠️ PR open, bugbot unresolved | #124 | 2 T3 remaining | clean | clean | 20/0/0 (deliverables cap hit) | `../<project>-auto-modal-dismiss-focus` (code-surface only) |
+| 051 | modal-dismiss-focus | ⚠️ PR open, review unresolved | #124 | 2 T3 remaining | clean | clean | 20/0/0 (deliverables cap hit) | `../<project>-auto-modal-dismiss-focus` (code-surface only) |
 | 052 | alpine-event-bus | ⚠️ plan REJECTED | — | skipped (no PR) | skipped (no PR) | — | — | `../<project>-auto-alpine-event-bus` (code-surface only) |
 | 053 | cache-invalidation | ❌ verification fail | — | skipped (no PR) | skipped (no PR) | — | — | `../<project>-auto-cache-invalidation` (code-surface only) |
 
@@ -200,7 +200,7 @@ Validates the integrated state of all `auto/<slug>` PRs that reached integration
 - **Union of per-IDEA target tests** (S11.8): ✅ 414 passed (cap 10; 0 escalation attempts)
 - **Full suite** (S11.9): ✅ 1247 passed (cap 10; 0 escalation attempts)
 
-### Bugbot via [INTEGRATION] draft PR (S11.10)
+### Review via [INTEGRATION] draft PR (S11.10)
 
 - **Draft PR**: [#1234](https://github.com/.../pull/1234) (auto-closed at S11.13 without merge)
 - **Outcome**: ✅ clean (3 attempts; cap 20)
@@ -213,11 +213,11 @@ Validates the integrated state of all `auto/<slug>` PRs that reached integration
 | `auto/sync-retry-backoff` | ✅ ok | `f7e8d9a` |
 | `auto/modal-dismiss-focus` | ✅ ok | `b1c2d3e` |
 
-### Re-bugbot per-PR PRs (S11.12)
+### Re-review per-PR PRs (S11.12)
 
-(See per-IDEA `re_bugbot_outcome` and `re_bugbot_attempts` fields above for detail.)
+(See per-IDEA `re_review_outcome` and `re_review_attempts` fields above for detail.)
 
-| IDEA | Re-bugbot outcome | Attempts |
+| IDEA | Re-review outcome | Attempts |
 |---|---|---|
 | 050 | ✅ clean | 0 |
 | 051 | ✅ clean | 0 |
@@ -226,9 +226,9 @@ Validates the integrated state of all `auto/<slug>` PRs that reached integration
 
 Escalation cap for mind-vault compound PRs is 5 (same as docs pass — compound PRs are documentation by nature).
 
-| Destination | PR | Bugbot | Escalation | Branch |
+| Destination | PR | Review | Escalation | Branch |
 |---|---|---|---|---|
-| `skills/bugbot/references/null-guard-patterns.md` (new) | https://github.com/.../pull/78 | clean | 0/5 | `compound/2026-04-20-null-guard-patterns` |
+| `skills/django/references/null-guard-patterns.md` (new) | https://github.com/.../pull/78 | clean | 0/5 | `compound/2026-04-20-null-guard-patterns` |
 | `AGENT_architect.md` pass-2 addendum | https://github.com/.../pull/79 | 1 T3 remaining | 5/5 (cap hit) | `compound/2026-04-20-architect-pass-2-hoisting` |
 
 ## ✅ Atomic-batch merging — pick ONE PR to merge, the rest auto-collapse
@@ -239,17 +239,17 @@ Cosmetic UI quirk you'll see before the first merge: every PR in the batch shows
 
 **If you want to ship some IDEAs but defer others** (the escalation case — rare, but real):
 
-- **(a) Close-and-rerun (cleanest).** `gh pr close` the PRs to defer, then re-run sprint-auto with only the IDEAs to ship. Re-runs the integration phase + bugbot; ~30-60 min unattended.
+- **(a) Close-and-rerun (cleanest).** `gh pr close` the PRs to defer, then re-run sprint-auto with only the IDEAs to ship. Re-runs the integration phase + review; ~30-60 min unattended.
 - **(b) Surgical revert on the integration branch.** `git revert` the unwanted IDEA's commits on integration, push, re-run S11.11 forward-sync. Faster than (a) (~15-30 min) if reverts don't conflict with neighbouring IDEAs' changes.
 - **(c) Accept atomic.** Merge the whole batch, revert the unwanted IDEA as a post-merge follow-up PR. Only acceptable if the deferred IDEA is additive + low-risk; never use this path for high-risk deferrals.
 
 ## Morning checklist
 
 1. Review project PRs #123, #124. **Merge ONE; the others auto-collapse to zero diff and can be closed.** IDEA-051 has an unresolved T3 finding on deliverables (cap hit at 20 attempts) — check the auto-run log's deliverables-pass table to see what sprint-auto tried.
-2. Review + merge (or close) mind-vault PRs #78, #79. PR #79 has an unresolved bugbot finding (cap hit at 5); decide merge-anyway / fix-forward / close.
+2. Review + merge (or close) mind-vault PRs #78, #79. PR #79 has an unresolved review finding (cap hit at 5); decide merge-anyway / fix-forward / close.
 3. Read the per-IDEA log for IDEA-052 — architect's rejection is usually a plan-revision signal.
 4. Read the per-IDEA log for IDEA-053 — check which test failed; decide fix-forward / plan revision.
-5. **v3.1**: Read the [INTEGRATION] PR's bugbot review (auto-closed; URL above) for any integration-state-only findings the morning reviewer should weigh.
+5. **v3.1**: Read the [INTEGRATION] PR's review review (auto-closed; URL above) for any integration-state-only findings the morning reviewer should weigh.
 6. For each PR merged: run `/wrap NNN` to finalise. v3.1's `/wrap NNN` post-merge:
    - Per-IDEA worktree teardown: just `git worktree remove` + `git branch -d` (no docker — there's no per-IDEA stack)
    - **Last-of-batch IDEA additionally**: `cd $integration_worktree && docker compose down -v && cd - && git worktree remove $integration_worktree && git branch -d integration/sprint-auto-<batch-iso>`

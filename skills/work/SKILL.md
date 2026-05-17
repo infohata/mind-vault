@@ -22,7 +22,7 @@ This skill is intentionally thin. It does not re-decide anything the plan alread
 - there is no plan file and the work is bounded enough to not need one — just do the fix
 - the plan is still `status: draft` — route to `/plan` to finalise (architect review, open-questions resolution) first
 - the plan has clear structural flaws (missing file paths, unresolved architect findings) — route back to `/plan`
-- the user wants to review or critique existing code — route to `/bugbot-loop`
+- the user wants to review or critique existing code — route to `/<engine>-loop`
 
 ## Pattern
 
@@ -82,13 +82,13 @@ After all Execution Sequence items land:
 1. Run the commands listed in the plan's Verification section. Capture output. **Verification routing — see § "Sprint-auto v3.1 verification routing" below for the env-var-driven mode.**
 2. If verification passes, open a PR: `gh pr create --title "<type>(<scope>): <plan.slug>" --body <plan-derived-body>`. Include the plan path in the PR body so the reviewer has the full context.
 3. Mark the plan `status: shipped` in frontmatter.
-4. Print the PR URL and suggest the next-stage chain: `/bugbot-loop <pr-url>` → `/wrap NNN`.
+4. Print the PR URL and suggest the next-stage chain: `/<engine>-loop <pr-url>` → `/wrap NNN`.
 
 The full canonical chain after `/work` opens the PR:
 
 ```text
 /work        → opens PR, plan: shipped, code committed
-/bugbot-loop → clears bugbot findings, retriggers until clean
+/<engine>-loop → clears review findings, retriggers until clean
 /wrap NNN    → docs commits ride the same PR (frontmatter flip,
                ideas-index, devlog, archive README, downstream scan).
                If PR base is non-protected, wrap also squash-merges.
@@ -96,7 +96,7 @@ The full canonical chain after `/work` opens the PR:
                for human merge.
 ```
 
-The single-IDEA chain mirrors what sprint-auto already does at the multi-IDEA scale: code → bugbot → docs → integration merge as ONE shipping moment. Don't split it into two operator turns when the merge target is non-protected per [`RULE_git-safety`](../../rules/RULE_git-safety.md).
+The single-IDEA chain mirrors what sprint-auto already does at the multi-IDEA scale: code → review → docs → integration merge as ONE shipping moment. Don't split it into two operator turns when the merge target is non-protected per [`RULE_git-safety`](../../rules/RULE_git-safety.md).
 
 If verification fails:
 
@@ -147,13 +147,13 @@ When `SPRINT_AUTO_INTEGRATION_WORKTREE` is set:
 - The agent never runs `docker compose` against the per-IDEA worktree (there's no `.env`, no override file — would fail).
 - The agent never creates a `.env` in the per-IDEA worktree (the env-var contract guarantees verification happens elsewhere).
 - The DB state on the integration worktree is the **main-equivalent baseline** for this IDEA (sprint-auto reset it at S1.5 before invoking `/work`); the verification runs against that baseline.
-- Within an IDEA's session (this `/work` invocation + subsequent bugbot-loop fix-cycles), the DB state is preserved between commands. Sprint-auto only resets between IDEAs.
+- Within an IDEA's session (this `/work` invocation + subsequent review-loop fix-cycles), the DB state is preserved between commands. Sprint-auto only resets between IDEAs.
 
 The full env-var contract is in [`../sprint-auto/references/integration-stage.md`](../sprint-auto/references/integration-stage.md). If verification commands are documented elsewhere (project Makefile, `tools/test.sh`), the same routing applies — `cd $SPRINT_AUTO_INTEGRATION_WORKTREE` first, then run.
 
 ### 6. Frontmatter flip — `/wrap` is the canonical owner; this section is the fallback
 
-**Primary path: `/wrap` does the frontmatter flip pre-merge.** `/wrap NNN` runs after `/bugbot-loop` clears, before merge — it flips IDEA frontmatter `in-progress → complete`, updates the ideas index, appends the devlog entry, scans downstream docs, and (when target is non-protected) squash-merges atomically. The `/work` skill does NOT duplicate that work in the normal flow — it hands off to `/wrap`.
+**Primary path: `/wrap` does the frontmatter flip pre-merge.** `/wrap NNN` runs after `/<engine>-loop` clears, before merge — it flips IDEA frontmatter `in-progress → complete`, updates the ideas index, appends the devlog entry, scans downstream docs, and (when target is non-protected) squash-merges atomically. The `/work` skill does NOT duplicate that work in the normal flow — it hands off to `/wrap`.
 
 **Fallback in this section fires only when `/wrap` was bypassed** — the user merged the PR directly without invoking `/wrap`, or a hotfix landed without ceremony. In that case, the next `/work` invocation that touches a merged-but-unflipped IDEA runs the steps below as a cleanup pass on a separate `chore/complete-idea-NNN` branch. The `/wrap` skill itself also has a "post-merge fallback" mode that does the same thing with full docs sweep — prefer `/wrap NNN` post-merge over the pared-down version below.
 

@@ -75,7 +75,7 @@ Pre-fill algorithm:
 
 ## Commit + downstream wiring
 
-**Commit it with the rest of the wrap commits** — same branch (pre-merge mode = feature branch, the IDEA's `auto/<slug>` in sprint-auto context). The eval-checklist becomes part of the per-IDEA PR's docs delta; bugbot's docs-pass at S6 reviews it; the integration-PR creator at S11.10 finds it via `find docs/archive/ -name '*-manual-evaluation.md'` glob and links to it (see integration-stage.md § Per-IDEA evaluation checklists).
+**Commit it with the rest of the wrap commits** — same branch (pre-merge mode = feature branch, the IDEA's `auto/<slug>` in sprint-auto context). The eval-checklist becomes part of the per-IDEA PR's docs delta; review's docs-pass at S6 reviews it; the integration-PR creator at S11.10 finds it via `find docs/archive/ -name '*-manual-evaluation.md'` glob and links to it (see integration-stage.md § Per-IDEA evaluation checklists).
 
 **No teardown of the artefact post-merge.** The eval-checklist stays in the archive dir as part of the IDEA's history — a record of what the reviewer was asked to walk, what they noted, what follow-ups landed.
 

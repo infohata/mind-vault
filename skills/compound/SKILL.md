@@ -1,6 +1,6 @@
 ---
 name: compound
-description: Route a just-learned lesson to the right destination — project-local solution doc, mind-vault skill/rule/agent/command, or auto-memory. Uses a hybrid narrative-probe + taxonomy-quiz router. Also consumes bugbot-loop output as input. Final stage of the mind-vault sprint workflow; the lever that makes each sprint easier than the last.
+description: Route a just-learned lesson to the right destination — project-local solution doc, mind-vault skill/rule/agent/command, or auto-memory. Uses a hybrid narrative-probe + taxonomy-quiz router. Also consumes review-loop output (Cursor Bugbot or GitHub Copilot) as input. Final stage of the mind-vault sprint workflow; the lever that makes each sprint easier than the last.
 ---
 
 # compound
@@ -16,7 +16,7 @@ This skill never commits to `main` and never merges a PR. It stages, commits to 
 **TRIGGER when:**
 
 - user says "compound this", "let's capture what we learned", "document this fix", "promote this to mind-vault", "write this up", "save this learning"
-- a `/bugbot-loop` just cleared findings and there's a non-trivial lesson worth preserving — the bugbot output file is a first-class input source (see [`references/bugbot-finding-ingest.md`](references/bugbot-finding-ingest.md))
+- a review loop (`/bugbot-loop` or `/copilot-loop`) just cleared findings and there's a non-trivial lesson worth preserving — the review output file is a first-class input source (see [`references/review-finding-ingest.md`](references/review-finding-ingest.md))
 - a bug was just fixed and the root cause is non-obvious / recurring / cross-project
 - a pattern that kept coming up across multiple tasks finally got named
 
@@ -33,7 +33,7 @@ This skill never commits to `main` and never merges a PR. It stages, commits to 
 Accept input in this order of preference:
 
 1. **Explicit prompt content** in the skill invocation (`/compound the HMAC flat-payload trap`).
-2. **Bugbot-loop output file** at `<project>/.bugbot-loop/<run-id>/findings.md` (or wherever the loop writes its artifact) when recent. See [`references/bugbot-finding-ingest.md`](references/bugbot-finding-ingest.md) for parsing rules — each cleared finding becomes a candidate compound entry.
+2. **Review-loop output file** at `<project>/.bugbot-loop/<run-id>/findings.md` or `<project>/.copilot-loop/<run-id>/findings.md` (or wherever the loop writes its artifact) when recent. See [`references/review-finding-ingest.md`](references/review-finding-ingest.md) for parsing rules — each cleared finding becomes a candidate compound entry. Engine-agnostic: same parsing rules apply to either bot's output.
 3. **PR comment thread** when the user points at one (`/compound pr:123#comment-456`).
 4. **Interactive prompt** when nothing is supplied: "What did you learn? Give me the one-sentence essence first, then we'll expand."
 
@@ -108,7 +108,7 @@ Auto-memory lives in `~/.claude/projects/<project-id>/memory/` on the host machi
 
 The default is mind-vault. Auto-memory is the exception, not the equal-weight alternative the table above might suggest. When the routing is genuinely ambiguous, prefer mind-vault — the cost of an unused mind-vault entry is one extra file in a knowledge store; the cost of a missed cross-machine learning is the user re-discovering the same lesson on every fresh environment.
 
-This includes patterns that *feel* project-local but recur across the user's work: bugbot triage shortcuts, sprint-workflow refinements, debugging-loop conventions. Project-local *content* (a specific bug fix's recipe with project-specific function names) goes to project-local solution docs, not auto-memory; cross-project *patterns* go to mind-vault.
+This includes patterns that *feel* project-local but recur across the user's work: review-loop triage shortcuts, sprint-workflow refinements, debugging-loop conventions. Project-local *content* (a specific bug fix's recipe with project-specific function names) goes to project-local solution docs, not auto-memory; cross-project *patterns* go to mind-vault.
 
 The user direction that surfaced this rule: "When deciding compound local memory vs. mind-vault, always remember that mind-vault survives the machine. I use you remotely as well (especially for overnight sprint-auto work) on VPS. If you think the compound is THIS LOCAL MACHINE ONLY, then it's local memory. All other cases — mind-vault."
 
@@ -152,7 +152,7 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
 
 ### 5. Cross-link and index
 
-- Every mind-vault promotion also references the project-local source that triggered it. If the learning started as a bugbot finding on a PR, the new skill/rule/agent entry cites the PR in its Last Updated / provenance section.
+- Every mind-vault promotion also references the project-local source that triggered it. If the learning started as a PR-review finding (from any review engine), the new skill/rule/agent entry cites the PR in its Last Updated / provenance section.
 - Project-local solution docs reference any mind-vault assets they generalised from, so future `/compound` invocations can detect duplicates.
 - Auto-memory entries include their one-line `MEMORY.md` pointer — that's the index.
 
@@ -166,16 +166,16 @@ ask for the pattern you just captured. If the skill's description doesn't
 match the new trigger, revise the frontmatter and try again.
 ```
 
-## Bugbot-finding input mode
+## Review-finding input mode
 
-When the input is a bugbot-loop output file, iterate each cleared finding:
+When the input is a review-loop output file (`/bugbot-loop` or `/copilot-loop`), iterate each cleared finding:
 
 1. Read the finding: category, severity, file, one-line description, fix applied.
 2. Decide if it's compound-worthy: if the finding appeared the first time in this project, probably not (noise). If the same category has appeared before — grep solutions and mind-vault for prior matches — promote.
 3. Route each compound-worthy finding through the Shape-C router in step 2.
 4. Group related findings into a single solution doc or skill-update when they share a root cause.
 
-See [`references/bugbot-finding-ingest.md`](references/bugbot-finding-ingest.md) for the parsing rules and the de-duplication heuristics.
+See [`references/review-finding-ingest.md`](references/review-finding-ingest.md) for the parsing rules and the de-duplication heuristics.
 
 ## Interaction rules
 
@@ -197,14 +197,14 @@ See [`references/bugbot-finding-ingest.md`](references/bugbot-finding-ingest.md)
 
 - [references/routing-decision-tree.md](references/routing-decision-tree.md) — the 6-destination taxonomy, narrative-probe questions, disambiguation heuristics
 - [references/mind-vault-promotion.md](references/mind-vault-promotion.md) — full branch policy, PR maintenance, commit-message conventions for mind-vault destinations
-- [references/bugbot-finding-ingest.md](references/bugbot-finding-ingest.md) — parsing rules for bugbot-loop output, de-duplication against prior findings
+- [references/review-finding-ingest.md](references/review-finding-ingest.md) — parsing rules for review-loop output (engine-agnostic; same shape from `/bugbot-loop` or `/copilot-loop`), de-duplication against prior findings
 - [assets/solution-template.md](assets/solution-template.md) — project-local solution doc structure
 - [assets/skill-scaffold-template.md](assets/skill-scaffold-template.md) — minimal new-skill scaffold to emit when promoting a cross-project pattern
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with the compound-routing table
 - [skills/skill-writer/SKILL.md](../skill-writer/SKILL.md) — meta-standard consulted when emitting a new skill
 - [rules/RULE_git-safety.md](../../rules/RULE_git-safety.md) — branching and commit contract honoured during mind-vault promotion
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — location-by-status routing; `/compound` may trigger the `idea`→archive move when post-incident routing classifies an IDEA as superseded or rejected before any execution started
-- [commands/bugbot-loop.md](../../commands/bugbot-loop.md) — the preceding review stage whose output this skill consumes
+- [commands/bugbot-loop.md](../../commands/bugbot-loop.md) / [commands/copilot-loop.md](../../commands/copilot-loop.md) — the preceding review stage whose output this skill consumes (engine-specific commands; same output shape)
 
 ---
 

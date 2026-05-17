@@ -1,8 +1,8 @@
 # Shell Installer Conventions (`tools/install-*.sh`)
 
-Canonical reference for authoring and reviewing shell installer scripts under `tools/install-*.sh`. Consolidates patterns surfaced across bugbot reviews of PRs #55 (install-gcloud-cli), #58 (wrap skill chown fallback), and #59 (install-mosh-tmux) — and the meta-disciplines that would have prevented most of them.
+Canonical reference for authoring and reviewing shell installer scripts under `tools/install-*.sh`. Consolidates patterns surfaced across PR reviews of PRs #55 (install-gcloud-cli), #58 (wrap skill chown fallback), and #59 (install-mosh-tmux) — and the meta-disciplines that would have prevented most of them.
 
-**When to consult:** before authoring a new `install-X.sh`, and when reviewing one (your own drill or bugbot). This file is both the author-side checklist and the review-side pattern catalog — kept in one place so the two sides can't drift apart.
+**When to consult:** before authoring a new `install-X.sh`, and when reviewing one (your own drill or the configured PR-review bot). This file is both the author-side checklist and the review-side pattern catalog — kept in one place so the two sides can't drift apart.
 
 **Why a reference, not a rule:** rules always load into context. These patterns are deep devops-y edge cases that don't need to be in the agent's brain for every Django refactor. Loading on-demand when the `deployment` skill fires is the right cost/benefit.
 
@@ -153,7 +153,7 @@ case "$1" in
 esac
 ```
 
-See `install-gcloud-cli.sh` `--with-components` for a canonical example. *Provenance: PR #59 cycle 2 drill (missed in install-mosh-tmux pre-bugbot).*
+See `install-gcloud-cli.sh` `--with-components` for a canonical example. *Provenance: PR #59 cycle 2 drill (missed in install-mosh-tmux pre-review).*
 
 ### 6. Idempotency check must respect user-requested flags
 
