@@ -215,6 +215,6 @@ These are recurring issues that Copilot correctly catches. Check for them proact
 
 Do not chat to the user natively. Deliver your report matching a CI Pipeline Output:
 
-1. **Title**: The Copilot Resolution Matrix (e.g., 🟢 **BUGBOT RESOLVED & PUSHED**).
+1. **Title**: The Copilot Resolution Matrix (e.g., 🟢 **COPILOT RESOLVED & PUSHED**).
 2. **Ingested Findings**: Array of what Copilot found.
 3. **Patch Executed**: Brief listing of the specific files patched.

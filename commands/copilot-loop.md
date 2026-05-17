@@ -120,29 +120,34 @@ if [[ -n "${SPRINT_AUTO_INTEGRATION_WORKTREE:-}" ]]; then
     feature_branch=$(git branch --show-current)  # e.g. auto/<slug>
 
     # The edit was already applied in the per-IDEA worktree by Phase 2 step 1.
-    # Push the per-IDEA branch's tip so the integration worktree can fetch it
-    # — but DO NOT commit yet (Phase 3 will batch all of this cycle's fixes
-    # into one commit; the push here is to make the in-progress edit visible
-    # to the integration worktree's checkout, not to publish it for review).
+    # To expose it to the integration worktree's containers for mid-cycle
+    # testing — BEFORE Phase 3's batch commit — pick ONE of these mechanisms
+    # (git can't push uncommitted state, so this is a real choice, not a
+    # hand-wave):
     #
-    # Approach in v3.1: keep the edits unstaged in the per-IDEA worktree;
-    # use `git stash create` + `git fetch` of the stash blob to expose the
-    # working-tree state to the integration worktree without committing,
-    # OR (simpler) commit-then-revert if the edit needs to be restorable
-    # mid-cycle. The cleanest contract for v1 of v3.1: just bind-mount or
-    # rsync the per-IDEA worktree's source into the integration worktree's
-    # web container — most projects already do this via docker compose's
-    # volume mount, so `cd $integration_wt && git fetch origin <branch> &&
-    # git checkout --detach origin/<branch>` (NOT plain `git checkout
+    #   (a) WIP commit on the per-IDEA branch + push, integration worktree
+    #       fetches and `git checkout --detach` to the WIP SHA. Phase 3 later
+    #       squashes / rewrites the WIP into the proper batch commit.
+    #       Costs: branch tip churns; force-with-lease push needed at Phase 3.
+    #
+    #   (b) `rsync --exclude='.git' <per-idea-worktree>/ <integration-worktree>/`
+    #       or a project-local bind-mount in docker-compose so the integration
+    #       container sees the per-IDEA worktree's source live. Costs:
+    #       project-specific compose setup; one-time configuration in
+    #       tools/sprint-auto-hooks.sh.
+    #
+    #   (c) Skip mid-cycle test verification entirely; defer to Phase 3's
+    #       post-commit Copilot retrigger to surface failures via the next
+    #       review cycle. Costs: a regression slips one cycle later.
+    #
+    # The v1 of v3.1 ships (c) as the safe default. (a) and (b) are project
+    # opt-ins via `tools/sprint-auto-hooks.sh:sync_per_idea_to_integration`.
+    # After Phase 3 commits + pushes, the integration worktree can always
+    # `cd $integration_wt && git fetch origin <branch> &&
+    #   git checkout --detach origin/<branch>` (NOT plain `git checkout
     # <branch>` — that errors with "already checked out" because the
-    # per-IDEA worktree claims the branch ref) after any commits in Phase 3
-    # is sufficient for the post-Phase-3 retest.
-    #
-    # Until Phase 3 commits, run the targeted test using the per-IDEA
-    # worktree's source by bind-mounting it into the integration worktree's
-    # web container — depends on project compose setup. Fallback: skip
-    # mid-cycle test verification under v3.1; rely on Phase 3's Copilot
-    # retrigger to surface failures via the next review cycle.
+    # per-IDEA worktree claims the branch ref) — no special sync needed
+    # post-commit.
 
     # Mid-cycle targeted test against the integration stack:
     pushd "$integration_wt" >/dev/null

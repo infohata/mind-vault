@@ -184,13 +184,12 @@ fi
 # for HEAD. Downstream consumers (/copilot-loop Phase 4) only need to grep
 # COPILOT_CLEAN_SIGNAL — the synthesis preserves the existing contract.
 #
-# App identification — match by app.slug for Copilot's bot. Tolerant filter so
-# minor app-name changes don't break the script: matches if app.slug contains
-# 'copilot', or app.owner.login contains 'github' or 'copilot', or name
-# contains 'copilot', or app.slug equals the canonical 'github-copilot'.
-# Calibration note: confirm the actual app.slug / app.owner.login values on
-# first PR test; the substring match should catch the common spellings but the
-# canonical value is empirically TBD.
+# App identification — match by Copilot-specific markers ONLY. Earlier
+# revisions broadened the filter to include `'github' in owner_login`, which
+# is far too permissive (GitHub Actions, Dependabot, and other first-party
+# bots are all GitHub-owned and would have synthesized a false
+# COPILOT_CLEAN_SIGNAL). The filter now requires 'copilot' in slug / owner /
+# name, OR an exact match to the canonical `github-copilot` slug.
 COPILOT_CHECKRUN_LINE=$(echo "$CHECK_RUNS" | python3 -c "
 import json, sys
 try:
@@ -204,11 +203,14 @@ def is_copilot(run):
     slug = (app.get('slug') or '').lower()
     owner_login = ((app.get('owner') or {}).get('login') or '').lower()
     name = (run.get('name') or '').lower()
+    # Require a Copilot-specific marker — the generic 'github' owner-login
+    # match was too broad (GitHub Actions, Dependabot, etc. are also
+    # GitHub-owned and would synthesize a false COPILOT_CLEAN_SIGNAL).
+    # The slug and run-name probes carry the actual Copilot identity.
     return ('copilot' in slug
-            or 'github' in owner_login
             or 'copilot' in owner_login
             or 'copilot' in name
-            or 'github-copilot' in slug)
+            or slug == 'github-copilot')
 
 copilot = [r for r in runs if is_copilot(r)]
 if not copilot:
