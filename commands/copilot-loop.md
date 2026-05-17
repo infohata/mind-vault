@@ -89,9 +89,9 @@ This is the **only** authorised place to create `.env` — see exception clause 
 
 5. Persist to `~/.claude/memory/projects/<project-slug>/copilot-pr-<N>.md` so the next wake cycle can reload state without re-reading summaries (mitigates context rot). The scratch file must checkpoint **every** piece of state that a hard bound depends on, after every mutation:
 
-   - `commits_this_session` (int, /10)
-   - `active_work_minutes` (int, /60 — best-effort, updated each cycle)
-   - `idle_polls` (int, /20)
+   - `commits_this_session` (int, /20 — matches `max_commits_per_session`)
+   - `active_work_minutes` (int, /180 — matches `max_active_work_minutes`; best-effort, updated each cycle)
+   - `idle_polls` (int, /20 — matches `max_idle_polls`)
    - `last_seen_comment_id` (GitHub comment id; used by Phase 4 to detect truly-new comments)
    - `last_push_sha` (SHA of the last feature-branch push)
    - `no_progress_map` (per-finding-category count of cycles where a commit attempted that category — used by the no-progress detector)
