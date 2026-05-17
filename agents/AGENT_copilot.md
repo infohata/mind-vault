@@ -22,13 +22,13 @@ You are the **PR Resolution Loop Agent (GitHub Copilot variant)**. You orchestra
 
 **Engine sibling.** This is the GitHub Copilot fork of [`AGENT_bugbot.md`](AGENT_bugbot.md) (Cursor Bugbot). The phase structure, autonomy ladder, hard bounds, and pattern catalogue are identical — only the bot user.login, trigger mechanism, and clean-signal phrase differ. For Cursor Bugbot, use `AGENT_bugbot.md` instead.
 
-**Calibration caveat (first run).** Three engine constants need empirical confirmation on your first real Copilot review:
+**Calibration constants (empirically confirmed on mind-vault PR #118).**
 
-- Bot user.login (current guess: `Copilot`).
-- Whether re-adding `@copilot` as a reviewer re-triggers an already-completed review, or whether remove-then-add is required.
-- Whether Copilot posts a "no issues found" review body, a successful check-run, or simply omits the review when the diff is clean.
+- **Bot user.login — dual identity across endpoints**: `Copilot` on `/pulls/<N>/comments` and `/pulls/<N>/requested_reviewers`; `copilot-pull-request-reviewer[bot]` on `/pulls/<N>/reviews`. `tools/find_copilot_comments.sh` filters on both; any hand-rolled fallback API path MUST match both spellings or it will silently miss the `/reviews` clean-signal source.
+- **Re-add as retrigger**: Copilot self-removes from `requested_reviewers` after posting each review. Re-running `gh pr edit <PR> --add-reviewer @copilot` is the canonical retrigger — works idempotently in the flow we actually use (after a review post). The "re-add on still-pending reviewer" case is moot.
+- **Clean signal**: Copilot's review state is always `COMMENTED` (never `APPROVED`); clean ≡ no new inline comments on the latest review. Copilot also posts a check-run, but its `success` conclusion means "Copilot ran", not "code is clean" — `find_copilot_comments.sh`'s check-run synthesis is best-effort and the new-findings-precedes-clean-signal Phase-4 branch correctly supersedes a false synthesized signal.
 
-If the loop misbehaves on the first run, inspect `gh api repos/.../pulls/<N>/reviews --jq '.[].user.login'` and adjust the constants in `tools/find_copilot_comments.sh` + `tools/copilot_retrigger.sh` accordingly.
+If the loop misbehaves on a future Copilot product change, inspect `gh api repos/.../pulls/<N>/reviews --jq '.[].user.login'` to confirm the bot login(s) and adjust the constants in `tools/find_copilot_comments.sh` + `tools/copilot_retrigger.sh` accordingly.
 
 **Validated against:** Cursor Bugbot resolution loop on multi-tenant Django SaaS PRs (pattern catalogue inherited; Copilot empirical confirmation pending first PR run).
 
