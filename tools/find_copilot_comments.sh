@@ -3,15 +3,15 @@
 # comments, and reviews.
 # Used by the /copilot-loop skill (mind-vault) as well as human inspection.
 #
-# IMPORTANT — first-run calibration: this script is the Copilot fork of
-# find_bugbot_comments.sh. The bot user.login constant
-# (`copilot-pull-request-reviewer[bot]`) and the check-run app-slug filter
-# ('copilot' substring match) are best-guess and need empirical confirmation
-# on the first real Copilot review. If the script returns no findings on a
-# PR that has visible Copilot inline comments in the GitHub UI, run:
-#   gh api repos/<owner>/<repo>/pulls/<N>/reviews --jq '.[].user.login'
-# and adjust the constants below accordingly. See AGENT_copilot.md for the
-# full calibration protocol.
+# Bot user.login constant — confirmed empirically on mind-vault PR #118
+# (2026-05-17): GitHub Copilot's PR-review bot exposes user.login as
+# `Copilot` (capital C, no `[bot]` suffix), despite the GitHub app slug
+# being `copilot-pull-request-reviewer`. The /requested_reviewers endpoint
+# returns the same `Copilot` login. The check-run app-slug filter
+# ('copilot' substring match) is still best-guess — calibrate when the
+# first check-run-bearing PR runs through. If a future repo or Copilot
+# product change shifts the bot login, update the filter below +
+# AGENT_copilot.md + the commands/copilot-loop.md banner.
 #
 # Output contract:
 #   - Prints a single `COPILOT_CLEAN_SIGNAL=<id> COMMIT=<sha> AT=<iso-timestamp>` line
@@ -100,7 +100,7 @@ fi
 # Pass 1 — Reviews: three Python sub-passes against $REVIEWS
 # ------------------------------------------------------------------------------
 # Three near-identical python3 blocks below all parse $REVIEWS, filter for
-# copilot-pull-request-reviewer[bot], and sort by submitted_at — but each answers a different question
+# Copilot, and sort by submitted_at — but each answers a different question
 # and emits a different marker:
 #
 #   1. CLEAN_SIGNAL_LINE   — "is copilot saying HEAD is clean right now?"
@@ -130,7 +130,7 @@ fi
 #   - Three python3 spawns is ~150ms total — invisible at the loop's 270s
 #     polling cadence. Performance is not the load-bearing argument here.
 #
-# Drift risk: if copilot-pull-request-reviewer[bot] becomes a different bot login or the API field
+# Drift risk: if Copilot becomes a different bot login or the API field
 # names change, all THREE blocks need updating. Worth consolidating IF a fourth
 # marker is added or the maintenance pain actually shows up.
 # ------------------------------------------------------------------------------
@@ -140,7 +140,7 @@ try:
     reviews = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-copilot = [r for r in reviews if (r.get('user') or {}).get('login') == 'copilot-pull-request-reviewer[bot]']
+copilot = [r for r in reviews if (r.get('user') or {}).get('login') == 'Copilot']
 # Newest first
 copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
 # The output contract (file header, lines 5-8) says the marker fires iff copilot's
@@ -254,7 +254,7 @@ try:
     reviews = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-copilot = [r for r in reviews if (r.get('user') or {}).get('login') == 'copilot-pull-request-reviewer[bot]']
+copilot = [r for r in reviews if (r.get('user') or {}).get('login') == 'Copilot']
 if not copilot:
     sys.exit(0)
 copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
@@ -282,7 +282,7 @@ try:
     reviews = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-copilot = [r for r in reviews if (r.get('user') or {}).get('login') == 'copilot-pull-request-reviewer[bot]']
+copilot = [r for r in reviews if (r.get('user') or {}).get('login') == 'Copilot']
 copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
 shown = 0
 for r in copilot:
@@ -318,7 +318,7 @@ try:
     comments = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-copilot = [c for c in comments if (c.get('user') or {}).get('login') == 'copilot-pull-request-reviewer[bot]']
+copilot = [c for c in comments if (c.get('user') or {}).get('login') == 'Copilot']
 if copilot:
     print(json.dumps(copilot))
 " 2>/dev/null || true)
@@ -421,7 +421,7 @@ try:
     comments = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-copilot = [c for c in comments if (c.get('user') or {}).get('login') == 'copilot-pull-request-reviewer[bot]']
+copilot = [c for c in comments if (c.get('user') or {}).get('login') == 'Copilot']
 if copilot:
     print(json.dumps(copilot))
 " 2>/dev/null || true)

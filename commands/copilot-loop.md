@@ -10,7 +10,7 @@ Drive a GitHub Copilot review-fix-rerun cycle on the current PR (or specified PR
 > **Engine sibling.** This is the GitHub-Copilot-engine fork of [`/bugbot-loop`](bugbot-loop.md) (Cursor Bugbot). The phase structure, dual-signal enumeration, staleness rules, and hard bounds are identical — only the bot user.login, trigger mechanism, and clean-signal phrase differ. For Cursor Bugbot, use `/bugbot-loop` instead.
 >
 > **First-run calibration.** Three constants in this file are best-guess and need empirical confirmation on your first real Copilot review:
-> - Bot user.login (current guess: `copilot-pull-request-reviewer[bot]`).
+> - Bot user.login (current guess: `Copilot`).
 > - Whether `gh pr edit --add-reviewer @copilot` re-triggers an already-requested review, or whether remove+add is required.
 > - Whether Copilot posts a "no issues found" review body when the diff is clean, or simply omits the review.
 >
@@ -53,7 +53,7 @@ This is the **only** authorised place to create `.env` — see exception clause 
 
 1. **Fetch Copilot state** for the PR:
 
-   - Comments: `./tools/find_copilot_comments.sh [PR_NUMBER]` (preferred — includes the `COPILOT_CLEAN_SIGNAL` marker), or equivalent `gh api repos/.../pulls/<N>/comments` + `.../issues/<N>/comments` + `.../pulls/<N>/reviews`, filtering `user.login == "copilot-pull-request-reviewer[bot]"`.
+   - Comments: `./tools/find_copilot_comments.sh [PR_NUMBER]` (preferred — includes the `COPILOT_CLEAN_SIGNAL` marker), or equivalent `gh api repos/.../pulls/<N>/comments` + `.../issues/<N>/comments` + `.../pulls/<N>/reviews`, filtering `user.login == "Copilot"`.
    - Parse unresolved review comments on code lines (findings) separately from reviews (clean-signal source).
    - **Dual-signal enumeration — mandatory output shape every cycle.** Always present both signals explicitly in your cycle summary, even when one of them is absent. The two GitHub resources (`/reviews` for the Copilot review-body clean flag, `/comments` for inline line-anchored findings) are **independent and can coexist for the same commit** — Copilot may post an overall "found no new issues" review AND one or more inline LOW-severity style/structure hints on the same push. Inline comments from prior reviews also persist in `/comments` until a reviewer manually clicks "Resolve conversation" on GitHub, so a stale-by-fix finding can linger alongside a fresh clean signal. Required shape:
 
