@@ -30,7 +30,17 @@ if [ -z "$1" ]; then
         exit 1
     fi
 else
-    PR_NUMBER="$1"
+    # Accept either a bare PR number or a full PR URL.
+    if [[ "$1" =~ ^https?://github\.com/[^/]+/[^/]+/pull/([0-9]+)/?$ ]]; then
+        PR_NUMBER="${BASH_REMATCH[1]}"
+    else
+        PR_NUMBER="$1"
+    fi
+    if [ -z "$PR_NUMBER" ] || ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+        echo "❌ Invalid PR number: '$1'" >&2
+        echo "   Expected a numeric PR id or a GitHub PR URL." >&2
+        exit 1
+    fi
 fi
 
 echo "🔁 Requesting GitHub Copilot review on PR #$PR_NUMBER..."

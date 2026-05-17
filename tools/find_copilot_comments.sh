@@ -66,7 +66,20 @@ if [ -z "$1" ]; then
 
     echo "🔍 Found PR #$PR_NUMBER for branch: $BRANCH"
 else
-    PR_NUMBER="$1"
+    # Accept either a bare PR number (e.g. "118") or a full PR URL
+    # (e.g. "https://github.com/owner/repo/pull/118"). Anything else
+    # would silently fail in `gh api .../pulls/$PR_NUMBER/...` calls
+    # downstream; validate numeric here.
+    if [[ "$1" =~ ^https?://github\.com/[^/]+/[^/]+/pull/([0-9]+)/?$ ]]; then
+        PR_NUMBER="${BASH_REMATCH[1]}"
+    else
+        PR_NUMBER="$1"
+    fi
+    if [ -z "$PR_NUMBER" ] || ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+        echo "❌ Invalid PR number: '$1'" >&2
+        echo "   Expected a numeric PR id or a GitHub PR URL." >&2
+        exit 1
+    fi
 fi
 
 # Repo identifier
