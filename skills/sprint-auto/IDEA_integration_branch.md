@@ -245,7 +245,7 @@ When green-lit:
 - [`references/worktree-lifecycle.md`](references/worktree-lifecycle.md) — touched by v3.1 (code-surface mode, integration-worktree-as-runtime)
 - [`../wrap/SKILL.md`](../wrap/SKILL.md) — touched by this plan (`--scope=idea-only`, last-of-batch detection)
 - [`../work/SKILL.md`](../work/SKILL.md) — touched by this plan (verification routing via env var)
-- [`../../commands/<engine>-loop.md`](../../commands/<engine>-loop.md) — touched by this plan (Phase 0 skip-bootstrap rule when env var set)
+- [`../../commands/bugbot-loop.md`](../../commands/bugbot-loop.md) / [`../../commands/copilot-loop.md`](../../commands/copilot-loop.md) — touched by this plan (Phase 0 skip-bootstrap rule when env var set, in both engine-specific loops)
 - [`references/PARALLEL_WORKTREE_DOCKER.md`](references/PARALLEL_WORKTREE_DOCKER.md) — worktree pattern; v3.1 narrows the per-worktree stack assumption for sprint-auto
 - [`../../rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — confirms forward-sync (S11.11) is agent-allowed; the `[INTEGRATION]` draft PR is a non-merging artefact
 - Existing sprint-auto state machine: `skills/sprint-auto/SKILL.md` (S0–S15)

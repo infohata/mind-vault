@@ -186,7 +186,8 @@ fi
 #
 # App identification — match by app.slug for Copilot's bot. Tolerant filter so
 # minor app-name changes don't break the script: matches if app.slug contains
-# 'copilot' OR app.owner.login contains 'github' OR name contains 'copilot'.
+# 'copilot', or app.owner.login contains 'github' or 'copilot', or name
+# contains 'copilot', or app.slug equals the canonical 'github-copilot'.
 # Calibration note: confirm the actual app.slug / app.owner.login values on
 # first PR test; the substring match should catch the common spellings but the
 # canonical value is empirically TBD.
@@ -204,8 +205,9 @@ def is_copilot(run):
     owner_login = ((app.get('owner') or {}).get('login') or '').lower()
     name = (run.get('name') or '').lower()
     return ('copilot' in slug
-            or 'copilot' in name
+            or 'github' in owner_login
             or 'copilot' in owner_login
+            or 'copilot' in name
             or 'github-copilot' in slug)
 
 copilot = [r for r in runs if is_copilot(r)]
