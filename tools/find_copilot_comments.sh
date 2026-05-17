@@ -35,7 +35,7 @@
 # Usage: ./tools/find_copilot_comments.sh [PR_NUMBER]
 #        ./tools/find_copilot_comments.sh   # Uses current branch's PR
 
-set -e
+set -eo pipefail
 
 # Colors for output
 RED='\033[0;31m'
