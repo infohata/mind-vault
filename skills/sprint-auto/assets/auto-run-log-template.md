@@ -228,7 +228,7 @@ Escalation cap for mind-vault compound PRs is 5 (same as docs pass — compound 
 
 | Destination | PR | Review | Escalation | Branch |
 |---|---|---|---|---|
-| `skills/django/references/null-guard-patterns.md` (new) | https://github.com/.../pull/78 | clean | 0/5 | `compound/2026-04-20-null-guard-patterns` |
+| `skills/<owner>/references/<topic>.md` (placeholder example) | https://github.com/.../pull/78 | clean | 0/5 | `compound/2026-04-20-<topic>` |
 | `AGENT_architect.md` pass-2 addendum | https://github.com/.../pull/79 | 1 T3 remaining | 5/5 (cap hit) | `compound/2026-04-20-architect-pass-2-hoisting` |
 
 ## ✅ Atomic-batch merging — pick ONE PR to merge, the rest auto-collapse

@@ -237,9 +237,11 @@ if [ -n "$COPILOT_CHECKRUN_LINE" ]; then
     # greps COPILOT_CLEAN_SIGNAL; this preserves the existing consumer contract.
     # In-progress Copilot check-runs emit `STATUS=` / `CONCLUSION=` with
     # empty values. `grep -oE 'FIELD=[^ ]+'` (requiring ≥1 non-space char
-    # after `=`) returns 1 in that case, and `set -e` aborts the whole
-    # script. Append `|| true` to each grep so empty fields fall through
-    # to the `!= success` branch (no synthesis) rather than abort.
+    # after `=`) returns 1 in that case. With `set -eo pipefail` (enabled
+    # at top of file) the grep's exit propagates through the pipe and
+    # aborts the script. Append `|| true` to each pipeline so empty
+    # fields fall through to the `!= success` branch (no synthesis)
+    # rather than abort.
     cr_status=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'STATUS=[^ ]+' | cut -d= -f2 || true)
     cr_conclusion=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'CONCLUSION=[^ ]+' | cut -d= -f2 || true)
     if [ "$cr_status" = "completed" ] && [ "$cr_conclusion" = "success" ]; then

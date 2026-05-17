@@ -13,7 +13,7 @@
 # test shows it does NOT re-trigger, swap the gh invocation for the
 # remove-then-add fallback (see comment in the body).
 
-set -e
+set -eo pipefail
 
 if [ -z "$1" ]; then
     BRANCH=$(git branch --show-current)

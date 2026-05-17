@@ -191,7 +191,7 @@ First batches will calibrate; numbers above are starting points, not contracts.
 
 ### Cross-skill (verification routing)
 - `skills/work/SKILL.md` — verification step honors `SPRINT_AUTO_INTEGRATION_WORKTREE` env var
-- `commands/<engine>-loop.md` — Phase 0 skip-bootstrap rule when env var set
+- `commands/bugbot-loop.md` and `commands/copilot-loop.md` — Phase 0 skip-bootstrap rule when env var set (both engine-specific loops carry the same rule)
 
 ### Tooling (per project)
 - `tools/sprint-auto-bootstrap.sh` — accept `--code-only` flag (skips `.env` rewrite + `docker compose up` + post-up init); standard mode (no flag) for integration worktree
@@ -231,7 +231,7 @@ If these signals hold on the first batch, v3 is working. If a signal breaks, the
 When green-lit:
 1. Open `feature/sprint-auto-integration-stage` off `origin/main`
 2. Implement S(-1) bootstrap + S0 code-surface narrowing in `skills/sprint-auto/SKILL.md`
-3. Add verification routing in `skills/work/SKILL.md` + `commands/<engine>-loop.md`
+3. Add verification routing in `skills/work/SKILL.md` + `commands/bugbot-loop.md` + `commands/copilot-loop.md`
 4. Add `--scope=idea-only` mode in `skills/wrap/SKILL.md`
 5. Add `--code-only` flag to `tools/sprint-auto-bootstrap.sh` (per project)
 6. Implement S11.5–S11.13 + new reference docs
