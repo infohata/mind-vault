@@ -548,6 +548,68 @@ swappedEl.dispatchEvent(new CustomEvent('refresh', { bubbles: true }));
 
 Mirrors HTMX's own dispatch behaviour (HTMX fires on the swapped target). The walker pattern in [`PREVIEW_DRAWER_URL_STACK.md`](PREVIEW_DRAWER_URL_STACK.md) § *Walker rebind contract* embodies this.
 
+## 10. Alpine `:class="cond && 'str'"` short-circuit doesn't remove SSR-applied classes
+
+When an element layers Alpine's `:class` binding **on top of** a server-rendered `class="…"` attribute, the binding's syntax determines whether Alpine can REMOVE classes that the server applied. The short-circuit pattern (`:class="cond && 'foo'"`) only ADDS — it cannot remove. Object syntax (`:class="{ foo: cond }"`) tracks both directions.
+
+### The trap
+
+A nav cotton renders both static + reactive class bindings on the same `<a>`:
+
+```django
+<a class="navbar-item shell-nav__item{% if active_surface == item.slug %} shell-nav__item--active{% endif %}"
+   :class="$store.shellNav.activeSurface === '{{ item.slug }}' && 'shell-nav__item--active'">
+   …
+</a>
+```
+
+The intent: SSR satisfies cold-load no-FOUC; Alpine takes over post-`alpine:init` and keeps the marker in sync across every hot-swap. Looks right at a glance — both sides reference `shell-nav__item--active`.
+
+**The trap**: Alpine's `:class="expr"` directive evaluates `expr`. For `cond && 'foo'`:
+
+- `cond` truthy → expression returns `'foo'` → Alpine adds the class.
+- `cond` falsy → expression returns `false` (or `0`, `''`, `null`) → Alpine treats it as a no-op. **It does NOT remove `'foo'` from the static `class` attribute.**
+
+Alpine only tracks the classes IT has added (via prior reactive evaluations). The server-rendered `shell-nav__item--active` was never added by Alpine — so Alpine has no record of it and won't remove it when the reactive expression flips false.
+
+Symptom: directional asymmetry. The nav item that was active at SSR-time stays highlighted forever (its `--active` class survives every hot-swap because the short-circuit can only add, not remove). The nav item that becomes active later correctly gains the class via Alpine. Hot-swap of an active surface back to its original cold-load state appears to work; hot-swap AWAY from the cold-load active surface leaves the stale marker.
+
+### The fix — object syntax
+
+```django
+<a class="navbar-item shell-nav__item{% if active_surface == item.slug %} shell-nav__item--active{% endif %}"
+   :class="{ 'shell-nav__item--active': $store.shellNav.activeSurface === '{{ item.slug }}' }">
+   …
+</a>
+```
+
+Object syntax `{ 'foo': cond }` is a class-toggle directive Alpine understands as bidirectional. When `cond` flips false, Alpine REMOVES `'foo'` from the element's class list — including when `'foo'` was originally server-applied. The SSR class correctly hands off to Alpine's reactive control on first evaluation.
+
+### Why `:aria-current` doesn't have this problem
+
+The asymmetry is `:class`-specific. Alpine's `:attr` binding (used for any attribute name except `class` / `style`) uses different semantics: a `null` / `undefined` return value REMOVES the attribute, a string return value SETS it.
+
+```django
+{% if active_surface == item.slug %}aria-current="page"{% endif %}
+:aria-current="$store.shellNav.activeSurface === '{{ item.slug }}' ? 'page' : null"
+```
+
+This ternary works correctly even though the same `cond && 'page'` syntax would NOT — `:aria-current` will SET to `'page'` when truthy and REMOVE the attribute when null, regardless of whether the attribute was server-applied. Class binding's add-only short-circuit is the outlier.
+
+### Detection
+
+After landing any dual-bound SSR + Alpine class binding, walk a state transition that should REMOVE the class (e.g. nav-swap from active surface A to active surface B). Visually verify the previously-active marker clears. If it doesn't, the binding is the short-circuit form — convert to object syntax.
+
+A render-and-assert test that ONLY checks the truthy case (active item carries `--active`) won't catch this — both syntaxes pass that assertion. The failing case is the previously-active item AFTER a state change, which static render tests can't reach without a JS execution layer. Manual eval or Playwright is the gate.
+
+### The same lesson generalises to `:style`
+
+Object syntax is also the safe default whenever a static attribute might carry the value the reactive binding is supposed to control. `:style="cond && 'display: none'"` has the same asymmetry as `:class`; `:style="{ display: cond ? 'none' : '' }"` is the bidirectional form.
+
+### When to skip this pattern entirely
+
+The cleanest variant is the [`ACTIVE_STATE_TRACKING.md`](ACTIVE_STATE_TRACKING.md) pattern: drop `:class` entirely, use `aria-current="true"` (or another semantic attribute) as the single source of truth, style via CSS `:has()`. Single attribute, no SSR / reactive sync to manage, no syntax trap to remember. The dual-bound pattern above is for cases where `:has()` styling isn't viable (parent-styling chain too deep, or browser-support constraints).
+
 ---
 
-**Last Updated**: 2026-05-14
+**Last Updated**: 2026-05-16
