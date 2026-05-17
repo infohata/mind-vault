@@ -2,6 +2,8 @@
 
 Full state machine for the sprint-auto loop: pre-batch (S(-1)), per-IDEA (S0–S11), batch integration phase (S11.5–S11.13), batch compound (S12–S15). Normative expansion of `SKILL.md` §1–§4. Keep this diagrammatic — implementation detail lives in the referenced docs. This file and `SKILL.md` share a single state numbering; if they disagree, treat it as a defect in this file (the SKILL is the source of behaviour; this file is the source of structure).
 
+> **v3.1 vs v3.2 split.** The top-level state-machine diagrams reflect **v3.2 current** (integration branch is the merge gate; [INTEGRATION] PR is non-draft; per-IDEA PRs target the integration branch; S11.11 forward-sync + S11.12 re-review deleted). The detailed prose sections below (`### S11.10 — review via [INTEGRATION] draft PR`, `### S11.11 — forward-sync`, `### S11.12 — per-PR PR re-review + verification`) still describe **v3.1 historical behavior** and are retained as historical reference for compound provenance. **For current behavior, follow the diagrams + `SKILL.md`; ignore the v3.1 prose sections.** A future debloat pass should either remove the v3.1 prose entirely or rewrite each section in v3.2 form.
+
 ## The state machine — pre-batch (S(-1))
 
 ```text
@@ -112,29 +114,23 @@ After all per-IDEA loops complete:
 │      ↓                                                                       │
 │ S11.9 Full test suite (sprint-end gate, cap 10 attempts on failure)          │
 │      ↓                                                                       │
-│ S11.10 Review-loop on integration branch via [INTEGRATION] draft PR          │
-│        (cap 20 — elephants; deliverables-class review of integrated state)   │
-│        - gh pr create --draft --title "[INTEGRATION] sprint-auto-<iso>"     │
-│        - /<engine>-loop <draft-pr-number>                                      │
+│ S11.10 Review-loop on integration branch via [INTEGRATION] non-draft PR     │
+│        — THE MERGE GATE (v3.2 redesign; cap 20 — elephants;                 │
+│        deliverables-class review of integrated state)                       │
+│        - gh pr create (non-draft) --title "[INTEGRATION] sprint-auto-<iso>" │
+│        - /<engine>-loop <pr-number>                                         │
 │      ↓                                                                       │
-│ S11.11 Forward-sync integration into each auto/<slug>                        │
-│        - integration worktree pushes integration/sprint-auto-<batch-iso>    │
-│        - foreach slug: cd PER-IDEA worktree (auto/<slug> already checked    │
-│          out there) && git fetch origin && git merge --no-ff                │
-│          origin/integration/sprint-auto-<batch-iso> && git push origin      │
-│          auto/<slug>                                                         │
-│        - merge runs in per-IDEA worktree to avoid cross-worktree branch     │
-│          collision (cannot check out auto/<slug> in integration worktree)   │
-│        - feature-branch tip moves; integration branch stays put             │
-│        - NO force-push; RULE_git-safety compliant                           │
+│ ~~S11.11 Forward-sync~~ DELETED in v3.2 — per-IDEA PRs target the           │
+│        integration branch directly (not parent), so forward-sync from       │
+│        integration back to per-IDEA branches is no longer needed.            │
+│ ~~S11.12 Per-PR re-review~~ DELETED in v3.2 — no forward-sync means         │
+│        per-IDEA branch tips don't change post-S11.10, so re-running the     │
+│        review on them adds zero signal.                                      │
 │      ↓                                                                       │
-│ S11.12 Per-PR PR re-review + verification (cap 5 each)                       │
-│        - foreach slug: route to integration worktree, checkout auto/<slug>, │
-│          reset DB, run targeted tests, /<engine>-loop                          │
-│      ↓                                                                       │
-│ S11.13 Integration teardown                                                   │
+│ S11.13 Integration teardown (post-batch, NOT post-merge)                    │
 │        - docker compose down (NOT -v; volumes preserved for inspection)      │
-│        - gh pr close <integration-draft-pr> with auto-close comment          │
+│        - [INTEGRATION] PR LEFT OPEN as the merge gate — the human merges    │
+│          it; per-IDEA PRs auto-close as merged ancestors                    │
 │        - worktree filesystem stays; branch lingers locally                   │
 │        - human's /wrap NNN for last-of-batch IDEA does final cleanup         │
 └──────────────────────────────────────────────────────────────────────────────┘

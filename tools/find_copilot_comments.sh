@@ -231,14 +231,19 @@ if [ -n "$COPILOT_CHECKRUN_LINE" ]; then
     # Synthesize COPILOT_CLEAN_SIGNAL from a successful check-run when /reviews
     # didn't produce one for HEAD. The downstream /copilot-loop Phase 4 only
     # greps COPILOT_CLEAN_SIGNAL; this preserves the existing consumer contract.
-    cr_status=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'STATUS=[^ ]+' | cut -d= -f2)
-    cr_conclusion=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'CONCLUSION=[^ ]+' | cut -d= -f2)
+    # In-progress Copilot check-runs emit `STATUS=` / `CONCLUSION=` with
+    # empty values. `grep -oE 'FIELD=[^ ]+'` (requiring ≥1 non-space char
+    # after `=`) returns 1 in that case, and `set -e` aborts the whole
+    # script. Append `|| true` to each grep so empty fields fall through
+    # to the `!= success` branch (no synthesis) rather than abort.
+    cr_status=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'STATUS=[^ ]+' | cut -d= -f2 || true)
+    cr_conclusion=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'CONCLUSION=[^ ]+' | cut -d= -f2 || true)
     if [ "$cr_status" = "completed" ] && [ "$cr_conclusion" = "success" ]; then
         echo -e "${GREEN}✅ Copilot check-run reports success for PR head.${NC}"
         if [ -z "$CLEAN_SIGNAL_LINE" ]; then
-            cr_id=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'COPILOT_CHECKRUN=[^ ]+' | cut -d= -f2)
-            cr_sha=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'COMMIT=[^ ]+' | cut -d= -f2)
-            cr_at=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'AT=[^ ]+' | cut -d= -f2)
+            cr_id=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'COPILOT_CHECKRUN=[^ ]+' | cut -d= -f2 || true)
+            cr_sha=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'COMMIT=[^ ]+' | cut -d= -f2 || true)
+            cr_at=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'AT=[^ ]+' | cut -d= -f2 || true)
             echo "COPILOT_CLEAN_SIGNAL=checkrun-${cr_id} COMMIT=${cr_sha} AT=${cr_at}"
             CLEAN_SIGNAL_LINE="checkrun-${cr_id}"  # mark non-empty for the summary check below
         fi
