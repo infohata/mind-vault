@@ -2,8 +2,8 @@
 #Requires -PSEdition Desktop
 # NOTE: deliberately NOT using `#Requires -RunAsAdministrator` — the manual
 # admin check in section 1 produces a friendlier error than PowerShell's
-# default `#Requires` failure message and is invoked even by non-elevated
-# users who try `pwsh .\install-wsl.ps1`.
+# default `#Requires` failure message. (`-PSEdition Desktop` blocks pwsh 7+
+# upfront because the DISM cmdlets used below are Windows-PowerShell-only.)
 <#
 .SYNOPSIS
     Installs WSL2 on Windows 10 (build 19041+) or Windows 11.
@@ -82,8 +82,18 @@ function Confirm-Or-Exit {
 # parameter-prefix matcher would silently consume a literal `-d` flag from
 # the caller as -Debug, breaking `Invoke-Wsl --install -d $Distro --no-launch`.
 # Plain `$args` keeps every token intact.
+# Resolve `wsl.exe` once to an absolute path so an attacker can't smuggle in a
+# PATH-shadowing binary into an elevated session. 32-bit PowerShell on 64-bit
+# Windows must use `Sysnative` (the file-system redirector rewrites System32).
+$script:WslExe = if ([Environment]::Is64BitOperatingSystem -and `
+                     -not [Environment]::Is64BitProcess) {
+    Join-Path $env:WINDIR 'Sysnative\wsl.exe'
+} else {
+    Join-Path $env:WINDIR 'System32\wsl.exe'
+}
+
 function Invoke-Wsl {
-    & wsl.exe @args
+    & $script:WslExe @args
     $code = $LASTEXITCODE
     if ($code -ne 0) {
         throw "wsl.exe $($args -join ' ') exited with code $code"
@@ -284,9 +294,15 @@ if (-not $useModernInstall) {
         }
         Write-Ok "MSI signature verified ($($sig.SignerCertificate.Subject))"
 
-        # `Start-Process -Wait` does NOT throw on non-zero MSI exits — capture
-        # the process object with -PassThru and inspect ExitCode explicitly.
-        $msi = Start-Process -FilePath 'msiexec.exe' `
+        # Absolute path for msiexec.exe + `Start-Process -Wait` does NOT throw
+        # on non-zero MSI exits, so capture the process and check ExitCode.
+        $msiExe = if ([Environment]::Is64BitOperatingSystem -and `
+                      -not [Environment]::Is64BitProcess) {
+            Join-Path $env:WINDIR 'Sysnative\msiexec.exe'
+        } else {
+            Join-Path $env:WINDIR 'System32\msiexec.exe'
+        }
+        $msi = Start-Process -FilePath $msiExe `
             -ArgumentList "/i `"$kernelMsi`" /quiet /norestart" `
             -Wait -PassThru
         if ($msi.ExitCode -ne 0) {
@@ -329,7 +345,7 @@ Write-Step 'Selecting Linux distribution'
 
 function Get-OnlineDistros {
     try {
-        $raw = & wsl.exe --list --online 2>&1 | Out-String
+        $raw = & $script:WslExe --list --online 2>&1 | Out-String
         if ($LASTEXITCODE -ne 0) { return @() }
         $lines = $raw -split "`r?`n" | Where-Object { $_ -match '^\s*[A-Za-z0-9]' }
         # Skip ALL preamble lines ("The following...", "Install using...", etc.)
