@@ -227,6 +227,14 @@ foreach ($feat in @('Microsoft-Windows-Subsystem-Linux', 'VirtualMachinePlatform
             Write-Warn2 "$feat is enabled but pending reboot"
             $rebootNeeded = $true
         }
+        'DisabledPending' {
+            # A previous disable is queued; enabling now races with the pending
+            # disable. Reboot first, then re-run — Enable-WindowsOptionalFeature
+            # against this state can fail or leave the feature in an inconsistent
+            # state.
+            Write-Warn2 "$feat is disabled but pending reboot — reboot first, then re-run"
+            $rebootNeeded = $true
+        }
         default {
             Write-Info "Enabling $feat (current state: $state) ..."
             if (Enable-Feature -Name $feat) { $rebootNeeded = $true }
@@ -279,7 +287,13 @@ if (-not $useModernInstall) {
     }
 
     $kernelUrl = 'https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi'
-    $kernelMsi = Join-Path $env:TEMP 'wsl_update_x64.msi'
+    # Unique temp path — fixed names in a user-writable temp dir are clobber /
+    # symlink / hardlink-attack vectors when the script runs elevated. New-
+    # TemporaryFile atomically creates a 0-byte file with a random name (O_EXCL
+    # semantics); we then move it to a .msi extension so msiexec recognises it.
+    $tmp = New-TemporaryFile
+    $kernelMsi = [System.IO.Path]::ChangeExtension($tmp.FullName, '.msi')
+    Move-Item -LiteralPath $tmp.FullName -Destination $kernelMsi -Force
     try {
         Invoke-WebRequest -Uri $kernelUrl -OutFile $kernelMsi -UseBasicParsing
 
