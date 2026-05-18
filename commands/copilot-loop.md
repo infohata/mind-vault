@@ -9,12 +9,16 @@ Drive a GitHub Copilot review-fix-rerun cycle on the current PR (or specified PR
 
 > **Engine sibling.** This is the GitHub-Copilot-engine fork of [`/bugbot-loop`](bugbot-loop.md) (Cursor Bugbot). The phase structure, dual-signal enumeration, staleness rules, and hard bounds are identical — only the bot user.login, trigger mechanism, and clean-signal phrase differ. For Cursor Bugbot, use `/bugbot-loop` instead.
 >
-> **First-run calibration.** Three constants in this file are best-guess and need empirical confirmation on your first real Copilot review:
-> - Bot user.login (current guess: `Copilot`).
-> - Whether `gh pr edit --add-reviewer @copilot` re-triggers an already-requested review, or whether remove+add is required.
-> - Whether Copilot posts a "no issues found" review body when the diff is clean, or simply omits the review.
+> **First-run calibration — partially confirmed (2026-05-18 empirical run, PR #456 of a downstream project).**
+> - Bot user.login: `Copilot` (single-token, no brackets) confirmed on `/pulls/<N>/requested_reviewers`; the bracketed form `copilot-pull-request-reviewer[bot]` confirmed on `/pulls/<N>/reviews`. Always filter on the **dual identity** as documented in Phase 1.
+> - Retrigger: ✅ `remove+add IS required`. The bare `gh pr edit --add-reviewer @copilot` against an already-requested-or-completed reviewer is a no-op (the PR's GET shows `Copilot` still in `requested_reviewers` but Copilot's reviewer-processor never re-fires). The empirically-confirmed pattern is `gh pr edit --remove-reviewer @copilot && sleep 1 && gh pr edit --add-reviewer @copilot`. Ship `tools/copilot_retrigger.sh` (when first authored) with remove+add as the default.
+> - Clean-signal phrasing: ⏳ still empirically TBD. The PR #456 run never observed Copilot post a "no issues found" review body — Copilot either posted reviews with inline findings OR posted reviews with the service-error body documented in § Failure modes below. The clean-signal phrasing remains a calibration gap until a Copilot-cleared review is observed in the wild.
 >
 > If the loop misbehaves on the first run, inspect `gh api repos/.../pulls/<N>/reviews --jq '.[].user.login'` to confirm the bot login, and adjust the constants in `tools/find_copilot_comments.sh` + `tools/copilot_retrigger.sh` accordingly.
+
+> **Failure modes (2026-05-18 empirical observations).**
+> - **Service-error review** — Copilot can post a review with `state: COMMENTED`, body literally equal to `"Copilot encountered an error and was unable to review this pull request. You can try again by re-requesting a review."`, and zero inline comments. Three consecutive errors on three consecutive HEAD SHAs against the same PR = durable service issue, not transient. The loop should detect this pattern (2 or 3 consecutive errored reviews from the same PR) and **hand back to the user** — additional remove+add retriggers compound the failure rather than resolving it. The hand-back report should call out the service-error reviews by id + SHA so the user can decide whether to retry from GitHub UI, wait for Copilot service to recover, or proceed without Copilot's verdict.
+> - **Hung-CHECKRUN pattern (sibling-engine specific)** — when running Copilot in combined-with-bugbot mode (§ Dual-engine sync rule below), bugbot's CHECKRUN can stall in `STATUS=in_progress` for >15 min on a SHA. Different failure mode from Copilot's service-error; treat similarly per the dual-engine trade-off rule.
 
 **Inputs**: optional PR number. Default: PR for current branch.
 
@@ -27,6 +31,49 @@ Drive a GitHub Copilot review-fix-rerun cycle on the current PR (or specified PR
 - Feature branch only — never main (per `RULE_git-safety`)
 - Batch fixes per Copilot review cycle into one commit, not one-per-finding
 - **Commits**: standard `RULE_git-safety` applies — feature branches are the agent's sandbox, so the loop commits and pushes Tier 1 fixes autonomously. Tier 2 still needs explicit per-finding *fix-direction* approval (that is a content decision, not a commit approval). Protected-branch guardrails remain in force: never main, never merge into a protected branch, never force-push to protected, never `--no-verify`.
+
+## Dual-engine sync rule (combined with `/bugbot-loop`)
+
+When the user invokes both `/copilot-loop` AND `/bugbot-loop` on the same PR (the user's reasonable instinct — "two reviewers catch more than one"), the loops MUST sync each cycle to avoid double-pushes that invalidate each other's pending reviews. Each cycle waits for **the slowest engine** to either (a) post findings against `last_push_sha` OR (b) post a clean signal for `last_push_sha`, then BATCHES findings from both into ONE fix commit + pushes once + retriggers BOTH engines.
+
+The rationale: each push invalidates pending reviews of the prior SHA. If copilot-loop commits a fix and pushes while bugbot-loop is still scanning the prior SHA, bugbot's pending review becomes stale (against a now-obsolete diff) and the engine has to re-scan from scratch. Compounding waste: bugbot scans SHA-A, copilot commits a fix → SHA-B, bugbot's review of SHA-A lands but is stale, bugbot now has to scan SHA-B from scratch. With sync, both engines scan SHA-A at once and the fix commit folds in both findings; bugbot's next scan is against SHA-B which actually has the fixes both bots wanted.
+
+**Default cadence with sync**: each engine takes its own time on its review; the loop's idle-poll interval (270s cache-warm) is unchanged. Sync just defers Phase 3 commit-and-push until both engines' verdicts on `last_push_sha` are in hand.
+
+**Trade-off escape hatch — proceed with one engine when the other stalls.** Hard "wait for slowest" risks blocking the loop indefinitely if one engine hangs. Trip-triggers for proceeding with the responsive engine:
+
+| Trip | Trigger condition | Action |
+|---|---|---|
+| Bugbot stalled | `BUGBOT_CHECKRUN` status `in_progress` for >15 min on `last_push_sha` (well past the documented 1-10 min range) | Proceed with Copilot's findings if any; retrigger bugbot post-push. |
+| Copilot service-errored 2× consecutive | See § Failure modes above — Copilot review body literally `"Copilot encountered an error..."` on two consecutive HEAD SHAs against the same PR | Proceed with bugbot's findings if any; do NOT retry Copilot in this cycle (compounds the failure). |
+| Copilot service-errored 3× consecutive | Third consecutive service error | Hand back to user — loop can't resolve a durable Copilot service issue. |
+| Bugbot returns CLEAN but Copilot still hung | `BUGBOT_CLEAN_SIGNAL` for `last_push_sha` + Copilot still queued/in-flight past idle-poll threshold | Wait for Copilot up to `max_idle_polls` × 270s; if still no Copilot verdict, hand back with bugbot's CLEAN status documented in the report. |
+
+**Sync state — extra scratch-file fields when running in dual-engine mode.** Per-engine state needs separate keys so a stall in one engine doesn't desync the other's poll counters:
+
+```yaml
+last_seen_bugbot_review:  <id> @ <sha> CLEAN=<bool>
+last_seen_copilot_review: <id> @ <sha> CLEAN=<bool>
+last_seen_bugbot_comment_id:  <id>
+last_seen_copilot_comment_id: <id>
+no_progress_map:  # per-engine, per-finding-category
+  bugbot:  { <category>: <count> }
+  copilot: { <category>: <count> }
+```
+
+The per-engine `no_progress_map` keeps the no-progress detector accurate when bugbot and copilot independently raise different findings in the same category (different code paths, different fixes).
+
+**Retrigger discipline — different per engine.** When Phase 3 fires after the dual-engine batch commit:
+- Bugbot: post a `bugbot run` comment via `tools/bugbot_retrigger.sh <PR>`.
+- Copilot: `remove+add` (per § First-run calibration above). Re-add alone is a no-op.
+
+Both retriggers happen post-push, in that order. The bugbot comment is cheap; the copilot remove+add is the one that's been observed to be load-bearing.
+
+**Hand-back when only one engine cleared.** A non-trivial fraction of PR runs end with one engine CLEAN and the other in a degraded state (service error, infrastructure hang, billing-rate-limit pause). The hand-back report MUST distinguish:
+- `bugbot: CLEAN at <sha>` AND `copilot: errored / hung / unavailable` — the PR has ONE engine's verdict. Surface this prominently. User decides whether to merge on bugbot's verdict alone, retry copilot from GitHub UI, or proceed without copilot's verdict.
+- Mirror for `copilot: CLEAN` AND `bugbot: hung`.
+- `both: CLEAN at <sha>` — merge-ready.
+- `both: still finding things` — loop continues.
 
 ## Phase 0: Worktree environment bootstrap
 

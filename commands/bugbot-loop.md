@@ -19,6 +19,47 @@ Drive a Cursor Bugbot review-fix-rerun cycle on the current PR (or specified PR 
 - Batch fixes per `bugbot run` cycle into one commit, not one-per-finding
 - **Commits**: standard `RULE_git-safety` applies — feature branches are the agent's sandbox, so the loop commits and pushes Tier 1 fixes autonomously. Tier 2 still needs explicit per-finding *fix-direction* approval (that is a content decision, not a commit approval). Protected-branch guardrails remain in force: never main, never merge into a protected branch, never force-push to protected, never `--no-verify`.
 
+## Dual-engine sync rule (combined with `/copilot-loop`)
+
+When the user invokes `/bugbot-loop` AND `/copilot-loop` on the same PR (the user's reasonable instinct — "two reviewers catch more than one"), the loops MUST sync each cycle to avoid double-pushes that invalidate each other's pending reviews. Each cycle waits for **the slowest engine** to either (a) post findings against `last_push_sha` OR (b) post a clean signal for `last_push_sha`, then BATCHES findings from both into ONE fix commit + pushes once + retriggers BOTH engines.
+
+The rationale: each push invalidates pending reviews of the prior SHA — without sync, bugbot's pending review of SHA-A becomes stale the moment copilot-loop commits a fix to SHA-B, forcing bugbot to re-scan from scratch.
+
+**Trade-off escape hatch — proceed with one engine when the other stalls.** Hard "wait for slowest" risks blocking the loop indefinitely if one engine hangs:
+
+| Trip | Trigger | Action |
+|---|---|---|
+| Bugbot stalled | `BUGBOT_CHECKRUN status=in_progress` for >15 min (well past 1-10 min normal range) on `last_push_sha` | Proceed with Copilot's findings if any; retrigger bugbot post-push. |
+| Copilot service-errored 2× consecutive | Copilot review body literally `"Copilot encountered an error..."` on two consecutive HEAD SHAs | Proceed with bugbot's findings if any; do NOT retry Copilot in this cycle. |
+| Copilot service-errored 3× consecutive | Third consecutive error | Hand back to user — durable Copilot service issue, can't resolve from the loop. |
+| Bugbot CLEAN + Copilot still hung | `BUGBOT_CLEAN_SIGNAL` for `last_push_sha` + Copilot still queued past idle-poll threshold | Wait up to `max_idle_polls` × 270s; if still no Copilot verdict, hand back with bugbot's CLEAN status documented. |
+
+**Sync state — extra scratch-file fields per-engine when running in dual-engine mode:**
+
+```yaml
+last_seen_bugbot_review:  <id> @ <sha> CLEAN=<bool>
+last_seen_copilot_review: <id> @ <sha> CLEAN=<bool>
+last_seen_bugbot_comment_id:  <id>
+last_seen_copilot_comment_id: <id>
+no_progress_map:
+  bugbot:  { <category>: <count> }
+  copilot: { <category>: <count> }
+```
+
+**Retrigger discipline — different per engine.** Phase 3 fires after the dual-engine batch commit:
+- Bugbot: `tools/bugbot_retrigger.sh <PR>` (posts a `bugbot run` comment).
+- Copilot: `remove+add` (`gh pr edit --remove-reviewer @copilot && sleep 1 && gh pr edit --add-reviewer @copilot`). The bare `--add-reviewer @copilot` against an already-requested reviewer is a no-op (empirically confirmed).
+
+Both retriggers happen post-push, in that order.
+
+**Hand-back when only one engine cleared.** A non-trivial fraction of dual-engine runs end with one engine CLEAN and the other in a degraded state. The hand-back report MUST distinguish:
+- `bugbot: CLEAN at <sha>` AND `copilot: errored / hung / unavailable` — the PR has ONE engine's verdict. Surface this prominently. User decides whether to merge on bugbot's verdict alone, retry copilot from GitHub UI, or proceed without copilot's verdict.
+- Mirror for `copilot: CLEAN` AND `bugbot: hung`.
+- `both: CLEAN at <sha>` — merge-ready.
+- `both: still finding things` — loop continues.
+
+See `/copilot-loop`'s § First-run calibration + § Failure modes blocks for the Copilot-side specifics that motivate the trade-off table above.
+
 ## Phase 0: Worktree environment bootstrap
 
 **Sprint-auto v3.1 mode (new) — short-circuit**: if `SPRINT_AUTO_INTEGRATION_WORKTREE` is set in the environment, **skip Phase 0 entirely**. Per-IDEA worktrees under sprint-auto v3.1 are pure code surfaces — no `.env`, no docker compose stack. Bugbot-loop's role in this mode narrows to (a) reading Cursor Bugbot's findings via the GitHub API and (b) committing fixes to the per-IDEA branch. Neither activity needs a runtime in the per-IDEA worktree. When fix-verification runs in Phase 2 / Phase 3, it routes to the integration worktree (see Phase 2 § "v3.1 fix-verification routing"). See [`skills/sprint-auto/references/integration-stage.md`](../skills/sprint-auto/references/integration-stage.md) for the full env-var contract.

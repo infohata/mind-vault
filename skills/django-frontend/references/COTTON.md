@@ -238,6 +238,106 @@ When promoting from `{% include %}` to cotton across an entity:
 2. Compose them with `<c-edit-button :href="..." />` / `<c-delete-button :href="..." />` from the shared layer.
 3. Build the per-entity composition cotton (`<c-article-actions>`, `<c-event-detail-actions>`) last — it's the layout-decision layer and benefits from having both wings already stable.
 
+## Dict-literal cotton props silently drop context vars
+
+`django-cotton ≥ 2.6` does NOT evaluate template context variables inside dict-literal cotton-attr values. A prop declared as `:link_attrs="{'type': 'event-edit', 'identifier': event.pk}"` looks like it threads two values through — at render time it threads an **empty dict**, and any `{% if link_attrs.type %}` gate inside the cotton emits nothing. The bug is silent (no JS error, no template-render error); the cotton renders without the conditional block, the rendered markup is shape-valid HTML, and the surface still LOOKS correct under casual inspection.
+
+Reproducer (concise):
+
+```python
+from django.template import engines
+from django_cotton.compiler_regex import CottonCompiler
+
+tpl = '<c-edit-button :link_attrs="{\'identifier\': my_int}" />'
+ctx = {'my_int': 54}
+rendered = engines['django'].from_string(CottonCompiler().process(tpl)).render(ctx)
+# `link_attrs` arrives in the cotton as `{}` (empty) — not `{'identifier': 54}`.
+# `{% if link_attrs.identifier %}` inside the cotton evaluates falsy.
+# `<a data-identifier="...">` is NOT emitted.
+```
+
+Why it's a high-value bug: the failure mode is "the conditional emit got skipped" — typically the inner branch is a `data-*` attribute (preview-link routing markers, confirm-modal contract attrs, K-D-9-style disjoint-marker emit). The cotton's tests pass on **static** props (the literal `42`, `'event-edit'` strings flow correctly), so render-and-assert tests with hardcoded values catch nothing. The bug only surfaces when a **context variable** is referenced from inside the dict literal — i.e. when the cotton is consumed at a real call site against real data. Manual eval catches it only when the human clicks the affected button (which then navigates to a fallback URL or fires the wrong endpoint).
+
+**Workaround — two explicit props.** Split the would-be-dict into two single-value props. The colon-prefixed `:prop="single_var"` form DOES correctly resolve context vars when the value is a single expression (not a dict literal):
+
+```html
+{# ❌ Silently broken — dict literal swallows the context var #}
+<c-edit-button :link_attrs="{'type': 'event-edit', 'identifier': event.pk}" />
+
+{# ✅ Works — two single-value props #}
+<c-edit-button preview_type="event-edit"
+               :preview_identifier="event.pk" />
+```
+
+Inside the cotton, `preview_type` and `preview_identifier` each become individually-resolvable props with the right values.
+
+**When the cotton genuinely needs a dict shape** (e.g. a CSS-style mapping, an Alpine `x-data` payload), build the dict in the view's context and reference it as a single context-var name:
+
+```python
+# view / context-builder
+ctx["event_edit_link_attrs"] = {"type": "event-edit", "identifier": event.pk}
+```
+
+```html
+{# Pass the pre-built dict as a single context var — cotton receives the populated dict #}
+<c-edit-button :link_attrs="event_edit_link_attrs" />
+```
+
+Resist the natural shorthand of inlining the dict at the call site; it looks Pythonic and reads well, but the silent-empty failure mode is the worst-of-both-worlds for code review.
+
+Test surface that catches this trap: a render-and-assert test that resolves the prop value from a **context variable**, not a static literal. Pattern:
+
+```python
+def test_preview_identifier_resolves_from_context_variable(self) -> None:
+    """Regression-locks the dict-literal trap: passing a context variable
+    via ``:preview_identifier="some_var"`` MUST resolve to the var's value
+    in the rendered output, not the literal string 'some_var'."""
+    tpl = '<c-edit-button :preview_identifier="event_pk" />'
+    rendered = _render_cotton(tpl, {'event_pk': 7})
+    self.assertIn('data-preview-identifier="7"', rendered)
+    self.assertNotIn('data-preview-identifier="event_pk"', rendered)
+```
+
+Every cotton that exposes a `:prop` that's expected to thread a context variable through deserves one such test. The dict-literal variant is the trap; the single-prop variant is the only safe shape.
+
+## Slot-based composition vs prop-driven enumeration for multi-action cottons
+
+When a composition cotton wraps N child items with per-item visibility gates (per-permission, per-feature-flag, per-entity-state), there are two natural shapes:
+
+- **Prop-driven**: the wrapper takes an `:actions=['workflow', 'ical', 'ai', 'edit', 'delete']` list + a bag of per-action props (`:edit_href`, `:delete_confirm_url`, `:delete_confirm_message`, `:ai_href`, `:user_can_edit`, `:user_can_delete`, …). The wrapper iterates the list and conditionally renders each per-action sub-cotton. The cotton's API is "pass me a config dict and I'll do the rest".
+- **Slot-based**: the wrapper provides only `variant="detail|dropdown"` + a default slot. The call site composes the children inside the slot using the per-action cottons directly (`<c-edit-button>`, `<c-delete-button>`, etc.) and wraps each in `{% if user_can_edit %}…{% endif %}` at the call site.
+
+**Default to slot-based** for the cluster wrappers (the layer that arranges N actions in canonical order). Prop-driven is the right shape for **leaf** cottons (single button with a few well-defined props) where the prop set is small (≤4) and the call site naturally writes the props out.
+
+The slot-based default holds because:
+
+- **Per-action visibility gates read more naturally at the call site.** `{% if user_can_edit %}<c-edit-button ... />{% endif %}` is right next to the data the gate consults, in the template the gate's semantics live in. Prop-driven hides the gate inside the wrapper's conditional chain — diff-readable only if you open both the call site AND the wrapper.
+- **Lower coupling between cotton API and per-call data shape.** Prop-driven wrappers grow to 14+ props once a real surface ships (per-action URL + per-action message + per-action permission flag = 3 props per action; 5 actions = 15 props minimum). Each new action adds 3+ props to the wrapper's API. Slot-based wrappers don't grow in API size as the action count grows; the per-action data lives at the call site.
+- **New actions don't require updating the wrapper.** When a sixth action joins the surface, slot-based requires only adding `<c-new-action ... />` at the call site. Prop-driven requires adding 3 new props to the wrapper, threading them through the wrapper's conditional emit, and updating every existing call site to silence the new props.
+- **Visibility-gate logic can be NESTED.** Slot-based handles compound gates trivially: `{% if user_can_edit and event.scope %}<c-ai-button ... />{% endif %}` for an AI button that requires both edit permission AND a non-null scope. Prop-driven forces compound gates into the wrapper's prop API (`:can_show_ai`) or into the wrapper's internal logic.
+
+Canonical-order discipline (the workflow → ical → ai → edit → delete ordering) is preserved by **call-site convention** in slot-based wrappers — the call site writes the children top-to-bottom in the canonical order. A one-line comment in the wrapper's docstring fixes the convention:
+
+```django
+{% comment %}
+<c-workflow-actions> — thin slot-based wrapper for the canonical action bar.
+
+CALL SITE CONVENTION — write child cottons in this order inside the default slot:
+  1. workflow cluster (per-entity lifecycle actions)
+  2. iCal export (event-only)
+  3. AI / chat-with-context
+  4. Edit
+  5. Delete
+{% endcomment %}
+<div class="workflow-actions buttons are-small gap-2 mb-3">
+    {{ slot }}
+</div>
+```
+
+When to break the slot-based default and switch to prop-driven: **when the canonical ordering is itself part of the wrapper's contract** (e.g. a strict-ordered sequence the cotton MUST emit even if the caller forgets one), OR **when the cotton has fewer than 3 actions** and the prop bag stays under 10 props. The breakpoint that matters is around 4 actions / 10 props — past that, slot-based wins on every readability and API-stability axis.
+
+The pattern's anti-shape: a slot-based wrapper that the call site populates by `{% include %}`-ing a generic actions partial. That defeats the slot's value (the per-action gate visibility) by hoisting the per-action gates into the included partial. If you find yourself reaching for `{% include 'workflow_actions_for_event.html' %}` inside the slot, the wrapper is doing nothing — drop it and put the actions directly in the parent template.
+
 ## `href` is the FRAGMENT URL on `data-preview-link` anchors
 
 When a cotton primitive wraps an `<a data-preview-link>` (clicked → drawer fetches + opens), `href` must be the **fragment URL the drawer fetches**, not the shorthand URL the drawer pushes to history:
