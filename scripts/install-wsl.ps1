@@ -247,8 +247,20 @@ foreach ($feat in @('Microsoft-Windows-Subsystem-Linux', 'VirtualMachinePlatform
         }
         default {
             Write-Info "Enabling $feat (current state: $state) ..."
-            if (Enable-Feature -Name $feat) { $rebootNeeded = $true }
-            Write-Ok "$feat enabled"
+            try {
+                if (Enable-Feature -Name $feat) { $rebootNeeded = $true }
+                Write-Ok "$feat enabled"
+            } catch {
+                # Wrap the DISM call so a payload-removed / servicing-stack /
+                # policy-restricted failure surfaces as a friendly error
+                # instead of raw PowerShell exception output mid-script.
+                Write-Err2 "Failed to enable $feat : $_"
+                Write-Info  'Common causes: feature payload removed from image, servicing stack'
+                Write-Info  'issue, or Group Policy restriction. Check Windows Event Viewer for'
+                Write-Info  'DISM event details, or run: DISM /Online /Get-FeatureInfo'
+                Write-Info  "/FeatureName:$feat"
+                exit 1
+            }
         }
     }
 }
