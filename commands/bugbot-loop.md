@@ -21,7 +21,7 @@ Drive a Cursor Bugbot review-fix-rerun cycle on the current PR (or specified PR 
 
 ## Dual-engine sync rule (combined with `/copilot-loop`)
 
-When the user invokes `/bugbot-loop` AND `/copilot-loop` on the same PR (the user's reasonable instinct — "two reviewers catch more than one"), the loops MUST sync each cycle to avoid double-pushes that invalidate each other's pending reviews. Each cycle waits for **the slowest engine** to either (a) post findings against `last_push_sha` OR (b) post a clean signal for `last_push_sha`, then BATCHES findings from both into ONE fix commit + pushes once + retriggers BOTH engines.
+When the user invokes both `/bugbot-loop` AND `/copilot-loop` on the same PR, the loops MUST sync each cycle to avoid double-pushes that invalidate each other's pending reviews. Each cycle waits for **the slowest engine** to either (a) post findings against `last_push_sha` OR (b) post a clean signal for `last_push_sha`, then BATCHES findings from both into ONE fix commit + pushes once + retriggers BOTH engines.
 
 The rationale: each push invalidates pending reviews of the prior SHA — without sync, bugbot's pending review of SHA-A becomes stale the moment copilot-loop commits a fix to SHA-B, forcing bugbot to re-scan from scratch.
 
