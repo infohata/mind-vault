@@ -69,6 +69,18 @@ function Confirm-Or-Exit {
     }
 }
 
+# PowerShell's `try { & native.exe }` does NOT throw on non-zero exit codes.
+# Wrap wsl.exe invocations so callers can rely on catch{} for failure paths.
+function Invoke-Wsl {
+    [CmdletBinding()]
+    param([Parameter(Mandatory = $true, ValueFromRemainingArguments = $true)][string[]]$Arguments)
+    & wsl.exe @Arguments
+    $code = $LASTEXITCODE
+    if ($code -ne 0) {
+        throw "wsl.exe $($Arguments -join ' ') exited with code $code"
+    }
+}
+
 # ----------------------------------------------------------------------------
 # 1. Admin check
 # ----------------------------------------------------------------------------
@@ -204,15 +216,19 @@ Write-Step 'Configuring WSL kernel and default version'
 if (-not $useModernInstall) {
     Write-Info 'Older Windows 10 build — downloading WSL2 kernel update MSI'
 
-    # The blob storage only hosts the x64 kernel MSI. ARM64 Win10 builds in the
-    # 19041..19043 range need a different installer (and the modern `wsl --install`
-    # path is the supported one on ARM anyway). Hard-fail with a pointer instead
-    # of installing a wrong-arch package.
-    $procArch = $env:PROCESSOR_ARCHITECTURE
-    if ($procArch -ne 'AMD64' -and $procArch -ne 'x86_64') {
-        Write-Err2 "WSL2 kernel MSI from blob storage is x64-only (detected: $procArch / $arch)."
-        Write-Info  'Update to Windows 10 21H2 (build 19044+) — the modern `wsl --install` supports ARM64.'
-        Write-Info  'Or download the matching kernel manually: https://aka.ms/wsl2kernel'
+    # OS-level architecture check. `$env:PROCESSOR_ARCHITECTURE` reports x86
+    # in a 32-bit PowerShell on a 64-bit OS, so use Is64BitOperatingSystem +
+    # Win32_Processor.Architecture (9=x64, 12=ARM64) instead.
+    if (-not [Environment]::Is64BitOperatingSystem) {
+        Write-Err2 "32-bit Windows detected ($arch); WSL2 requires 64-bit."
+        exit 1
+    }
+    if ($cpu.Architecture -eq 12 -or
+        $env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or
+        $env:PROCESSOR_ARCHITEW6432  -eq 'ARM64') {
+        Write-Err2 'WSL2 kernel MSI from blob storage is x64-only; this CPU is ARM64.'
+        Write-Info 'Update to Windows 10 21H2 (build 19044+) — the modern `wsl --install` supports ARM64.'
+        Write-Info 'Or download the matching kernel manually: https://aka.ms/wsl2kernel'
         exit 1
     }
 
@@ -246,7 +262,7 @@ if (-not $useModernInstall) {
 }
 
 try {
-    & wsl.exe --set-default-version 2 | Out-Null
+    Invoke-Wsl --set-default-version 2 | Out-Null
     Write-Ok 'Default WSL version set to 2'
 } catch {
     Write-Warn2 "Could not set default WSL version yet: $_"
@@ -255,7 +271,7 @@ try {
 
 if ($useModernInstall) {
     try {
-        & wsl.exe --update | Out-Null
+        Invoke-Wsl --update | Out-Null
         Write-Ok 'WSL runtime updated (wsl --update)'
     } catch {
         Write-Warn2 "wsl --update failed (not fatal): $_"
@@ -270,12 +286,17 @@ Write-Step 'Selecting Linux distribution'
 function Get-OnlineDistros {
     try {
         $raw = & wsl.exe --list --online 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) { return @() }
         $lines = $raw -split "`r?`n" | Where-Object { $_ -match '^\s*[A-Za-z0-9]' }
-        $skipHeader = $true
+        # Skip ALL preamble lines ("The following...", "Install using...", etc.)
+        # until the header row, then parse only what follows.
+        $sawHeader = $false
         $rows = @()
         foreach ($l in $lines) {
-            if ($skipHeader -and $l -match '^\s*NAME\s+FRIENDLY') { $skipHeader = $false; continue }
-            if ($l -match '^\s*The following') { continue }
+            if (-not $sawHeader) {
+                if ($l -match '^\s*NAME\s+FRIENDLY') { $sawHeader = $true }
+                continue
+            }
             if ($l.Trim().Length -eq 0) { continue }
             $parts = $l.Trim() -split '\s{2,}', 2
             if ($parts.Count -ge 1 -and $parts[0]) {
@@ -291,39 +312,45 @@ function Get-OnlineDistros {
     }
 }
 
-if (-not $Distro) {
-    if (-not $useModernInstall) {
-        Write-Warn2 'On this older Windows 10 build, distros must be installed from the Microsoft Store.'
-        Write-Info  'Open the Store, search for Ubuntu / Debian / Kali / openSUSE / etc., and click Install.'
-        Write-Info  'Then run: wsl --set-default <DistroName>'
-        $Distro = $null
+if (-not $useModernInstall) {
+    # `wsl --install -d <Distro>` doesn't exist on Win10 19041..19043 — distros come
+    # from the Microsoft Store. Honor an explicit -Distro by surfacing it in the
+    # guidance, then clear it so section 7 + summary don't claim a non-existent install.
+    $requested = if ($Distro) { $Distro } else { '<DistroName>' }
+    if ($Distro) {
+        Write-Warn2 "Explicit '-Distro $Distro' on legacy Win10 (build $build) cannot be auto-installed."
     } else {
-        $rows = Get-OnlineDistros
-        if ($rows.Count -gt 0) {
-            Write-Host ''
-            Write-Host 'Available distros:' -ForegroundColor Cyan
-            for ($i = 0; $i -lt $rows.Count; $i++) {
-                '{0,3}.  {1,-28} {2}' -f ($i + 1), $rows[$i].Name, $rows[$i].Friendly | Write-Host
-            }
-            Write-Host ''
-            $pick = Read-Host 'Pick a number, type a name, or press Enter for Ubuntu'
-            if ([string]::IsNullOrWhiteSpace($pick)) {
-                $Distro = 'Ubuntu'
-            } elseif ($pick -match '^\d+$') {
-                $idx = [int]$pick - 1
-                if ($idx -ge 0 -and $idx -lt $rows.Count) {
-                    $Distro = $rows[$idx].Name
-                } else {
-                    Write-Err2 "Index $pick out of range"
-                    exit 1
-                }
+        Write-Warn2 'On this older Windows 10 build, distros must be installed from the Microsoft Store.'
+    }
+    Write-Info 'Open the Microsoft Store, search for Ubuntu / Debian / Kali / openSUSE / etc., and click Install.'
+    Write-Info "Then run: wsl --set-default $requested"
+    $Distro = $null
+} elseif (-not $Distro) {
+    $rows = Get-OnlineDistros
+    if ($rows.Count -gt 0) {
+        Write-Host ''
+        Write-Host 'Available distros:' -ForegroundColor Cyan
+        for ($i = 0; $i -lt $rows.Count; $i++) {
+            '{0,3}.  {1,-28} {2}' -f ($i + 1), $rows[$i].Name, $rows[$i].Friendly | Write-Host
+        }
+        Write-Host ''
+        $pick = Read-Host 'Pick a number, type a name, or press Enter for Ubuntu'
+        if ([string]::IsNullOrWhiteSpace($pick)) {
+            $Distro = 'Ubuntu'
+        } elseif ($pick -match '^\d+$') {
+            $idx = [int]$pick - 1
+            if ($idx -ge 0 -and $idx -lt $rows.Count) {
+                $Distro = $rows[$idx].Name
             } else {
-                $Distro = $pick.Trim()
+                Write-Err2 "Index $pick out of range"
+                exit 1
             }
         } else {
-            Write-Warn2 "Could not enumerate online distros — defaulting to 'Ubuntu'."
-            $Distro = 'Ubuntu'
+            $Distro = $pick.Trim()
         }
+    } else {
+        Write-Warn2 "Could not enumerate online distros — defaulting to 'Ubuntu'."
+        $Distro = 'Ubuntu'
     }
 }
 
@@ -333,7 +360,7 @@ if (-not $Distro) {
 if ($Distro -and $useModernInstall) {
     Write-Step "Installing distro: $Distro"
     try {
-        & wsl.exe --install -d $Distro --no-launch
+        Invoke-Wsl --install -d $Distro --no-launch
         Write-Ok "Distro '$Distro' installed"
         Write-Info "Launch with: wsl -d $Distro"
         Write-Info 'You will be prompted to create a UNIX username and password on first launch.'
@@ -345,26 +372,11 @@ if ($Distro -and $useModernInstall) {
 }
 
 # ----------------------------------------------------------------------------
-# 8. Summary / reboot
+# 8. Summary
 # ----------------------------------------------------------------------------
+# `$rebootNeeded` is handled inline (section 4 exits the script the moment a
+# feature enable reports RestartNeeded), so by the time we reach Summary the
+# reboot prompt is dead code — kept the message simple.
 Write-Step 'Summary'
-Write-Ok 'WSL installation steps completed.'
+Write-Ok 'WSL installation steps completed. Run "wsl" to launch your distro.'
 if ($Distro) { Write-Info "Distro queued: $Distro" }
-
-if ($rebootNeeded) {
-    Write-Warn2 'A reboot is required to finalize Windows feature installation.'
-    if ($NoReboot -or $Force) {
-        Write-Info 'Skipping reboot prompt (-Force / -NoReboot). Reboot manually before launching WSL.'
-    } else {
-        $r = Read-Host 'Reboot now? (y/N)'
-        if ($r -match '^[Yy]') {
-            Write-Info 'Rebooting in 5 seconds... Ctrl+C to cancel.'
-            Start-Sleep -Seconds 5
-            Restart-Computer -Force
-        } else {
-            Write-Warn2 'Remember to reboot before launching WSL.'
-        }
-    }
-} else {
-    Write-Ok 'No reboot required. Run "wsl" to launch your distro.'
-}
