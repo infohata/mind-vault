@@ -347,7 +347,7 @@ if (-not $useModernInstall) {
         switch ($msi.ExitCode) {
             0     { }
             3010  { Write-Warn2 'MSI install succeeded but reboot is required (msiexec 3010)'; $rebootNeeded = $true }
-            1641  { Write-Warn2 'MSI install succeeded and reboot was initiated (msiexec 1641)' }
+            1641  { Write-Warn2 'MSI install succeeded and reboot was initiated (msiexec 1641)';  $rebootNeeded = $true }
             default { throw "msiexec exited with code $($msi.ExitCode)" }
         }
         Write-Ok 'WSL2 kernel update installed'
