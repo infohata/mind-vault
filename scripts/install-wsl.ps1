@@ -119,6 +119,13 @@ if ($prodType -ne 1) {
     exit 1
 }
 
+# WSL2 requires a 64-bit OS regardless of build year — fail up front, before
+# any optional-feature or wsl.exe side effects.
+if (-not [Environment]::Is64BitOperatingSystem) {
+    Write-Err2 "32-bit Windows detected ($arch); WSL2 requires 64-bit."
+    exit 1
+}
+
 $isWin11 = $build -ge 22000
 $isWin10 = ($build -ge 10240) -and ($build -lt 22000)
 
@@ -228,13 +235,9 @@ Write-Step 'Configuring WSL kernel and default version'
 if (-not $useModernInstall) {
     Write-Info 'Older Windows 10 build — downloading WSL2 kernel update MSI'
 
-    # OS-level architecture check. `$env:PROCESSOR_ARCHITECTURE` reports x86
-    # in a 32-bit PowerShell on a 64-bit OS, so use Is64BitOperatingSystem +
-    # Win32_Processor.Architecture (9=x64, 12=ARM64) instead.
-    if (-not [Environment]::Is64BitOperatingSystem) {
-        Write-Err2 "32-bit Windows detected ($arch); WSL2 requires 64-bit."
-        exit 1
-    }
+    # 32-bit check is already enforced up front (section 2). Here we only need
+    # to refuse ARM64 — the blob URL hosts the x64 MSI exclusively, and ARM64
+    # users on 19041..19043 should upgrade to 21H2 anyway.
     if ($cpu.Architecture -eq 12 -or
         $env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or
         $env:PROCESSOR_ARCHITEW6432  -eq 'ARM64') {
@@ -253,14 +256,10 @@ if (-not $useModernInstall) {
         Write-Info 'Verifying Authenticode signature of downloaded MSI...'
         $sig = Get-AuthenticodeSignature -FilePath $kernelMsi
         if ($sig.Status -ne 'Valid') {
-            Remove-Item -Path $kernelMsi -Force -ErrorAction SilentlyContinue
-            Write-Err2 "MSI signature is not Valid (Status: $($sig.Status)). Aborting."
-            exit 1
+            throw "MSI signature is not Valid (Status: $($sig.Status))"
         }
         if ($sig.SignerCertificate.Subject -notmatch 'Microsoft Corporation') {
-            Remove-Item -Path $kernelMsi -Force -ErrorAction SilentlyContinue
-            Write-Err2 "MSI signer is not Microsoft: $($sig.SignerCertificate.Subject)"
-            exit 1
+            throw "MSI signer is not Microsoft: $($sig.SignerCertificate.Subject)"
         }
         Write-Ok "MSI signature verified ($($sig.SignerCertificate.Subject))"
 
@@ -270,15 +269,18 @@ if (-not $useModernInstall) {
             -ArgumentList "/i `"$kernelMsi`" /quiet /norestart" `
             -Wait -PassThru
         if ($msi.ExitCode -ne 0) {
-            Remove-Item -Path $kernelMsi -Force -ErrorAction SilentlyContinue
             throw "msiexec exited with code $($msi.ExitCode)"
         }
-        Remove-Item -Path $kernelMsi -Force -ErrorAction SilentlyContinue
         Write-Ok 'WSL2 kernel update installed'
     } catch {
         Write-Err2 "Failed to install WSL2 kernel MSI: $_"
         Write-Info 'Download manually: https://aka.ms/wsl2kernel'
         exit 1
+    } finally {
+        # Remove the MSI on every exit path — success, throw, or signature-reject.
+        if (Test-Path -LiteralPath $kernelMsi) {
+            Remove-Item -LiteralPath $kernelMsi -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
