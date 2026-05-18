@@ -248,13 +248,16 @@ foreach ($feat in @('Microsoft-Windows-Subsystem-Linux', 'VirtualMachinePlatform
     }
 }
 
-# `wsl --set-default-version`, `wsl --update`, and especially `wsl --install`
-# will hard-fail until the feature enable is finalized by a reboot — bail out
-# now and ask the user to re-run after rebooting.
-if ($rebootNeeded) {
-    Write-Warn2 'Windows feature changes require a reboot before WSL commands can run.'
-    Write-Info  'After reboot, re-run this script; already-enabled features are detected as such'
-    Write-Info  'and the kernel / distro install will continue from where it left off.'
+# Reusable reboot gate — invoked anywhere $rebootNeeded can transition to $true:
+#   - after Section 4 feature enable (RestartNeeded or EnabledPending/DisabledPending),
+#   - after Section 5 MSI install (msiexec exit 3010 = ERROR_SUCCESS_REBOOT_REQUIRED).
+# WSL commands hard-fail until the pending reboot completes, so we exit cleanly
+# and ask the user to re-run after rebooting.
+function Invoke-RebootGate {
+    param([Parameter(Mandatory = $true)][string]$Reason)
+    Write-Warn2 "$Reason requires a reboot before WSL commands can run."
+    Write-Info  'After reboot, re-run this script; already-enabled features / installed kernel are'
+    Write-Info  'detected as such and the install continues from where it left off.'
     if ($NoReboot -or $Force) {
         Write-Info 'Exiting now (-Force / -NoReboot suppresses the reboot prompt). Reboot manually.'
         exit 0
@@ -270,6 +273,8 @@ if ($rebootNeeded) {
     }
     exit 0
 }
+
+if ($rebootNeeded) { Invoke-RebootGate -Reason 'Windows feature changes' }
 
 # ----------------------------------------------------------------------------
 # 5. WSL2 kernel (manual path for older Win10) and default version
@@ -351,6 +356,10 @@ if (-not $useModernInstall) {
             Remove-Item -LiteralPath $kernelMsi -Force -ErrorAction SilentlyContinue
         }
     }
+
+    # msiexec 3010 set $rebootNeeded — bail to reboot BEFORE attempting
+    # `wsl --set-default-version` (which would fail with the kernel pending reboot).
+    if ($rebootNeeded) { Invoke-RebootGate -Reason 'WSL2 kernel MSI install' }
 }
 
 try {
@@ -476,9 +485,9 @@ if ($Distro -and $useModernInstall) {
 # ----------------------------------------------------------------------------
 # 8. Summary
 # ----------------------------------------------------------------------------
-# `$rebootNeeded` is handled inline (section 4 exits the script the moment a
-# feature enable reports RestartNeeded), so by the time we reach Summary the
-# reboot prompt is dead code — kept the message simple.
+# `$rebootNeeded` is handled inline at every transition point via Invoke-RebootGate
+# — Section 4 (feature enable / pending states) and Section 5 (MSI 3010). By the
+# time we reach the Summary block, $rebootNeeded is guaranteed false.
 Write-Step 'Summary'
 if ($Distro) {
     Write-Ok "WSL installation steps completed. Launch with: wsl -d $Distro"
