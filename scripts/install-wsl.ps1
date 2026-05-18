@@ -416,13 +416,16 @@ function Get-OnlineDistros {
             $parts = $trimmed -split '\s{2,}', 2
             if ($parts.Count -lt 1 -or -not $parts[0]) { continue }
             $name = $parts[0]
-            # Skip the localized header row — distro names like "Ubuntu", "Debian",
-            # "kali-linux" are never all-uppercase; headers always are.
-            if ($name -cmatch '^[A-Z]+$') { continue }
+            $friendly = if ($parts.Count -gt 1) { $parts[1].Trim() } else { '' }
+            # Skip the localized header row. A real header has BOTH columns in
+            # all-caps (NAME FRIENDLY NAME / NOMBRE NOMBRE COMPLETO). A future
+            # all-caps distro name (hypothetical RHEL) would still pass because
+            # its FRIENDLY column would be mixed-case (e.g. "Red Hat Enterprise…").
+            if ($name -cmatch '^[A-Z]+$' -and $friendly -cmatch '^[A-Z][A-Z\s]*$') { continue }
 
             $rows += [pscustomobject]@{
                 Name     = $name
-                Friendly = if ($parts.Count -gt 1) { $parts[1].Trim() } else { '' }
+                Friendly = $friendly
             }
         }
         return $rows
