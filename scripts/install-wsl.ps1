@@ -1,4 +1,6 @@
 #Requires -Version 5.1
+#Requires -PSEdition Desktop
+#Requires -RunAsAdministrator
 <#
 .SYNOPSIS
     Installs WSL2 on Windows 10 (build 19041+) or Windows 11.
@@ -403,7 +405,7 @@ if ($Distro -and $useModernInstall) {
 Write-Step 'Summary'
 if ($Distro) {
     Write-Ok "WSL installation steps completed. Launch with: wsl -d $Distro"
-    Write-Info "Distro queued: $Distro"
+    Write-Info "Distro installed: $Distro"
 } elseif (-not $useModernInstall) {
     Write-Ok 'WSL kernel + Windows features are ready.'
     Write-Info 'Install a distro from the Microsoft Store, then run: wsl --set-default <DistroName>'
