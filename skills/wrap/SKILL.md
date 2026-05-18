@@ -1,6 +1,6 @@
 ---
 name: wrap
-description: Documentation sweep — flip idea frontmatter to complete, re-sort the ideas index, append a devlog entry, scan project docs (guides, reference, README) for references that need updating, and (conditionally) emit a manual-evaluation checklist for IDEAs that opted into the eval-gate mode. Default is PRE-merge on the feature branch so merge lands the final docs state in one shot; post-merge fallback handles PRs that shipped without a wrap. **Concludes atomically when the PR target is non-protected** — Step 8 squash-merges via `gh pr merge` after a review re-clearance, eliminating the "wrap then click merge" two-step. Protected targets (main / production / deployment) preserve the human-merge HITL gate. Destructive worktree/volume teardown is strictly post-merge — extended in v3.1 sprint-auto mode to detect last-of-batch and tear down the integration worktree + branch. --scope=idea-only mode narrows the wrap to frontmatter + downstream-docs + eval-checklist only (devlog + ideas-index deferred to sprint-auto's batch wrap on the integration branch); used by sprint-auto S5 to eliminate the structural N-way line-conflict on devlog/index that every parallel /wrap produces. Runs between the review loop's pass 1 (deliverables) and pass 2 (docs) in sprint-auto mode.
+description: Documentation sweep — flip idea frontmatter to complete, re-sort the ideas index, append a devlog entry, surface a version-bump consideration for versioned projects (any version source: VERSION / pyproject.toml / package.json / Cargo.toml / setup.py / versioned CHANGELOG), scan project docs (guides, reference, README) for references that need updating, and (conditionally) emit a manual-evaluation checklist for IDEAs that opted into the eval-gate mode. Default is PRE-merge on the feature branch so merge lands the final docs state in one shot; post-merge fallback handles PRs that shipped without a wrap. **Concludes atomically when the PR target is non-protected** — Step 8 squash-merges via `gh pr merge` after a review re-clearance, eliminating the "wrap then click merge" two-step. Protected targets (main / production / deployment) preserve the human-merge HITL gate. Destructive worktree/volume teardown is strictly post-merge — extended in v3.1 sprint-auto mode to detect last-of-batch and tear down the integration worktree + branch. --scope=idea-only mode narrows the wrap to frontmatter + downstream-docs + eval-checklist only (devlog + ideas-index + version-bump deferred to sprint-auto's batch wrap on the integration branch so the whole sprint ships as ONE versioned release); used by sprint-auto S5 to eliminate the structural N-way line-conflict on devlog/index that every parallel /wrap produces. Runs between the review loop's pass 1 (deliverables) and pass 2 (docs) in sprint-auto mode.
 license: MIT
 metadata:
   author: mind-vault
@@ -40,7 +40,7 @@ The sprint-workflow step that closes the loop from code-shipped back to docs-coh
 
 ## Pattern
 
-Seven steps in order, one of which (Step 7 — eval-gate emission) is conditional on the IDEA's frontmatter. Most steps are guards — skip silently if the state is already correct. The skill is safe to re-run; it produces the same final state regardless of which steps an earlier run completed.
+Nine steps in order (8 numbered + Step 4b version-bump consideration). Several are conditional: Step 4b fires only when a version source is detected, Step 7 (eval-gate emission) gates on IDEA frontmatter, Step 8 (atomic merge) gates on non-protected target. Most steps are guards — skip silently if the state is already correct. The skill is safe to re-run; it produces the same final state regardless of which steps an earlier run completed.
 
 ### Scope detection (alongside mode detection)
 
@@ -60,6 +60,7 @@ When `SCOPE_IDEA_ONLY=true`:
 - Step 2 (Frontmatter flip): RUN
 - Step 3 (Re-sort ideas index): **SKIP** — deferred to sprint-auto S11.7 batch wrap on integration branch
 - Step 4 (Devlog entry): **SKIP** — deferred to sprint-auto S11.7
+- Step 4b (Version-bump consideration): **SKIP** — version bumps are sprint-level, not per-IDEA. Deferred to the integration-branch batch wrap so the whole sprint ships as ONE versioned release.
 - Step 5 (Worktree teardown): RUN (per usual mode-detection rules — post-merge only)
 - Step 6 (Downstream docs scan): RUN
 - Step 7 (Eval-gate checklist emission): RUN if frontmatter has `auto_safe_with_eval_gate: true` AND mode is pre-merge
@@ -106,33 +107,7 @@ In self-mode, Step 4 targets `CHANGELOG.md` at the repo root (not `docs/archive/
 
 The point: after wrap, `Unreleased` reflects only actually-open PRs, the dated section is current, and no human intervention is needed to "catch up" the log.
 
-#### Version-bump consideration (self-mode only)
-
-Mind-vault uses **milestone-based versioning**, not semver. CHANGELOG headers like `## v4 — Multi-engine code review + open-source release candidate` mark major narrative milestones; dated `## YYYY-MM` sections hold rolling work within the current milestone. After Step 1–4 above, evaluate whether the just-merged PR (or the cumulative `## YYYY-MM` content under the current milestone since the last bump) is a **bump trigger**. If yes, surface to the user — never auto-bump without confirmation.
-
-**Bump triggers** (any one is sufficient; cluster of two+ makes it near-certain):
-
-- **Architectural pivot** — a Stage of the workflow gains / loses an alternative (e.g. v3.x → v4 added a second review engine alongside Bugbot), the rules tier-split was reorganized, sprint-auto changed its orchestration contract, etc.
-- **Adopter-surface promise** — explicit OSS-release readiness, breaking change to a published skill / command / agent name, or a feature that materially widens who can adopt mind-vault (e.g. a Windows-bootstrap surface that opens a Windows-host adopter path).
-- **Compatibility cliff** — a skill / rule / command file moved or was renamed in a way that requires existing consumers to update symlinks / project configs.
-- **Three-or-more cohesive features shipped under the current dated month** that share a single narrative theme — the bundle is what's load-bearing, not any single PR.
-
-**Negative triggers** (these alone are NOT bumps):
-
-- A single skill / agent / rule body refactor (debloat, reference-extraction).
-- A bug-fix PR or doc-only PR.
-- A single isolated tool / script addition with no thematic siblings — keep it in the dated section under the current milestone.
-- Memory / compound entries that don't change the agent-facing surface.
-
-**Mechanics when a bump is warranted:**
-
-1. **Confirm with the user** before editing CHANGELOG — show the proposed new milestone header text and the rationale linking back to the bump-trigger criterion. The user picks the version number (`v4.1`, `v5`, named milestone like "Cross-platform-ready"). Never decide the number autonomously.
-2. **Insert a new `## v<N> — <Headline>` section** above the most recent `## YYYY-MM`. Move only entries that are *part of the new milestone's narrative* into the new section's `### Added / ### Changed / ### Removed` blocks; leave unrelated rolling entries in the dated sections below.
-3. **Write the headline paragraph** — one paragraph describing what's new in this milestone, how it relates to the prior milestone, and what adopter-facing change (if any) it implies.
-4. **Update README.md** if the version is referenced there (top-of-file welcome line, command-count summary, version pin docs).
-5. **Update docs/ONBOARDING.md**'s `> **You're reading the v<N> onboarding**` callout if present.
-
-**When in doubt, don't bump.** A rolling entry under the current milestone is the safe default. Mind-vault's milestones are rare events (v4 was the first numbered one); over-bumping dilutes the signal. The wrap's job is to *surface the question* — if no trigger fires, write the rolling entry and move on without mentioning it. If a trigger fires, ask once, then act on the user's call.
+Self-mode's CHANGELOG handling is one application of the project-agnostic Step 4b below — see that step for the version-bump consideration that applies here too (mind-vault uses CHANGELOG with `## v<N>` headers as its version source).
 
 Step 5 (worktree teardown) almost never applies because mind-vault has no docker stack, but the guards are branch-agnostic — run them if they fire.
 
@@ -260,6 +235,57 @@ Append a new entry at the **top** of the chronological section (newest first). T
 ```
 
 Use the last two devlog entries in the same file as style anchors — match prose density, heading structure, and linking style. Do **not** cargo-cult the template above verbatim if the project's convention diverges.
+
+### Step 4b — Version-bump consideration (versioned projects only)
+
+**Fires when** the project has a discoverable version source AND the wrap is not running in `--scope=idea-only` mode. **Skipped** when no version source exists (most internal projects without a published surface), or when `--scope=idea-only` is set (per-IDEA wraps inside sprint-auto defer the version bump to the integration-branch batch wrap so the whole sprint ships as ONE versioned release).
+
+**Version-source detection** — first match wins:
+
+```bash
+if   [ -f VERSION ];        then VER_SOURCE=VERSION
+elif [ -f pyproject.toml ] && grep -Eq '^[[:space:]]*version[[:space:]]*=' pyproject.toml; then VER_SOURCE=pyproject.toml
+elif [ -f package.json ]   && jq -e '.version' package.json >/dev/null 2>&1; then VER_SOURCE=package.json
+elif [ -f Cargo.toml ]     && grep -Eq '^[[:space:]]*version[[:space:]]*=' Cargo.toml; then VER_SOURCE=Cargo.toml
+elif [ -f setup.py ]       && grep -Eq 'version[[:space:]]*=' setup.py; then VER_SOURCE=setup.py
+elif [ -f CHANGELOG.md ]   && grep -Eq '^## (v|V)[0-9]|^## \[[0-9]' CHANGELOG.md; then VER_SOURCE=CHANGELOG.md  # versioned changelog (mind-vault, Keep-a-Changelog projects)
+else VER_SOURCE=none
+fi
+```
+
+If `VER_SOURCE=none`, skip this step entirely — the project doesn't publish a versioned surface, no bump to consider.
+
+**Bump triggers** (any one is sufficient; cluster of two+ makes it near-certain). These are abstract criteria — apply to whatever version scheme the project uses (semver, milestone-based, calver, custom):
+
+- **Architectural pivot** — a workflow stage gains / loses an alternative, a core contract changed, a major subsystem was replaced. In semver: minor or major.
+- **Adopter-surface promise** — explicit release-readiness signal, breaking change to a published API / CLI flag / config schema, or a feature that materially widens who can adopt the project. In semver: minor (additive) or major (breaking).
+- **Compatibility cliff** — a public file moved or was renamed, a dependency floor raised, a config-key removed without a deprecation cycle. In semver: major.
+- **Three-or-more cohesive features bundled** under the current dated section / Unreleased / milestone, sharing a single narrative theme. The bundle is what's load-bearing, not any single PR. In semver: minor.
+
+**Negative triggers** (these alone are NOT bumps):
+
+- Single body refactor / debloat / file-rename within an existing artefact.
+- Bug-fix PR or doc-only PR (these still bump *patch* in strict-semver projects; whether to bump-per-PR or batch is a project policy decision — see "When patch-bumps are project policy" below).
+- A single isolated tool / script addition with no thematic siblings.
+- Internal-only changes that don't change the published surface (memory entries, internal helpers, test-only changes).
+
+**Mechanics when a bump is warranted:**
+
+1. **Confirm with the user** before editing the version source — show the proposed new version + headline rationale linking back to which bump-trigger criterion fired. The user picks the version number (`v4.1`, `v5`, named milestone like "Cross-platform-ready", semver `2.3.0`, etc.). **Never decide the number autonomously** — projects have policy on minor-vs-major calls that an outside agent doesn't know.
+2. **Update the version source** detected above:
+    - `VERSION` file → single-line replace
+    - `pyproject.toml` / `package.json` / `Cargo.toml` → in-place version-field edit
+    - `setup.py` → in-place version-arg edit
+    - `CHANGELOG.md` with `## v<N>` headers → insert a new section above the most recent dated/Unreleased block; move only entries that are *part of the new version's narrative*, leave unrelated rolling entries in place
+3. **Write a headline paragraph** — one paragraph describing what's new, how it relates to the prior version, and what adopter-facing change (if any) it implies. Goes in CHANGELOG, GitHub release notes draft, or the project's release artefact.
+4. **Update downstream version references** — README.md, ONBOARDING / docs callouts (`> You're reading the v<N> docs`), badge URLs that pin to `:latest` vs `:v4`, deploy manifests if the project releases container images, etc. The Step 6 grep pass catches these naturally; flag any that surface for explicit attention here.
+5. **Tag the commit** in the wrap branch's diff so the eventual GitHub release / `git tag` can fast-forward — but **don't `git tag` from the wrap commit itself** unless the project's CI requires it (the human is the tagger by default).
+
+**When patch-bumps are project policy.** Some projects bump-per-PR (every merge advances patch); some batch by dated section; some never patch-bump (only minor/major matter for the public). Detect from the project's CHANGELOG style and prior commit log — if the prior two versions advanced by patch on consecutive PRs, treat per-PR patch-bumps as policy and bump without asking. If the prior two versions advanced by minor/major over multi-PR cohorts, the wrap is one of those cohorts' members and the bump-decision is the integration-PR call (sprint-auto path) or the explicit-cohort-finish call (manual path), NOT this individual PR.
+
+**Sprint-auto interaction.** When `SCOPE_IDEA_ONLY=true` this step is **skipped** — per-IDEA wraps inside sprint-auto never bump. The sprint's integration-branch batch wrap (sprint-auto S11.7) is the moment when the cumulative IDEA cohort gets considered as one versioned release. At that point all the cohort's IDEA-archive entries, devlog bullets, and CHANGELOG additions are visible together — the bundle criterion ("three-or-more cohesive features") then has a meaningful denominator. Doing per-IDEA bumps inside sprint-auto would produce N patch-bumps in a single sprint, which is noise.
+
+**When in doubt, don't bump.** A rolling entry under the current version is the safe default. The wrap's job is to *surface the question* — if no trigger fires, write the entry and move on without mentioning the bump. If a trigger fires, ask once, then act on the user's call.
 
 ### Step 5 — Worktree teardown (POST-MERGE ONLY, conditional)
 
