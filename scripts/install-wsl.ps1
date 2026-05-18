@@ -165,6 +165,11 @@ if ($isWin11) {
 
 # `wsl --install` (modern path) shipped with Windows 10 21H2 (build 19044).
 # Builds 19041..19043 need the manual WSL2 kernel MSI + Microsoft Store distro install.
+#
+# Build-number alone isn't a perfect signal — `wsl.exe` can be missing/disabled
+# on customized images even when the build supports it. Section 7's `wsl --install`
+# catch{} falls back to the Microsoft Store guidance if the command actually fails,
+# rather than assuming build implies command-availability.
 $useModernInstall = $isWin11 -or ($build -ge 19044)
 
 # ----------------------------------------------------------------------------
@@ -286,7 +291,10 @@ if (-not $useModernInstall) {
         exit 1
     }
 
-    $kernelUrl = 'https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi'
+    # Documented redirector — survives blob-storage URL changes. The historical
+    # `wslstorestorage.blob.core.windows.net` path has moved before; aka.ms/wsl2kernel
+    # tracks Microsoft's current canonical MSI location.
+    $kernelUrl = 'https://aka.ms/wsl2kernel'
     # Unique temp path — fixed names in a user-writable temp dir are clobber /
     # symlink / hardlink-attack vectors when the script runs elevated. New-
     # TemporaryFile atomically creates a 0-byte file with a random name (O_EXCL
@@ -362,22 +370,29 @@ function Get-OnlineDistros {
         $raw = & $script:WslExe --list --online 2>&1 | Out-String
         if ($LASTEXITCODE -ne 0) { return @() }
         $lines = $raw -split "`r?`n" | Where-Object { $_ -match '^\s*[A-Za-z0-9]' }
-        # Skip ALL preamble lines ("The following...", "Install using...", etc.)
-        # until the header row, then parse only what follows.
-        $sawHeader = $false
+        # Locale-agnostic parser. The English header line ("NAME FRIENDLY NAME")
+        # is localized on non-English Windows, so matching that exact text would
+        # silently skip every row on a German/Spanish/etc. host. Instead, classify
+        # each line by content:
+        #   - preamble sentences end with '.' or contain literal 'wsl.exe'
+        #   - header rows have an all-CAPS first token (NAME / NOMBRE / NOM / NAMA)
+        #   - data rows have a mixed-case distro name as the first token
         $rows = @()
         foreach ($l in $lines) {
-            if (-not $sawHeader) {
-                if ($l -match '^\s*NAME\s+FRIENDLY') { $sawHeader = $true }
-                continue
-            }
-            if ($l.Trim().Length -eq 0) { continue }
-            $parts = $l.Trim() -split '\s{2,}', 2
-            if ($parts.Count -ge 1 -and $parts[0]) {
-                $rows += [pscustomobject]@{
-                    Name     = $parts[0].Trim()
-                    Friendly = if ($parts.Count -gt 1) { $parts[1].Trim() } else { '' }
-                }
+            $trimmed = $l.Trim()
+            if ($trimmed.Length -eq 0) { continue }
+            if ($trimmed -match 'wsl\.exe' -or $trimmed.EndsWith('.')) { continue }
+
+            $parts = $trimmed -split '\s{2,}', 2
+            if ($parts.Count -lt 1 -or -not $parts[0]) { continue }
+            $name = $parts[0]
+            # Skip the localized header row — distro names like "Ubuntu", "Debian",
+            # "kali-linux" are never all-uppercase; headers always are.
+            if ($name -cmatch '^[A-Z]+$') { continue }
+
+            $rows += [pscustomobject]@{
+                Name     = $name
+                Friendly = if ($parts.Count -gt 1) { $parts[1].Trim() } else { '' }
             }
         }
         return $rows
@@ -440,7 +455,10 @@ if ($Distro -and $useModernInstall) {
         Write-Info 'You will be prompted to create a UNIX username and password on first launch.'
     } catch {
         Write-Err2 "Failed to install distro '$Distro': $_"
-        Write-Info 'List available distros with: wsl --list --online'
+        Write-Info 'Possible causes: distro name not recognized, wsl --install not supported on this'
+        Write-Info 'build (a customized image can disable it), or transient network error.'
+        Write-Info 'List available distros: wsl --list --online'
+        Write-Info "Or install manually from the Microsoft Store, then run: wsl --set-default $Distro"
         exit 1
     }
 }
