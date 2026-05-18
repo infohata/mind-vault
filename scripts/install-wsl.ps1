@@ -390,6 +390,12 @@ if ($useModernInstall) {
 Write-Step 'Selecting Linux distribution'
 
 function Get-OnlineDistros {
+    # Local override: the script-wide $ErrorActionPreference = 'Stop' combined with
+    # `2>&1` and PowerShell 5.1 (per the file's `#Requires -PSEdition Desktop`)
+    # converts native stderr lines into terminating ErrorRecord objects, taking
+    # down the script even on a successful exit. Scope the override to this
+    # function so the call site stays defensive without weakening the global.
+    $ErrorActionPreference = 'Continue'
     try {
         $raw = & $script:WslExe --list --online 2>&1 | Out-String
         if ($LASTEXITCODE -ne 0) { return @() }
