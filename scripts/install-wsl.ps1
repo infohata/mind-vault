@@ -102,10 +102,22 @@ $os       = Get-CimInstance -ClassName Win32_OperatingSystem
 $build    = [int]$os.BuildNumber
 $caption  = $os.Caption
 $arch     = $os.OSArchitecture
+$prodType = [int]$os.ProductType  # 1=Workstation/client, 2=DC, 3=Server
 
 Write-Info "OS:           $caption"
 Write-Info "Build:        $build"
 Write-Info "Architecture: $arch"
+Write-Info "ProductType:  $prodType (1=client)"
+
+# Win Server shares the build numbering with Win10/11 client builds (e.g.
+# Server 2022 = 20348) — gate to client SKUs so we don't try to enable
+# client-only optional features on Server.
+if ($prodType -ne 1) {
+    Write-Err2 "This script is for Windows 10/11 client SKUs. Detected ProductType=$prodType ($caption)."
+    Write-Info  'For Windows Server, follow the Server-specific WSL guide:'
+    Write-Info  'https://learn.microsoft.com/en-us/windows/wsl/install-on-server'
+    exit 1
+}
 
 $isWin11 = $build -ge 22000
 $isWin10 = ($build -ge 10240) -and ($build -lt 22000)
@@ -252,7 +264,16 @@ if (-not $useModernInstall) {
         }
         Write-Ok "MSI signature verified ($($sig.SignerCertificate.Subject))"
 
-        Start-Process -FilePath 'msiexec.exe' -ArgumentList "/i `"$kernelMsi`" /quiet /norestart" -Wait
+        # `Start-Process -Wait` does NOT throw on non-zero MSI exits — capture
+        # the process object with -PassThru and inspect ExitCode explicitly.
+        $msi = Start-Process -FilePath 'msiexec.exe' `
+            -ArgumentList "/i `"$kernelMsi`" /quiet /norestart" `
+            -Wait -PassThru
+        if ($msi.ExitCode -ne 0) {
+            Remove-Item -Path $kernelMsi -Force -ErrorAction SilentlyContinue
+            throw "msiexec exited with code $($msi.ExitCode)"
+        }
+        Remove-Item -Path $kernelMsi -Force -ErrorAction SilentlyContinue
         Write-Ok 'WSL2 kernel update installed'
     } catch {
         Write-Err2 "Failed to install WSL2 kernel MSI: $_"
@@ -378,5 +399,12 @@ if ($Distro -and $useModernInstall) {
 # feature enable reports RestartNeeded), so by the time we reach Summary the
 # reboot prompt is dead code — kept the message simple.
 Write-Step 'Summary'
-Write-Ok 'WSL installation steps completed. Run "wsl" to launch your distro.'
-if ($Distro) { Write-Info "Distro queued: $Distro" }
+if ($Distro) {
+    Write-Ok "WSL installation steps completed. Launch with: wsl -d $Distro"
+    Write-Info "Distro queued: $Distro"
+} elseif (-not $useModernInstall) {
+    Write-Ok 'WSL kernel + Windows features are ready.'
+    Write-Info 'Install a distro from the Microsoft Store, then run: wsl --set-default <DistroName>'
+} else {
+    Write-Ok 'WSL is ready. Install a distro with: wsl --install -d <DistroName>'
+}
