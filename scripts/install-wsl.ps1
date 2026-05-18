@@ -1,6 +1,9 @@
 #Requires -Version 5.1
 #Requires -PSEdition Desktop
-#Requires -RunAsAdministrator
+# NOTE: deliberately NOT using `#Requires -RunAsAdministrator` — the manual
+# admin check in section 1 produces a friendlier error than PowerShell's
+# default `#Requires` failure message and is invoked even by non-elevated
+# users who try `pwsh .\install-wsl.ps1`.
 <#
 .SYNOPSIS
     Installs WSL2 on Windows 10 (build 19041+) or Windows 11.
@@ -73,13 +76,17 @@ function Confirm-Or-Exit {
 
 # PowerShell's `try { & native.exe }` does NOT throw on non-zero exit codes.
 # Wrap wsl.exe invocations so callers can rely on catch{} for failure paths.
+#
+# NOTE: deliberately a simple function (no param block, no [CmdletBinding()]).
+# [CmdletBinding()] adds the -Debug common parameter, and PowerShell's
+# parameter-prefix matcher would silently consume a literal `-d` flag from
+# the caller as -Debug, breaking `Invoke-Wsl --install -d $Distro --no-launch`.
+# Plain `$args` keeps every token intact.
 function Invoke-Wsl {
-    [CmdletBinding()]
-    param([Parameter(Mandatory = $true, ValueFromRemainingArguments = $true)][string[]]$Arguments)
-    & wsl.exe @Arguments
+    & wsl.exe @args
     $code = $LASTEXITCODE
     if ($code -ne 0) {
-        throw "wsl.exe $($Arguments -join ' ') exited with code $code"
+        throw "wsl.exe $($args -join ' ') exited with code $code"
     }
 }
 
@@ -183,10 +190,11 @@ if (-not $vtFirmware) {
 # ----------------------------------------------------------------------------
 # 4. Optional Windows features
 # ----------------------------------------------------------------------------
-function Test-Feature {
+function Get-FeatureState {
     param([string]$Name)
     $f = Get-WindowsOptionalFeature -Online -FeatureName $Name -ErrorAction SilentlyContinue
-    return ($null -ne $f) -and ($f.State -eq 'Enabled')
+    if ($null -eq $f) { return 'Missing' }
+    return [string]$f.State  # 'Enabled' | 'EnabledPending' | 'Disabled' | 'DisabledPending'
 }
 
 function Enable-Feature {
@@ -198,12 +206,22 @@ function Enable-Feature {
 Write-Step 'Enabling required Windows features'
 $rebootNeeded = $false
 foreach ($feat in @('Microsoft-Windows-Subsystem-Linux', 'VirtualMachinePlatform')) {
-    if (Test-Feature -Name $feat) {
-        Write-Ok "$feat already enabled"
-    } else {
-        Write-Info "Enabling $feat ..."
-        if (Enable-Feature -Name $feat) { $rebootNeeded = $true }
-        Write-Ok "$feat enabled"
+    $state = Get-FeatureState -Name $feat
+    switch ($state) {
+        'Enabled' {
+            Write-Ok "$feat already enabled"
+        }
+        'EnabledPending' {
+            # Previous run / manual change already enabled this; a reboot is
+            # required before any WSL command will work.
+            Write-Warn2 "$feat is enabled but pending reboot"
+            $rebootNeeded = $true
+        }
+        default {
+            Write-Info "Enabling $feat (current state: $state) ..."
+            if (Enable-Feature -Name $feat) { $rebootNeeded = $true }
+            Write-Ok "$feat enabled"
+        }
     }
 }
 
@@ -220,8 +238,9 @@ if ($rebootNeeded) {
     }
     $r = Read-Host 'Reboot now? (y/N)'
     if ($r -match '^[Yy]') {
-        Write-Info 'Rebooting in 5 seconds... Ctrl+C to cancel.'
-        Start-Sleep -Seconds 5
+        Write-Warn2 'FORCED REBOOT — save work in any open application NOW; data in unsaved buffers WILL be lost.'
+        Write-Info 'Rebooting in 10 seconds... Ctrl+C to cancel.'
+        Start-Sleep -Seconds 10
         Restart-Computer -Force
     } else {
         Write-Warn2 'Reboot manually before re-running this script.'
