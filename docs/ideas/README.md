@@ -14,7 +14,10 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-_(none)_
+### IDEA-003: Version-tag automation post-`/wrap`
+
+**Status**: 💡 **idea** · **Created**: 2026-05-18 · **See**: [`IDEA-003-version-tag-automation.md`](IDEA-003-version-tag-automation.md).
+Automate the `git tag v<N>` + `gh release create` step that currently lives outside `/wrap`. Step 4b (introduced in [PR #121](https://github.com/infohata/mind-vault/pull/121)) updates the in-repo version source on merge, but the git tag remains manual. Two options surfaced during PR #121 review: Makefile `release` target (cheap, opt-in) vs GitHub Action `release-on-version-bump.yml` (hands-off). Recommendation: ship Option 1 first, layer Option 2 on later if the manual step proves forgettable in practice.
 
 ## 💡 Low Priority (backlog)
 
