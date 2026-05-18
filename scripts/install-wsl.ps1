@@ -445,31 +445,41 @@ if (-not $useModernInstall) {
     Write-Info "Then run: wsl --set-default $requested"
     $Distro = $null
 } elseif (-not $Distro) {
-    $rows = Get-OnlineDistros
-    if ($rows.Count -gt 0) {
-        Write-Host ''
-        Write-Host 'Available distros:' -ForegroundColor Cyan
-        for ($i = 0; $i -lt $rows.Count; $i++) {
-            '{0,3}.  {1,-28} {2}' -f ($i + 1), $rows[$i].Name, $rows[$i].Friendly | Write-Host
-        }
-        Write-Host ''
-        $pick = Read-Host 'Pick a number, type a name, or press Enter for Ubuntu'
-        if ([string]::IsNullOrWhiteSpace($pick)) {
-            $Distro = 'Ubuntu'
-        } elseif ($pick -match '^\d+$') {
-            $idx = [int]$pick - 1
-            if ($idx -ge 0 -and $idx -lt $rows.Count) {
-                $Distro = $rows[$idx].Name
+    # -Force = unattended; skip the Read-Host picker and default to Ubuntu.
+    # Without this guard the script hangs in CI when the online catalog
+    # enumerates successfully (Read-Host blocks), while silently falling
+    # through to 'Ubuntu' only when the catalog query fails — an unwanted
+    # behavior asymmetry.
+    if ($Force) {
+        Write-Info "-Force without -Distro: defaulting to 'Ubuntu' (no interactive picker)."
+        $Distro = 'Ubuntu'
+    } else {
+        $rows = Get-OnlineDistros
+        if ($rows.Count -gt 0) {
+            Write-Host ''
+            Write-Host 'Available distros:' -ForegroundColor Cyan
+            for ($i = 0; $i -lt $rows.Count; $i++) {
+                '{0,3}.  {1,-28} {2}' -f ($i + 1), $rows[$i].Name, $rows[$i].Friendly | Write-Host
+            }
+            Write-Host ''
+            $pick = Read-Host 'Pick a number, type a name, or press Enter for Ubuntu'
+            if ([string]::IsNullOrWhiteSpace($pick)) {
+                $Distro = 'Ubuntu'
+            } elseif ($pick -match '^\d+$') {
+                $idx = [int]$pick - 1
+                if ($idx -ge 0 -and $idx -lt $rows.Count) {
+                    $Distro = $rows[$idx].Name
+                } else {
+                    Write-Err2 "Index $pick out of range"
+                    exit 1
+                }
             } else {
-                Write-Err2 "Index $pick out of range"
-                exit 1
+                $Distro = $pick.Trim()
             }
         } else {
-            $Distro = $pick.Trim()
+            Write-Warn2 "Could not enumerate online distros — defaulting to 'Ubuntu'."
+            $Distro = 'Ubuntu'
         }
-    } else {
-        Write-Warn2 "Could not enumerate online distros — defaulting to 'Ubuntu'."
-        $Distro = 'Ubuntu'
     }
 }
 
