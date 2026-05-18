@@ -20,6 +20,18 @@ A **cross-host configuration library** for AI coding agents. Skills, subagent pe
 
 ## 2. Workspace setup
 
+### Windows: switch to WSL first
+
+Mind-vault is Linux/macOS-native. Windows users should work inside WSL2 (Ubuntu or your distro of choice) — all the symlink scripts assume a POSIX filesystem. A bootstrap helper is included for fresh Windows 10 / 11 installs:
+
+```powershell
+# Elevated PowerShell on the Windows host (one-time):
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts\install-wsl.ps1
+```
+
+It checks Windows build + virtualization, enables the WSL + VirtualMachinePlatform optional features, installs the WSL2 kernel where needed, and lets you pick a distro interactively or via `-Distro <name>`. Once WSL is up, run everything below from inside WSL.
+
 ### Claude Code (recommended)
 
 ```bash

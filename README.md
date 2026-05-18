@@ -36,7 +36,7 @@ mind-vault/
 ├── commands/      Slash commands invoked as /<name>
 ├── rules/         Always-on behavioural rules (RULE_*.md — auto-loaded every session)
 ├── docs/          Specs, plans, solutions, artefacts
-├── scripts/       Per-host symlink setup + shared helpers
+├── scripts/       Per-host symlink setup + OS bootstrap helpers (e.g. install-wsl.ps1)
 └── tools/         Utilities (review-loop helpers, emoji support, etc.)
 ```
 

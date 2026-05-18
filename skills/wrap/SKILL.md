@@ -106,6 +106,34 @@ In self-mode, Step 4 targets `CHANGELOG.md` at the repo root (not `docs/archive/
 
 The point: after wrap, `Unreleased` reflects only actually-open PRs, the dated section is current, and no human intervention is needed to "catch up" the log.
 
+#### Version-bump consideration (self-mode only)
+
+Mind-vault uses **milestone-based versioning**, not semver. CHANGELOG headers like `## v4 — Multi-engine code review + open-source release candidate` mark major narrative milestones; dated `## YYYY-MM` sections hold rolling work within the current milestone. After Step 1–4 above, evaluate whether the just-merged PR (or the cumulative `## YYYY-MM` content under the current milestone since the last bump) is a **bump trigger**. If yes, surface to the user — never auto-bump without confirmation.
+
+**Bump triggers** (any one is sufficient; cluster of two+ makes it near-certain):
+
+- **Architectural pivot** — a Stage of the workflow gains / loses an alternative (e.g. v3.x → v4 added a second review engine alongside Bugbot), the rules tier-split was reorganized, sprint-auto changed its orchestration contract, etc.
+- **Adopter-surface promise** — explicit OSS-release readiness, breaking change to a published skill / command / agent name, or a feature that materially widens who can adopt mind-vault (e.g. a Windows-bootstrap surface that opens a Windows-host adopter path).
+- **Compatibility cliff** — a skill / rule / command file moved or was renamed in a way that requires existing consumers to update symlinks / project configs.
+- **Three-or-more cohesive features shipped under the current dated month** that share a single narrative theme — the bundle is what's load-bearing, not any single PR.
+
+**Negative triggers** (these alone are NOT bumps):
+
+- A single skill / agent / rule body refactor (debloat, reference-extraction).
+- A bug-fix PR or doc-only PR.
+- A single isolated tool / script addition with no thematic siblings — keep it in the dated section under the current milestone.
+- Memory / compound entries that don't change the agent-facing surface.
+
+**Mechanics when a bump is warranted:**
+
+1. **Confirm with the user** before editing CHANGELOG — show the proposed new milestone header text and the rationale linking back to the bump-trigger criterion. The user picks the version number (`v4.1`, `v5`, named milestone like "Cross-platform-ready"). Never decide the number autonomously.
+2. **Insert a new `## v<N> — <Headline>` section** above the most recent `## YYYY-MM`. Move only entries that are *part of the new milestone's narrative* into the new section's `### Added / ### Changed / ### Removed` blocks; leave unrelated rolling entries in the dated sections below.
+3. **Write the headline paragraph** — one paragraph describing what's new in this milestone, how it relates to the prior milestone, and what adopter-facing change (if any) it implies.
+4. **Update README.md** if the version is referenced there (top-of-file welcome line, command-count summary, version pin docs).
+5. **Update docs/ONBOARDING.md**'s `> **You're reading the v<N> onboarding**` callout if present.
+
+**When in doubt, don't bump.** A rolling entry under the current milestone is the safe default. Mind-vault's milestones are rare events (v4 was the first numbered one); over-bumping dilutes the signal. The wrap's job is to *surface the question* — if no trigger fires, write the rolling entry and move on without mentioning it. If a trigger fires, ask once, then act on the user's call.
+
 Step 5 (worktree teardown) almost never applies because mind-vault has no docker stack, but the guards are branch-agnostic — run them if they fire.
 
 The load-bearing self-mode work is Step 6: catch `README.md` / `docs/SPRINT_WORKFLOW.md` / `tools/README.md` / `AGENTS.md` / `CLAUDE.md` drift from newly-added skills, commands, rules, or agent passes. That is what `/wrap` is *for* on mind-vault — the paper trail of its own evolution, alongside the changelog.
@@ -310,4 +338,4 @@ The HITL gate is *protected-branch* merge, not *every* merge; the gate stays exa
 
 ---
 
-**Last Updated**: 2026-04-30
+**Last Updated**: 2026-05-18
