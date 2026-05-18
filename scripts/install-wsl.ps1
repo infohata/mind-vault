@@ -20,6 +20,7 @@
 
 .PARAMETER Force
     Continue past non-fatal warnings (e.g. virtualization not detected) without prompting.
+    Also implies -NoReboot — the script exits cleanly instead of asking to reboot.
 
 .EXAMPLE
     .\install-wsl.ps1
@@ -112,7 +113,9 @@ if ($isWin11) {
     exit 1
 }
 
-$useModernInstall = $isWin11 -or ($build -ge 19041)
+# `wsl --install` (modern path) shipped with Windows 10 21H2 (build 19044).
+# Builds 19041..19043 need the manual WSL2 kernel MSI + Microsoft Store distro install.
+$useModernInstall = $isWin11 -or ($build -ge 19044)
 
 # ----------------------------------------------------------------------------
 # 3. CPU virtualization
@@ -171,6 +174,28 @@ foreach ($feat in @('Microsoft-Windows-Subsystem-Linux', 'VirtualMachinePlatform
     }
 }
 
+# `wsl --set-default-version`, `wsl --update`, and especially `wsl --install`
+# will hard-fail until the feature enable is finalized by a reboot — bail out
+# now and ask the user to re-run after rebooting.
+if ($rebootNeeded) {
+    Write-Warn2 'Windows feature changes require a reboot before WSL commands can run.'
+    Write-Info  'After reboot, re-run this script; already-enabled features are detected as such'
+    Write-Info  'and the kernel / distro install will continue from where it left off.'
+    if ($NoReboot -or $Force) {
+        Write-Info 'Exiting now (-Force / -NoReboot suppresses the reboot prompt). Reboot manually.'
+        exit 0
+    }
+    $r = Read-Host 'Reboot now? (y/N)'
+    if ($r -match '^[Yy]') {
+        Write-Info 'Rebooting in 5 seconds... Ctrl+C to cancel.'
+        Start-Sleep -Seconds 5
+        Restart-Computer -Force
+    } else {
+        Write-Warn2 'Reboot manually before re-running this script.'
+    }
+    exit 0
+}
+
 # ----------------------------------------------------------------------------
 # 5. WSL2 kernel (manual path for older Win10) and default version
 # ----------------------------------------------------------------------------
@@ -178,10 +203,39 @@ Write-Step 'Configuring WSL kernel and default version'
 
 if (-not $useModernInstall) {
     Write-Info 'Older Windows 10 build — downloading WSL2 kernel update MSI'
+
+    # The blob storage only hosts the x64 kernel MSI. ARM64 Win10 builds in the
+    # 19041..19043 range need a different installer (and the modern `wsl --install`
+    # path is the supported one on ARM anyway). Hard-fail with a pointer instead
+    # of installing a wrong-arch package.
+    $procArch = $env:PROCESSOR_ARCHITECTURE
+    if ($procArch -ne 'AMD64' -and $procArch -ne 'x86_64') {
+        Write-Err2 "WSL2 kernel MSI from blob storage is x64-only (detected: $procArch / $arch)."
+        Write-Info  'Update to Windows 10 21H2 (build 19044+) — the modern `wsl --install` supports ARM64.'
+        Write-Info  'Or download the matching kernel manually: https://aka.ms/wsl2kernel'
+        exit 1
+    }
+
     $kernelUrl = 'https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi'
     $kernelMsi = Join-Path $env:TEMP 'wsl_update_x64.msi'
     try {
         Invoke-WebRequest -Uri $kernelUrl -OutFile $kernelMsi -UseBasicParsing
+
+        # The MSI runs elevated; verify Microsoft's Authenticode signature before exec.
+        Write-Info 'Verifying Authenticode signature of downloaded MSI...'
+        $sig = Get-AuthenticodeSignature -FilePath $kernelMsi
+        if ($sig.Status -ne 'Valid') {
+            Remove-Item -Path $kernelMsi -Force -ErrorAction SilentlyContinue
+            Write-Err2 "MSI signature is not Valid (Status: $($sig.Status)). Aborting."
+            exit 1
+        }
+        if ($sig.SignerCertificate.Subject -notmatch 'Microsoft Corporation') {
+            Remove-Item -Path $kernelMsi -Force -ErrorAction SilentlyContinue
+            Write-Err2 "MSI signer is not Microsoft: $($sig.SignerCertificate.Subject)"
+            exit 1
+        }
+        Write-Ok "MSI signature verified ($($sig.SignerCertificate.Subject))"
+
         Start-Process -FilePath 'msiexec.exe' -ArgumentList "/i `"$kernelMsi`" /quiet /norestart" -Wait
         Write-Ok 'WSL2 kernel update installed'
     } catch {
@@ -299,8 +353,8 @@ if ($Distro) { Write-Info "Distro queued: $Distro" }
 
 if ($rebootNeeded) {
     Write-Warn2 'A reboot is required to finalize Windows feature installation.'
-    if ($NoReboot) {
-        Write-Info 'Skipping reboot prompt (-NoReboot). Reboot manually before launching WSL.'
+    if ($NoReboot -or $Force) {
+        Write-Info 'Skipping reboot prompt (-Force / -NoReboot). Reboot manually before launching WSL.'
     } else {
         $r = Read-Host 'Reboot now? (y/N)'
         if ($r -match '^[Yy]') {
