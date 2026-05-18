@@ -221,6 +221,11 @@ function Enable-Feature {
 Write-Step 'Enabling required Windows features'
 $rebootNeeded = $false
 foreach ($feat in @('Microsoft-Windows-Subsystem-Linux', 'VirtualMachinePlatform')) {
+    # If a prior iteration's *Pending state already requires a reboot, stop —
+    # running Enable-WindowsOptionalFeature on the remaining feature(s) against
+    # a system with a pending reboot can fail or leave them in inconsistent state.
+    if ($rebootNeeded) { break }
+
     $state = Get-FeatureState -Name $feat
     switch ($state) {
         'Enabled' {
