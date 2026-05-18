@@ -291,10 +291,13 @@ if (-not $useModernInstall) {
         exit 1
     }
 
-    # Documented redirector — survives blob-storage URL changes. The historical
-    # `wslstorestorage.blob.core.windows.net` path has moved before; aka.ms/wsl2kernel
-    # tracks Microsoft's current canonical MSI location.
-    $kernelUrl = 'https://aka.ms/wsl2kernel'
+    # NOTE: `aka.ms/wsl2kernel` redirects to a Microsoft Learn documentation page
+    # (HTML), NOT to the MSI binary — using it here saves the HTML page as the
+    # .msi file and Get-AuthenticodeSignature then fails with a misleading
+    # "Status: NotSigned" error. The direct blob URL is the canonical MSI source.
+    # If that URL changes in the future, update it here; do NOT switch back to
+    # aka.ms/wsl2kernel without verifying the redirect chain ends at a .msi.
+    $kernelUrl = 'https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi'
     # Unique temp path — fixed names in a user-writable temp dir are clobber /
     # symlink / hardlink-attack vectors when the script runs elevated. New-
     # TemporaryFile atomically creates a 0-byte file with a random name (O_EXCL
@@ -327,8 +330,15 @@ if (-not $useModernInstall) {
         $msi = Start-Process -FilePath $msiExe `
             -ArgumentList "/i `"$kernelMsi`" /quiet /norestart" `
             -Wait -PassThru
-        if ($msi.ExitCode -ne 0) {
-            throw "msiexec exited with code $($msi.ExitCode)"
+        # msiexec success codes — 0 = clean, 3010 = ERROR_SUCCESS_REBOOT_REQUIRED
+        # (install completed, a reboot is pending), 1641 = ERROR_SUCCESS_REBOOT_INITIATED
+        # (install completed AND reboot is being initiated — we suppress this with
+        # /norestart but allow defensively in case msiexec ignores it).
+        switch ($msi.ExitCode) {
+            0     { }
+            3010  { Write-Warn2 'MSI install succeeded but reboot is required (msiexec 3010)'; $rebootNeeded = $true }
+            1641  { Write-Warn2 'MSI install succeeded and reboot was initiated (msiexec 1641)' }
+            default { throw "msiexec exited with code $($msi.ExitCode)" }
         }
         Write-Ok 'WSL2 kernel update installed'
     } catch {
