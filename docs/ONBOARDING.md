@@ -1,6 +1,6 @@
 # Onboarding — mind-vault in 30 minutes
 
-> **You're reading the v4.0.2 onboarding** — multi-engine review + open-source release candidate. v4.0.2 adds the Windows-host WSL bootstrap (see [§ 2 Windows: switch to WSL first](#windows-switch-to-wsl-first)).
+> **You're reading the v4.0.3 onboarding** — multi-engine review + open-source release candidate. v4.0.2 added the Windows-host WSL bootstrap (see [§ 2 Windows: switch to WSL first](#windows-switch-to-wsl-first)); v4.0.3 adds the `make release` helper that collapses post-`/wrap` tagging into one command (see [`Makefile`](../Makefile) at the repo root).
 
 A one-pager for someone landing on mind-vault for the first time and wanting to run a real sprint by the end of the session. Skim top-to-bottom; deep links point at the authoritative docs when you need them.
 

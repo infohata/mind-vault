@@ -8,7 +8,7 @@
 
 ---
 
-**v4.0.2 — Multi-engine code review · Open-source release candidate (Windows-host adopter bootstrap added).**
+**v4.0.3 — Multi-engine code review · Open-source release candidate (Windows-host adopter bootstrap + `make release` helper).**
 
 Cross-host configuration library for AI coding agents — skills, commands, subagent personas, and shared rules, authored once and symlinked into every agent-aware tool.
 
