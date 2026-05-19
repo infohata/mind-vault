@@ -8,7 +8,7 @@
 # whose CHANGELOG header version differs from the intended tag (mind-vault
 # itself: CHANGELOG `## v4` but tags are `v4.0.1`, `v4.0.2`, ...).
 
-SHELL := /usr/bin/env bash
+SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := help
 
@@ -39,10 +39,16 @@ if [[ -f pyproject.toml ]]; then
 fi
 
 if [[ -f package.json ]]; then
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "release: package.json present but jq is not installed — install jq or pass VERSION=v<N> explicitly" >&2
+        exit 1
+    fi
     if v=$$(jq -er '.version' package.json 2>/dev/null); then
         printf '%s\n' "$$v"
         exit 0
     fi
+    echo "release: package.json found but jq could not parse '.version' — pass VERSION=v<N> explicitly or fix package.json" >&2
+    exit 1
 fi
 
 if [[ -f Cargo.toml ]]; then
@@ -78,8 +84,8 @@ endef
 export EXTRACT_VERSION_SH
 
 help: ## Show this help message
-	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "} {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+	@grep -hE '^[a-zA-Z_-]+:[^#]*## ' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":[^#]*## "} {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
 extract-version: ## Print the version `release` would tag (VERSION=v<N> overrides auto-detect)
 	@bash -c "$$EXTRACT_VERSION_SH"
