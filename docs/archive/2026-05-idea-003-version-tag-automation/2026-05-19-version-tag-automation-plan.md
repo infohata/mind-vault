@@ -3,7 +3,7 @@ stage: plan
 slug: version-tag-automation
 created: 2026-05-19
 source: ./IDEA-003-version-tag-automation.md
-status: draft
+status: shipped
 project: mind-vault
 ---
 
@@ -90,7 +90,7 @@ After a wrap PR lands a version bump (e.g. CHANGELOG `## v4` → `## v5`, or VER
 
 ## Execution Sequence
 
-1. **Create `tests/fixtures/release/` directory and six fixture files**, each with a known version that the extractor must produce:
+1. ✅ `8d313e0` — **Create `tests/fixtures/release/` directory and six fixture files**, each with a known version that the extractor must produce:
    - `tests/fixtures/release/VERSION-only/VERSION` → `1.2.3`
    - `tests/fixtures/release/pyproject/pyproject.toml` → `version = "2.0.0"`
    - `tests/fixtures/release/package/package.json` → `{"version": "3.1.4"}`
@@ -98,23 +98,17 @@ After a wrap PR lands a version bump (e.g. CHANGELOG `## v4` → `## v5`, or VER
    - `tests/fixtures/release/setup-py/setup.py` → `setup(name="foo", version="0.9.1", ...)`
    - `tests/fixtures/release/changelog/CHANGELOG.md` → `## v4.0.2 — Some headline`
 
-2. **Create `tests/test_release_extraction.sh`** — bash test harness. For each fixture, run the extraction function (sourced from a small helper or invoked via `make extract-version FIXTURE_DIR=...`), assert the output matches expected. Add cases for: explicit `VERSION=` override returns the override unchanged; missing source dir exits with clear error; CHANGELOG with `## [v4.0.2]` Keep-a-Changelog bracket form also extracts correctly.
+2. ✅ `8d313e0` — **Create `tests/test_release_extraction.sh`** — bash test harness invoking `make extract-version` from each fixture dir; ten assertions across seven source-format paths, two VERSION-override paths, and one error case.
 
-3. **Create `Makefile`** at repo root with these targets:
-   - `release` — runs version extraction (unless `VERSION=` passed), checks idempotency, tags + pushes + GH-releases.
-   - `extract-version` — exposes the extraction logic standalone for testing (`make extract-version FIXTURE_DIR=tests/fixtures/release/cargo` prints `0.5.0`). Implemented as a recipe that sources a small inline script or invokes a function.
-   - `test-release` — runs `tests/test_release_extraction.sh`.
-   - `help` — prints the available targets and one-line descriptions (standard Makefile-with-help pattern).
+3. ✅ `8d313e0` — **Create `Makefile`** at repo root with targets `release`, `extract-version`, `test-release`, `help`. Extraction body shared between `release` and `extract-version` via a single `define EXTRACT_VERSION_SH … endef` block exported as an env var; idempotency check via `git rev-parse --verify --quiet refs/tags/$ver`.
 
-4. **Run `make test-release`** — expect all assertions green. Iterate the extraction logic against any fixture that fails until clean.
+4. ✅ `8d313e0` — **Run `make test-release`** — `10 passed, 0 failed` on first run.
 
-5. **Run `make release VERSION=v4.0.1`** against the live mind-vault repo (the most recent existing tag) — expect the idempotency check to fire: `tag v4.0.1 already exists — skipping`. Exit 0.
+5. ✅ `8d313e0` — **Run `make release VERSION=v4.0.1`** against the live mind-vault repo — got `release: tag v4.0.1 already exists — skipping (re-run with VERSION=<new> to tag a different version)`. Exit 0.
 
-6. **Edit `skills/wrap/SKILL.md` Step 4b** — add a new sub-bullet inside "Mechanics when a bump is warranted" after the existing point 5 (the "tag the commit" note):
+6. ✅ `c0fdda0` — **Edit `skills/wrap/SKILL.md` Step 4b** — added sub-bullet 6 inside "Mechanics when a bump is warranted" after the existing point 5, surfacing `make release` as the canonical post-merge hand-back when the project ships a Makefile, with the three-command fallback for Makefile-less projects.
 
-   > **5b. Hand-back instruction (post-merge).** When the project ships a `Makefile` with a `release` target (the mind-vault convention from IDEA-003), surface this in the wrap summary: *"After merging, run `make release` (or `make release VERSION=v<N>` if the auto-extracted version differs from the intended tag) to create the git tag + GitHub release."* Projects without a Makefile fall back to the manual `git tag <ver> && git push origin <ver> && gh release create <ver> --generate-notes` sequence.
-
-7. **Self-sweep the changed shell** — `shellcheck Makefile tests/test_release_extraction.sh` if shellcheck is available; otherwise eyeball for quoting + word-splitting hazards.
+7. ✅ **Self-sweep** — `shellcheck` not installed on this host; eyeballed Makefile + test harness for quoting + word-splitting hazards. `set -eu -o pipefail` in both surfaces; all variable expansions double-quoted; no obvious hazards.
 
 ## Verification
 
