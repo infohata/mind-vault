@@ -55,8 +55,9 @@ assert_eq "pyproject.toml"          "$(extract "$FIXTURES/pyproject")"      "2.0
 assert_eq "package.json"            "$(extract "$FIXTURES/package")"        "3.1.4"
 assert_eq "Cargo.toml"              "$(extract "$FIXTURES/cargo")"          "0.5.0"
 assert_eq "setup.py"                "$(extract "$FIXTURES/setup-py")"       "0.9.1"
-assert_eq "CHANGELOG.md ## v<N>"    "$(extract "$FIXTURES/changelog-v")"    "v4.0.2"
-assert_eq "CHANGELOG.md ## [<N>]"   "$(extract "$FIXTURES/changelog-kac")"  "4.0.2"
+assert_eq "CHANGELOG.md ## v<N>"    "$(extract "$FIXTURES/changelog-v")"        "v4.0.2"
+assert_eq "CHANGELOG.md ## V<N>"    "$(extract "$FIXTURES/changelog-V-upper")"  "V2.1.0"
+assert_eq "CHANGELOG.md ## [<N>]"   "$(extract "$FIXTURES/changelog-kac")"      "4.0.2"
 
 echo
 echo "Explicit VERSION= override:"

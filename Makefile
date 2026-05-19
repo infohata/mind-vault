@@ -40,14 +40,14 @@ fi
 
 if [[ -f package.json ]]; then
     if ! command -v jq >/dev/null 2>&1; then
-        echo "release: package.json present but jq is not installed — install jq or pass VERSION=v<N> explicitly" >&2
+        echo "version-extract: package.json present but jq is not installed — install jq or pass VERSION=v<N> explicitly" >&2
         exit 1
     fi
     if v=$$(jq -er '.version' package.json 2>/dev/null); then
         printf '%s\n' "$$v"
         exit 0
     fi
-    echo "release: package.json found but jq could not parse '.version' — pass VERSION=v<N> explicitly or fix package.json" >&2
+    echo "version-extract: package.json found but jq could not parse '.version' — pass VERSION=v<N> explicitly or fix package.json" >&2
     exit 1
 fi
 
@@ -68,17 +68,17 @@ if [[ -f setup.py ]]; then
 fi
 
 if [[ -f CHANGELOG.md ]]; then
-    line=$$(grep -m1 -E '^## (v[0-9]|\[[0-9])' CHANGELOG.md || true)
+    line=$$(grep -m1 -E '^## ([vV][0-9]|\[[0-9])' CHANGELOG.md || true)
     if [[ -n "$$line" ]]; then
         case "$$line" in
-            "## v"*) printf '%s\n' "$$line" | sed -E 's/^## (v[^ ]+).*/\1/' ;;
-            "## ["*) printf '%s\n' "$$line" | sed -E 's/^## \[([^]]+)\].*/\1/' ;;
+            "## v"*|"## V"*) printf '%s\n' "$$line" | sed -E 's/^## ([vV][^ ]+).*/\1/' ;;
+            "## ["*)         printf '%s\n' "$$line" | sed -E 's/^## \[([^]]+)\].*/\1/' ;;
         esac
         exit 0
     fi
 fi
 
-echo "release: no version source found (looked for VERSION, pyproject.toml, package.json, Cargo.toml, setup.py, CHANGELOG.md '## v<N>' or '## [<N>]' header) and no VERSION= override given" >&2
+echo "version-extract: no version source found (looked for VERSION, pyproject.toml, package.json, Cargo.toml, setup.py, CHANGELOG.md '## v<N>' / '## V<N>' / '## [<N>]' header) and no VERSION= override given" >&2
 exit 1
 endef
 export EXTRACT_VERSION_SH
@@ -98,15 +98,23 @@ release: ## Tag + push + GH-release the current version (VERSION=v<N> overrides 
 	fi; \
 	echo "release: version = $$ver"; \
 	if git rev-parse --verify --quiet "refs/tags/$$ver" >/dev/null; then \
-		echo "release: tag $$ver already exists — skipping (re-run with VERSION=<new> to tag a different version)"; \
-		exit 0; \
+		echo "release: local tag $$ver already exists — skipping tag create"; \
+	else \
+		echo "release: creating annotated tag $$ver"; \
+		git tag -a "$$ver" -m "Release $$ver"; \
 	fi; \
-	echo "release: creating annotated tag $$ver"; \
-	git tag -a "$$ver" -m "Release $$ver"; \
-	echo "release: pushing tag to origin"; \
-	git push origin "$$ver"; \
-	echo "release: creating GitHub release with auto-generated notes"; \
-	gh release create "$$ver" --generate-notes
+	if git ls-remote --tags origin "refs/tags/$$ver" 2>/dev/null | grep -q .; then \
+		echo "release: remote tag $$ver already exists on origin — skipping push"; \
+	else \
+		echo "release: pushing tag to origin"; \
+		git push origin "$$ver"; \
+	fi; \
+	if gh release view "$$ver" >/dev/null 2>&1; then \
+		echo "release: GitHub release for $$ver already exists — skipping create"; \
+	else \
+		echo "release: creating GitHub release with auto-generated notes"; \
+		gh release create "$$ver" --generate-notes; \
+	fi
 
 test-release: ## Run the version-extraction test harness against fixture files
 	@bash tests/test_release_extraction.sh
