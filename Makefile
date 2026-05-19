@@ -97,23 +97,32 @@ release: ## Tag + push + GH-release the current version (VERSION=v<N> overrides 
 		exit 1; \
 	fi; \
 	echo "release: version = $$ver"; \
-	if git rev-parse --verify --quiet "refs/tags/$$ver" >/dev/null; then \
-		echo "release: local tag $$ver already exists — skipping tag create"; \
-	else \
-		echo "release: creating annotated tag $$ver"; \
-		git tag -a "$$ver" -m "Release $$ver"; \
-	fi; \
+	echo "release: fetching tags from origin (so local-state checks see remote tags)"; \
+	git fetch origin --tags --quiet 2>/dev/null || echo "release: warning — git fetch --tags failed (continuing with local state)"; \
 	if git ls-remote --tags origin "refs/tags/$$ver" 2>/dev/null | grep -q .; then \
+		remote_tag_exists=1; \
 		echo "release: remote tag $$ver already exists on origin — skipping push"; \
 	else \
-		echo "release: pushing tag to origin"; \
-		git push origin "$$ver"; \
+		remote_tag_exists=0; \
 	fi; \
-	if gh release view "$$ver" >/dev/null 2>&1; then \
+	if git rev-parse --verify --quiet "refs/tags/$$ver" >/dev/null; then \
+		echo "release: local tag $$ver already exists — skipping tag create"; \
+	elif [[ "$$remote_tag_exists" -eq 1 ]]; then \
+		echo "release: ERROR — remote tag $$ver exists but is not local after fetch (network issue?); aborting to prevent divergent local tag at HEAD" >&2; \
+		exit 1; \
+	else \
+		echo "release: creating annotated tag $$ver"; \
+		git tag -a -m "Release $$ver" -- "$$ver"; \
+	fi; \
+	if [[ "$$remote_tag_exists" -eq 0 ]]; then \
+		echo "release: pushing tag to origin"; \
+		git push origin -- "$$ver"; \
+	fi; \
+	if gh release view -- "$$ver" >/dev/null 2>&1; then \
 		echo "release: GitHub release for $$ver already exists — skipping create"; \
 	else \
 		echo "release: creating GitHub release with auto-generated notes"; \
-		gh release create "$$ver" --generate-notes; \
+		gh release create --generate-notes -- "$$ver"; \
 	fi
 
 test-release: ## Run the version-extraction test harness against fixture files
