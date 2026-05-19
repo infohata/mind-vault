@@ -589,6 +589,8 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [surgical-tdd](../surgical-tdd/SKILL.md) — focused test execution
 - [`RULE_i18n-workflow`](references/I18N_WORKFLOW.md) — hard rules for translations; FORCE_SYNC_MSGIDS overwrite-existing-msgstr gotcha; don't-translate-dev-notes; blocktrans `%(var)s` placeholder format
 - [Form-invalid status](references/FORM_INVALID_STATUS.md) — Django's default `form_invalid` returns 200 + form-with-errors, NOT 422; status-only gating closes HTMX modals on validation failure; fix via `HTMXFormStatusMixin` or `HX-Trigger` header gate
+- [`CSRF_TRUSTED_ORIGINS`](references/CSRF_TRUSTED_ORIGINS.md) — Django 4.0+ requires this even for same-origin POSTs behind a proxy on a non-standard port; admin login returns 403 "Origin checking failed" out of the box without it; derive from `HTTP_PORT` in dev
+- [Linting split settings](references/SETTINGS_LINTING.md) — pyflakes false-positives on `from .base import *` and doesn't honor `# noqa`; three options (exclude / switch to ruff / refactor) with trade-offs
 - [Django Documentation](https://docs.djangoproject.com/)
 - [Django REST Framework](https://www.django-rest-framework.org/)
 - [Django ORM Query Optimisation](https://docs.djangoproject.com/en/stable/topics/db/optimization/)

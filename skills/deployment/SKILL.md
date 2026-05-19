@@ -466,6 +466,7 @@ The deploy shape is identical for Django, Rails, Express, FastAPI, Phoenix — o
 - [references/MONITORING.md](references/MONITORING.md) — production observability
 - [references/DJANGO_DEPLOYMENT.md](references/DJANGO_DEPLOYMENT.md) — Django-specific patterns
 - [references/HARDENING.md](references/HARDENING.md) — server hardening before first deploy
+- [references/NAMED_VOLUME_OWNERSHIP.md](references/NAMED_VOLUME_OWNERSHIP.md) — Docker named volumes initialise root-owned when the mount-point path doesn't exist in the image; non-root containers then hit `PermissionError` on first write (`collectstatic`, uploads, log emit). Fix: `mkdir -p` mount points before recursive chown.
 - [django skill](../django/SKILL.md) — backend patterns that interact with deploy (migrations, collectstatic, ASGI)
 - [RULE_git-safety](../../rules/RULE_git-safety.md) — rollback is a human-operated procedure
 - [Docker Compose docs](https://docs.docker.com/compose/)

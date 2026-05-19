@@ -126,6 +126,55 @@ Optional explanation of why, wrapped at 72.
 - Stop. This is rule 2.
 - Open a PR instead and hand the URL to the human.
 
+## The Genesis-Commit Chicken-and-Egg
+
+A brand-new GitHub repo with zero commits has no `main` to PR against. Pushing the first feature branch makes GitHub auto-promote *that branch* to default, leaving no `main` ref at all. The agent literally cannot follow the "feature branch → PR → human merges" workflow because the PR target doesn't exist.
+
+This is the only exception to rule 1 that has a defensible workflow path. There are three ways through, in order of preference:
+
+### Path A — Human seeds main via the GitHub web UI (preferred)
+
+The user creates `main` manually:
+
+1. Push the agent's feature branch first (`git push -u origin feature/initial-scaffold`). GitHub auto-sets it as default.
+2. On the GitHub repo page, click "creating a new file" or use the web UI to add a README / LICENSE / `.gitkeep`. This creates a `main` branch on the remote with an initial commit.
+3. In repo Settings → Branches, set `main` as the default branch.
+4. Agent rebases the feature branch onto `origin/main` and opens the PR normally.
+
+Zero rule violation by the agent. Highest ceremony but cleanest history.
+
+### Path B — User explicitly authorises a one-time genesis commit on main
+
+The user grants the exception with explicit language: *"yes, this one commit on main is the genesis exception."* The agent then:
+
+1. Commits the scaffold (or just a `.gitkeep` / `README.md`) directly on local `main`.
+2. Pushes `main` to origin.
+3. From here on, the strict rule applies — no further direct commits to `main`.
+
+The explicit user grant covers exactly one commit. Subsequent work goes back to feature branches.
+
+### Path C — Feature branch becomes main via GitHub rename
+
+If the agent has already pushed a feature branch to an empty repo (and GitHub auto-promoted it to default), the user can rename it to `main` via the GitHub web UI or API (`gh api -X POST repos/<owner>/<repo>/branches/<branch>/rename`). The single commit becomes `main`'s genesis. The agent then starts strict feature-branch workflow for the next change.
+
+### What the agent should NOT do
+
+- ❌ Commit directly to local `main` without explicit user direction (the classifier should block; if it doesn't, refuse anyway).
+- ❌ Push the feature branch's SHA to `origin/main` (`git push origin feature/x:main`) — this is a write to a protected ref, still rule 2.
+- ❌ Use `gh api` to create the `main` ref pointing at the feature branch's commit — same rule, different syntax.
+- ❌ Open a PR with `--base main` against a non-existent main ref and hope GitHub figures it out — `gh` rejects with "No commits between main and feature/x".
+
+### Detection — when does this rule apply
+
+Probe at the start of any "initialise this repo" / "first commit" task:
+
+```bash
+gh repo view <owner>/<repo> --json defaultBranchRef,isEmpty
+# {"defaultBranchRef":{"name":""},"isEmpty":true}  ← chicken-and-egg territory
+```
+
+If `isEmpty: true` and `defaultBranchRef.name: ""`, the standard workflow doesn't apply. Surface the three paths to the user; let them choose.
+
 ## Why This Matters
 
 - The human controls what enters production (main / deployment).
@@ -133,4 +182,4 @@ Optional explanation of why, wrapped at 72.
 - The PR is the one HITL gate that matters.
 - Clear accountability: the merge to a protected branch is the point of no return, and it's always human-initiated.
 
-**Last Updated**: 2026-04-17
+**Last Updated**: 2026-05-19 — added "The Genesis-Commit Chicken-and-Egg" section covering empty-repo bootstrap. Promoted from `tasker` IDEA-001 (the first IDEA of a new project hit exactly this pattern — see [`tasker/docs/archive/2026-05-DEVELOPMENT_LOG.md`](https://github.com/sarunazs/tasker)).
