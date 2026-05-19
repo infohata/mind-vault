@@ -1,7 +1,7 @@
 ---
 id: 004
 name: IDEA-004-onboarding-dev-env-walkthrough
-description: Extend docs/ONBOARDING.md from a "30-minute mind-vault tour" into a full clone-and-go dev-environment walkthrough — IDE install, Claude Code CLI + VSCode plugin, mind-vault setup script, recommended Claude Code settings + plugin set, per-stack add-ons. Target: green-field engineer productive in under 90 min.
+description: Extend docs/ONBOARDING.md from a "30-minute mind-vault tour" into a full clone-and-go dev-environment walkthrough — IDE install, Claude Code CLI + VSCode plugin, mind-vault setup script, recommended Claude Code settings + plugin set, per-stack add-ons, and dev-env hygiene best practices (.env isolation, .gitignore baseline, secret discipline, docker-compose conventions, branch hygiene, hook/permission setup). Target: green-field engineer productive in under 90 min.
 status: idea
 priority: medium
 created: 2026-05-19
@@ -30,7 +30,14 @@ Extend `docs/ONBOARDING.md` into a green-field walkthrough that takes someone fr
 4. **§ Claude Code settings — the productive defaults.** What Kestas actually runs with: auto-mode-on (`claude --auto`?), permission-mode defaults, allowed-bash patterns, model selection (Opus 4.7 1M context for sprint work). Where these live (`~/.claude/settings.json`) and the canonical snippet.
 5. **§ Recommended plugin set.** Walk through the productive plugin loadout: `superpowers` (foundational), `feature-dev` (architecture + review-loop), `skill-creator` (when authoring skills), and any others. For each: what it adds, when to invoke, what it pairs with.
 6. **§ Per-stack add-ons.** Reference from the user's global `~/.claude/CLAUDE.md` conventions: Docker / docker compose, pyenv (no global pip), Make-target preference. Brief justification per item.
-7. **§ First sprint walkthrough.** The existing 30-minute tour, now reframed as "your first sprint" — `/ideate` (optional) → `/idea` → `/plan` → `/work` → review-loop → `/wrap` → `/compound`. Concrete worked example pointer (could reference IDEA-003's archive dir as the dogfood case study).
+7. **§ Dev-environment hygiene + best practices.** The conventions every mind-vault-consuming project should adopt, ahead of touching code:
+   - **`.env` isolation** — never commit `.env` (Kestas's global rule: agents must NEVER touch `.env`). Pattern: `.env.template` is committed (sentinel values), `.env` is local-only. Inside *git worktrees* there's a narrow exception per the global `CLAUDE.md` — sentinel-populated `.env` from template is allowed for disposable docker-volume bootstrap; never copy from the primary checkout's real `.env`.
+   - **`.gitignore` baseline** — what every mind-vault-aware project should ignore: `.env`, `*.pyc`, `__pycache__/`, `.venv/`, `node_modules/`, IDE detritus (`.vscode/settings.json` if per-user, `.idea/`), docker volume mount-points (`pgdata/`, `redis-data/`), and any worktree-specific overrides (`docker-compose.override.yml` when sprint-auto auto-generates it).
+   - **Secret-handling discipline** — credentials live in `.env` (gitignored); the test sentinel `test-not-a-real-key` is the canonical replacement when bootstrapping disposable environments; rotation discipline (regenerate when sharing screens / pushing screenshots / publishing logs). Agents must never grep / cat `.env`.
+   - **Docker-compose conventions** — production parity in local dev (Daphne-only stack mirroring prod, nginx with `proxy_pass`, real Postgres + Redis containers, not SQLite). Where overrides live (root `docker-compose.override.yml` is user-local; sprint-auto's per-worktree override sits in the worktree). Bare `docker` commands forbidden — always `docker compose`.
+   - **Branch hygiene** — never commit on `main` (per `RULE_git-safety`); how to recover from accidental main commits (`git stash` + create feature branch + `git stash pop`); the `--force-with-lease` rule (never plain `--force`); `--no-verify` is forbidden unless the user explicitly authorises.
+   - **Hook + permission setup** — the productive `~/.claude/settings.json` patterns: pre-approved bash patterns (`docker compose *`, `make *`, etc.), denied destructive patterns (`rm -rf *`, `git reset --hard *` without prompt), audit-hook installation. Cross-link `/update-config` skill.
+8. **§ First sprint walkthrough.** The existing 30-minute tour, now reframed as "your first sprint" — `/ideate` (optional) → `/idea` → `/plan` → `/work` → review-loop → `/wrap` → `/compound`. Concrete worked example pointer (could reference IDEA-003's archive dir as the dogfood case study).
 
 The deliverable is a doc that a stranger could clone-and-go from — not just a mind-vault summary.
 
@@ -49,7 +56,8 @@ The deliverable is a doc that a stranger could clone-and-go from — not just a 
 
 ## Acceptance criteria
 
-- [ ] `docs/ONBOARDING.md` has the seven sections above (or a justified subset / reorganisation).
+- [ ] `docs/ONBOARDING.md` has the eight sections above (or a justified subset / reorganisation).
+- [ ] The dev-env hygiene section codifies the conventions a new project should adopt before its first commit (`.env.template` shape, `.gitignore` baseline, sentinel-replacement pattern for disposable bootstraps, `docker compose`-not-`docker` discipline, the branch-hygiene recovery recipes).
 - [ ] A new reader on a blank machine could go from "git clone" to "first `/wrap` finished" in ≤ 90 minutes following the doc.
 - [ ] Each section has a verifiable success-check (e.g. "`claude --version` returns 4.x", "`ls ~/.claude/skills` shows symlinks", "`make help` lists targets").
 - [ ] Plugin recommendations are versioned (so we can update when the plugin set evolves).
