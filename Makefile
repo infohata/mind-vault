@@ -33,28 +33,31 @@ fi
 if [[ -f pyproject.toml ]]; then
     line=$$(grep -m1 -E '^[[:space:]]*version[[:space:]]*=' pyproject.toml || true)
     if [[ -n "$$line" ]]; then
-        printf '%s\n' "$$line" | sed -E 's/^[[:space:]]*version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/'
+        # TOML allows both "..." and '...' for string values.
+        printf '%s\n' "$$line" | sed -E 's/^[[:space:]]*version[[:space:]]*=[[:space:]]*["'"'"']([^"'"'"']+)["'"'"'].*/\1/'
         exit 0
     fi
 fi
 
 if [[ -f package.json ]]; then
-    if ! command -v jq >/dev/null 2>&1; then
-        echo "version-extract: package.json present but jq is not installed — install jq or pass VERSION=v<N> explicitly" >&2
-        exit 1
+    # Match /wrap Step 4b semantics — only adopt package.json's version
+    # when jq is present AND `jq -e '.version'` succeeds. Otherwise fall
+    # through to the next source (Cargo.toml / setup.py / CHANGELOG.md).
+    # User keeps the explicit VERSION= override as the escape hatch when
+    # auto-detect picks the wrong source.
+    if command -v jq >/dev/null 2>&1; then
+        if v=$$(jq -er '.version' package.json 2>/dev/null); then
+            printf '%s\n' "$$v"
+            exit 0
+        fi
     fi
-    if v=$$(jq -er '.version' package.json 2>/dev/null); then
-        printf '%s\n' "$$v"
-        exit 0
-    fi
-    echo "version-extract: package.json found but jq could not parse '.version' — pass VERSION=v<N> explicitly or fix package.json" >&2
-    exit 1
 fi
 
 if [[ -f Cargo.toml ]]; then
     line=$$(grep -m1 -E '^[[:space:]]*version[[:space:]]*=' Cargo.toml || true)
     if [[ -n "$$line" ]]; then
-        printf '%s\n' "$$line" | sed -E 's/^[[:space:]]*version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/'
+        # TOML allows both "..." and '...' for string values.
+        printf '%s\n' "$$line" | sed -E 's/^[[:space:]]*version[[:space:]]*=[[:space:]]*["'"'"']([^"'"'"']+)["'"'"'].*/\1/'
         exit 0
     fi
 fi

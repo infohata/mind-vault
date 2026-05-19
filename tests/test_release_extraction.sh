@@ -18,8 +18,15 @@ extract() {
     local fixture_dir="$1"
     shift
     (
-        cd "$fixture_dir" || return 1
-        make -f "$REPO_ROOT/Makefile" --no-print-directory extract-version "$@" 2>/dev/null
+        # `exit 1` not `return 1` — `return` is invalid in a subshell; a
+        # failed `cd` would otherwise continue and run `make` from the
+        # wrong directory, producing misleading PASS/FAIL.
+        cd "$fixture_dir" || exit 1
+        # NOTE: stderr is intentionally NOT suppressed — on extraction
+        # failure, the harness lets make's error message flow through so
+        # failures have diagnostic context. assert_eq only captures stdout
+        # via $(...), so stderr never pollutes the comparison.
+        make -f "$REPO_ROOT/Makefile" --no-print-directory extract-version "$@"
     )
 }
 
@@ -50,14 +57,17 @@ echo "tests/test_release_extraction.sh — extract-version against six version-s
 echo
 
 echo "Version-source auto-detection:"
-assert_eq "VERSION file"            "$(extract "$FIXTURES/VERSION-only")"   "1.2.3"
-assert_eq "pyproject.toml"          "$(extract "$FIXTURES/pyproject")"      "2.0.0"
-assert_eq "package.json"            "$(extract "$FIXTURES/package")"        "3.1.4"
-assert_eq "Cargo.toml"              "$(extract "$FIXTURES/cargo")"          "0.5.0"
-assert_eq "setup.py"                "$(extract "$FIXTURES/setup-py")"       "0.9.1"
-assert_eq "CHANGELOG.md ## v<N>"    "$(extract "$FIXTURES/changelog-v")"        "v4.0.2"
-assert_eq "CHANGELOG.md ## V<N>"    "$(extract "$FIXTURES/changelog-V-upper")"  "V2.1.0"
-assert_eq "CHANGELOG.md ## [<N>]"   "$(extract "$FIXTURES/changelog-kac")"      "4.0.2"
+assert_eq "VERSION file"                       "$(extract "$FIXTURES/VERSION-only")"             "1.2.3"
+assert_eq "pyproject.toml (double-quoted)"     "$(extract "$FIXTURES/pyproject")"                "2.0.0"
+assert_eq "pyproject.toml (single-quoted)"     "$(extract "$FIXTURES/pyproject-single-quote")"   "5.5.5"
+assert_eq "package.json"                       "$(extract "$FIXTURES/package")"                  "3.1.4"
+assert_eq "Cargo.toml"                         "$(extract "$FIXTURES/cargo")"                    "0.5.0"
+assert_eq "setup.py"                           "$(extract "$FIXTURES/setup-py")"                 "0.9.1"
+assert_eq "CHANGELOG.md ## v<N>"               "$(extract "$FIXTURES/changelog-v")"              "v4.0.2"
+assert_eq "CHANGELOG.md ## V<N>"               "$(extract "$FIXTURES/changelog-V-upper")"        "V2.1.0"
+assert_eq "CHANGELOG.md ## [<N>]"              "$(extract "$FIXTURES/changelog-kac")"            "4.0.2"
+assert_eq "package.json no-version → fallthrough to CHANGELOG" \
+                                                "$(extract "$FIXTURES/package-no-jq-fallthrough")" "v7.7.7"
 
 echo
 echo "Explicit VERSION= override:"
