@@ -1,7 +1,7 @@
 ---
 name: IDEA-003-version-tag-automation
 description: Add a `make release` target that tags + pushes + GH-releases the version `/wrap` Step 4b just bumped, so the human runs one command post-merge instead of three. Option 2 (GHA auto-tag-on-merge) deferred to a follow-up IDEA.
-status: idea
+status: in-progress
 priority: medium
 created: 2026-05-18
 related:
