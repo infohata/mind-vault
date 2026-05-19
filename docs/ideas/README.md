@@ -6,10 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-### IDEA-003: Version-tag automation post-`/wrap` ⏳
-
-**Status**: 🚧 **in-progress** · **Created**: 2026-05-18 · **See**: [Archive](../archive/2026-05-idea-003-version-tag-automation/IDEA-003-version-tag-automation.md).
-Add a `make release` target that tags + pushes + GH-releases the version `/wrap` Step 4b just bumped, so the human runs one command post-merge instead of three. Scoped to Option 1 (Makefile target); Option 2 (GHA auto-tag-on-merge) deferred to a follow-up IDEA pending empirical evidence that the manual step gets forgotten.
+_(none)_
 
 ## 💡 High Priority (backlog)
 
@@ -28,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-003: Version-tag automation post-`/wrap` ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-05-19 · **See**: [Archive](../archive/2026-05-idea-003-version-tag-automation/IDEA-003-version-tag-automation.md), [PR #124](https://github.com/infohata/mind-vault/pull/124).
+Shipped Option 1 — `Makefile` `release` target + `extract-version` + `test-release` + `help`, with version-extraction covering the six sources `/wrap` Step 4b detects (`VERSION` / `pyproject.toml` / `package.json` / `Cargo.toml` / `setup.py` / `CHANGELOG.md` with both `## v<N>` and Keep-a-Changelog `## [<N>]` header forms). Explicit `VERSION=v<N>` override for projects whose CHANGELOG header version differs from the intended tag (mind-vault itself: CHANGELOG `## v4` but tags `v4.0.1`, `v4.0.2`, ...). Idempotency via `git rev-parse --verify --quiet refs/tags/$ver`. Ten-case bash test harness (`tests/test_release_extraction.sh`) covers seven source-format paths + two `VERSION=` override paths + one no-source error case; all green on first run. `/wrap` Step 4b § "Mechanics when a bump is warranted" gained sub-bullet 6 surfacing `make release` as the canonical post-merge hand-back (with manual-fallback mention for Makefile-less projects). Option 2 (GHA auto-tag-on-merge) intentionally deferred to a follow-up IDEA pending empirical evidence the manual step gets forgotten.
 
 ### IDEA-002: Skill debloat — extract over-budget SKILL.md bodies into references/ ✅ COMPLETE
 
