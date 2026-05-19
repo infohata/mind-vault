@@ -14,6 +14,11 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
+### IDEA-004: ONBOARDING — full dev-environment walkthrough
+
+**Status**: 💡 **idea** · **Created**: 2026-05-19 · **See**: [`IDEA-004-onboarding-dev-env-walkthrough.md`](IDEA-004-onboarding-dev-env-walkthrough.md).
+Extend `docs/ONBOARDING.md` from a 30-minute mind-vault tour into a full clone-and-go dev-environment walkthrough: IDE install (VSCode / Cursor), Claude Code CLI + VSCode plugin, mind-vault setup script, productive Claude Code settings (auto-mode, plugin set), per-stack add-ons. Target: green-field engineer productive in ≤ 90 min. Motivated by v4 going OSS-release candidate while ONBOARDING still assumes the reader already has the stack set up.
+
 ### IDEA-003: Version-tag automation post-`/wrap`
 
 **Status**: 💡 **idea** · **Created**: 2026-05-18 · **See**: [`IDEA-003-version-tag-automation.md`](IDEA-003-version-tag-automation.md).
