@@ -116,6 +116,15 @@ release: ## Tag + push + GH-release the current version (VERSION=v<N> overrides 
 	fi; \
 	if git rev-parse --verify --quiet "refs/tags/$$ver" >/dev/null; then \
 		echo "release: local tag $$ver already exists — skipping tag create"; \
+		if [[ "$$remote_tag_exists" -eq 0 ]]; then \
+			local_tag_sha=$$(git rev-parse "refs/tags/$$ver^{commit}"); \
+			head_sha=$$(git rev-parse HEAD); \
+			if [[ "$$local_tag_sha" != "$$head_sha" ]]; then \
+				echo "release: ERROR — local tag $$ver points at $$local_tag_sha but HEAD is $$head_sha; aborting to prevent publishing a stale local tag" >&2; \
+				echo "release: hint: delete the stale local tag (\`git tag -d $$ver\`) and re-run, or use \`VERSION=<different>\` to tag a new version" >&2; \
+				exit 1; \
+			fi; \
+		fi; \
 	elif [[ "$$remote_tag_exists" -eq 1 ]]; then \
 		echo "release: ERROR — remote tag $$ver exists but is not local after fetch (network issue?); aborting to prevent divergent local tag at HEAD" >&2; \
 		exit 1; \

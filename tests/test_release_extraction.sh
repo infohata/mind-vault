@@ -77,7 +77,9 @@ assert_eq "override on missing source" "$(extract "$FIXTURES/empty" VERSION=v0.0
 echo
 echo "Error cases:"
 # No source file present; no override → must fail. We only care about exit
-# code; stdout is discarded (extract() already swallows stderr internally).
+# code; stdout is discarded. extract()'s stderr flows through (by design
+# per the note in its body) so the failure diagnostic still appears in the
+# test run log, with no impact on this assertion's correctness.
 extract "$FIXTURES/empty" >/dev/null
 assert_nonzero_exit "empty dir, no override" "$?"
 
