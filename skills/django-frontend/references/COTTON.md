@@ -401,4 +401,72 @@ A cotton prop that defaults to true (most callers want it enabled, opt-out with 
 
 The cotton `<c-vars>` template tag (provided by django-cotton) is the right choice when 2+ props need defaults. Single-prop defaults can use `is not False`. Don't use `{% with %}` for prop defaults — its scope rules surprise everyone who reads the template later.
 
-**Last Updated**: 2026-05-14
+## Slot truthiness sees whitespace as truthy — gate at the call site, not inside the cotton
+
+Inside a cotton component, `{% if slot_name %}` is **TRUE whenever the slot was declared at the call site** — even when the slot's inner content evaluates to empty whitespace (template-block residue with falsy conditions inside). The whitespace + tag remnants make the slot variable non-empty for Django truthiness purposes.
+
+```django
+{# ❌ Caller declares the slot, lets inner condition decide — cotton then renders the slot wrapper around emptiness #}
+<c-list-wrapper :key="articles" hx-target-id="article-list-items">
+    {{ cards }}
+    <c-slot name="pager">
+        {% if has_more %}{% include "_load_more_pager.html" %}{% endif %}
+    </c-slot>
+</c-list-wrapper>
+
+{# inside the cotton: #}
+{% if pager %}<div id="…-load-more">{{ pager }}</div>{% endif %}
+{# ↑ TRUE because the <c-slot> WAS declared, even when has_more is False #}
+
+{# ✅ Gate at the call site — slot is only declared when content exists #}
+<c-list-wrapper :key="articles" hx-target-id="article-list-items">
+    {{ cards }}
+    {% if has_more %}
+        <c-slot name="pager">{% include "_load_more_pager.html" %}</c-slot>
+    {% endif %}
+</c-list-wrapper>
+```
+
+**Discipline: caller-decides-visibility.** Cotton primitives should detect "was the slot passed or not?", NOT "is the slot's user-content empty?". For slot visibility, the inverse of the usual "smart cotton, dumb caller" pattern is correct — dumb cotton, smart caller. The caller has the truth value (`has_more`, `items_present`); the cotton has only the rendered string.
+
+Attempts to detect inner emptiness via `{% if pager|striptags|cut:" "|cut:"\n" %}` break the Django parser (literal whitespace in filter args). Don't go down that path; move the conditional out to the caller.
+
+## Empty-state belongs INSIDE the slot for full-list-swap surfaces
+
+When a cotton list-wrapper's outer is the `hx-target` of a filter form using `hx-swap="outerHTML"`, the partial's outer-wrapper REPLACES the prior render. **The empty-state must live INSIDE the cotton's slot**, alternating with the cards loop based on items presence:
+
+```django
+{# ✅ Empty-state inside slot — atomic swap, no orphan siblings #}
+<c-list-wrapper :key="articles" hx-target-id="article-list-items">
+    {% if articles %}
+        {% for article in articles %}<c-article-card :article="article" />{% endfor %}
+    {% else %}
+        <div class="notification is-info is-light">No articles match the current filter.</div>
+    {% endif %}
+    {% if articles and has_more %}
+        <c-slot name="pager">{% include "_load_more_pager.html" %}</c-slot>
+    {% endif %}
+</c-list-wrapper>
+```
+
+**Anti-pattern**: empty-state OUTSIDE the cotton (sibling div). On every filter swap, `outerHTML` only replaces the matched element — the prior render's empty-state sibling persists in DOM, and the response adds a new one. Result: **double empty-state** stacked visually, surfaces only on manual eval (render-and-assert tests don't catch the DOM-after-multiple-swaps state).
+
+The cotton's inner items-container can still be unconditionally emitted (preserves structural invariant for OOB swap targets and for the load-more `beforeend` target). Only the *content* of the slot alternates — the cotton's structural shape is constant.
+
+**Architect-amendment caveat**: when an architect says "move empty-state outside so the items container stays present", separate STRUCTURAL INTENT (items container always present — preserve) from CONSEQUENT MECHANICS (where empty-state lives — re-derive against actual swap behaviour). The "OOB swap target" usually refers to the pager wrapper, not the items container; conflating the two leads to the double-empty regression.
+
+## Pager + empty-state must be mutually exclusive (page-beyond-end edge)
+
+Naive composition — `{% if not items %}<empty>{% endif %}` plus an independent `{% if has_more %}<pager>{% endif %}` guard — renders BOTH when a paginated slice returns `items=[] AND total>0` (high-offset render, post-filter empty page, race after a delete). The pre-cotton templates often used a single mutex (`{% if not items %}empty{% elif items|length < total %}pager{% endif %}`) which the migration may have split apart by accident.
+
+**Discipline**: the pager guard MUST include items truthiness:
+
+```django
+{% if items and items|length < filtered_total %}
+    <c-slot name="pager">…</c-slot>
+{% endif %}
+```
+
+Empty-state in the cards-or-empty alternation (see preceding section) is mutually exclusive with the pager by construction — items are either present (cards + maybe-pager) or absent (empty-state, no pager). Don't carry two independent visibility gates for them.
+
+**Last Updated**: 2026-05-20

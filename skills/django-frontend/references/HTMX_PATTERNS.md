@@ -499,6 +499,38 @@ The 3-gate composition matters:
 
 When a flow emits `messages.success(request, ...)` AND a JS `HX-Trigger` listener that also calls `uiNotify`, the user sees the toast twice. The fix is at the design level: pick ONE source per flow — see [`SHELL_NOTIFICATIONS.md`](SHELL_NOTIFICATIONS.md) § *Pick ONE source per flow* for the canonical 4-flow table (server `messages.*` / `hx-swap="none"` / server-flash + client post-action with `refreshOnly: true` / pure client-side) and the JS + Python `refreshOnly` code shapes.
 
+## Cotton-wrapped partials + `hx-swap="innerHTML"` produce nested duplicate IDs
+
+When a partial template is migrated to a cotton primitive that emits its own outer `<div id="X">`, AND the page-level template still wraps the include with `<div id="X">{% include partial %}</div>`, AND a filter form does `hx-target="#X" hx-swap="innerHTML"`:
+
+- **Pre-migration**: partial had no outer id. The page wrapper was the single `#X`. `innerHTML` swap was clean.
+- **Post-migration**: cotton emits `#X` inside the page's `#X`. The filter response's `#X` div lands INSIDE the existing `#X`, producing nested duplicate IDs after every swap. Each subsequent swap nests another level.
+
+```html
+<!-- Before filter swap (already wrong from migration) -->
+<div id="article-list">          ← page-level wrapper
+  <div id="article-list">        ← cotton-emitted wrapper
+    <div id="article-list-items">…</div>
+  </div>
+</div>
+
+<!-- After one innerHTML swap targeting #article-list (matches page wrapper) -->
+<div id="article-list">
+  <div id="article-list">        ← swap response's outer
+    <div id="article-list">      ← nested again
+      …
+    </div>
+  </div>
+</div>
+```
+
+**Fix — both worth applying together**:
+
+1. **Drop the page-level wrapper.** The cotton-emitted wrapper is canonical; the page template just includes the partial directly.
+2. **Switch the filter form from `innerHTML` to `outerHTML`.** The partial's outer wrapper REPLACES (not nests-into) the prior render. The shell-migrated workspaces already use this shape; legacy non-shell filter forms shipped with `innerHTML` that fit a partial-with-no-outer-id shape.
+
+Either fix alone closes the visible bug; both together close the class. The discipline generalises: **once a partial emits its own outer wrapper, all swap targets pointed at that wrapper switch to `outerHTML`**.
+
 ---
 
-**Last Updated**: 2026-05-14
+**Last Updated**: 2026-05-20

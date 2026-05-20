@@ -210,6 +210,12 @@ If at least one fix was applied:
    - Body lists each finding closed.
 2. `git push origin HEAD`.
 3. `./tools/copilot_retrigger.sh [PR_NUMBER]` (preferred) — wraps the empirically-confirmed `gh pr edit <PR> --remove-reviewer @copilot && sleep 1 && gh pr edit <PR> --add-reviewer @copilot` sequence (requires `gh` ≥ 2.88) so the invocation can be pre-approved in `~/.claude/settings.json` without risking arbitrary reviewer additions. Falls back to current-branch PR lookup if no arg given. Bare `--add-reviewer @copilot` against an already-requested reviewer is a no-op — see § First-run calibration above.
+
+   **Retrigger spacing — ≥5 min between retriggers, one retrigger per fix-cycle.** Copilot's reviewer-processor queues reviews; rapid `remove+add` cycles don't preempt a pending review, they STACK behind it. The mechanism is different from bugbot (reviewer-request churn vs. `bugbot run` comment) but the queueing behaviour is analogous — and the rate-limit cost is more visible on Copilot (billed per-review). Discipline:
+   - Exactly ONE retrigger per fix-cycle (the one in this step). Do not also retrigger on the next idle-poll wake "to nudge things along".
+   - If a NEW push lands while a review is in-progress, the in-progress review is stale and a retrigger IS needed — but only ONE, not one-per-superseding-push.
+   - If a prior retrigger in this session was <5 min ago, defer the next one (`ScheduleWakeup(delaySeconds=300, ...)`) before re-firing.
+   - Specifically applies to dual-engine mode (`/copilot-loop` + `/bugbot-loop` synced): post-batch retriggers fire once each per cycle, not per-finding and not per-engine-roundtrip.
 4. Increment session commit counter. If ≥ 20 → stop and hand back.
 
 ## Phase 4: Wait + wake

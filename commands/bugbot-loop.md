@@ -216,6 +216,11 @@ If at least one fix was applied:
    - Body lists each finding closed.
 2. `git push origin HEAD`.
 3. `./tools/bugbot_retrigger.sh [PR_NUMBER]` (preferred) — hard-codes the `bugbot run` body so it can be pre-approved in `~/.claude/settings.json` without risking arbitrary comment injection. Falls back to current-branch PR lookup if no arg given. Equivalent to `gh pr comment <PR> -b "bugbot run"` but auto-approved.
+
+   **Retrigger spacing — ≥5 min between retriggers, one retrigger per fix-cycle.** Cursor's check-suite queues bugbot reviews; rapid retriggers don't preempt a pending review, they STACK behind it. Field-observed degradation: 4 retriggers in 10 min stretched per-review latency from ~1-10 min (typical) to ~16 min as the queue worked through superseded entries. Discipline:
+   - Exactly ONE retrigger per fix-cycle (the one in this step). Do not also retrigger on the next idle-poll wake "to nudge things along" — the review is already queued.
+   - If a NEW push lands while a review is in-progress (e.g. operator handoff or hook-driven commit), the in-progress review is stale and a retrigger IS needed — but only ONE, not one-per-superseding-push.
+   - If a prior retrigger in this session was <5 min ago, defer the next one (`ScheduleWakeup(delaySeconds=300, ...)`) before re-firing. Bugbot's value is fresh reviews on stable code, not high-frequency probes.
 4. Increment session commit counter. If ≥ 20 → stop and hand back.
 
 ## Phase 4: Wait + wake

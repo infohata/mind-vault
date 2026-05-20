@@ -74,6 +74,20 @@ If the host doesn't expose subagent dispatch, or `agents/AGENT_architect.md` isn
 
 Do not skip the review for medium+large plans. Inline-applied is acceptable; unreviewed is not.
 
+## Architect amendments can be imprecisely-phrased — separate intent from mechanics
+
+Architect amendments to a drafted plan sometimes pair a CORRECT structural intent with a WRONG-DERIVED consequent mechanic. The intent describes *what invariant must hold*; the mechanic describes *where in the code to put a particular construct to achieve it*. Field-observed example: "empty-state moves OUTSIDE the cotton so the inner items container is always present as the OOB swap target" — the structural intent ("items container always present") was correct and survived the implementation, but the consequent mechanic ("therefore empty-state must move outside") was wrong because the architect had conflated two swap targets (OOB pager wrapper vs. beforeend items container). Applying the mechanic verbatim shipped a regression that the manual-eval walk caught immediately.
+
+**Discipline at `/work` time when consuming an architect amendment**:
+
+1. Read the amendment twice. Identify the STRUCTURAL INTENT (the invariant the architect cares about) separately from the CONSEQUENT MECHANIC (where the code goes to achieve it).
+2. Ground-truth the mechanic against actual runtime behaviour — swap semantics, event firing order, DOM state after N iterations of the affected flow. Render-and-assert tests pin fragment shape but not multi-swap DOM state; that's where mechanics-derived-from-architect-intuition most commonly fail.
+3. If the mechanic breaks something user-visible, **reinterpret the mechanic while preserving the structural intent**. Document the reinterpretation in the commit message ("Amendment A1 reinterpreted: items container still always present per intent, empty-state stays inside slot to preserve atomic-swap behaviour") so future readers see both the architect's verdict AND the implementation-time correction.
+
+This isn't permission to ignore architect findings — the intent is load-bearing. It's permission to refine the mechanic when implementation-time evidence (manual eval, browser walk, integration-shape failure) contradicts the architect's derivation. The architect reviewed the plan against the codebase as understood at review time; implementation-time evidence is downstream of that and authoritative for mechanics.
+
+When applying a reinterpretation, prefer to surface it back into mind-vault via `/compound` after the IDEA ships — both as a refinement to the relevant skill reference (the actual mechanic that worked) and, if the misderivation cluster recurs, as a sharper architect prompt for future similar reviews.
+
 ---
 
-**Last Updated**: 2026-04-19
+**Last Updated**: 2026-05-20
