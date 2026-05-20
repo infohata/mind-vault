@@ -127,6 +127,7 @@ This is the **only** authorised place to create `.env` — see exception clause 
    - `last_seen_comment_id` (GitHub comment id; used by Phase 4 to detect truly-new comments)
    - `last_push_sha` (SHA of the last feature-branch push)
    - `no_progress_map` (per-finding-category count of cycles where a commit attempted that category — used by the no-progress detector)
+   - `last_bugbot_retrigger_at` (ISO-8601 timestamp of the most recent `bugbot run` post; used by Phase 3 to enforce ≥5min same-engine spacing across `ScheduleWakeup` boundaries — without this, the spacing rule is unenforceable once the in-conversation timestamp is summarised away). Under dual-engine mode also persist `last_copilot_retrigger_at`.
    - Plus the per-cycle triage table (findings + tier + justification + outcome).
 
    If any of these live only in conversation context, they will be summarised away across `ScheduleWakeup` boundaries and the hard bounds become unenforceable.
@@ -217,10 +218,10 @@ If at least one fix was applied:
 2. `git push origin HEAD`.
 3. `./tools/bugbot_retrigger.sh [PR_NUMBER]` (preferred) — hard-codes the `bugbot run` body so it can be pre-approved in `~/.claude/settings.json` without risking arbitrary comment injection. Falls back to current-branch PR lookup if no arg given. Equivalent to `gh pr comment <PR> -b "bugbot run"` but auto-approved.
 
-   **Retrigger spacing — ≥5 min between retriggers, one retrigger per fix-cycle.** Cursor's check-suite queues bugbot reviews; rapid retriggers don't preempt a pending review, they STACK behind it. Field-observed degradation: 4 retriggers in 10 min stretched per-review latency from ~1-10 min (typical) to ~16 min as the queue worked through superseded entries. Discipline:
+   **Retrigger spacing — ≥5 min between retriggers of the *same engine*, one retrigger per fix-cycle.** Cursor's check-suite queues bugbot reviews; rapid retriggers don't preempt a pending review, they STACK behind it. Field-observed degradation: 4 retriggers in 10 min stretched per-review latency from ~1-10 min (typical) to ~16 min as the queue worked through superseded entries. The spacing rule is **per-engine** — under dual-engine mode the post-batch bugbot retrigger and copilot retrigger hit independent queues, so firing both back-to-back after a single push (bugbot first, then copilot) does NOT violate spacing; the rule only restricts back-to-back bugbot retriggers (or back-to-back copilot retriggers). Discipline:
    - Exactly ONE retrigger per fix-cycle (the one in this step). Do not also retrigger on the next idle-poll wake "to nudge things along" — the review is already queued.
    - If a NEW push lands while a review is in-progress (e.g. operator handoff or hook-driven commit), the in-progress review is stale and a retrigger IS needed — but only ONE, not one-per-superseding-push.
-   - If a prior retrigger in this session was <5 min ago, defer the next one (`ScheduleWakeup(delaySeconds=300, ...)`) before re-firing. Bugbot's value is fresh reviews on stable code, not high-frequency probes.
+   - If a prior bugbot retrigger in this session was <5 min ago, defer the next bugbot retrigger (`ScheduleWakeup(delaySeconds=300, ...)`) before re-firing. Bugbot's value is fresh reviews on stable code, not high-frequency probes. Checked against `last_bugbot_retrigger_at` in the scratch file (see Phase 1 §5).
 4. Increment session commit counter. If ≥ 20 → stop and hand back.
 
 ## Phase 4: Wait + wake
