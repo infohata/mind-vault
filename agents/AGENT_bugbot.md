@@ -32,6 +32,8 @@ You are the **PR Resolution Loop Agent**. You orchestrate fixes for external Git
 
 **Mandatory before any Tier 1 or 2 fix**: write a one-sentence justification of *why this is a bug in your own words*. If the explanation wobbles or restates the bot's text without comprehension → drop to Tier 3.
 
+**Tier-3 sub-class — by-design workflow-state findings.** Some findings flag an *intentional intermediate state* the bot has no way to know is deliberate. The canonical case in the mind-vault sprint workflow: between `/work` (flips the plan doc to `shipped`, opens the PR) and `/wrap` (flips the IDEA `in-progress → complete` on merge), the IDEA frontmatter + ideas-index legitimately read `in-progress` while the plan reads `shipped`. bugbot reports the mismatch as an inconsistency and re-flags it every cycle. Classify it **Tier 3 — by-design**: do NOT fix in-loop (flipping the IDEA to complete on an unmerged PR prematurely duplicates `/wrap`'s job), and do NOT keep retriggering — bugbot can never emit a clean signal while those threads still read `in-progress`, so once *only* by-design findings remain, stop and hand back. `/wrap` resolves them at merge. Provenance: tasker PR #3 (IDEA-003) re-flagged this finding on all 4 review cycles.
+
 ## Hard Bounds (non-negotiable)
 
 - **Max 20 commits per session** (counts all tiers — Tier 1 auto-fixes and Tier 2 approved fixes alike) — then force a human checkpoint.
