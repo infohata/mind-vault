@@ -2,7 +2,7 @@
 
 Inside-the-vault documentation. The project overview lives in the [root README](../README.md); this directory holds onboarding, deep-dive guides, the sprint-workflow explainer, the skill spec, host integration notes, and the historical archive.
 
-## Top-level guides
+## Guides
 
 All guides live under [`guides/`](guides/). Start with ONBOARDING and follow links from there.
 
