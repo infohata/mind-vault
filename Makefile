@@ -113,7 +113,15 @@ release: ## Tag + push + GH-release the current version (VERSION=v<N> overrides 
 	echo "release: version = $$ver"; \
 	echo "release: fetching tags from origin (so local-state checks see remote tags)"; \
 	git fetch origin --tags --quiet 2>/dev/null || echo "release: warning — git fetch --tags failed (continuing with local state)"; \
-	if git ls-remote --tags origin "refs/tags/$$ver" 2>/dev/null | grep -q .; then \
+	ls_remote_out=$$(git ls-remote --tags origin "refs/tags/$$ver" 2>&1); \
+	ls_remote_rc=$$?; \
+	if (( ls_remote_rc != 0 )); then \
+		echo "release: ERROR — \`git ls-remote origin\` failed (rc=$$ls_remote_rc); cannot reliably determine whether remote tag $$ver exists. Output:" >&2; \
+		printf '  %s\n' "$$ls_remote_out" >&2; \
+		echo "release: hint: check network/auth (\`git push origin --dry-run\`) and re-run. Aborting to avoid creating a local tag without remote visibility." >&2; \
+		exit 1; \
+	fi; \
+	if printf '%s' "$$ls_remote_out" | grep -q .; then \
 		remote_tag_exists=1; \
 		echo "release: remote tag $$ver already exists on origin — skipping push"; \
 	else \

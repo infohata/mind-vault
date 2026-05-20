@@ -47,7 +47,7 @@ Pre-v4 sprint output now part of the v4 baseline — every PR listed below is me
 
 ## v4.0.3 — Post-wrap release-tagging helper (`make release`)
 
-Patch release on the v4 line. Adds a repo-root `Makefile` with a `release` target that collapses the three-command post-merge sequence (`git tag <ver> && git push origin <ver> && gh release create <ver> --generate-notes`) into one human-invoked command. Version-extraction covers the six sources `/wrap` Step 4b detects; explicit `VERSION=v<N>` overrides auto-detect for projects whose CHANGELOG header version differs from the intended tag (mind-vault itself: header `## v4` but tags `v4.0.1`, `v4.0.2`, ...). `/wrap` Step 4b's "Mechanics when a bump is warranted" now surfaces the convention as a post-merge hand-back instruction. No changes to skills / agents / commands / rules beyond the wrap-skill hand-back nudge; the deliverable is the adopter-facing `Makefile` convention.
+Patch release on the v4 line. Adds a repo-root `Makefile` with a `release` target that collapses the three-command post-merge sequence (`git tag -a -m "Release <ver>" -- <ver> && git push origin -- <ver> && gh release create --generate-notes -- <ver>`) into one human-invoked command. Version-extraction covers the six sources `/wrap` Step 4b detects; explicit `VERSION=v<N>` overrides auto-detect for projects whose CHANGELOG header version differs from the intended tag (mind-vault itself: header `## v4` but tags `v4.0.1`, `v4.0.2`, ...). `/wrap` Step 4b's "Mechanics when a bump is warranted" now surfaces the convention as a post-merge hand-back instruction. No changes to skills / agents / commands / rules beyond the wrap-skill hand-back nudge; the deliverable is the adopter-facing `Makefile` convention.
 
 ### Added
 
