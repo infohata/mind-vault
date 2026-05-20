@@ -14,10 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-### IDEA-004: ONBOARDING — full dev-environment walkthrough
-
-**Status**: 💡 **idea** · **Created**: 2026-05-19 · **See**: [`IDEA-004-onboarding-dev-env-walkthrough.md`](IDEA-004-onboarding-dev-env-walkthrough.md).
-Extend `docs/guides/ONBOARDING.md` from a 30-minute mind-vault tour into a full clone-and-go dev-environment walkthrough: IDE install (VSCode / Cursor), Claude Code CLI + VSCode plugin, mind-vault setup script, productive Claude Code settings (auto-mode, plugin set), per-stack add-ons, **plus dev-env hygiene best practices** (`.env` isolation, `.gitignore` baseline, secret-handling discipline, `docker compose` conventions, branch hygiene, hook/permission setup). Target: green-field engineer productive in ≤ 90 min. Motivated by v4 going OSS-release candidate while ONBOARDING still assumes the reader already has the stack set up.
+_(none)_
 
 ## 💡 Low Priority (backlog)
 
@@ -28,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-004: ONBOARDING — full dev-environment walkthrough ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-05-20 · **See**: [Archive](../archive/2026-05-idea-004-onboarding-walkthrough/IDEA-004-onboarding-dev-env-walkthrough.md), [PR #128](https://github.com/infohata/mind-vault/pull/128).
+Shipped the ONBOARDING expansion as a landing-page + companion-docs structure (chosen over single-page-with-TOC for progressive-disclosure fit). `docs/guides/ONBOARDING.md` gained an inline § 2 "AI concepts — rules vs skills vs agents vs commands" comparison table, § 5 "Useful Claude Code commands" toolbox (`/context`, `/usage`, `/effort`, `/compact`, `/new`, `/resume`, `/init`, `/help`) with a "context window vs subscription limits" callout disambiguating the two budgets, a top-of-file TOC, and § 7 deep-dives index. Four new companion guides under `docs/guides/`: `GIT_WORKFLOW.md` (branch-per-IDEA, dual-engine review, integration branches, force-push hygiene), `WORKTREE_PRACTICES.md` (parallel worktrees, port-offset discipline, `.env` isolation exception, sprint-auto integration-worktree pattern), `SKILL_AUTHORING_WALKTHROUGH.md` (process companion to SKILL_SPECIFICATION: decision tree for skill-vs-rule-vs-command-vs-agent, 500-line body budget, anti-patterns, `/compound` route), `MEMORY_MANAGEMENT.md` (four-layer persistence model — auto-memory / `CLAUDE.md` / skills+rules / project docs — rot detection + pruning cadence, verify-before-acting). Coupled structural move: relocated all 8 top-level guides into `docs/guides/` so `docs/` root stays a clean index; 16 cross-referencing files updated. CHANGELOG order corrected to reverse-chrono with `## v4` → `## v4.0.1` rename (aligns with actual git tag); shipped as v4.0.4.
 
 ### IDEA-003: Version-tag automation post-`/wrap` ✅ COMPLETE
 

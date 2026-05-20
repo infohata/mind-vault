@@ -2,9 +2,10 @@
 id: 004
 name: IDEA-004-onboarding-dev-env-walkthrough
 description: Extend docs/guides/ONBOARDING.md from a "30-minute mind-vault tour" into a full clone-and-go dev-environment walkthrough — IDE install, Claude Code CLI + VSCode plugin, mind-vault setup script, recommended Claude Code settings + plugin set, per-stack add-ons, and dev-env hygiene best practices (.env isolation, .gitignore baseline, secret discipline, docker-compose conventions, branch hygiene, hook/permission setup). Target: green-field engineer productive in under 90 min.
-status: idea
+status: complete
 priority: medium
 created: 2026-05-19
+completed: 2026-05-20
 related:
   - 2026-05-idea-003-version-tag-automation  # ONBOARDING was just touched at v4.0.3
 # Sprint-auto eligibility gates
