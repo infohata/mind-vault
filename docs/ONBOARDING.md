@@ -4,6 +4,17 @@
 
 A one-pager for someone landing on mind-vault for the first time and wanting to run a real sprint by the end of the session. Skim top-to-bottom; deep links point at the authoritative docs when you need them.
 
+**Contents**
+
+1. [What mind-vault is](#1-what-mind-vault-is)
+2. [AI concepts — rules vs skills vs agents vs commands](#2-ai-concepts--rules-vs-skills-vs-agents-vs-commands)
+3. [Workspace setup](#3-workspace-setup)
+4. [Setting up a project](#4-setting-up-a-project)
+5. [Useful Claude Code commands](#5-useful-claude-code-commands)
+6. [The sprint workflow](#6-the-sprint-workflow)
+7. [Deep dives — companion guides](#7-deep-dives--companion-guides)
+8. [Where to go next](#where-to-go-next)
+
 ## 1. What mind-vault is
 
 A **cross-host configuration library** for AI coding agents. Skills, subagent personas, slash commands, and always-on rules are authored once and symlinked into Claude Code, Cursor, OpenCode, Antigravity, or VS Code Copilot — no copy-paste drift between tools.
@@ -18,7 +29,27 @@ A **cross-host configuration library** for AI coding agents. Skills, subagent pe
 
 **The workflow principle** — every sprint should make the next sprint cheaper. `/compound` is the lever: any recurring fix-up becomes a new skill / rule / agent improvement.
 
-## 2. Workspace setup
+## 2. AI concepts — rules vs skills vs agents vs commands
+
+The four artefact types in mind-vault answer four different questions. Internalising the distinction up front makes the rest of the system click.
+
+| Artefact | Loaded when? | Decided by? | Cost | Example |
+| --- | --- | --- | --- | --- |
+| **Rule** (`rules/RULE_*.md`) | Every session, unconditionally | Auto-loaded by harness | Permanent context budget | `RULE_git-safety` blocks pushes to `main` on every conversation |
+| **Skill** (`skills/<name>/SKILL.md`) | On demand, when description matches the task | The agent (probabilistic match against `description` field) | Per-invocation | `/wrap` for post-merge doc sweep; `django` skill loads when editing Django code |
+| **Agent profile** (`agents/AGENT_*.md`) | When dispatched as a subagent | The orchestrating agent (you or another skill) | Per-dispatch, runs in isolated context window | `AGENT_architect` invoked by `/plan`; `AGENT_bugbot` invoked by `/bugbot-loop` |
+| **Slash command** (`commands/*.md`) | Explicit user invocation | The human typing `/<name>` | Per-invocation | `/idea`, `/work`, `/sprint-auto` |
+
+**Mental shortcuts:**
+
+- **Always true** → rule. (Examples: never push to `main`; never touch `.env`; always run pyflakes before push.)
+- **Sometimes useful, agent decides** → skill. (Examples: Django ORM patterns; post-merge wrap discipline; multi-engine review loop.)
+- **A persona/role to delegate work to** → agent. (Examples: an architect that reviews plans; a curator that pre-sweeps PRs.)
+- **A user-triggered action** → slash command. (Examples: kick off the sprint workflow stages.)
+
+Rules are the most expensive (always loaded) so be miserly. Skills are cheap (load-on-demand) — most domain knowledge should live there. See [`skills/idea/references/`](../skills/idea/) and [`rules/`](../rules/) for canonical examples of each.
+
+## 3. Workspace setup
 
 ### Windows: switch to WSL first
 
@@ -67,7 +98,7 @@ Only needed if you went the API-key auth route (not subscription):
 
 **Never commit a key.** `.env` files are off-limits to the agent by default — keep them out of git.
 
-## 3. Setting up a project
+## 4. Setting up a project
 
 ### Install mind-vault
 
@@ -102,6 +133,8 @@ Create a `CLAUDE.md` (or `AGENTS.md` for host-agnostic) at the project root with
 - Conventions the agent should follow (naming, test framework, lint rules).
 - Hard guardrails (`.env` off-limits, never push to `main`, Makefile preference, etc.).
 
+A brownfield codebase? Run `/init` once — it analyses the repo structure and proposes a starter `CLAUDE.md`. Then edit by hand to tighten the guardrails.
+
 If the project already has a `BACKLOG.md` / `IDEAS.md` / `ROADMAP.md`, run `/ingest-backlog` once to atomise it into `docs/ideas/IDEA-NNN-<slug>.md` files matching the sprint-workflow schema.
 
 ### Pick a code-review engine (optional)
@@ -123,7 +156,38 @@ review_engine: bugbot     # or "copilot", or omit/none for curator-only
 
 When `review_engine` is unset or `none`, `/sprint-auto` skips the external-review loop entirely and relies on `AGENT_curator`'s pre-commit pass. This is the lowest-friction default but the weakest gate — opt into bugbot or copilot for real PR work.
 
-## 4. Running your first workflow
+## 5. Useful Claude Code commands
+
+Claude Code ships a set of built-in `/commands` for managing the session itself (distinct from mind-vault's workflow commands like `/idea` and `/wrap`). Knowing these makes long sessions cheaper and more productive.
+
+| Command | Purpose | When to reach for it |
+| --- | --- | --- |
+| `/context` | Show context-window usage breakdown by category (system prompt, tools, memory, skills, messages, free space) | Diagnose "why is the model slow / expensive?" — long-running sessions, before deciding whether to `/compact` |
+| `/usage` | Show your subscription quota / token-spend telemetry | Check how much of your daily/weekly Claude Pro/Max budget you've burned |
+| `/effort` | Set Sonnet's reasoning effort — `low` / `medium` / `high` | Trivial edits: `low`. Architecture decisions: `high`. Default is fine for everything in between |
+| `/compact` | Summarise the conversation so far, freeing context for continued work | When the bar hits ~70% and you want to keep going on the same task without losing the thread |
+| `/new` (or `Ctrl-C` then re-launch) | Start a fresh session with empty context | When the current task is **done** and the next task is unrelated — never `/compact` across topic shifts |
+| `/resume` | Pick up a previous session by id | Continue work from a session you left yesterday/last week |
+| `/init` | Bootstrap a `CLAUDE.md` for the current project | First contact with a brownfield codebase — gives you a starter; edit by hand to tighten |
+| `/help` | List all commands available in the current host | Always |
+
+**`/compact` vs `/new` — the trap that costs you context budget:**
+
+- `/compact` collapses the conversation to a summary + carries forward. Use mid-task when the work is the same but the chat history is long.
+- `/new` discards everything. Use when you switch to an unrelated task — same project, different feature; or a different project altogether.
+
+Most context budget is wasted by *not* `/new`-ing at topic boundaries — a 200K-token chat about authentication is dead weight when you pivot to debugging a migration.
+
+### Context window vs subscription limits — not the same thing
+
+These are two independent budgets and conflating them leads to wrong instincts:
+
+- **Context window** (visible in `/context`) — the model's working memory for a single conversation. Hard cap: 200K for Sonnet 4.6 / Haiku 4.5; 1M for Opus 4.7 with the `[1m]` flag. Spent by every message, tool result, skill body, and memory file loaded into the chat. `/compact` and `/new` are the levers.
+- **Subscription usage** (visible in `/usage`) — your daily/weekly token quota on Pro/Max plans, or your dollar spend on API. Spent across **all** your conversations + every tool call billed by token in/out.
+
+A near-full context window does **not** mean you're near your subscription limit (you might be at 1% of weekly quota with a 95%-full context). A near-empty context **does not** mean usage is cheap (a fresh session firing huge tool results burns quota fast). Watch both — they're different problems with different fixes.
+
+## 6. The sprint workflow
 
 Open the project in Claude Code and walk through the five stages. Each stage is a slash command; each one hands off to the next.
 
@@ -192,6 +256,15 @@ The novel piece. Routes a just-learned lesson to one of six destinations: projec
 ### Sprint-auto (later, once you trust it)
 
 Once you've run a few sprints by hand and the workflow feels natural, `/sprint-auto` chains stages 2–5 unattended overnight for IDEAs you've opted in via frontmatter (`auto_safe: true`). It halts only at the HITL merge boundary. Project's `review_engine` declaration (see § "Pick a code-review engine" above) decides which `*-loop` runs during the deliverables and docs review passes; the default `none` skips both external-review passes and relies on `AGENT_curator`. See [`skills/sprint-auto/SKILL.md`](../skills/sprint-auto/SKILL.md).
+
+## 7. Deep dives — companion guides
+
+The topics below outgrow a one-pager. Each links to a dedicated companion doc you can read once and refer back to. Don't try to absorb all four on day one — skim, then come back when the workflow surfaces a question.
+
+- [**Git workflow**](GIT_WORKFLOW.md) — branch-per-IDEA discipline, PR basing, integration branches for multi-PR cohorts, dual-engine review (Bugbot + Copilot), force-push hygiene, the HITL merge gate.
+- [**Parallel worktrees**](WORKTREE_PRACTICES.md) — when to use `git worktree`, port-offset discipline for parallel docker stacks, `.env` isolation, sprint-auto's integration-worktree pattern, teardown discipline.
+- [**Skill authoring walkthrough**](SKILL_AUTHORING_WALKTHROUGH.md) — process HOWTO that anchors on [SKILL_SPECIFICATION.md](SKILL_SPECIFICATION.md). When does a pattern earn its own skill vs become a rule? Anatomy walkthrough. Common anti-patterns. The `/compound` route from lesson → skill.
+- [**Memory management**](MEMORY_MANAGEMENT.md) — auto-memory vs `CLAUDE.md` vs project doc vs skill — when each is the right destination. Periodic pruning. What rots and how to spot it.
 
 ## Where to go next
 
