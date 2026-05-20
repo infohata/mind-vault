@@ -76,6 +76,12 @@ if [[ -f CHANGELOG.md ]]; then
         case "$$line" in
             "## v"*|"## V"*) printf '%s\n' "$$line" | sed -E 's/^## ([vV][^ ]+).*/\1/' ;;
             "## ["*)         printf '%s\n' "$$line" | sed -E 's/^## \[([^]]+)\].*/\1/' ;;
+            # Defensive default — the grep regex currently constrains matches
+            # to forms the case branches cover, but a future regex change
+            # could open a gap. Fail loud rather than silently exit 0 with
+            # empty stdout.
+            *) echo "version-extract: CHANGELOG.md matched grep but no case branch fired for line: $$line — broaden the case statement to keep up with the grep regex" >&2
+               exit 1 ;;
         esac
         exit 0
     fi
