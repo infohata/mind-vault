@@ -81,11 +81,12 @@ A finding is active iff its `review <rid>` matches the engine's `<ENGINE>_LATEST
 If for any engine in `ENGINES` no review or finding exists for the current `last_push_sha`:
 
 - Invoke `./tools/<engine>_retrigger.sh [PR_NUMBER]` once for that engine.
-- Record the trigger-output id in `last_seen_<engine>_comment_id` so subsequent polls don't misread the trigger as a new finding.
+- Record any trigger-output id the script emits (a GitHub comment id for bugbot; reviewer-assignment doesn't produce a comment id for Copilot — in that case leave `last_seen_<engine>_signal_id` unchanged and rely on `<ENGINE>_LATEST_REVIEW` advancement to detect the eventual response). The shared field name is **`last_seen_<engine>_signal_id`**, engine-defined: for comment-based engines it's a comment id; for reviewer-assignment engines it stays unset until the first review posts.
 - Do NOT proceed to Phase 2/3 this cycle for that engine — there's nothing to fix yet.
+- **Then enter Phase 4** to poll for the eventual review. The trigger is in flight; Phase 4's wake-loop is what catches the response.
 - **Guardrail**: only post the trigger when zero activity exists for the current push SHA. Don't re-trigger on every invocation; engines are rate-limited and each review is billed.
 
-Under multi-engine mode, the orchestrator only skips Phase 2/3 if ALL engines have zero activity — if one engine has findings and another doesn't, fix the findings, then per the multi-engine sync rule retrigger all engines after push.
+**Under multi-engine mode** the per-engine zero-activity branch above does NOT permit fixing findings from engines that DO have activity while a sibling engine is still pending — that violates the dual-engine sync rule (see [`references/dual-engine-sync.md`](references/dual-engine-sync.md)). Instead, the orchestrator waits for the slowest engine to produce a verdict for `last_push_sha` (findings OR clean-signal) before batching fixes from all engines and pushing. The escape hatches in `dual-engine-sync.md` § Trade-off escape hatch govern when to break sync (engine stalled past N× normal latency, service-errored consecutively, etc.) — those, not "this engine has findings now", are the only valid reasons to push mid-cycle while another engine is pending.
 
 ### Triage tier classification
 
@@ -111,7 +112,7 @@ Persist to `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (eng
 Per-engine state slots (replicate the pattern for each engine in `engines`):
 
 - `last_seen_<engine>_review` — `<id> @ <sha> CLEAN=<bool>`
-- `last_seen_<engine>_comment_id`
+- `last_seen_<engine>_signal_id` — engine-defined: comment id for comment-based engines (bugbot); unset for reviewer-assignment engines (Copilot) until the first review posts. Tracked so Phase 4's "new findings since" comparison doesn't misread the loop's own trigger as a finding.
 - `last_<engine>_retrigger_at` — ISO-8601 timestamp
 - `pending_<engine>_retrigger` — bool, default false
 
@@ -125,10 +126,20 @@ For each Tier 1 finding (no prompt) and each Tier 2 finding (after explicit `yes
 
 1. Apply the edit.
 2. **Audit newly-reachable code** when the edit REMOVES a short-circuit. See [`skills/work/references/AUDIT_NEWLY_REACHABLE_CODE.md`](../work/references/AUDIT_NEWLY_REACHABLE_CODE.md) for the audit procedure. Fold same-file / tightly-coupled latents into the same Phase 3 commit; cross-file latents land as a follow-on commit on the same branch.
-3. Run targeted test (`make test-fresh ARGS="app.tests.ClassName"` or project equivalent) — class scope only.
+3. Run targeted test (`make test-fresh ARGS="app.tests.ClassName"` or project equivalent) — class scope only. **Verification routing — see § "Sprint-auto v3.1 verification routing" below for the env-var-driven mode.**
 4. If test fails: revert edit, log to scratch file, move to next finding (do not retry-fix in the same cycle).
 
 Tier 3 findings: skip the fix, log to the scratch file, continue. List all Tier 3 escalations in the final hand-back.
+
+### Sprint-auto v3.1 verification routing
+
+Under sprint-auto v3.1 (`SPRINT_AUTO_INTEGRATION_WORKTREE` is set), step 3's targeted test does NOT run in the per-IDEA worktree (which is code-surface only with no `.env` or docker stack). The **test command's location** changes — the edit-then-test contract per finding is unchanged, and Phase 3's "one commit per cycle" batching still applies.
+
+The test routes to the integration worktree's docker stack via `pushd "$SPRINT_AUTO_INTEGRATION_WORKTREE" && docker compose exec -T web pytest <targeted path>`. The per-IDEA worktree must expose its in-progress edits to the integration worktree's containers before the test runs — the contract is project-specific (rsync-with-exclude, bind-mount, or a `tools/sprint-auto-hooks.sh` hook). Projects that can't satisfy mid-cycle routing fall back to: apply the edit, skip the targeted test, rely on the next bugbot/copilot retrigger cycle to surface regressions via review.
+
+When `SPRINT_AUTO_INTEGRATION_WORKTREE` is unset (standalone mode), step 3 runs the targeted test against the current worktree's stack — no behaviour change.
+
+**Phase 3 is unchanged in v3.1**: at the end of each cycle, all successfully-applied fixes still batch into ONE commit, push once, retrigger engines once each per the spacing rule. The v3.1 routing only affects WHERE the test runs, NOT WHEN the commit happens.
 
 ## Phase 3: Commit + push + per-engine retrigger
 
