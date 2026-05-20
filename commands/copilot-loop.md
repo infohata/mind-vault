@@ -54,7 +54,7 @@ If `git rev-parse --git-common-dir` differs from `.git` (i.e. running inside a w
    - If `.env.template` exists:
      - Copy template → `.env`.
      - Replace any `*_API_KEY=` / `*_TOKEN=` / `*_SECRET=` values with `test-not-a-real-key`.
-     - Replace `SECRET_KEY=` with `test-$(openssl rand -hex 16)`.
+     - Replace `SECRET_KEY=` with `test-<random-hex>` — generate the literal value via `openssl rand -hex 16` and paste the output. (Do NOT write the literal `$(openssl ...)` form into `.env` — most dotenv loaders don't evaluate shell substitution and the loader will use the `$(...)` string verbatim, breaking the app at boot.)
      - Scope DB/Redis URLs to the worktree's docker compose project namespace.
    - If `.env.template` missing → escalate to user; do not proceed.
 3. Spin up containers: `docker compose up -d`.

@@ -34,9 +34,9 @@ git worktree add ../<project>-<track> -b chore/<branch-name> <base-branch>
 cd ../<project>-<track>
 cp .env.template .env
 # Replace secrets with safe sentinels:
-#   - SECRET_KEY=test-$(openssl rand -hex 16)
+#   - SECRET_KEY=test-<random-hex>  (generate the literal value via `openssl rand -hex 16` and paste it — do NOT write `$(...)` into .env; most dotenv loaders don't evaluate shell substitution)
 #   - *_API_KEY / *_TOKEN / *_SECRET → test-not-a-real-key
-#   - HMAC/fernet salts → test-$(openssl rand -hex 16)
+#   - HMAC/fernet salts → test-<random-hex>  (generate the literal value via `openssl rand -hex 16` and paste it — do NOT write `$(...)` into .env; most dotenv loaders don't evaluate shell substitution)
 # Optional: scope DB_NAME / CACHE_URL / etc. to a distinct namespace if the
 # stack shares anything with the primary (rarely needed — separate compose
 # project gives its own DB volume).

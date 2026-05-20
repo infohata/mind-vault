@@ -1,6 +1,6 @@
 # Parallel worktrees
 
-`git worktree` lets multiple branches of the same repo coexist on disk simultaneously, each in its own directory. mind-vault uses worktrees aggressively for parallel IDEA work — when running its own docker stack, each worktree gets its own `.env` and port range for isolation. (Sprint-auto's per-IDEA worktrees are an intentional exception — they're code-surface-only, deferring all runtime state to a shared integration worktree; see the [sprint-auto pattern](#sprint-autos-integration-worktree-pattern-v31) below.)
+`git worktree` lets multiple branches of the same repo coexist on disk simultaneously, each in its own directory. The mind-vault workflow uses worktrees aggressively for parallel IDEA work **in target projects that ship a docker compose stack** — each worktree there gets its own `.env` and port range for isolation. (mind-vault itself doesn't ship a docker stack — it's a config library, not an app. The patterns below describe how its skills and `/sprint-auto` orchestrator drive worktree use in *consumer* projects.) Sprint-auto's per-IDEA worktrees are an intentional exception even inside a docker-stack project — they're code-surface-only, deferring all runtime state to a shared integration worktree; see the [sprint-auto pattern](#sprint-autos-integration-worktree-pattern-v31) below.
 
 ## Why worktrees beat branch-switching
 
