@@ -1,12 +1,20 @@
 # mind-vault
 
+> ## 👋 New here? Start with [`docs/ONBOARDING.md`](docs/ONBOARDING.md).
+>
+> Thirty-minute walkthrough from blank machine to first sprint — IDE install, Claude Code CLI + plugins, mind-vault symlinks, productive defaults, your first `/idea → /plan → /work → /<engine>-loop → /wrap → /compound` cycle.
+>
+> Everything below is **reference material** for engineers already past onboarding.
+
+---
+
 **v4.0.2 — Multi-engine code review · Open-source release candidate (Windows-host adopter bootstrap added).**
 
 Cross-host configuration library for AI coding agents — skills, commands, subagent personas, and shared rules, authored once and symlinked into every agent-aware tool.
 
 > **Single source of truth.** You edit in `mind-vault/`; one setup script per host drops symlinks into each tool's native config directory. No copy-paste drift between Cursor, Claude Code, OpenCode, VS Code Copilot, or Antigravity.
 >
-> **v4 highlights.** The Stage 4 review surface is now engine-agnostic — opt into Cursor Bugbot (`/bugbot-loop`), GitHub Copilot (`/copilot-loop`), both concurrently, or neither (curator-only fallback). See [`docs/ONBOARDING.md`](docs/ONBOARDING.md) for the 30-minute tour, project-level config, and the engine-selector contract.
+> **v4 highlights.** The Stage 4 review surface is now engine-agnostic — opt into Cursor Bugbot (`/bugbot-loop`), GitHub Copilot (`/copilot-loop`), both concurrently, or neither (curator-only fallback).
 
 ## Sprint workflow — the compound loop
 
