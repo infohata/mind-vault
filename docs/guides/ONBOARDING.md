@@ -1,6 +1,6 @@
 # Onboarding — mind-vault in 30 minutes
 
-> **mind-vault v4 — multi-engine review · open-source release.** See [`CHANGELOG.md`](../CHANGELOG.md) for per-version detail.
+> **mind-vault v4 — multi-engine review · open-source release.** See [`CHANGELOG.md`](../../CHANGELOG.md) for per-version detail.
 
 A one-pager for someone landing on mind-vault for the first time and wanting to run a real sprint by the end of the session. Skim top-to-bottom; deep links point at the authoritative docs when you need them.
 
@@ -19,7 +19,7 @@ A one-pager for someone landing on mind-vault for the first time and wanting to 
 
 A **cross-host configuration library** for AI coding agents. Skills, subagent personas, slash commands, and always-on rules are authored once and symlinked into Claude Code, Cursor, OpenCode, Antigravity, or VS Code Copilot — no copy-paste drift between tools.
 
-**Five building blocks** (see [README.md](../README.md) for the full inventory):
+**Five building blocks** (see [README.md](../../README.md) for the full inventory):
 
 - **Skills** (`skills/`) — `SKILL.md` files with frontmatter `name` + `description`. The description is a probabilistic trigger: the agent decides on its own when to invoke a skill.
 - **Agents** (`agents/`) — subagent personas (`AGENT_architect`, `AGENT_bugbot`, `AGENT_backend`, …) with prime directives, multi-pass workflows, structured verdict formats.
@@ -47,7 +47,7 @@ The four artefact types in mind-vault answer four different questions. Internali
 - **A persona/role to delegate work to** → agent. (Examples: an architect that reviews plans; a curator that pre-sweeps PRs.)
 - **A user-triggered action** → slash command. (Examples: kick off the sprint workflow stages.)
 
-Rules are the most expensive (always loaded) so be miserly. Skills are cheap (load-on-demand) — most domain knowledge should live there. See [`skills/idea/references/`](../skills/idea/) and [`rules/`](../rules/) for canonical examples of each.
+Rules are the most expensive (always loaded) so be miserly. Skills are cheap (load-on-demand) — most domain knowledge should live there. See [`skills/idea/references/`](../../skills/idea/) and [`rules/`](../../rules/) for canonical examples of each.
 
 ## 3. Workspace setup
 
@@ -255,7 +255,7 @@ The novel piece. Routes a just-learned lesson to one of six destinations: projec
 
 ### Sprint-auto (later, once you trust it)
 
-Once you've run a few sprints by hand and the workflow feels natural, `/sprint-auto` chains stages 2–5 unattended overnight for IDEAs you've opted in via frontmatter (`auto_safe: true`). It halts only at the HITL merge boundary. Project's `review_engine` declaration (see § "Pick a code-review engine" above) decides which `*-loop` runs during the deliverables and docs review passes; the default `none` skips both external-review passes and relies on `AGENT_curator`. See [`skills/sprint-auto/SKILL.md`](../skills/sprint-auto/SKILL.md).
+Once you've run a few sprints by hand and the workflow feels natural, `/sprint-auto` chains stages 2–5 unattended overnight for IDEAs you've opted in via frontmatter (`auto_safe: true`). It halts only at the HITL merge boundary. Project's `review_engine` declaration (see § "Pick a code-review engine" above) decides which `*-loop` runs during the deliverables and docs review passes; the default `none` skips both external-review passes and relies on `AGENT_curator`. See [`skills/sprint-auto/SKILL.md`](../../skills/sprint-auto/SKILL.md).
 
 ## 7. Deep dives — companion guides
 
@@ -268,9 +268,9 @@ The topics below outgrow a one-pager. Each links to a dedicated companion doc yo
 
 ## Where to go next
 
-- [README.md](../README.md) — full inventory of skills, agents, commands, rules.
+- [README.md](../../README.md) — full inventory of skills, agents, commands, rules.
 - [SPRINT_WORKFLOW.md](SPRINT_WORKFLOW.md) — authoritative stage-by-stage explainer + frontmatter schemas + compound routing table.
 - [SKILL_SPECIFICATION.md](SKILL_SPECIFICATION.md) — when you're ready to author your own skill.
-- [CHANGELOG.md](../CHANGELOG.md) — chronological log of skill / rule / agent evolution.
+- [CHANGELOG.md](../../CHANGELOG.md) — chronological log of skill / rule / agent evolution.
 
 **One closing principle.** Mind-vault is meant to be *yours*. Every project surfaces patterns your skills don't yet cover; every review-bot finding that recurs is a missing rule; every plan that needed extra brainstorming is a skill that wants tightening. `/compound` is the lever — pull it every sprint.

@@ -90,7 +90,7 @@ If `.env` is missing inside a worktree and `.env.template` exists:
 
 This is bootstrap-only — for disposable test-data stacks. **Never read or copy from the primary checkout's `.env`.** Never populate real credentials. Never apply this exception in the primary working tree.
 
-The rule is auto-enforced by `/bugbot-loop` and `/copilot-loop`'s Phase 0 worktree bootstrap. See [global `CLAUDE.md` § Guardrails](../CLAUDE.md.example) for the canonical wording.
+The rule is auto-enforced by `/bugbot-loop` and `/copilot-loop`'s Phase 0 worktree bootstrap. See [global `CLAUDE.md` § Guardrails](../../CLAUDE.md.example) for the canonical wording.
 
 ## sprint-auto's integration-worktree pattern (v3.1+)
 
@@ -137,11 +137,11 @@ A worktree of a typical Django project: ~500MB code + ~2GB docker volume = ~2.5G
 | Port collision on docker compose up | Two worktrees forgot the port-offset convention | Set the worktree-local `*_HOST_PORT` env vars |
 | Test data mysteriously shared between worktrees | Both stacks pointing at the same DB (forgot `COMPOSE_PROJECT_NAME`) | Set `COMPOSE_PROJECT_NAME=<unique-per-worktree>` in worktree's `.env` |
 | Worktree directory exists but `git worktree list` doesn't show it | Manual `rm -rf` instead of `git worktree remove` | `git worktree prune` to clean up the metadata |
-| `.env` missing in worktree, agent stalls | Phase 0 worktree-bootstrap rule not honoured by current host | See [global `CLAUDE.md`](../CLAUDE.md.example); manual `cp .env.template .env` + sanitise |
+| `.env` missing in worktree, agent stalls | Phase 0 worktree-bootstrap rule not honoured by current host | See [global `CLAUDE.md`](../../CLAUDE.md.example); manual `cp .env.template .env` + sanitise |
 
 ## See also
 
-- [`rules/RULE_git-safety.md`](../rules/RULE_git-safety.md) — branch-write rules apply per-worktree.
-- [`skills/sprint-auto/SKILL.md`](../skills/sprint-auto/SKILL.md) — the canonical multi-worktree consumer.
+- [`rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — branch-write rules apply per-worktree.
+- [`skills/sprint-auto/SKILL.md`](../../skills/sprint-auto/SKILL.md) — the canonical multi-worktree consumer.
 - [GIT_WORKFLOW.md](GIT_WORKFLOW.md) — branch + PR pattern that worktrees enable.
 - Git official: <https://git-scm.com/docs/git-worktree>

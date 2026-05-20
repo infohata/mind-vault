@@ -109,7 +109,7 @@ The `source` field is what makes handoff possible: `/plan` reads an IDEA file an
 
 ## Directory layout inside a target project
 
-Per [`RULE_ideas-location-status`](../skills/idea/references/IDEAS_LOCATION_STATUS.md), an IDEA file lives in exactly one of two locations across its whole life — `docs/ideas/` while in backlog, `docs/archive/YYYY-MM-idea-NNN-<slug>/` everything after. The only filesystem move is `idea → archive` at `/plan` time (or `/work` time for small-scope plans that bypassed `/plan`). Post-move, status flips are frontmatter-only.
+Per [`RULE_ideas-location-status`](../../skills/idea/references/IDEAS_LOCATION_STATUS.md), an IDEA file lives in exactly one of two locations across its whole life — `docs/ideas/` while in backlog, `docs/archive/YYYY-MM-idea-NNN-<slug>/` everything after. The only filesystem move is `idea → archive` at `/plan` time (or `/work` time for small-scope plans that bypassed `/plan`). Post-move, status flips are frontmatter-only.
 
 ```text
 <project>/
@@ -175,15 +175,15 @@ The loop's value scales with the work's ambiguity. Don't force ceremony onto wor
 
 ## References
 
-- [skills/ideate/](../skills/ideate/SKILL.md) — optional discovery stage above `/idea`
-- [skills/idea/](../skills/idea/SKILL.md) — atomic IDEA file creator / updater
-- [skills/plan/](../skills/plan/SKILL.md) — merged brainstorm + plan skill
-- [skills/work/](../skills/work/SKILL.md) — thin dispatch orchestrator
-- [skills/compound/](../skills/compound/SKILL.md) — the router
-- [skills/ingest-backlog/](../skills/ingest-backlog/SKILL.md) — brownfield-takeover helper (Phase 1.5)
-- [agents/AGENT_curator.md](../agents/AGENT_curator.md) — secondary "sprint-end promotion sweep" mode scans `docs/solutions/` for recurring patterns and proposes `/compound` invocations
-- [rules/RULE_git-safety.md](../rules/RULE_git-safety.md) — what `/compound` honours when promoting to mind-vault
-- [skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md](../skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — what `/work` cites for parallel execution
+- [skills/ideate/](../../skills/ideate/SKILL.md) — optional discovery stage above `/idea`
+- [skills/idea/](../../skills/idea/SKILL.md) — atomic IDEA file creator / updater
+- [skills/plan/](../../skills/plan/SKILL.md) — merged brainstorm + plan skill
+- [skills/work/](../../skills/work/SKILL.md) — thin dispatch orchestrator
+- [skills/compound/](../../skills/compound/SKILL.md) — the router
+- [skills/ingest-backlog/](../../skills/ingest-backlog/SKILL.md) — brownfield-takeover helper (Phase 1.5)
+- [agents/AGENT_curator.md](../../agents/AGENT_curator.md) — secondary "sprint-end promotion sweep" mode scans `docs/solutions/` for recurring patterns and proposes `/compound` invocations
+- [rules/RULE_git-safety.md](../../rules/RULE_git-safety.md) — what `/compound` honours when promoting to mind-vault
+- [skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md](../../skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — what `/work` cites for parallel execution
 
 ---
 

@@ -135,7 +135,7 @@ Generating more than 25 candidates rarely helps; the filter gets overwhelmed and
 - [../idea/SKILL.md](../idea/SKILL.md) — the skill that consumes the emit shape this skill produces
 - [../idea/assets/idea-template.md](../idea/assets/idea-template.md) — shared template; both `/idea` and `/ideate` write the same schema
 - [../compound/SKILL.md](../compound/SKILL.md) — `/compound`'s curator-driven sprint-end promotion sweep can feed candidates back into `/ideate` for the next cycle
-- [../../docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer
+- [../../docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer
 
 ---
 

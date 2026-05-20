@@ -124,6 +124,6 @@ The right test: would a future session reading the IDEA archive + git log + curr
 ## See also
 
 - Global `~/.claude/CLAUDE.md` — canonical auto-memory taxonomy (`user` / `feedback` / `project` / `reference`) + when-to-save rules.
-- [`skills/compound/SKILL.md`](../skills/compound/SKILL.md) — the lesson-to-destination router (memory is one of six destinations).
+- [`skills/compound/SKILL.md`](../../skills/compound/SKILL.md) — the lesson-to-destination router (memory is one of six destinations).
 - [SKILL_AUTHORING_WALKTHROUGH.md](SKILL_AUTHORING_WALKTHROUGH.md) — when to convert a recurring memory into a skill.
-- [`rules/`](../rules/) — when a recurring memory deserves to be always-on instead.
+- [`rules/`](../../rules/) — when a recurring memory deserves to be always-on instead.

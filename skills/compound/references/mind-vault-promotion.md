@@ -95,7 +95,7 @@ Learnings captured from sprint work, promoted from target projects into mind-vau
 
 - Each learning is reviewable independently — each commit is self-contained.
 - No commits modify `main`; this is a compound-branch PR awaiting human merge.
-- See `docs/SPRINT_WORKFLOW.md` for the compound-routing taxonomy.
+- See `docs/guides/SPRINT_WORKFLOW.md` for the compound-routing taxonomy.
 ```
 
 ## What to report back to the user

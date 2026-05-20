@@ -1,6 +1,6 @@
 # Skill authoring — process walkthrough
 
-The mechanical spec for a skill lives in [SKILL_SPECIFICATION.md](SKILL_SPECIFICATION.md). The operational rules live in [`skills/skill-writer/SKILL.md`](../skills/skill-writer/SKILL.md). This doc covers the *process* — how a recurring pattern in your work becomes a skill, when it shouldn't, and how to keep the skill body lean.
+The mechanical spec for a skill lives in [SKILL_SPECIFICATION.md](SKILL_SPECIFICATION.md). The operational rules live in [`skills/skill-writer/SKILL.md`](../../skills/skill-writer/SKILL.md). This doc covers the *process* — how a recurring pattern in your work becomes a skill, when it shouldn't, and how to keep the skill body lean.
 
 ## When does a pattern earn its own skill?
 
@@ -132,6 +132,6 @@ For a new skill from scratch: `/compound` first (to confirm it should be a skill
 ## See also
 
 - [SKILL_SPECIFICATION.md](SKILL_SPECIFICATION.md) — the mechanical spec.
-- [`skills/skill-writer/SKILL.md`](../skills/skill-writer/SKILL.md) — operational rules + the create/audit workflow.
-- [`skills/compound/SKILL.md`](../skills/compound/SKILL.md) — the lesson-router.
-- [`rules/RULE_self-sweep-before-push.md`](../rules/RULE_self-sweep-before-push.md) — the inspiration for cheap-pre-commit-checks-rather-than-expensive-CI-round-trips, applies to skill quality too.
+- [`skills/skill-writer/SKILL.md`](../../skills/skill-writer/SKILL.md) — operational rules + the create/audit workflow.
+- [`skills/compound/SKILL.md`](../../skills/compound/SKILL.md) — the lesson-router.
+- [`rules/RULE_self-sweep-before-push.md`](../../rules/RULE_self-sweep-before-push.md) — the inspiration for cheap-pre-commit-checks-rather-than-expensive-CI-round-trips, applies to skill quality too.

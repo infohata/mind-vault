@@ -74,4 +74,4 @@ Cursor’s **User Rules** are configured in the app (Cursor Settings → Rules),
 - [Cursor: Agent Skills](https://cursor.com/docs/context/skills)  
 - [Cursor: Subagents](https://cursor.com/docs/context/subagents)  
 - [Symlinks bug (skills)](https://forum.cursor.com/t/cursor-doesnt-follow-symlinks-to-discover-skills/149693)  
-- [mind-vault README](../README.md) – overall symlink layout for Claude / OpenCode / Cursor
+- [mind-vault README](../../README.md) – overall symlink layout for Claude / OpenCode / Cursor

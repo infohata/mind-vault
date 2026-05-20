@@ -1,7 +1,7 @@
 ---
 id: 004
 name: IDEA-004-onboarding-dev-env-walkthrough
-description: Extend docs/ONBOARDING.md from a "30-minute mind-vault tour" into a full clone-and-go dev-environment walkthrough — IDE install, Claude Code CLI + VSCode plugin, mind-vault setup script, recommended Claude Code settings + plugin set, per-stack add-ons, and dev-env hygiene best practices (.env isolation, .gitignore baseline, secret discipline, docker-compose conventions, branch hygiene, hook/permission setup). Target: green-field engineer productive in under 90 min.
+description: Extend docs/guides/ONBOARDING.md from a "30-minute mind-vault tour" into a full clone-and-go dev-environment walkthrough — IDE install, Claude Code CLI + VSCode plugin, mind-vault setup script, recommended Claude Code settings + plugin set, per-stack add-ons, and dev-env hygiene best practices (.env isolation, .gitignore baseline, secret discipline, docker-compose conventions, branch hygiene, hook/permission setup). Target: green-field engineer productive in under 90 min.
 status: idea
 priority: medium
 created: 2026-05-19
@@ -11,18 +11,18 @@ related:
 auto_safe: false
 auto_safe_reason: "Content-heavy walkthrough authoring — judgement calls on which plugins to recommend, what default settings to surface, how much per-stack depth to include, and screenshot/example inclusion. Sprint-auto's mechanical-verification harness can't gauge authorial quality."
 sensitive_paths_cleared: true
-sensitive_paths_cleared_reason: "Docs-only — touches docs/ONBOARDING.md exclusively (plus maybe inline updates to README.md cross-refs). No infra / auth / schema / secrets surface."
+sensitive_paths_cleared_reason: "Docs-only — touches docs/guides/ONBOARDING.md exclusively (plus maybe inline updates to README.md cross-refs). No infra / auth / schema / secrets surface."
 ---
 
 # IDEA-004 — ONBOARDING.md: full dev-environment walkthrough
 
 ## Problem
 
-`docs/ONBOARDING.md` today is a 30-minute mind-vault-internals tour aimed at someone who already has VSCode / Cursor + Claude Code + a working shell environment. New adopters landing on a blank machine (or a fresh OS install) hit a much wider gap: where do I install the IDE? Where does Claude Code come from? How do I wire the VSCode plugin? Which plugins should I enable in Claude Code? What auto-mode settings does the user actually run with? After the v4.0.2 Windows-host bootstrap (PR #120) plus v4.0.3's `make release` helper (PR #124), the gap between "fresh OS" and "running a real sprint" is wider than ONBOARDING acknowledges.
+`docs/guides/ONBOARDING.md` today is a 30-minute mind-vault-internals tour aimed at someone who already has VSCode / Cursor + Claude Code + a working shell environment. New adopters landing on a blank machine (or a fresh OS install) hit a much wider gap: where do I install the IDE? Where does Claude Code come from? How do I wire the VSCode plugin? Which plugins should I enable in Claude Code? What auto-mode settings does the user actually run with? After the v4.0.2 Windows-host bootstrap (PR #120) plus v4.0.3's `make release` helper (PR #124), the gap between "fresh OS" and "running a real sprint" is wider than ONBOARDING acknowledges.
 
 ## Proposal
 
-Extend `docs/ONBOARDING.md` into a green-field walkthrough that takes someone from blank-machine to "completed first sprint" in under 90 minutes. Sections to add ahead of (or restructured around) the current `§ 1 What mind-vault is`:
+Extend `docs/guides/ONBOARDING.md` into a green-field walkthrough that takes someone from blank-machine to "completed first sprint" in under 90 minutes. Sections to add ahead of (or restructured around) the current `§ 1 What mind-vault is`:
 
 1. **§ Pre-flight — IDE setup.** VSCode vs Cursor decision tree (which to pick when), install links per OS, recommended workspace baseline (settings.json snippet, suggested core extensions: GitLens, Docker, Python, EditorConfig, etc.). For Windows: pointer to v4.0.2's `scripts/install-wsl.ps1` (already there but currently surfaced later).
 2. **§ Install Claude Code.** CLI install (one-liner per OS), VSCode plugin install + auth flow, first-run verification. Distinguish "Claude Code CLI" vs "VSCode plugin" vs "claude.ai/code" so the reader knows what they're installing and why.
@@ -56,7 +56,7 @@ The deliverable is a doc that a stranger could clone-and-go from — not just a 
 
 ## Acceptance criteria
 
-- [ ] `docs/ONBOARDING.md` has the eight sections above (or a justified subset / reorganisation).
+- [ ] `docs/guides/ONBOARDING.md` has the eight sections above (or a justified subset / reorganisation).
 - [ ] The dev-env hygiene section codifies the conventions a new project should adopt before its first commit (`.env.template` shape, `.gitignore` baseline, sentinel-replacement pattern for disposable bootstraps, `docker compose`-not-`docker` discipline, the branch-hygiene recovery recipes).
 - [ ] A new reader on a blank machine could go from "git clone" to "first `/wrap` finished" in ≤ 90 minutes following the doc.
 - [ ] Each section has a verifiable success-check (e.g. "`claude --version` returns 4.x", "`ls ~/.claude/skills` shows symlinks", "`make help` lists targets").

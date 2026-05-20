@@ -17,7 +17,7 @@ _(none)_
 ### IDEA-004: ONBOARDING — full dev-environment walkthrough
 
 **Status**: 💡 **idea** · **Created**: 2026-05-19 · **See**: [`IDEA-004-onboarding-dev-env-walkthrough.md`](IDEA-004-onboarding-dev-env-walkthrough.md).
-Extend `docs/ONBOARDING.md` from a 30-minute mind-vault tour into a full clone-and-go dev-environment walkthrough: IDE install (VSCode / Cursor), Claude Code CLI + VSCode plugin, mind-vault setup script, productive Claude Code settings (auto-mode, plugin set), per-stack add-ons, **plus dev-env hygiene best practices** (`.env` isolation, `.gitignore` baseline, secret-handling discipline, `docker compose` conventions, branch hygiene, hook/permission setup). Target: green-field engineer productive in ≤ 90 min. Motivated by v4 going OSS-release candidate while ONBOARDING still assumes the reader already has the stack set up.
+Extend `docs/guides/ONBOARDING.md` from a 30-minute mind-vault tour into a full clone-and-go dev-environment walkthrough: IDE install (VSCode / Cursor), Claude Code CLI + VSCode plugin, mind-vault setup script, productive Claude Code settings (auto-mode, plugin set), per-stack add-ons, **plus dev-env hygiene best practices** (`.env` isolation, `.gitignore` baseline, secret-handling discipline, `docker compose` conventions, branch hygiene, hook/permission setup). Target: green-field engineer productive in ≤ 90 min. Motivated by v4 going OSS-release candidate while ONBOARDING still assumes the reader already has the stack set up.
 
 ## 💡 Low Priority (backlog)
 

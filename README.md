@@ -1,6 +1,6 @@
 # mind-vault
 
-> ## 👋 New here? Start with [`docs/ONBOARDING.md`](docs/ONBOARDING.md).
+> ## 👋 New here? Start with [`docs/guides/ONBOARDING.md`](docs/guides/ONBOARDING.md).
 >
 > Thirty-minute walkthrough from blank machine to first sprint — IDE install, Claude Code CLI + plugins, mind-vault symlinks, productive defaults, your first `/idea → /plan → /work → /<engine>-loop → /wrap → /compound` cycle.
 >
@@ -8,7 +8,7 @@
 
 ---
 
-**v4.0.3 — Multi-engine code review · Open-source release (Windows-host adopter bootstrap + `make release` helper).**
+**v4.0.4 — Multi-engine code review · Open-source release (Windows-host adopter bootstrap + `make release` helper + expanded ONBOARDING + `docs/guides/` subdirectory).**
 
 Cross-host configuration library for AI coding agents — skills, commands, subagent personas, and shared rules, authored once and symlinked into every agent-aware tool.
 
@@ -33,7 +33,7 @@ flowchart LR
 
 **Design note on the review stage.** Stages 1–2–3–5 each have a dedicated skill (`/idea`, `/plan`, `/work`, `/compound`). Stage 4 (review) is engine-selectable: `/bugbot-loop` (Cursor Bugbot) and `/copilot-loop` (GitHub Copilot) are the two engine-specific loops, both backed by `AGENT_bugbot` / `AGENT_copilot` / `AGENT_curator` / `AGENT_architect` personas with identical phase structure. Adding a generic wrapper skill would duplicate infrastructure without adding value — the per-engine loop IS the stage.
 
-See [docs/SPRINT_WORKFLOW.md](docs/SPRINT_WORKFLOW.md) for the full explainer — authoritative frontmatter schemas, compound-routing table, right-sizing guidance, and the handoff contract between stages.
+See [docs/guides/SPRINT_WORKFLOW.md](docs/guides/SPRINT_WORKFLOW.md) for the full explainer — authoritative frontmatter schemas, compound-routing table, right-sizing guidance, and the handoff contract between stages.
 
 ## Structure
 
@@ -103,11 +103,11 @@ Slash commands surface from two sources via the host's symlink: `commands/` (7 r
 
 **Automation:** `/sprint-auto` — overnight unattended orchestrator that chains the full sprint workflow (stages 2–5: `/plan → /work → /<engine>-loop → /wrap (pre-merge) → /<engine>-loop → teardown → /compound → /<engine>-loop`) for curated IDEAs; `/<engine>-loop` resolves to `/bugbot-loop` and/or `/copilot-loop` per project config. See [`skills/sprint-auto/SKILL.md`](skills/sprint-auto/SKILL.md).
 
-**Review + PR flow:** `/bugbot-loop` (Cursor Bugbot), `/copilot-loop` (GitHub Copilot), `/create-pr`, `/test`. See `docs/ONBOARDING.md` § "Pick a code-review engine" for the three-way choice (bugbot / copilot / curator-only).
+**Review + PR flow:** `/bugbot-loop` (Cursor Bugbot), `/copilot-loop` (GitHub Copilot), `/create-pr`, `/test`. See `docs/guides/ONBOARDING.md` § "Pick a code-review engine" for the three-way choice (bugbot / copilot / curator-only).
 
 **Utility:** `/git-status`, `/load-rules`.
 
-Invoke as `/<command-name>` in any host that supports slash commands. See [docs/SPRINT_WORKFLOW.md](docs/SPRINT_WORKFLOW.md) for the sprint-workflow orchestration story.
+Invoke as `/<command-name>` in any host that supports slash commands. See [docs/guides/SPRINT_WORKFLOW.md](docs/guides/SPRINT_WORKFLOW.md) for the sprint-workflow orchestration story.
 
 ## Rules (always-on)
 
@@ -169,7 +169,7 @@ Antigravity is a VS Code fork. Its **built-in Gemini chat** has no user-level sk
 
 ## Authoring
 
-- **New skills**: follow [`docs/SKILL_SPECIFICATION.md`](docs/SKILL_SPECIFICATION.md) (Anthropic Agent Skills reference) and [`skills/skill-writer/SKILL.md`](skills/skill-writer/SKILL.md) (mind-vault enforcement rules, including the emitted-template portability rule).
+- **New skills**: follow [`docs/guides/SKILL_SPECIFICATION.md`](docs/guides/SKILL_SPECIFICATION.md) (Anthropic Agent Skills reference) and [`skills/skill-writer/SKILL.md`](skills/skill-writer/SKILL.md) (mind-vault enforcement rules, including the emitted-template portability rule).
 - **Contributor conventions**: [`AGENTS.md`](AGENTS.md) — naming, structure, file organization, git workflow.
 
 ### Markdown hygiene (pre-commit)

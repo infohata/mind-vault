@@ -1,6 +1,6 @@
 # Git workflow
 
-How mind-vault structures git work across one-IDEA-at-a-time sprints and multi-IDEA cohorts. The hard rules live in [`rules/RULE_git-safety`](../rules/RULE_git-safety.md) (auto-loaded every session). This doc is the *why* and the *when*.
+How mind-vault structures git work across one-IDEA-at-a-time sprints and multi-IDEA cohorts. The hard rules live in [`rules/RULE_git-safety`](../../rules/RULE_git-safety.md) (auto-loaded every session). This doc is the *why* and the *when*.
 
 ## The cardinal rule
 
@@ -175,8 +175,8 @@ The container-stop step is non-obvious but important: checking out a stale branc
 
 ## See also
 
-- [`rules/RULE_git-safety.md`](../rules/RULE_git-safety.md) — the always-on hard rules.
-- [`rules/RULE_rename-before-drop.md`](../rules/RULE_rename-before-drop.md) — multi-commit rename sequencing.
-- [`skills/bugbot-loop/SKILL.md`](../skills/bugbot-loop/SKILL.md), [`skills/copilot-loop/SKILL.md`](../skills/copilot-loop/SKILL.md) — review-engine specifics.
-- [`skills/sprint-auto/SKILL.md`](../skills/sprint-auto/SKILL.md) — integration-branch pattern in full.
+- [`rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — the always-on hard rules.
+- [`rules/RULE_rename-before-drop.md`](../../rules/RULE_rename-before-drop.md) — multi-commit rename sequencing.
+- [`skills/bugbot-loop/SKILL.md`](../../skills/bugbot-loop/SKILL.md), [`skills/copilot-loop/SKILL.md`](../../skills/copilot-loop/SKILL.md) — review-engine specifics.
+- [`skills/sprint-auto/SKILL.md`](../../skills/sprint-auto/SKILL.md) — integration-branch pattern in full.
 - [WORKTREE_PRACTICES.md](WORKTREE_PRACTICES.md) — parallel-worktree counterpart.

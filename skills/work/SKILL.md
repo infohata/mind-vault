@@ -227,7 +227,7 @@ This is the canonical landing page for anyone discovering the idea via grep/inde
 
 - [references/persona-dispatch.md](references/persona-dispatch.md) — per-domain persona routing, worktree setup for parallel work streams, override conventions
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — location-by-status contract driving step 6's archive move on merge
-- [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer
+- [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer
 - [skills/plan/SKILL.md](../plan/SKILL.md) — previous stage; produces the plan this skill executes
 - [skills/compound/SKILL.md](../compound/SKILL.md) — final stage; compound what was learned after review clears
 - [rules/RULE_git-safety.md](../../rules/RULE_git-safety.md) — branching and commit contract
