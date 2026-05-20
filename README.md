@@ -14,7 +14,7 @@ Cross-host configuration library for AI coding agents — skills, commands, suba
 
 > **Single source of truth.** You edit in `mind-vault/`; one setup script per host drops symlinks into each tool's native config directory. No copy-paste drift between Cursor, Claude Code, OpenCode, VS Code Copilot, or Antigravity.
 >
-> **v4 highlights.** The Stage 4 review surface is now engine-agnostic — opt into Cursor Bugbot (`/bugbot-loop`), GitHub Copilot (`/copilot-loop`), both concurrently, or neither (curator-only fallback).
+> **v4 highlights.** The Stage 4 review surface is now engine-agnostic — opt into Cursor Bugbot (`/bugbot-loop`), GitHub Copilot (`/copilot-loop`), both concurrently via the unified `/review-loop <PR> bugbot,copilot` entry (v4.1+), or neither (curator-only fallback).
 
 ## Sprint workflow — the compound loop
 
@@ -103,7 +103,7 @@ Slash commands surface from two sources via the host's symlink: `commands/` (7 r
 
 **Automation:** `/sprint-auto` — overnight unattended orchestrator that chains the full sprint workflow (stages 2–5: `/plan → /work → /<engine>-loop → /wrap (pre-merge) → /<engine>-loop → teardown → /compound → /<engine>-loop`) for curated IDEAs; `/<engine>-loop` resolves to `/bugbot-loop` and/or `/copilot-loop` per project config. See [`skills/sprint-auto/SKILL.md`](skills/sprint-auto/SKILL.md).
 
-**Review + PR flow:** `/bugbot-loop` (Cursor Bugbot), `/copilot-loop` (GitHub Copilot), `/create-pr`, `/test`. See `docs/guides/ONBOARDING.md` § "Pick a code-review engine" for the three-way choice (bugbot / copilot / curator-only).
+**Review + PR flow:** `/review-loop` (multi-engine canonical entry; v4.1+), `/bugbot-loop` (single-engine wrapper), `/copilot-loop` (single-engine wrapper), `/create-pr`, `/test`. See `docs/guides/ONBOARDING.md` § "Pick a code-review engine" for the three-way choice (bugbot / copilot / curator-only); use `/review-loop <PR> bugbot,copilot` when both engines are enabled to get cycle-level synchronisation.
 
 **Utility:** `/git-status`, `/load-rules`.
 

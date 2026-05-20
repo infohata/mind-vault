@@ -93,7 +93,7 @@ If `.env` is missing inside a worktree and `.env.template` exists:
 
 This is bootstrap-only — for disposable test-data stacks. **Never read or copy from the primary checkout's `.env`.** Never populate real credentials. Never apply this exception in the primary working tree.
 
-The rule is auto-enforced by `/bugbot-loop` and `/copilot-loop`'s Phase 0 worktree bootstrap — see [`commands/bugbot-loop.md` § Phase 0](../../commands/bugbot-loop.md) for the canonical in-repo wording (the sanitisation steps + sentinel-value replacements are codified there verbatim).
+The rule is auto-enforced by the shared review-loop skill's Phase 0 worktree bootstrap — see [`skills/review-loop/SKILL.md` § Phase 0](../../skills/review-loop/SKILL.md) for the canonical in-repo wording (the sanitisation steps + sentinel-value replacements are codified there verbatim). Invoked via `/review-loop`, `/bugbot-loop`, or `/copilot-loop`.
 
 ## sprint-auto's integration-worktree pattern (v3.1+)
 
@@ -110,7 +110,7 @@ Each worktree opens in its own editor window with its own language-server instan
 
 - **VS Code / Cursor**: open each worktree as a separate window. Workspace settings (`.vscode/settings.json`) commit naturally.
 - **Vim / Neovim**: spawn one tmux pane per worktree.
-- **Claude Code**: launch one `claude` instance per worktree from inside that worktree's directory. The host detects you're in a worktree (`git rev-parse --git-common-dir` differs from `.git`) and `/bugbot-loop` etc. apply the worktree-specific bootstrap.
+- **Claude Code**: launch one `claude` instance per worktree from inside that worktree's directory. The host detects you're in a worktree (`git rev-parse --git-common-dir` differs from `.git`) and the shared `/review-loop` skill (driving `/bugbot-loop`, `/copilot-loop`, or both) applies the worktree-specific bootstrap.
 
 ## Teardown — non-trivial
 
@@ -140,7 +140,7 @@ A worktree of a typical Django project: ~500MB code + ~2GB docker volume = ~2.5G
 | Port collision on docker compose up | Two worktrees forgot the port-offset convention | Set the worktree-local `*_HOST_PORT` env vars |
 | Test data mysteriously shared between worktrees | Both stacks pointing at the same DB (forgot `COMPOSE_PROJECT_NAME`) | Set `COMPOSE_PROJECT_NAME=<unique-per-worktree>` in worktree's `.env` |
 | Worktree directory exists but `git worktree list` doesn't show it | Manual `rm -rf` instead of `git worktree remove` | `git worktree prune` to clean up the metadata |
-| `.env` missing in worktree, agent stalls | Phase 0 worktree-bootstrap rule not honoured by current host | See [`commands/bugbot-loop.md` § Phase 0](../../commands/bugbot-loop.md); manual `cp .env.template .env` + sanitise |
+| `.env` missing in worktree, agent stalls | Phase 0 worktree-bootstrap rule not honoured by current host | See [`skills/review-loop/SKILL.md` § Phase 0](../../skills/review-loop/SKILL.md); manual `cp .env.template .env` + sanitise |
 
 ## See also
 

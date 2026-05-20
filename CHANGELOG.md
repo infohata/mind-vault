@@ -6,6 +6,32 @@ Mind-vault is a rolling config library. Entries are grouped by month, reverse-ch
 
 Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**, **Changed**, **Fixed**, **Removed**, **Deprecated**, **Security**.
 
+## v4.1 — Multi-engine review-loop shared core
+
+Minor release on the v4 line. IDEA-005 extracts the duplicated Phase 0/1/2/3/4 orchestrator from `commands/bugbot-loop.md` (~263L) + `commands/copilot-loop.md` (~258L) into a single engine-agnostic `skills/review-loop/SKILL.md` (~193L) driven by per-engine adapter references. **Dual-engine concurrent execution is now a first-class supported mode**: the new `commands/review-loop.md` accepts an `ENGINES` list (`bugbot,copilot` or any subset), the dual-engine synchronisation rule lives in one canonical `references/dual-engine-sync.md` instead of being mirrored across both command files, and the adapter contract in `references/engine-adapter-contract.md` generalises cleanly to N engines (one new reference + two shell scripts to add a third engine). The two existing single-engine commands cut to ~15L thin wrappers that delegate to the shared skill. Sprint-auto's existing `SPRINT_AUTO_REVIEW_ENGINE` selector (`bugbot` / `copilot` / `both` / `none`) now has a matching implementation surface — the public API and the skill structure are aligned for the first time. Cross-project IDEA numbering guard added to `skills/idea/SKILL.md` (the bundled PR #130 rename motivated documenting that each project's numbering is independent: never carry a number from another project's stream — the branch name often references the originating project's IDEA, NOT the target's next number).
+
+### Added
+
+- `skills/review-loop/SKILL.md` (193L) — engine-agnostic Phase 0/1/2/3/4 orchestrator with per-engine retrigger spacing, pending-retrigger flush rules, asymmetric-clearance hand-back semantics, anchor-based tool-output parsing, and an explicit guard against the dogfood meta-risk (review-loop's own docs contain literal `"found no new issues"` strings, so the body-text matcher can false-positive on diff content quoted into review bodies).
+- `skills/review-loop/references/engine-adapter-contract.md` (140L) — closed contract for adding new engines: tool-surface contract (`tools/find_<engine>_comments.sh` + `tools/<engine>_retrigger.sh`) + reference-surface section template (Identity, Tool invocations, Clean-signal parsing, Staleness rule, Race caveats, Failure modes, Common patterns, Spacing rule).
+- `skills/review-loop/references/engine-bugbot.md` (~60L) — Cursor Bugbot adapter (defers Common Bugbot Patterns to `agents/AGENT_bugbot.md` §1-8; documents bugbot-specific stall thresholds + line-number drift behaviour).
+- `skills/review-loop/references/engine-copilot.md` (~70L) — GitHub Copilot adapter (dual `user.login` identity confirmed empirically: `Copilot` on `/requested_reviewers` + `copilot-pull-request-reviewer[bot]` on `/reviews`; retrigger via bare `--add-reviewer @copilot` per [AGENT_copilot.md](agents/AGENT_copilot.md)'s self-removal semantics; service-error failure mode pattern: 2× consecutive errors stop retrigger this cycle, 3× hand back; check-run synthesis false-positive caveat documented).
+- `skills/review-loop/references/dual-engine-sync.md` (~80L) — multi-engine synchronisation contract: wait-for-slowest with trade-off escape hatches (engine stalled per per-engine threshold, Copilot service-error consecutive counts), per-engine scratch-file schema, deterministic alphabetical engine iteration, asymmetric-clearance hand-back templates. Generalises to N engines without modification.
+- `commands/review-loop.md` (~60L) — direct multi-engine entry point; canonical home for dual-engine sync mode. `/review-loop <PR> bugbot,copilot` is the natural form when both engines are configured.
+- `skills/idea/SKILL.md` § 4 — cross-project IDEA numbering guard: scan ONLY the target project's `docs/ideas/` + `docs/archive/`; never carry a number from another project's stream. The branch name (`compound/...-idea-NNN-...`) references the originating project's IDEA, not the target's next number.
+
+### Changed
+
+- `commands/bugbot-loop.md` (263L → ~15L) — thin wrapper that delegates to the shared review-loop skill with `ENGINES=bugbot`. Engine-specific quirks (clean-signal parsing, race caveats, failure modes, Tier 1 catalogue) moved to `references/engine-bugbot.md`.
+- `commands/copilot-loop.md` (258L → ~15L) — same treatment with `ENGINES=copilot`. Copilot-specific quirks (dual `user.login`, service-error pattern, first-run calibration) moved to `references/engine-copilot.md`.
+- `agents/AGENT_bugbot.md` + `agents/AGENT_copilot.md` — counter-persistence + zero-activity-trigger sections updated for the shared-core scratch path (`review-loop-pr-<N>.md`) and per-engine signal-id field naming (`last_seen_<engine>_signal_id`, formerly `last_seen_comment_id`); explicit HARD SHORT-CIRCUIT directive on trigger-only cycles + engine-namespaced `no_progress_map`. Spinoff IDEA-006 will minify these further.
+
+### Fixed
+
+- `CHANGELOG.md` v4.0.4 citation was `[#127]` but the actual merge PR was `[#128]` (PR #127 — bringing `statusline.sh` into mind-vault — is still open). Corrected inline.
+
+(2026-05-20, [#131](https://github.com/infohata/mind-vault/pull/131); IDEA-167→IDEA-005 rename absorbed from [#130](https://github.com/infohata/mind-vault/pull/130))
+
 ## v4.0.4 — ONBOARDING expansion + `docs/guides/` subdirectory
 
 Patch release on the v4 line. Two coupled changes: the 30-minute ONBOARDING got the new sections requested for IDEA-004 (inline AI-concepts table, Claude-Code-commands toolbox, context-vs-usage clarifier, TOC, deep-dives index) plus four new deep-dive companions ([GIT_WORKFLOW](docs/guides/GIT_WORKFLOW.md), [WORKTREE_PRACTICES](docs/guides/WORKTREE_PRACTICES.md), [SKILL_AUTHORING_WALKTHROUGH](docs/guides/SKILL_AUTHORING_WALKTHROUGH.md), [MEMORY_MANAGEMENT](docs/guides/MEMORY_MANAGEMENT.md)); and all top-level guide files moved into `docs/guides/` so the `docs/` root stays a clean index. The structural payoff is room to grow more guides without `docs/` ballooning. No skills / agents / commands / rules changed in behaviour — `docs/README.md` and the 16 cross-referencing files updated to the new paths.
@@ -25,7 +51,7 @@ Patch release on the v4 line. Two coupled changes: the 30-minute ONBOARDING got 
 - `docs/{ONBOARDING,CURSOR_SETUP,SPRINT_WORKFLOW,SKILL_SPECIFICATION}.md` → `docs/guides/`. Existing files relocated; `docs/README.md` rewritten as a tight directory index of the new structure. The four new docs above land directly under `docs/guides/`.
 - All cross-references rewritten: 16 files (skills, rules, root README, archived plans, IDEA-004) had their `docs/<FILE>.md` paths updated to `docs/guides/<FILE>.md`. Internal cross-references inside the moved guides rewritten from `../X` to `../../X` for paths to the repo root.
 
-(2026-05-20, [#127](https://github.com/infohata/mind-vault/pull/127))
+(2026-05-20, [#128](https://github.com/infohata/mind-vault/pull/128))
 
 ## v4.0.3 — Post-wrap release-tagging helper (`make release`)
 

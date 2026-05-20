@@ -1,13 +1,14 @@
 ---
 id: 005
 title: Review-loop shared core — unify /bugbot-loop + /copilot-loop with engine adapters
-status: backlog
+status: complete
 priority: high
 supersedes: []
 superseded_by: null
 depends_on: []
-related: []
+related: [006]
 created: 2026-05-20
+completed: 2026-05-20
 auto_safe: false
 auto_safe_reason: "Touches the two skill files most-invoked under sprint-auto's review-engine selector. Refactor sequencing (rename-before-drop applies — engine adapters land first, dual-engine sync block extracts to references/, then commands/bugbot-loop.md + copilot-loop.md become thin wrappers, then a sprint passes before removing the old single-engine code paths). /plan must resolve the adapter shape + dual-engine state-machine before this is auto-safe."
 sensitive_paths_cleared: true
@@ -16,7 +17,7 @@ sensitive_paths_cleared_reason: "Pure skill-architecture refactor in commands/ +
 
 # IDEA-005: Review-loop shared core — unify /bugbot-loop + /copilot-loop with engine adapters
 
-**Status**: 💡 Backlog
+**Status**: ✅ Complete (shipped 2026-05-20 in [PR #131](https://github.com/infohata/mind-vault/pull/131); rename absorbed from #130)
 **Priority**: High
 **Motivation**: PR #129 made the duplication cost concrete (four successive meta-findings on the same retrigger-spacing scaffolding across two mirrored files).
 

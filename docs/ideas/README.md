@@ -10,10 +10,7 @@ _(none)_
 
 ## 💡 High Priority (backlog)
 
-### IDEA-005: Review-loop shared core — unify /bugbot-loop + /copilot-loop with engine adapters
-
-**Status**: 💡 Backlog · **Created**: 2026-05-20 · **See**: [IDEA-005](idea-005/IDEA-005-review-loop-shared-core.md).
-`/bugbot-loop` and `/copilot-loop` are ~90% structurally identical. PR #129 made the duplication cost concrete — every bugbot-finding fix touched mirrored sections in both `commands/bugbot-loop.md` + `commands/copilot-loop.md` (cycle 1: 4 edits for 2 logical changes; cycle 2: 6 edits for 3 logical changes). Two options captured: **(1)** shared `skills/review-loop/` skeleton + per-engine adapters in `references/engine-*.md`, with `/bugbot-loop` + `/copilot-loop` as thin wrappers and `/review-loop` as direct multi-engine entry point — preferred because dual-engine concurrent execution becomes first-class, not a coincidence of running two loops with an ad-hoc sync block; **(2)** shared `references/review-loop-core.md` both skills `[[link]]` into — lower-risk fallback, fits references/ pattern, but doesn't make dual-engine concurrency first-class. Rename-before-drop sequencing applies: shared skill lands first, wrappers cut over second, legacy prose removed in a follow-up sprint.
+_(none — see IDEA-006 below in High-Priority once captured separately on its own branch)_
 
 ## 💡 Medium Priority (backlog)
 
@@ -28,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-005: Review-loop shared core — unify /bugbot-loop + /copilot-loop with engine adapters ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-05-20 · **See**: [Archive](../archive/2026-05-idea-005-review-loop-shared-core/IDEA-005-review-loop-shared-core.md), [PR #131](https://github.com/infohata/mind-vault/pull/131).
+Extracted the duplicated Phase 0/1/2/3/4 orchestrator from `commands/bugbot-loop.md` + `commands/copilot-loop.md` into a single `skills/review-loop/SKILL.md` driven by per-engine adapter references (`engine-bugbot.md`, `engine-copilot.md`, `engine-adapter-contract.md`, `dual-engine-sync.md`). New `commands/review-loop.md` is the canonical multi-engine entry; the two existing commands cut from ~260L each to ~15L thin wrappers. Dual-engine concurrent execution is now a first-class supported mode with explicit per-engine spacing, asymmetric-clearance hand-back, and N-engine generalisation in the adapter contract. The rename absorbed from PR #130 was bundled into the same merge; cross-project numbering guard added in `skills/idea/SKILL.md` to prevent recurrence of the IDEA-167 → IDEA-005 confusion that motivated the rename. **Dogfood validation**: 10 cycles of `/review-loop 131 bugbot,copilot` on the implementation PR surfaced ~50 findings across 7 files, demonstrating the dual-engine value (each engine consistently caught issues the other missed). Spinoff: [IDEA-006](idea-006/IDEA-006-thin-agent-files.md) extends the same delegation treatment to `AGENT_bugbot.md` + `AGENT_copilot.md`.
 
 ### IDEA-004: ONBOARDING — full dev-environment walkthrough ✅ COMPLETE
 

@@ -60,7 +60,7 @@ Each loop polls the engine's GitHub API surface, classifies findings into tiers 
 
 ### Dual-engine flow
 
-Run both `/bugbot-loop` and `/copilot-loop` on the same PR. The two loops **sync each cycle**: wait for the slower engine, batch findings from BOTH into one fix commit, push once, retrigger BOTH. Prevents the failure mode where each loop's push invalidates the other's pending review.
+Use `/review-loop <PR> bugbot,copilot` (the canonical multi-engine entry) — the loop **syncs each cycle**: wait for the slower engine, batch findings from BOTH into one fix commit, push once, retrigger BOTH. Prevents the failure mode where independent loops' pushes invalidate each other's pending reviews. The legacy form (running `/bugbot-loop` AND `/copilot-loop` independently in two sessions) is supported but undermines the sync contract — prefer the unified entry.
 
 Escape hatches when one engine stalls or service-errors are codified in each loop's SKILL.md — see the dual-engine sync rule blocks.
 
@@ -177,6 +177,6 @@ The container-stop step is non-obvious but important: checking out a stale branc
 
 - [`rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — the always-on hard rules.
 - [`rules/RULE_rename-before-drop.md`](../../rules/RULE_rename-before-drop.md) — multi-commit rename sequencing.
-- [`skills/bugbot-loop/SKILL.md`](../../skills/bugbot-loop/SKILL.md), [`skills/copilot-loop/SKILL.md`](../../skills/copilot-loop/SKILL.md) — review-engine specifics.
+- [`skills/review-loop/SKILL.md`](../../skills/review-loop/SKILL.md) — shared Phase 0/1/2/3/4 orchestrator; [`commands/bugbot-loop.md`](../../commands/bugbot-loop.md) and [`commands/copilot-loop.md`](../../commands/copilot-loop.md) are thin wrappers, [`commands/review-loop.md`](../../commands/review-loop.md) is the multi-engine direct entry. Engine specifics live in `skills/review-loop/references/engine-{bugbot,copilot}.md`.
 - [`skills/sprint-auto/SKILL.md`](../../skills/sprint-auto/SKILL.md) — integration-branch pattern in full.
 - [WORKTREE_PRACTICES.md](WORKTREE_PRACTICES.md) — parallel-worktree counterpart.

@@ -228,8 +228,9 @@ Thin orchestrator: enforces `RULE_git-safety` + parallel-worktree-docker discipl
 Pick the command matching the review engine your repo has enabled (see § "Pick a code-review engine" above):
 
 ```text
-/bugbot-loop      # Cursor Bugbot — preferred where available
-/copilot-loop     # GitHub Copilot — the native-to-GitHub alternative
+/review-loop <PR> bugbot,copilot   # v4.1+: multi-engine canonical entry, cycle-level sync
+/bugbot-loop      # Cursor Bugbot single-engine wrapper (= /review-loop <PR> bugbot)
+/copilot-loop     # GitHub Copilot single-engine wrapper (= /review-loop <PR> copilot)
 # or no external bot: invoke AGENT_curator directly before opening the PR
 ```
 
