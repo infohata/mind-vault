@@ -6,16 +6,17 @@ The mechanical spec for a skill lives in [SKILL_SPECIFICATION.md](SKILL_SPECIFIC
 
 Most patterns don't. The decision tree:
 
-```dot
-"Recurring pattern noticed" → "Always true (every project, every session)?"
-"Always true" → YES → "Author as RULE" (rules/RULE_<slug>.md, auto-loaded)
-"Always true" → NO → "Domain-specific (Django, frontend, Laravel, etc.)?"
-"Domain-specific" → YES → "Author as SKILL with domain-matching description"
-"Domain-specific" → NO → "Workflow stage that user/agent triggers?"
-"Workflow stage" → YES → "Author as COMMAND (commands/<name>.md)"
-"Workflow stage" → NO → "Persona/role with multi-pass workflow?"
-"Persona" → YES → "Author as AGENT profile (agents/AGENT_<role>.md)"
-"Persona" → NO → "Probably doesn't belong in mind-vault — keep as project doc"
+```text
+Recurring pattern noticed
+  └─ Always true (every project, every session)?
+       ├─ YES → Author as RULE (rules/RULE_<slug>.md, auto-loaded)
+       └─ NO  → Domain-specific (Django, frontend, Laravel, etc.)?
+                 ├─ YES → Author as SKILL with domain-matching description
+                 └─ NO  → Workflow stage that user/agent triggers?
+                           ├─ YES → Author as COMMAND (commands/<name>.md)
+                           └─ NO  → Persona/role with multi-pass workflow?
+                                     ├─ YES → Author as AGENT profile (agents/AGENT_<role>.md)
+                                     └─ NO  → Probably doesn't belong in mind-vault — keep as project doc
 ```
 
 **Tie-breakers when it could be skill OR rule:**

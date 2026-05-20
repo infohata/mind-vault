@@ -46,7 +46,7 @@ mind-vault supports two external review engines and one local fallback:
 | Engine | Trigger | Wait | Cost |
 | --- | --- | --- | --- |
 | **Cursor Bugbot** | `tools/bugbot_retrigger.sh <PR>` posts a `bugbot run` comment | 1–10 min | Cursor subscription |
-| **GitHub Copilot** | `gh pr edit --remove-reviewer @copilot && gh pr edit --add-reviewer @copilot` | 2–15 min | GitHub Actions minutes (from Jun 2026) |
+| **GitHub Copilot** | `tools/copilot_retrigger.sh <PR>` (wraps the canonical `gh pr edit --remove-reviewer @copilot ; sleep 1 ; gh pr edit --add-reviewer @copilot` sequence — `;` not `&&` so the add step still fires even if `@copilot` wasn't currently requested) | 2–15 min | GitHub Actions minutes (from Jun 2026) |
 | **AGENT_curator** | Local Claude pass before push | Seconds | Free; weakest gate |
 
 ### Single-engine flow

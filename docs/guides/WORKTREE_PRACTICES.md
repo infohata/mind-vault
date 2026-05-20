@@ -85,7 +85,7 @@ mind-vault's global rule: **the agent never reads, writes, or copies `.env` file
 If `.env` is missing inside a worktree and `.env.template` exists:
 - Copy template → `.env`.
 - Replace `*_API_KEY=` / `*_TOKEN=` / `*_SECRET=` values with `test-not-a-real-key`.
-- Replace `SECRET_KEY=` with `test-$(openssl rand -hex 16)`.
+- Replace `SECRET_KEY=` with `test-<random-hex>` — generate the literal value with `openssl rand -hex 16` and paste it (most dotenv loaders do not evaluate shell command substitution, so `$(...)` would land in `.env` verbatim and break the loader).
 - Scope DB/Redis URLs to the worktree's docker compose project namespace.
 
 This is bootstrap-only — for disposable test-data stacks. **Never read or copy from the primary checkout's `.env`.** Never populate real credentials. Never apply this exception in the primary working tree.
