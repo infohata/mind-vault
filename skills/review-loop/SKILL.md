@@ -34,7 +34,9 @@ When `|ENGINES| > 1`, see [`references/dual-engine-sync.md`](references/dual-eng
 
 **Standalone mode (default)**: if `SPRINT_AUTO_INTEGRATION_WORKTREE` is unset, fall through to the existing worktree-bootstrap logic below.
 
-If `git rev-parse --git-common-dir` differs from `.git` (i.e. running inside a worktree):
+**Primary working tree** (NOT a worktree — `git rev-parse --git-common-dir` equals `.git`): skip Phase 0 entirely; the primary tree's `.env` and docker stack are assumed to be already provisioned by the user.
+
+**Worktree** (`git rev-parse --git-common-dir` differs from `.git`):
 
 1. If `.env` already exists → skip to step 3 (containers only).
 2. Else (`.env` missing):
@@ -45,7 +47,6 @@ If `git rev-parse --git-common-dir` differs from `.git` (i.e. running inside a w
      - Scope DB/Redis URLs to the worktree's docker compose project namespace.
    - If `.env.template` missing → escalate to user; do not proceed.
 3. Spin up containers: `docker compose up -d`.
-4. In primary working tree: skip this phase entirely.
 
 This is the **only** authorised place to create `.env` — see exception clause in global `CLAUDE.md`.
 
@@ -107,7 +108,7 @@ For every Tier 1 and Tier 2 finding, write a one-sentence justification: *why is
 
 ### Scratch-file persistence
 
-Persist to `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (engine-agnostic filename) so the next wake cycle can reload state without re-reading summaries. The scratch file must checkpoint every piece of state that a hard bound depends on, after every mutation:
+Persist to `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (engine-agnostic filename) so the next wake cycle can reload state without re-reading summaries. **Supersedes the older per-engine `bugbot-pr-<N>.md` / `copilot-pr-<N>.md` paths** that pre-shared-core `AGENT_bugbot.md` / `AGENT_copilot.md` referenced. When migrating a project from the old wrappers, drop the per-engine scratch files; the shared file holds all engines' state. The scratch file must checkpoint every piece of state that a hard bound depends on, after every mutation:
 
 - `commits_this_session` (int, /20)
 - `active_work_minutes` (int, /180; best-effort)
@@ -157,7 +158,7 @@ If at least one fix was applied:
 1. **One commit per cycle**, not per finding.
    - Format: `fix(scope): address review N (PR #M)` — under multi-engine mode the body lists all findings closed across engines.
 2. `git push origin HEAD`.
-3. **Retrigger** — for each `<engine>` in `ENGINES`, conditional on the **per-engine** spacing rule:
+3. **Retrigger** — for each `<engine>` in `ENGINES` iterated **alphabetically** (deterministic order so behaviour is reproducible regardless of how the caller orders `ENGINES`, matching [`references/dual-engine-sync.md`](references/dual-engine-sync.md) § Retrigger discipline), conditional on the **per-engine** spacing rule:
    - If `last_<engine>_retrigger_at` is unset OR ≥5 min ago: fire `./tools/<engine>_retrigger.sh [PR_NUMBER]`. Update `last_<engine>_retrigger_at` to the post-time. Clear `pending_<engine>_retrigger` if set.
    - Else (last retrigger <5 min ago): do NOT fire now. Set `pending_<engine>_retrigger=true`. The defer for the slow engine does NOT block other engines firing this cycle — each engine is independent.
    - After processing all engines, if any deferred: `ScheduleWakeup(delaySeconds=300, prompt="/review-loop <PR_NUMBER> <ENGINES>")` (or the single-engine wrapper command if invoked via `/bugbot-loop` / `/copilot-loop`). Phase 4's pending-retrigger branch will fire the deferred scripts on the next wake. **The `prompt` arg is mandatory** — without it the harness wake fires but does not re-enter the loop, orphaning the deferred retrigger.
@@ -170,7 +171,7 @@ If at least one fix was applied:
 
 The wake-loop in this phase IS a watcher in the [`skills/work/references/WATCHER_HYGIENE.md`](../work/references/WATCHER_HYGIENE.md) sense: orchestrator-armed, supersede-able, never wall-clock-timeout-bound. Apply that reference's discipline.
 
-1. `ScheduleWakeup(delaySeconds=180, prompt="/review-loop <PR_NUMBER> <ENGINES>")` for the first poll after a fresh fix-cycle (or the wrapper command if invoked single-engine). Subsequent polls use a linear 270s cadence (cache-warm under the 300s prompt-cache TTL). **The `prompt` arg is mandatory** on every `ScheduleWakeup` in this skill — it's what re-enters the loop.
+1. `ScheduleWakeup(delaySeconds=180, prompt="/review-loop <PR_NUMBER> <ENGINES>")` for the first poll on **any** Phase 4 entry — either after a fresh fix-cycle in Phase 3 OR after a Phase 1 zero-activity trigger-only branch (which has no Phase 3 commit but still needs polling to catch the engine's response). Subsequent polls use a linear 270s cadence (cache-warm under the 300s prompt-cache TTL). **The `prompt` arg is mandatory** on every `ScheduleWakeup` in this skill — it's what re-enters the loop. **The `<ENGINES>` placeholder MUST be replaced with the literal comma-separated engine list from the scratch file's `engines` field**, NOT left as a literal placeholder string. A bare `/review-loop <PR>` wake (no engines) would default to all-available engines per `commands/review-loop.md`, diverging from a session that was intentionally invoked with a subset (e.g. `bugbot` only).
 2. On wake: re-fetch each engine's state via `./tools/find_<engine>_comments.sh`.
 3. **Decision tree — evaluate in order**. The first two branches are absolute hard-bound guards; the third handles deferred retriggers; the rest handle the standard happy-path branches. **All branches must flush pending retriggers before terminating** when applicable — see inline rule on each guard.
    - **Guard: active-work minutes ≥ 180** → before handing back, for each engine, if `pending_<engine>_retrigger=true` and `last_<engine>_retrigger_at` is ≥5 min ago (or unset), fire that engine's retrigger script, update its `last_<engine>_retrigger_at`, clear `pending_<engine>_retrigger`. If `pending_<engine>_retrigger=true` but still inside the spacing window (rare given budget exhaustion implies long elapsed time), surface "PENDING `<ENGINE>` RETRIGGER NOT FIRED — push orphaned at `<last_push_sha>`; run `./tools/<engine>_retrigger.sh <PR>` manually after 5 min from `last_<engine>_retrigger_at`" prominently in the hand-back report. Then hand back.

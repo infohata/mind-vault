@@ -59,9 +59,10 @@ Trigger a new review for the PR. Engine-specific mechanism (comment post for bug
 
 **Required semantics:**
 
-- Exit code 0 on success. Print the GitHub URL of the action taken to stdout (so the agent has a tracking ref).
+- Exit code 0 on success.
 - Hard-coded body / action so the script can be pre-approved in `~/.claude/settings.json` without permission prompts on each call.
 - Idempotent against pre-existing pending reviews — calling twice should not break the engine's queue (the orchestrator's spacing rule prevents abuse, but the script must not crash if the engine is already mid-review).
+- **Recommended (not required)**: print a tracking reference to stdout — the GitHub URL of the action taken (comment URL for comment-based engines like bugbot) or a status line. Useful for log forensics but not consumed by the orchestrator.
 
 ## Reference surface — required sections
 
