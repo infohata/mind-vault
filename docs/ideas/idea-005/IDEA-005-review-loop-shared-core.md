@@ -1,12 +1,12 @@
 ---
-id: 167
+id: 005
 title: Review-loop shared core — unify /bugbot-loop + /copilot-loop with engine adapters
 status: backlog
 priority: high
 supersedes: []
 superseded_by: null
 depends_on: []
-related: [166]
+related: []
 created: 2026-05-20
 auto_safe: false
 auto_safe_reason: "Touches the two skill files most-invoked under sprint-auto's review-engine selector. Refactor sequencing (rename-before-drop applies — engine adapters land first, dual-engine sync block extracts to references/, then commands/bugbot-loop.md + copilot-loop.md become thin wrappers, then a sprint passes before removing the old single-engine code paths). /plan must resolve the adapter shape + dual-engine state-machine before this is auto-safe."
@@ -14,11 +14,11 @@ sensitive_paths_cleared: true
 sensitive_paths_cleared_reason: "Pure skill-architecture refactor in commands/ + skills/. No auth, schema, secrets, or runtime config involved."
 ---
 
-# IDEA-167: Review-loop shared core — unify /bugbot-loop + /copilot-loop with engine adapters
+# IDEA-005: Review-loop shared core — unify /bugbot-loop + /copilot-loop with engine adapters
 
 **Status**: 💡 Backlog
 **Priority**: High
-**Motivation**: PR #129 (IDEA-166) made the duplication cost concrete.
+**Motivation**: PR #129 made the duplication cost concrete (four successive meta-findings on the same retrigger-spacing scaffolding across two mirrored files).
 
 ## The pain
 
@@ -100,5 +100,5 @@ commands/copilot-loop.md         — ditto
 
 ## Related
 
-- IDEA-166 (compound) — surfaced the duplication cost concretely via bugbot's self-referential meta-loop on the spacing rule.
+- PR #129 — the compound branch that surfaced the duplication cost concretely via bugbot's self-referential meta-loop on the spacing rule.
 - `skills/sprint-auto/` — already uses `SPRINT_AUTO_REVIEW_ENGINE` selector; consumer of this abstraction.

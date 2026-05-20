@@ -10,10 +10,10 @@ _(none)_
 
 ## 💡 High Priority (backlog)
 
-### IDEA-167: Review-loop shared core — unify /bugbot-loop + /copilot-loop with engine adapters
+### IDEA-005: Review-loop shared core — unify /bugbot-loop + /copilot-loop with engine adapters
 
-**Status**: 💡 Backlog · **Created**: 2026-05-20 · **See**: [IDEA-167](idea-167/IDEA-167-review-loop-shared-core.md).
-`/bugbot-loop` and `/copilot-loop` are ~90% structurally identical. PR #129 (IDEA-166) made the duplication cost concrete — every bugbot-finding fix touched mirrored sections in both `commands/bugbot-loop.md` + `commands/copilot-loop.md` (cycle 1: 4 edits for 2 logical changes; cycle 2: 6 edits for 3 logical changes). Two options captured: **(1)** shared `skills/review-loop/` skeleton + per-engine adapters in `references/engine-*.md`, with `/bugbot-loop` + `/copilot-loop` as thin wrappers and `/review-loop` as direct multi-engine entry point — preferred because dual-engine concurrent execution becomes first-class, not a coincidence of running two loops with an ad-hoc sync block; **(2)** shared `references/review-loop-core.md` both skills `[[link]]` into — lower-risk fallback, fits references/ pattern, but doesn't make dual-engine concurrency first-class. Rename-before-drop sequencing applies: shared skill lands first, wrappers cut over second, legacy prose removed in a follow-up sprint.
+**Status**: 💡 Backlog · **Created**: 2026-05-20 · **See**: [IDEA-005](idea-005/IDEA-005-review-loop-shared-core.md).
+`/bugbot-loop` and `/copilot-loop` are ~90% structurally identical. PR #129 made the duplication cost concrete — every bugbot-finding fix touched mirrored sections in both `commands/bugbot-loop.md` + `commands/copilot-loop.md` (cycle 1: 4 edits for 2 logical changes; cycle 2: 6 edits for 3 logical changes). Two options captured: **(1)** shared `skills/review-loop/` skeleton + per-engine adapters in `references/engine-*.md`, with `/bugbot-loop` + `/copilot-loop` as thin wrappers and `/review-loop` as direct multi-engine entry point — preferred because dual-engine concurrent execution becomes first-class, not a coincidence of running two loops with an ad-hoc sync block; **(2)** shared `references/review-loop-core.md` both skills `[[link]]` into — lower-risk fallback, fits references/ pattern, but doesn't make dual-engine concurrency first-class. Rename-before-drop sequencing applies: shared skill lands first, wrappers cut over second, legacy prose removed in a follow-up sprint.
 
 ## 💡 Medium Priority (backlog)
 
