@@ -21,21 +21,14 @@ Emit zero or more marker lines on stdout. **Order is not guaranteed** — the or
 [<ENGINE>_CHECKRUN=<id> COMMIT=<sha> STATUS=<...> CONCLUSION=<...> AT=<iso8601>]   # optional, informational, present when a check-run for this engine exists on the PR head
 ```
 
-Followed by zero or more inline-finding blocks, each in this shape:
+Followed by zero or more inline-finding blocks. The exact display format is implementation-defined — current `tools/find_*_comments.sh` scripts emit ANSI-coloured + markdown-bold output (`**File:**`, separator lines, etc.) for human readability. The orchestrator consumes findings by anchor-based grep on the `(comment id <cid>, review <rid>)` token, so adapters MAY choose any human-readable layout as long as **every finding block includes this token verbatim**. Recommended fields per block (any layout):
 
-```text
-[N/M] Severity: <LOW|MEDIUM|HIGH|CRITICAL> (comment id <cid>, review <rid>)
-File: <path>:<line>
-Title: <short title>
-Description:
-<body, possibly multi-line>
-
-Locations:
-  - <path>#L<a>-L<b>
-  - <additional location>
-
-Link: <github URL>
-```
+- `Severity: <LOW|MEDIUM|HIGH|CRITICAL|INFO>`
+- `(comment id <cid>, review <rid>)` — **mandatory** identifier-pair
+- `File: <path>` (line number optional — see line-number-drift caveat in the orchestrator)
+- `Title: <short title>` (free-text; may be a placeholder for engines without titles)
+- `Description: <body>` (free-text)
+- `Link: <github URL>` (optional, for forensics)
 
 Followed by an empty line, then optionally:
 
@@ -113,7 +106,7 @@ The minimum interval between same-engine retriggers. Default 5 min; engines with
 
 ## Scratch-file state ownership
 
-The orchestrator owns the per-engine state slots in the loop's scratch file under `~/.claude/memory/projects/<project>/review-loop-pr-<N>.md`. Adapters do NOT write directly to scratch; the orchestrator updates state based on adapter outputs.
+The orchestrator owns the per-engine state slots in the loop's scratch file under `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (placeholder `<project-slug>` standardised across all review-loop docs). Adapters do NOT write directly to scratch; the orchestrator updates state based on adapter outputs.
 
 Per-engine state slots:
 
