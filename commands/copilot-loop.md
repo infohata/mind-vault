@@ -5,254 +5,53 @@ agent: general
 
 # /copilot-loop
 
-Drive a GitHub Copilot review-fix-rerun cycle on the current PR (or specified PR number) under the bounded-autonomy policy defined in `agents/AGENT_copilot.md`.
+Drive a GitHub Copilot review-fix-rerun cycle on the current PR (or specified PR number).
 
-> **Engine sibling.** This is the GitHub-Copilot-engine fork of [`/bugbot-loop`](bugbot-loop.md) (Cursor Bugbot). The phase structure, dual-signal enumeration, staleness rules, and hard bounds are identical — only the bot user.login, trigger mechanism, and clean-signal phrase differ. For Cursor Bugbot, use `/bugbot-loop` instead.
->
-> **First-run calibration — partially confirmed (2026-05-18 empirical run).**
-> - Bot user.login: ✅ dual identity. `Copilot` (single-token) on `/pulls/<N>/requested_reviewers`; `copilot-pull-request-reviewer[bot]` (bracketed) on `/pulls/<N>/reviews`. Phase 1 filters on both.
-> - Retrigger: ✅ `remove+add IS required`. Bare `gh pr edit --add-reviewer @copilot` against an already-requested reviewer is a no-op — the GET still shows `Copilot` in `requested_reviewers` but the reviewer-processor never re-fires. Use `gh pr edit --remove-reviewer @copilot && sleep 1 && gh pr edit --add-reviewer @copilot`.
-> - Clean-signal phrasing: ⏳ still TBD. The empirical run never observed a Copilot-cleared review body (Copilot either posted inline findings OR the service-error body below).
->
-> If the loop misbehaves on the first run, inspect `gh api repos/.../pulls/<N>/reviews --jq '.[].user.login'` to confirm the bot login, and adjust constants in `tools/find_copilot_comments.sh` + `tools/copilot_retrigger.sh` accordingly.
+**Inputs**: optional `PR_NUMBER`. Default: PR for current branch.
 
-> **Failure mode — service-error reviews (2026-05-18 empirical).** Copilot can post `state: COMMENTED` reviews with body literally `"Copilot encountered an error and was unable to review this pull request. You can try again by re-requesting a review."` and zero inline comments. Detect: 2 consecutive errors → stop retriggering Copilot this cycle (additional remove+add compounds the failure). 3 consecutive errors → durable service issue, **hand back to user** with the offending review ids + SHAs so they can retry from the UI, wait for Copilot to recover, or merge without Copilot's verdict.
+## Behaviour
 
-**Inputs**: optional PR number. Default: PR for current branch.
+This command is a single-engine wrapper around the shared review-loop skill. It is equivalent to:
 
-## Hard bounds (enforced by the loop)
+```
+/review-loop <PR_NUMBER> copilot
+```
+
+The full behaviour spec lives in:
+
+- [`skills/review-loop/SKILL.md`](../skills/review-loop/SKILL.md) — Phase 0/1/2/3/4 orchestrator, hard bounds, decision tree.
+- [`skills/review-loop/references/engine-copilot.md`](../skills/review-loop/references/engine-copilot.md) — Copilot-specific identity (dual user.login), tools, clean-signal parsing (TBD), race-condition caveats, service-error failure modes, first-run calibration notes.
+
+## Hard bounds
 
 - `max_commits_per_session = 20`
 - `max_active_work_minutes = 180` (excludes ScheduleWakeup sleep time)
-- `max_idle_polls = 20` (consecutive wakes with no new Copilot comment AND no new push)
-- Targeted tests only inside the loop; broader regression deferred to hand-back
+- `max_idle_polls = 20`
+- ≥5 min between copilot retriggers (per-engine spacing)
 - Feature branch only — never main (per `RULE_git-safety`)
-- Batch fixes per Copilot review cycle into one commit, not one-per-finding
-- **Commits**: standard `RULE_git-safety` applies — feature branches are the agent's sandbox, so the loop commits and pushes Tier 1 fixes autonomously. Tier 2 still needs explicit per-finding *fix-direction* approval (that is a content decision, not a commit approval). Protected-branch guardrails remain in force: never main, never merge into a protected branch, never force-push to protected, never `--no-verify`.
+- Batch fixes per cycle into one commit, not one-per-finding
 
-## Dual-engine sync rule (combined with `/bugbot-loop`)
+## Copilot-specific quirks
 
-When the user invokes both `/copilot-loop` AND `/bugbot-loop` on the same PR, the loops MUST sync each cycle: wait for **the slowest engine**'s verdict on `last_push_sha`, batch findings from both into ONE fix commit, push once, retrigger both. Reason: each push invalidates pending reviews of the prior SHA — without sync, the engines compound waste re-scanning each other's invalidated reviews.
+- **Retrigger requires `remove+add`** — bare `gh pr edit --add-reviewer @copilot` against an already-requested reviewer is a no-op. The `tools/copilot_retrigger.sh` script encapsulates the working sequence.
+- **Service-error failure mode** — Copilot can post reviews with body literally `"Copilot encountered an error..."` and zero findings. 2× consecutive → stop retriggering this cycle; 3× → hand back as durable service issue.
+- **Clean-signal phrasing** — still TBD pending empirical observation (2026-05-18 calibration never observed a clean review).
 
-**Authoritative spec — see [`/bugbot-loop` § Dual-engine sync rule](bugbot-loop.md#dual-engine-sync-rule-combined-with-copilot-loop)** for the trade-off table, sync-state scratch-file schema, retrigger discipline, and hand-back report format. The rule is identical from either engine's side; documenting it once avoids drift.
+See [`skills/review-loop/references/engine-copilot.md`](../skills/review-loop/references/engine-copilot.md) for the full set.
 
-**Copilot-specific notes for the dual-engine mode:**
+## When to use this command vs `/review-loop`
 
-- Copilot's retrigger is `remove+add` (per § First-run calibration above), NOT a comment post. Both retriggers happen post-push, bugbot first then copilot.
-- Copilot's service-error failure mode (§ Failure mode above) participates in the trade-off table — 2× consecutive errors → stop retriggering Copilot this cycle; 3× → hand back to user.
+- **`/copilot-loop`** — single-engine Copilot run. Use when you only care about Copilot's verdict OR when Bugbot is unavailable/disabled on the repo.
+- **`/review-loop <PR> bugbot,copilot`** — dual-engine sync mode. Use when both engines are configured and you want both verdicts before merging. Findings from both engines batch into the same fix commits per cycle — see [`references/dual-engine-sync.md`](../skills/review-loop/references/dual-engine-sync.md).
 
-## Phase 0: Worktree environment bootstrap
+## Hand-back
 
-**Sprint-auto v3.1 mode (new) — short-circuit**: if `SPRINT_AUTO_INTEGRATION_WORKTREE` is set in the environment, **skip Phase 0 entirely**. Per-IDEA worktrees under sprint-auto v3.1 are pure code surfaces — no `.env`, no docker compose stack. copilot-loop's role in this mode narrows to (a) reading Copilot's findings via the GitHub API and (b) committing fixes to the per-IDEA branch. Neither activity needs a runtime in the per-IDEA worktree. When fix-verification runs in Phase 2 / Phase 3, it routes to the integration worktree (see Phase 2 § "v3.1 fix-verification routing"). See [`skills/sprint-auto/references/integration-stage.md`](../skills/sprint-auto/references/integration-stage.md) for the full env-var contract.
+The loop hands back with:
 
-**Standalone mode (default)**: if `SPRINT_AUTO_INTEGRATION_WORKTREE` is unset, fall through to the existing worktree-bootstrap logic below.
+- Cycles run, findings auto-fixed, findings approved, findings escalated, findings skipped.
+- Tier 3 escalations with reasoning (need human decision).
+- Pending copilot retrigger NOT fired (if budget exhaustion prevented it) — with the exact manual command to run after spacing elapses.
+- Suggested broader regression command for pre-merge.
+- PR URL.
 
-If `git rev-parse --git-common-dir` differs from `.git` (i.e. running inside a worktree):
-
-1. If `.env` already exists → skip to step 3 (containers only).
-2. Else (`.env` missing):
-   - If `.env.template` exists:
-     - Copy template → `.env`.
-     - Replace any `*_API_KEY=` / `*_TOKEN=` / `*_SECRET=` values with `test-not-a-real-key`.
-     - Replace `SECRET_KEY=` with `test-<random-hex>` — generate the literal value via `openssl rand -hex 16` and paste the output. (Do NOT write the literal `$(openssl ...)` form into `.env` — most dotenv loaders don't evaluate shell substitution and the loader will use the `$(...)` string verbatim, breaking the app at boot.)
-     - Scope DB/Redis URLs to the worktree's docker compose project namespace.
-   - If `.env.template` missing → escalate to user; do not proceed.
-3. Spin up containers: `docker compose up -d`.
-4. In primary working tree: skip this phase entirely.
-
-This is the **only** authorised place to create `.env` — see exception clause in global `CLAUDE.md`.
-
-## Phase 1: Triage
-
-1. **Fetch Copilot state** for the PR:
-
-   - Comments: `./tools/find_copilot_comments.sh [PR_NUMBER]` (preferred — includes the `COPILOT_CLEAN_SIGNAL` marker), or equivalent `gh api repos/.../pulls/<N>/comments` + `.../issues/<N>/comments` + `.../pulls/<N>/reviews`, filtering on the **dual identity** Copilot exposes across endpoints: `user.login in ('Copilot', 'copilot-pull-request-reviewer[bot]')`. The `Copilot` login appears on `/pulls/<N>/comments` and `/pulls/<N>/requested_reviewers`; the bracketed `copilot-pull-request-reviewer[bot]` form appears on `/pulls/<N>/reviews`. Filtering by just `"Copilot"` will silently miss every review entry and the script's `COPILOT_CLEAN_SIGNAL` will never fire through the fallback path.
-   - Parse unresolved review comments on code lines (findings) separately from reviews (clean-signal source).
-   - **Dual-signal enumeration — mandatory output shape every cycle.** Always present both signals explicitly in your cycle summary, even when one of them is absent. The two GitHub resources (`/reviews` for the Copilot review-body clean flag, `/comments` for inline line-anchored findings) are **independent and can coexist for the same commit** — Copilot may post an overall "found no new issues" review AND one or more inline LOW-severity style/structure hints on the same push. Inline comments from prior reviews also persist in `/comments` until a reviewer manually clicks "Resolve conversation" on GitHub, so a stale-by-fix finding can linger alongside a fresh clean signal. Required shape:
-
-     ```
-     - /reviews  : ✅ CLEAN signal <review-id> @ <sha> OR ❌ no signal for current head
-     - /comments : <N> inline finding(s) [list them if > 0, with ids + L# ranges]
-     ```
-
-     Then apply Phase 4's decision tree to resolve these two enumerations into an action. **Never collapse the two signals into a single "is the PR clean?" conclusion at Phase 1 output time.** The Phase 4 decision tree will handle the collapse correctly (new-findings branch precedes clean-signal branch), but only if Phase 1's output surfaces both resources independently. Context-rot during `ScheduleWakeup` sleeps tends to re-merge the two signals into one; the explicit dual presentation is what survives compaction.
-
-     Staleness rule — primary, by `pull_request_review_id`: `find_copilot_comments.sh` emits a `COPILOT_LATEST_REVIEW=<id> COMMIT=<sha> AT=<ts> CLEAN=<true|false>` marker for the most recent Copilot review, and tags each inline finding with `(comment id <cid>, review <rid>)`. **A finding is active iff its `review <rid>` matches the `COPILOT_LATEST_REVIEW` id.** Findings whose `rid` is older are stale persistent threads — GitHub keeps them visible in `/comments` until a human clicks "Resolve conversation" on the UI, but Copilot is no longer flagging them on the current code. This is the authoritative filter; it does not require any cross-reference to `last_seen_comment_id` or commit-id math.
-
-     **Why this rule exists**: in the absence of `pull_request_review_id` filtering, the loop processes every unresolved comment on the PR as if it were active, including findings from reviews against pre-fix SHAs. PR #80's compound observed this: cycles 11, 14, 17, 18 all spent on findings that Copilot had already cleared from current HEAD, just because the GitHub UI didn't auto-resolve the threads. Comparing `review` ids against `COPILOT_LATEST_REVIEW` cuts that noise to zero.
-
-     Legacy fallback (kept for the case where the tool isn't refreshed): a finding is genuinely stale only when **both** (a) Copilot's most-recent `/reviews` entry is clean AND (b) the finding's comment id is ≤ `last_seen_comment_id`. The `pull_request_review_id` rule above supersedes this — it doesn't require the `/reviews` clean-signal precondition.
-
-     **Line-number drift is NOT a new-finding signal.** GitHub line-anchored review comments track code position across commits — the same inline comment id will reappear at *different* line numbers on each fetch as the file is edited around it. Example from mind-vault PR #55: after the fix push, Copilot's unresolved comment 3119819571 shifted from `install-gcloud-cli.sh:88` to `:97`, and comment 3119819578 from `:135` to `:144`. The finding title and file stayed identical; only the line moved. The `comment id` (not `file:line`) is the identity for the staleness comparison above. Never compare on title+line and conclude "still flagged" — compare the id.
-
-2. **Zero Copilot activity for `last_push_sha`?** Either the PR was opened without `@copilot` as a reviewer, or auto-review isn't enabled for this repo. **Request a Copilot review once, then go to Phase 4** — do NOT fall through to "no findings, hand back":
-
-   - `./tools/copilot_retrigger.sh [PR_NUMBER]` (preferred — hard-coded `remove+add` sequence per § First-run calibration, pre-approved in settings). Bare `--add-reviewer` is a no-op against an already-requested reviewer; the script's remove+add is the empirically-confirmed working trigger.
-   - Unlike Cursor Bugbot, Copilot trigger is **not** a PR comment — it's a reviewer assignment via the GitHub API. So there's no trigger-comment id to record; instead, advance `last_seen_comment_id` only when actual review/comment activity arrives.
-   - Do **not** proceed to Phase 2/3 this cycle — there's nothing to fix yet.
-   - **Guardrail**: only request the trigger when zero Copilot activity exists for the current push SHA. From June 1, 2026 Copilot reviews consume GitHub Actions minutes — each requested review is billed.
-
-3. For each finding found, classify into a tier:
-
-   - **Tier 1 — Auto-fix**: matches a codified pattern (see `AGENT_copilot.md` *Common Review Findings* §1-8), touches ≤1 file, targeted test exists.
-   - **Tier 2 — Approve-then-fix**: actionable but uncodified, OR touches shared helper/mixin.
-   - **Tier 3 — Escalate**: cross-file, architectural, conflicts with project convention, OR Copilot self-withdrew.
-
-4. For every Tier 1 and Tier 2 finding, write a one-sentence justification: *why is this actually a bug?* If the explanation is hand-wavy or just paraphrases the bot → drop to Tier 3.
-
-5. Persist to `~/.claude/memory/projects/<project-slug>/copilot-pr-<N>.md` so the next wake cycle can reload state without re-reading summaries (mitigates context rot). The scratch file must checkpoint **every** piece of state that a hard bound depends on, after every mutation:
-
-   - `commits_this_session` (int, /20 — matches `max_commits_per_session`)
-   - `active_work_minutes` (int, /180 — matches `max_active_work_minutes`; best-effort, updated each cycle)
-   - `idle_polls` (int, /20 — matches `max_idle_polls`)
-   - `last_seen_comment_id` (GitHub comment id; used by Phase 4 to detect truly-new comments)
-   - `last_push_sha` (SHA of the last feature-branch push)
-   - `no_progress_map` (per-finding-category count of cycles where a commit attempted that category — used by the no-progress detector)
-   - `last_copilot_retrigger_at` (ISO-8601 timestamp of the most recent `remove+add` post; used by Phase 3 to enforce ≥5min same-engine spacing across `ScheduleWakeup` boundaries — without this, the spacing rule is unenforceable once the in-conversation timestamp is summarised away). Under dual-engine mode also persist `last_bugbot_retrigger_at`.
-   - `pending_retrigger` (bool, default false; set true by Phase 3 when a retrigger is deferred due to <5min same-engine spacing, fired and cleared by Phase 4's pending-retrigger branch on the next wake). Without persistence, a deferred retrigger is lost across `ScheduleWakeup` boundaries and the pushed commit sits unreviewed.
-   - Plus the per-cycle triage table (findings + tier + justification + outcome).
-
-   If any of these live only in conversation context, they will be summarised away across `ScheduleWakeup` boundaries and the hard bounds become unenforceable.
-
-## Phase 2: Execute
-
-For each Tier 1 finding (no prompt) and each Tier 2 finding (after explicit `yes` from user):
-
-1. Apply the edit.
-2. **Audit newly-reachable code** when the edit REMOVES a short-circuit (empty-state guard inserted, early return deleted, missing `init()`/`open()`/`register()` call inserted, async resolution fixed, type-gate relaxed). The fix may have unmasked latent bugs downstream — what was invisible because the path never fired is now visibly wrong. See [`skills/work/references/AUDIT_NEWLY_REACHABLE_CODE.md`](../skills/work/references/AUDIT_NEWLY_REACHABLE_CODE.md) for the audit procedure + 3-response decision tree. Fold any same-file / tightly-coupled latents into the same Phase 3 commit; cross-file latents land as a follow-on commit on the same branch.
-3. Run targeted test (`make test-fresh ARGS="app.tests.ClassName"` or project equivalent) — class scope only. **Verification routing — see § "v3.1 fix-verification routing" below for the env-var-driven mode.**
-4. If test fails: revert edit, log to scratch file, move to next finding (do not retry-fix in the same cycle).
-
-Tier 3 findings: skip the fix, log to the scratch file, and continue processing other findings in this cycle. List all Tier 3 escalations in the final hand-back for human decision. This is a *per-finding* escalation, not a whole-loop abort.
-
-### v3.1 fix-verification routing
-
-Under sprint-auto v3.1 (`SPRINT_AUTO_INTEGRATION_WORKTREE` is set), step 2's targeted test does NOT run in the per-IDEA worktree (which is code-surface only with no `.env` or docker stack). Only the **test command's location** changes — the edit-then-test contract per finding is unchanged, and Phase 3's "one commit per Copilot review cycle" batching still applies (the v3.1 routing affects WHERE the test runs, NOT WHEN the commit happens).
-
-```bash
-if [[ -n "${SPRINT_AUTO_INTEGRATION_WORKTREE:-}" ]]; then
-    integration_wt="$SPRINT_AUTO_INTEGRATION_WORKTREE"
-    feature_branch=$(git branch --show-current)  # e.g. auto/<slug>
-
-    # The edit was already applied in the per-IDEA worktree by Phase 2 step 1.
-    # To expose it to the integration worktree's containers for mid-cycle
-    # testing — BEFORE Phase 3's batch commit — pick ONE of these mechanisms
-    # (git can't push uncommitted state, so this is a real choice, not a
-    # hand-wave):
-    #
-    #   (a) WIP commit on the per-IDEA branch + push, integration worktree
-    #       fetches and `git checkout --detach` to the WIP SHA. Phase 3 later
-    #       squashes / rewrites the WIP into the proper batch commit.
-    #       NOT ALLOWED under the default bounded-autonomy policy: the
-    #       squash-on-Phase-3 step requires `--force-with-lease`, and
-    #       force-pushing to a branch with an open PR invalidates earlier
-    #       review-anchor comments (which the loop's escalation discipline
-    #       depends on). Use only if the human explicitly authorizes a
-    #       history rewrite for this PR (e.g. `--allow-force-rewrite` arg
-    #       to sprint-auto, not yet implemented). The repo's review-loop
-    #       discipline is "fresh commits + git revert; avoid force-push."
-    #
-    #   (b) `rsync --exclude='.git' <per-idea-worktree>/ <integration-worktree>/`
-    #       or a project-local bind-mount in docker-compose so the integration
-    #       container sees the per-IDEA worktree's source live. Costs:
-    #       project-specific compose setup; one-time configuration in
-    #       tools/sprint-auto-hooks.sh.
-    #
-    #   (c) Skip mid-cycle test verification entirely; defer to Phase 3's
-    #       post-commit Copilot retrigger to surface failures via the next
-    #       review cycle. Costs: a regression slips one cycle later.
-    #
-    # The v1 of v3.1 ships (c) as the safe default. (b) is the project opt-in
-    # via `tools/sprint-auto-hooks.sh:sync_per_idea_to_integration`. (a) is
-    # disallowed by default per the force-push prohibition above.
-    # After Phase 3 commits + pushes, the integration worktree can always
-    # `cd $integration_wt && git fetch origin <branch> &&
-    #   git checkout --detach origin/<branch>` (NOT plain `git checkout
-    # <branch>` — that errors with "already checked out" because the
-    # per-IDEA worktree claims the branch ref) — no special sync needed
-    # post-commit.
-
-    # Mid-cycle targeted test against the integration stack:
-    pushd "$integration_wt" >/dev/null
-    # Sync the per-IDEA worktree's source into the integration worktree
-    # (project-specific; rsync-with-exclude is one option, but the simplest
-    # contract is "Phase 3 commits + Phase 3 push, then this checkout sees
-    # the new state"). For mid-cycle test BEFORE Phase 3 commit, projects
-    # may need a project-local hook in tools/sprint-auto-hooks.sh.
-    docker compose exec -T web pytest <targeted path>  # against current state
-    test_exit=$?
-    popd >/dev/null
-
-    if (( test_exit != 0 )); then
-        # Test failed: revert the EDIT (in the per-IDEA worktree's working
-        # tree, NOT a commit since none was made yet for this finding).
-        # Use `git checkout -- <files>` to restore from index; or `git stash`
-        # the bad edit and pop it later for forensics.
-        git checkout -- <files-that-were-edited>
-    fi
-fi
-```
-
-DB state on the integration worktree is preserved across fix-cycle iterations within an IDEA's Copilot session — sprint-auto only resets between IDEAs (S1.5), not between Copilot commits. Fix commits typically don't migrate, so the DB state at this-IDEA's-baseline is consistent for the duration of the session.
-
-**Phase 3 is unchanged in v3.1**: at the end of each Copilot review cycle, all successfully-applied fixes from Phase 2 still get batched into ONE commit (`fix(scope): address Copilot review N (PR #M)`), pushed once, and the Copilot retrigger fires once. The v3.1 routing only changes the test-execution location; the commit cadence is identical to standalone mode.
-
-**Implementation gap acknowledged**: the snippet above describes the contract; the exact mechanism for "expose per-IDEA worktree's edits to the integration worktree's containers without committing yet" is project-specific and may need a project-local hook (e.g. `tools/sprint-auto-hooks.sh` could expose a `sync_per_idea_to_integration <branch>` function). For v3.1 first ship, projects that can't satisfy mid-cycle test routing should fall back to: apply the edit in the per-IDEA worktree, defer the targeted test to Phase 3's post-commit retrigger (Copilot's next review will catch any regression), then either ship the failing fix as Tier 3 escalation or revert and try a different angle on next cycle.
-
-When `SPRINT_AUTO_INTEGRATION_WORKTREE` is unset (standalone copilot-loop), step 2 runs the targeted test against the current worktree's stack as before — no behaviour change.
-
-## Phase 3: Commit + push + re-trigger
-
-**Skip condition**: if zero fixes were applied in Phase 2 (all findings Tier 3, or all edits reverted on test failure), skip Phase 3 **and** skip Phase 4 entirely — hand back to the user immediately with all unfixed findings surfaced as Tier 3 escalations. Rationale: no fixes means no push; no push means Copilot has nothing new to review; polling would only rediscover the same unfixable findings and waste the active-work budget. The user either fixes manually and re-invokes `/copilot-loop`, or decides the findings are not actionable. Do not commit empty, do not re-trigger Copilot on unchanged code.
-
-If at least one fix was applied:
-
-1. **One commit per Copilot review cycle**, not per finding.
-   - Format: `fix(scope): address Copilot review N (PR #M)`
-   - Body lists each finding closed.
-2. `git push origin HEAD`.
-3. **Retrigger** — conditional on same-engine spacing:
-   - If `last_copilot_retrigger_at` is unset OR ≥5 min ago: fire `./tools/copilot_retrigger.sh [PR_NUMBER]` (preferred — wraps the empirically-confirmed `gh pr edit <PR> --remove-reviewer @copilot && sleep 1 && gh pr edit <PR> --add-reviewer @copilot` sequence, requires `gh` ≥ 2.88, pre-approved in `~/.claude/settings.json`; falls back to current-branch PR lookup if no arg given; bare `--add-reviewer @copilot` against an already-requested reviewer is a no-op — see § First-run calibration above). Update `last_copilot_retrigger_at` to the post-time. Clear `pending_retrigger` if set.
-   - Else (last retrigger <5 min ago): **do NOT fire the script now.** Set `pending_retrigger=true` in the scratch file with the target PR number, then `ScheduleWakeup(delaySeconds=300, prompt="/copilot-loop <PR>")`. Phase 4's pending-retrigger branch will fire the actual script on the next wake. Without this branch, a deferred retrigger orphans the push — the commit sits without a queued review while Phase 4 polls for comments that Copilot never produces.
-
-   **Spacing rationale — ≥5 min between retriggers of the *same engine*, one retrigger per fix-cycle.** Copilot's reviewer-processor queues reviews; rapid `remove+add` cycles don't preempt a pending review, they STACK behind it. The mechanism is different from bugbot (reviewer-request churn vs. `bugbot run` comment) but the queueing behaviour is analogous — and the rate-limit cost is more visible on Copilot (billed per-review). The spacing rule is **per-engine** — under dual-engine mode the post-batch copilot retrigger and bugbot retrigger hit independent queues, so firing both back-to-back after a single push does NOT violate spacing; the rule only restricts back-to-back copilot retriggers (or back-to-back bugbot retriggers). Discipline:
-   - Exactly ONE retrigger per fix-cycle (the one in this step). Do not also retrigger on the next idle-poll wake "to nudge things along".
-   - If a NEW push lands while a review is in-progress, the in-progress review is stale and a retrigger IS needed — but only ONE, not one-per-superseding-push.
-   - If a prior copilot retrigger in this session was <5 min ago, defer the next copilot retrigger (`ScheduleWakeup(delaySeconds=300, ...)`) before re-firing. Checked against `last_copilot_retrigger_at` in the scratch file (see Phase 1 §5).
-   - Specifically applies to dual-engine mode (`/copilot-loop` + `/bugbot-loop` synced): post-batch retriggers fire once each per cycle, not per-finding and not per-engine-roundtrip. Bugbot+copilot back-to-back is fine; copilot+copilot is not.
-4. Increment session commit counter. If ≥ 20 → stop and hand back.
-
-## Phase 4: Wait + wake
-
-The wake-loop in this phase IS a watcher in the [`skills/work/references/WATCHER_HYGIENE.md`](../skills/work/references/WATCHER_HYGIENE.md) sense: orchestrator-armed, supersede-able, never wall-clock-timeout-bound. Apply that reference's discipline — explicit `TaskStop` on supersede, no `pgrep -f` self-match traps, explicit cleanup on terminal condition.
-
-1. `ScheduleWakeup(delaySeconds=180, ...)` for the first poll (cache-warm). Subsequent polls also use short cache-warm intervals — see escalation note below.
-2. On wake: re-fetch Copilot comments via `./tools/find_copilot_comments.sh`. The script output includes two signals of interest: a `COPILOT_CLEAN_SIGNAL=<id> COMMIT=<sha> AT=<timestamp>` line if Copilot has posted a "found no new issues" review, and an inline list of any unresolved findings (with their review comment ids).
-3. Decision tree — evaluate in order. The first two branches are **absolute hard-bound guards**: they are checked before any happy-path branch so that the happy paths (which are collectively exhaustive over wake state) cannot shadow them. **Both guards must flush a pending retrigger before handing back** — see the inline rule on each guard below. The third branch handles a deferred retrigger from a prior Phase 3 defer so that pushed-but-not-yet-retriggered commits don't get stranded mid-loop.
-   - **Guard: active-work minutes ≥ 180** (excluding sleep) → before handing back, **if `pending_retrigger=true` and `last_copilot_retrigger_at` is ≥5 min ago (or unset)**, fire `./tools/copilot_retrigger.sh [PR_NUMBER]` once, update `last_copilot_retrigger_at`, clear `pending_retrigger`. If `pending_retrigger=true` but still inside the spacing window (extremely rare given budget exhaustion implies long elapsed time), surface "PENDING COPILOT RETRIGGER NOT FIRED — push orphaned at `<last_push_sha>`; run `./tools/copilot_retrigger.sh <PR>` manually after 5 min from `last_copilot_retrigger_at`" prominently in the hand-back report. Then hand back regardless of wake state.
-   - **Guard: no-progress detector trips** — same finding category flagged 2× across cycles where a commit *attempted* that category (success-or-revert both count) → apply the same pending-retrigger flush rule as the active-work guard above (fire if spacing elapsed, else surface in hand-back), then hand back immediately. This closes the mixed-cycle stuck-loop case where a reverted fix could be retried indefinitely when a sibling finding's successful push re-triggered Copilot.
-   - **Pending retrigger from prior defer** — `pending_retrigger=true` in the scratch file → **first check spacing**: if `last_copilot_retrigger_at` is <5 min ago, the defer fired too early (Phase 4's first wake is 180s but the spacing window is 300s); **do NOT fire**, leave `pending_retrigger=true`, `ScheduleWakeup(delaySeconds=300 - elapsed_since_last_retrigger, prompt="/copilot-loop <PR>")` to re-wake when the window genuinely elapses, and return without falling through to other branches. Otherwise (spacing elapsed): fire `./tools/copilot_retrigger.sh [PR_NUMBER]`, update `last_copilot_retrigger_at`, clear `pending_retrigger`, then continue evaluation (the retrigger doesn't immediately produce findings; fall through to the standard new-findings / clean-signal / idle-poll branches below for *this* wake's verdict). Skipping this branch leaves the push orphaned.
-   - **New findings since `last_seen_comment_id`** → reset idle-poll counter to 0, update `last_seen_comment_id` to the newest finding's id in the scratch file, reload triage state, return to Phase 1. (Compare against `last_seen_comment_id`, **not** last push SHA — when Phase 3 is skipped, the push doesn't advance and "new since last push" would stay true forever, resetting `idle_polls` on every wake. `last_seen_comment_id` ensures once a review is processed, subsequent polls with no new findings correctly accumulate idle polls.) **This branch must precede the clean-signal branch** because `/reviews` (clean signals) and `/comments` (findings) are independent API resources; both can coexist for the same commit if Copilot is re-triggered and produces new findings after a prior clean review. Unprocessed findings always take precedence over a stale clean signal.
-   - **`COPILOT_CLEAN_SIGNAL` present AND its `COMMIT` equals `last_push_sha`** → **PR clean for current head** → hand back immediately with the clean summary. Do not wait out the idle-poll bound. Ignore clean signals whose `COMMIT` is a stale SHA (Copilot posted them for a previous push). (This branch is only reached when the new-findings branch above didn't fire — i.e. no unprocessed findings exist.)
-
-     **Race-condition caveat — clean signal `COMMIT` is the trigger-anchor SHA, not the reviewed SHA.** Copilot review takes ~30s (much faster than Bugbot's 1–10 min) but the principle still applies: during that window a docs / comment / no-content commit may land on the branch. The review-body's `Reviewed by GitHub Copilot for commit <sha>` and the script's `COPILOT_CLEAN_SIGNAL=<id> COMMIT=<sha>` both reflect **the SHA at trigger time** — not what Copilot's diff scanner actually inspected. The scanner reads the PR's current diff vs base, which at review-firing time may already include the post-trigger commits. So a strict `COMMIT === last_push_sha` check fails (signal says `facd6c08`, push says `60ed665e`) even when the review's verdict factually applies to the current HEAD.
-
-     When the comparison fails but the signal is suspiciously fresh, apply a **timestamp tiebreaker** before re-triggering: if the review's `AT` is later than the latest commit's push timestamp (i.e. Copilot fired AFTER the most recent push landed), treat the clean signal as applying to current HEAD. Practical heuristic — and the safer default if you can't get the push timestamp cheaply: **if the intervening commits since the signal's `COMMIT` are docs-only / comments-only / markdown-only / no source-path changes, skip the re-trigger.** Copilot doesn't review prose-only diffs as new findings (best-guess — empirically calibrate); the re-trigger is at best a no-op and at worst billable noise.
-
-     The strict equality check stays as the default because it's safe (worst case: one extra cycle), but the race caveat is the documented escape hatch when a docs commit / wrap commit lands between fix-push and clean-signal arrival.
-
-   - **No clean signal, no new findings**, idle-poll counter < 20 → increment idle-poll counter, `ScheduleWakeup` again with a **linear 270s cadence** (just under the 300s prompt-cache TTL so each wake stays cache-warm — never ramp past 5 min between Copilot checks). Clean signal is the fast path; idle-poll accumulation is the fallback for the case where Copilot is hung or slow. Use `max_idle_polls = 20` as the only backstop — a slow-but-progressing Copilot (typical) will land findings or a clean signal well before that counter maxes, and a genuinely hung Copilot hits the 20-poll bound in under 90 min, which is the right moment to hand back.
-   - **No clean signal, no new findings**, idle-poll counter ≥ 20 → escalate: Copilot may be hung; hand back to user.
-
-## Hand-back report
-
-Always end with:
-
-1. Summary: cycles run, findings auto-fixed, findings approved, findings escalated, findings skipped.
-2. Tier 3 escalations with reasoning (these need human decision).
-3. Suggested broader regression command for the user to run before merge (e.g. `make test ARGS="app.tests"`).
-4. PR URL.
-
-Do not merge. Do not push to main. The loop hands the PR back to the user for final review and merge.
-
-Under sprint-auto v3.1, the "user" the loop hands back to is sprint-auto itself (the orchestrator), which uses the Tier-3 list to drive its escalation cycle (S4 deliverables / S7 docs / S11.10 integration / S11.12 re-review). The hand-back semantics are unchanged — copilot-loop produces the same Tier-3 hand-back regardless of caller.
+The loop never merges. Final review and merge are always the user's responsibility.
