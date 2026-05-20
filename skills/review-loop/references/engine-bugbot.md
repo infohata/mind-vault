@@ -16,7 +16,12 @@ Adapter specification for the Cursor Bugbot review engine. The orchestrator at [
 
 ## § Clean-signal parsing
 
-`find_bugbot_comments.sh` parses bugbot review bodies. A review whose body starts with `<!-- BUGBOT_REVIEW -->` AND contains no inline findings is classified as a clean signal — the script emits `BUGBOT_CLEAN_SIGNAL=<review-id> COMMIT=<sha> AT=<ts>` for the most-recent such review.
+`find_bugbot_comments.sh` emits `BUGBOT_CLEAN_SIGNAL=<review-id> COMMIT=<sha> AT=<ts>` in two cases:
+
+1. **Body-text match** — the latest bugbot review body contains "found no new issues".
+2. **Check-run synthesis** — when no body-text match exists, the script synthesizes from a successful bugbot check-run. For bugbot specifically, check-run-success aligns more closely with "no findings" than for Copilot (Cursor's check-suite turns neutral/non-success when bugbot finds issues), but the synthesis remains a best-effort fallback.
+
+**Phase 4 ordering supersedes synthesis errors**: the new-findings branch runs before the clean-signal branch, so any active findings (review `<rid>` == `BUGBOT_LATEST_REVIEW`) override a synthesized CLEAN. Always count active findings explicitly before claiming CLEAN.
 
 ## § Staleness rule
 

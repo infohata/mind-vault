@@ -13,11 +13,12 @@ Every adapter MUST provide these scripts (project-local, `tools/<engine>_*.sh`).
 
 ### `tools/find_<engine>_comments.sh <PR_NUMBER>`
 
-Emit on stdout, in this order:
+Emit zero or more marker lines on stdout. **Order is not guaranteed** — the orchestrator parses by anchor-based grep on `^<ENGINE>_<MARKER>=` rather than positional reading. Adapters MAY emit markers in any order, MAY interleave informational output (banners, summaries) between markers, and SHOULD prefer printing markers as early as possible after their underlying data is fetched. The required marker set:
 
 ```text
 <ENGINE>_LATEST_REVIEW=<review-id> COMMIT=<sha> AT=<iso8601> CLEAN=<true|false>
-[<ENGINE>_CLEAN_SIGNAL=<review-id> COMMIT=<sha> AT=<iso8601>]   # optional, present iff most-recent review CLEAN=true
+[<ENGINE>_CLEAN_SIGNAL=<review-id> COMMIT=<sha> AT=<iso8601>]   # optional, present iff most-recent review is classified clean (body-text match OR check-run synthesis)
+[<ENGINE>_CHECKRUN=<id> COMMIT=<sha> STATUS=<...> CONCLUSION=<...> AT=<iso8601>]   # optional, informational, present when a check-run for this engine exists on the PR head
 ```
 
 Followed by zero or more inline-finding blocks, each in this shape:
@@ -46,9 +47,10 @@ Followed by an empty line, then optionally:
 
 - `<ENGINE>` literal is uppercase engine name (`BUGBOT`, `COPILOT`).
 - `<ENGINE>_LATEST_REVIEW` is **mandatory** when any review exists for the PR — the orchestrator's staleness rule depends on it.
-- `<ENGINE>_CLEAN_SIGNAL` is **emitted only when** the most-recent review is a clean signal. Suppress when latest review is non-clean.
+- `<ENGINE>_CLEAN_SIGNAL` is emitted when the most-recent review is classified clean. Detection is engine-defined and may be best-effort (body-text match against fixed phrases like "found no new issues", and/or synthesis from a successful check-run). False positives are acceptable — the orchestrator's Phase 4 ordering (new-findings branch precedes clean-signal branch) supersedes a synthesized CLEAN when active findings exist.
+- `<ENGINE>_CHECKRUN` is optional/informational. Adapters that don't have a check-run concept omit it.
 - Each inline finding must include the `review <rid>` token so the orchestrator can filter active findings (`rid == LATEST_REVIEW`) vs persistent-thread stale findings (`rid != LATEST_REVIEW`).
-- The `COMMIT=<sha>` is the trigger-anchor SHA, NOT the reviewed SHA (race-condition caveat documented in the orchestrator).
+- The `COMMIT=<sha>` on `LATEST_REVIEW` / `CLEAN_SIGNAL` is the trigger-anchor SHA, NOT the reviewed SHA (race-condition caveat documented in the orchestrator).
 - Exit code 0 on success (regardless of whether findings exist); non-zero only on auth/network failure.
 
 ### `tools/<engine>_retrigger.sh <PR_NUMBER>`
@@ -127,10 +129,10 @@ To add a third engine (e.g. CodeRabbit, a hypothetical new vendor):
 
 1. Author `skills/review-loop/references/engine-<name>.md` following the section template above.
 2. Implement `tools/find_<engine>_comments.sh` and `tools/<engine>_retrigger.sh` per the tool-surface contract.
-3. Add `<name>` to the `ENGINES` enum the orchestrator accepts.
+3. Add `<name>` to the recognised engine list in `commands/review-loop.md` § Engine selection (the user-visible enum).
 4. Optionally add `commands/<name>-loop.md` as a thin single-engine wrapper.
 
-No changes to the orchestrator `SKILL.md` are required — the contract is closed.
+`SKILL.md` itself processes engines from the `ENGINES` argument generically and does not enumerate them by name in code — adding a new engine does not require structural changes to the orchestrator's phase logic. The "no changes required" applies to the orchestrator's algorithmic surface; the user-facing engine list lives in `commands/review-loop.md` so it can document what the user can pass.
 
 ## Anti-patterns
 

@@ -30,7 +30,7 @@ When `|ENGINES| > 1`, see [`references/dual-engine-sync.md`](references/dual-eng
 
 ## Phase 0: Worktree environment bootstrap
 
-**Sprint-auto v3.1 mode — short-circuit**: if `SPRINT_AUTO_INTEGRATION_WORKTREE` is set in the environment, **skip Phase 0 entirely**. Per-IDEA worktrees under sprint-auto v3.1 are pure code surfaces — no `.env`, no docker compose stack. The loop's role in this mode narrows to (a) reading findings via the GitHub API and (b) committing fixes to the per-IDEA branch. When fix-verification runs in Phase 2 / Phase 3, it routes to the integration worktree (see [`references/sprint-auto-integration.md`](references/sprint-auto-integration.md) — created on first sprint-auto v3.1 use).
+**Sprint-auto v3.1 mode — short-circuit**: if `SPRINT_AUTO_INTEGRATION_WORKTREE` is set in the environment, **skip Phase 0 entirely**. Per-IDEA worktrees under sprint-auto v3.1 are pure code surfaces — no `.env`, no docker compose stack. The loop's role in this mode narrows to (a) reading findings via the GitHub API and (b) committing fixes to the per-IDEA branch. When fix-verification runs in Phase 2, it routes to the integration worktree — see [`skills/sprint-auto/references/integration-stage.md`](../sprint-auto/references/integration-stage.md) for the full env-var contract.
 
 **Standalone mode (default)**: if `SPRINT_AUTO_INTEGRATION_WORKTREE` is unset, fall through to the existing worktree-bootstrap logic below.
 
@@ -53,11 +53,18 @@ This is the **only** authorised place to create `.env` — see exception clause 
 
 ### Per-engine fetch
 
-For each `<engine>` in `ENGINES`, invoke `./tools/find_<engine>_comments.sh [PR_NUMBER]` and parse the output per the contract in [`references/engine-adapter-contract.md`](references/engine-adapter-contract.md). The script emits:
+For each `<engine>` in `ENGINES`, invoke `./tools/find_<engine>_comments.sh [PR_NUMBER]` and parse the output per the contract in [`references/engine-adapter-contract.md`](references/engine-adapter-contract.md). Parse by **anchor-based grep on `^<ENGINE>_<MARKER>=` lines** — NOT positional order — because the actual `find_*_comments.sh` scripts may emit markers in varying orders (e.g. `*_CLEAN_SIGNAL` and `*_CHECKRUN` lines often appear before `*_LATEST_REVIEW`).
 
-- `<ENGINE>_LATEST_REVIEW=<id> COMMIT=<sha> AT=<ts> CLEAN=<bool>` — the most-recent review id (the staleness anchor).
-- `<ENGINE>_CLEAN_SIGNAL=<id> COMMIT=<sha> AT=<ts>` — present iff latest review is clean.
+The script can emit these markers (each on its own line):
+
+- `<ENGINE>_LATEST_REVIEW=<id> COMMIT=<sha> AT=<ts> CLEAN=<bool>` — the most-recent review id (the staleness anchor). Mandatory when any review exists for the PR.
+- `<ENGINE>_CLEAN_SIGNAL=<id> COMMIT=<sha> AT=<ts>` — present iff the most-recent review is classified clean (body-text match OR check-run synthesis — see the engine adapter's § Clean-signal parsing for details and false-positive caveats).
+- `<ENGINE>_CHECKRUN=<id> ...` — informational, present when a check-run for this engine exists on `last_push_sha`.
 - Zero or more inline findings, each tagged `(comment id <cid>, review <rid>)`.
+
+**Always count active findings explicitly before claiming CLEAN** — the `<ENGINE>_CLEAN_SIGNAL` line is input to Phase 4's decision tree, not an authoritative verdict. The new-findings branch precedes the clean-signal branch precisely so that synthesized false-positive CLEAN signals can be overridden by actual findings.
+
+**Meta-risk when reviewing this skill**: review-loop's docs contain literal mentions of `"found no new issues"`, `BUGBOT_CLEAN_SIGNAL`, `COPILOT_CLEAN_SIGNAL`, etc. Bugbot or Copilot reviewing a diff that adds/modifies this skill's text may quote those strings into their review body — which could re-trigger the body-text matcher's "found no new issues" check, producing a CLEAN signal whose source is the diff content, not the engine's actual verdict. When dogfooding this skill on its own changes, count active findings explicitly and be skeptical of CLEAN signals whose review body quotes the diff.
 
 ### Dual-signal enumeration — mandatory output shape every cycle
 
@@ -168,7 +175,11 @@ The wake-loop in this phase IS a watcher in the [`skills/work/references/WATCHER
 3. **Decision tree — evaluate in order**. The first two branches are absolute hard-bound guards; the third handles deferred retriggers; the rest handle the standard happy-path branches. **All branches must flush pending retriggers before terminating** when applicable — see inline rule on each guard.
    - **Guard: active-work minutes ≥ 180** → before handing back, for each engine, if `pending_<engine>_retrigger=true` and `last_<engine>_retrigger_at` is ≥5 min ago (or unset), fire that engine's retrigger script, update its `last_<engine>_retrigger_at`, clear `pending_<engine>_retrigger`. If `pending_<engine>_retrigger=true` but still inside the spacing window (rare given budget exhaustion implies long elapsed time), surface "PENDING `<ENGINE>` RETRIGGER NOT FIRED — push orphaned at `<last_push_sha>`; run `./tools/<engine>_retrigger.sh <PR>` manually after 5 min from `last_<engine>_retrigger_at`" prominently in the hand-back report. Then hand back.
    - **Guard: no-progress detector trips** — same finding category flagged 2× across cycles where a commit *attempted* that category (success-or-revert both count), namespaced per engine → apply the same pending-retrigger flush rule as the active-work guard above, then hand back.
-   - **Pending retrigger from prior defer** — for each engine, if `pending_<engine>_retrigger=true`: **first check spacing**. If `last_<engine>_retrigger_at` is <5 min ago (Phase 4's 180s first-poll arrives before the 300s spacing window has elapsed), do NOT fire; leave `pending_<engine>_retrigger=true`, `ScheduleWakeup(delaySeconds=300 - elapsed_since_last_retrigger, prompt="/review-loop <PR_NUMBER> <ENGINES>")` to re-wake when the window genuinely elapses, return without falling through. Otherwise (spacing elapsed): fire the retrigger, update `last_<engine>_retrigger_at`, clear `pending_<engine>_retrigger`, then continue evaluation (retrigger doesn't immediately produce findings; fall through for *this* wake's verdict).
+   - **Pending retrigger from prior defer** — iterate through ALL engines in `ENGINES`, processing each independently:
+     - For each engine with `pending_<engine>_retrigger=true` AND `last_<engine>_retrigger_at` ≥5 min ago: fire that engine's retrigger script, update its `last_<engine>_retrigger_at`, clear its `pending_<engine>_retrigger`.
+     - For each engine with `pending_<engine>_retrigger=true` AND `last_<engine>_retrigger_at` <5 min ago: leave `pending_<engine>_retrigger=true`. Record the shortest remaining spacing window across all still-pending engines as `min_remaining_wait`.
+     - After iterating: if any engine remains pending, `ScheduleWakeup(delaySeconds=min_remaining_wait, prompt="/review-loop <PR_NUMBER> <ENGINES>")` to re-wake when the soonest window elapses, then return without falling through. Otherwise (all pending retriggers fired this wake), continue evaluation (fired retriggers don't immediately produce findings; fall through for *this* wake's verdict).
+     - **Why this matters under multi-engine mode**: previous-spec returned immediately when any one engine was still inside its spacing window, skipping the fire-eligible defers for other engines in the same wake. Iterating processes each engine independently so an eligible bugbot retrigger isn't held up by a still-spacing-blocked copilot retrigger.
    - **New findings since `last_seen_<engine>_signal_id` (for any engine)** → reset idle-poll counter to 0, update the per-engine `last_seen_<engine>_signal_id` to the newest finding's id, reload triage state, return to Phase 1. (Compare against `last_seen_<engine>_signal_id`, not `last_push_sha` — see in-line rationale in references/engine-adapter-contract.md.) **This branch must precede the clean-signal branch** because `/reviews` and `/comments` are independent API resources — both can coexist for the same commit if the engine is re-triggered and produces new findings after a prior clean review.
    - **All-engines CLEAN — `<ENGINE>_CLEAN_SIGNAL` present for every engine in `ENGINES` AND its `COMMIT` matches `last_push_sha` (or race-caveat heuristic applies)** → PR clean for current head per all engines → hand back immediately with the clean summary. Do not wait out the idle-poll bound.
 

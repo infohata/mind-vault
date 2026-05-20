@@ -10,7 +10,7 @@ Hard "wait for slowest" risks blocking the loop indefinitely if one engine hangs
 
 | Trip | Trigger | Action |
 |---|---|---|
-| Engine `<X>` stalled | Engine-specific stall condition per [`engine-<x>.md`](engine-adapter-contract.md) § Failure modes (e.g. bugbot `CHECKRUN status=in_progress` >15 min) | Proceed with other engines' findings if any; retrigger `<X>` post-push. |
+| Engine `<X>` stalled | Engine-specific stall condition per the engine's adapter doc § Failure modes (e.g. bugbot `CHECKRUN status=in_progress` >15 min — see [`engine-bugbot.md`](engine-bugbot.md); copilot variants in [`engine-copilot.md`](engine-copilot.md)) | Proceed with other engines' findings if any; retrigger `<X>` post-push. |
 | Copilot service-errored 2× consecutive | Copilot review body literally `"Copilot encountered an error..."` on two consecutive HEAD SHAs | Proceed with other engines' findings if any; do NOT retry Copilot in this cycle. |
 | Copilot service-errored 3× consecutive | Third consecutive error | Hand back to user — durable service issue, can't resolve from the loop. |
 | One engine CLEAN + another still hung | `<X>_CLEAN_SIGNAL` for `last_push_sha` + other engine still queued past idle-poll threshold | Wait up to `max_idle_polls × 270s`; if still no verdict from hung engine, hand back with the cleared engine's CLEAN status documented prominently. |
@@ -23,8 +23,8 @@ Replicate per engine in the loop's scratch file:
 engines: bugbot,copilot
 last_seen_bugbot_review:  <id> @ <sha> CLEAN=<bool>
 last_seen_copilot_review: <id> @ <sha> CLEAN=<bool>
-last_seen_bugbot_comment_id:  <id>
-last_seen_copilot_comment_id: <id>
+last_seen_bugbot_signal_id:  <id>
+last_seen_copilot_signal_id: <id>
 last_bugbot_retrigger_at:  <iso8601>
 last_copilot_retrigger_at: <iso8601>
 pending_bugbot_retrigger:  <bool>
@@ -41,7 +41,7 @@ The `pending_<engine>_retrigger` field is independent per engine — under dual-
 Phase 3 fires after the batch commit. For each engine in `ENGINES` (deterministic order: alphabetical so behaviour is reproducible):
 
 - For `bugbot`: `./tools/bugbot_retrigger.sh <PR>` (posts a `bugbot run` comment).
-- For `copilot`: `./tools/copilot_retrigger.sh <PR>` (executes the `remove+add` sequence).
+- For `copilot`: `./tools/copilot_retrigger.sh <PR>` (`gh pr edit <PR> --add-reviewer @copilot`; Copilot self-removes from `requested_reviewers` post-review so bare `--add` is the canonical retrigger — see [`engine-copilot.md`](engine-copilot.md) § Tool invocations for the still-pending fallback case).
 
 Both retriggers happen post-push. The per-engine spacing rule (≥5 min between same-engine retriggers) is checked per engine, not globally — bugbot+copilot back-to-back is fine (different queues).
 

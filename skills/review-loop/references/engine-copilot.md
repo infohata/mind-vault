@@ -12,16 +12,23 @@ Adapter specification for the GitHub Copilot review engine. The orchestrator at 
 
 ## § Tool invocations
 
-- `./tools/find_copilot_comments.sh <PR_NUMBER>` — fetches reviews + inline findings from copilot-pull-request-reviewer[bot], emits the contract-shape stream (`COPILOT_LATEST_REVIEW=...`, `COPILOT_CLEAN_SIGNAL=...` if applicable, then findings).
-- `./tools/copilot_retrigger.sh <PR_NUMBER>` — wraps the empirically-confirmed `gh pr edit <PR> --remove-reviewer @copilot && sleep 1 && gh pr edit <PR> --add-reviewer @copilot` sequence (requires `gh` ≥ 2.88). Pre-approvable in `~/.claude/settings.json`.
+- `./tools/find_copilot_comments.sh <PR_NUMBER>` — fetches reviews + inline findings from copilot-pull-request-reviewer[bot], emits the contract-shape stream (`COPILOT_LATEST_REVIEW=...`, `COPILOT_CLEAN_SIGNAL=...` if applicable, then findings, plus optional `COPILOT_CHECKRUN=...` informational marker).
+- `./tools/copilot_retrigger.sh <PR_NUMBER>` — runs `gh pr edit <PR> --add-reviewer @copilot` (requires `gh` ≥ 2.88). Pre-approvable in `~/.claude/settings.json`. A `remove+add` fallback is commented in the script body for projects where Copilot has NOT self-removed after a prior review (rare; the bare `--add` works for the typical post-review re-trigger case).
 
-**Critical retrigger quirk**: bare `gh pr edit --add-reviewer @copilot` against an already-requested reviewer is a **no-op**. The GET still shows `Copilot` in `requested_reviewers` but the reviewer-processor never re-fires. The `remove+add` sequence is mandatory — bypass attempts will silently fail to trigger a new review.
+**Retrigger semantics — empirically confirmed (per [`AGENT_copilot.md`](../../../agents/AGENT_copilot.md))**: Copilot self-removes from `requested_reviewers` after posting each review. Bare `--add-reviewer @copilot` therefore IS the canonical retrigger for the in-loop case (Copilot has posted a review and self-removed; we re-add to request another). The earlier "bare `--add` is a no-op" observation applies only to the *still-pending* reviewer state (review never posted) — for which the commented-out `remove+add` fallback exists.
 
 ## § Clean-signal parsing
 
-`find_copilot_comments.sh` parses Copilot review bodies and emits `COPILOT_CLEAN_SIGNAL=<review-id> COMMIT=<sha> AT=<ts>` when the most-recent review is clean. Empirically confirmed 2026-05-20 (PR #131 dogfood of IDEA-005): Copilot posts a review with body summary text ("Copilot reviewed the PR head and found no new issues" or similar phrasing) AND may simultaneously emit zero-to-many inline Info-severity hints (titled generically e.g. "Copilot Comment"). The clean signal lives on the review-body level; Info-severity hints do NOT block the CLEAN verdict.
+Per [`AGENT_copilot.md`](../../../agents/AGENT_copilot.md): **clean ≡ no new inline comments on the latest review**. Copilot's review state is always `COMMENTED` (never `APPROVED`), so APPROVED-state matching is not applicable.
 
-**Coexistence rule**: per the orchestrator's dual-signal enumeration, a Copilot CLEAN review can coexist with Info-severity inline comments on the same SHA. Phase 4's decision tree handles this correctly — clean signal + Info-severity hints together still hand back as CLEAN; the hints surface in the per-engine summary but do not gate the merge decision.
+`find_copilot_comments.sh` emits `COPILOT_CLEAN_SIGNAL=<review-id> COMMIT=<sha> AT=<ts>` in two cases:
+
+1. **Body-text match** — the latest review body contains "found no new issues" (the original signal source).
+2. **Check-run synthesis** — when no body-text match exists, the script synthesizes a CLEAN signal from a successful Copilot check-run. **This is a best-effort fallback that produces false positives**: Copilot's check-run `success` conclusion means "Copilot ran", not "code is clean". The check-run passes regardless of whether Copilot generated comments.
+
+**The orchestrator's Phase 4 ordering is what makes this safe**: the new-findings branch evaluates BEFORE the clean-signal branch. Any active inline findings (those whose `review <rid>` matches `COPILOT_LATEST_REVIEW`) override a synthesized CLEAN signal — the loop re-triages instead of handing back. If Phase 4 reaches the clean-signal branch with synthesized CLEAN AND zero active findings, it's safe to treat as CLEAN.
+
+**Anti-pattern observed during IDEA-005 dogfood (PR #131 cycle 2)**: the agent parroted the script's `COPILOT_CLEAN_SIGNAL` line as a verdict without checking active-findings count. The script's CLEAN line is **input**, not **output** — Phase 4 collapses it with the findings count. Always count active findings explicitly before claiming CLEAN.
 
 ## § Staleness rule
 
@@ -46,9 +53,7 @@ Copilot review latency: ~30 seconds between trigger and review post — much fas
 
 ## § Common patterns (codified Tier 1)
 
-**Not yet codified.** No `AGENT_copilot.md` exists yet. As Copilot loop usage accumulates, patterns it surfaces repeatedly should be promoted into a Common Copilot Patterns block here (or in a future `AGENT_copilot.md`).
-
-Until codified, all Copilot findings default to Tier 2 (requires explicit fix-direction approval per finding) or Tier 3 (escalate). Auto-mode + agent judgement can short-cut to Tier 2 batch-approval as a session-level decision, but no individual finding has the "matches §N codified pattern" justification yet.
+Defer to [`agents/AGENT_copilot.md`](../../../agents/AGENT_copilot.md) § Common Review Findings for the codified Tier 1 catalogue. Triage rule: if a finding matches one of those patterns AND touches ≤1 file AND has an existing targeted test, classify Tier 1 (auto-fix without per-finding approval prompt).
 
 ## § Spacing rule
 
@@ -58,10 +63,10 @@ The rule is **per-engine** — under multi-engine mode bugbot+copilot back-to-ba
 
 ## § Notes on first-run calibration
 
-The 2026-05-18 calibration run + 2026-05-20 IDEA-005 dogfood (PR #131) confirmed the full adapter:
+The 2026-05-18 calibration run + 2026-05-20 IDEA-005 dogfood (PR #131) established the following confirmed state:
 - ✅ Dual user.login identity (Copilot + copilot-pull-request-reviewer[bot]).
-- ✅ `remove+add` retrigger sequence required (bare `--add` is a no-op).
+- ✅ Plain `--add-reviewer @copilot` retrigger after Copilot has self-removed post-review. Remove+add fallback exists for the still-pending state.
 - ✅ Service-error failure mode pattern.
-- ✅ Clean-signal phrasing — observed in PR #131 cycle 1 (review 4330402788 @ 5614eae). `find_copilot_comments.sh` correctly emitted `COPILOT_CLEAN_SIGNAL` alongside 9 Info-severity inline hints; the signal applied to current HEAD via the timestamp tiebreaker.
+- ✅ Clean-signal detection: body-text match on "found no new issues" + check-run synthesis fallback. The synthesis is known to false-positive (Copilot's check-run `success` ≠ "no findings"); Phase 4's new-findings-precedes-CLEAN ordering correctly supersedes false synthesized signals.
 
 If the loop misbehaves on first use against a new Copilot deployment, inspect `gh api repos/.../pulls/<N>/reviews --jq '.[].user.login'` to confirm the bot login, and adjust constants in the tool scripts accordingly.
