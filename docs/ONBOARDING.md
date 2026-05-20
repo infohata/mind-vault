@@ -1,6 +1,6 @@
 # Onboarding — mind-vault in 30 minutes
 
-> **mind-vault v4 — multi-engine review · open-source release candidate.** See [`CHANGELOG.md`](../CHANGELOG.md) for per-version detail.
+> **mind-vault v4 — multi-engine review · open-source release.** See [`CHANGELOG.md`](../CHANGELOG.md) for per-version detail.
 
 A one-pager for someone landing on mind-vault for the first time and wanting to run a real sprint by the end of the session. Skim top-to-bottom; deep links point at the authoritative docs when you need them.
 

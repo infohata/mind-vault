@@ -2,11 +2,11 @@
 
 All notable changes to mind-vault — skills, rules, agents, commands, tools.
 
-Mind-vault is a rolling config library. Entries are grouped by month, reverse-chronological within each month, and each bullet references the PR whose merge introduced the change. From v4 onward, major architectural milestones get an explicit version header (v4 introduces multi-engine review and is the open-source release candidate); month groupings continue to roll forward inside each version. Older than the first entry: the `git log` is authoritative.
+Mind-vault is a rolling config library. Entries are grouped by month, reverse-chronological within each month, and each bullet references the PR whose merge introduced the change. From v4 onward, major architectural milestones get an explicit version header (v4 introduces multi-engine review and is the first open-source release); month groupings continue to roll forward inside each version. Older than the first entry: the `git log` is authoritative.
 
 Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**, **Changed**, **Fixed**, **Removed**, **Deprecated**, **Security**.
 
-## v4 — Multi-engine code review + open-source release candidate
+## v4 — Multi-engine code review + open-source release
 
 Headline: Stage 4 (review) is no longer locked to Cursor Bugbot. Projects opt into Cursor Bugbot (`/bugbot-loop`), GitHub Copilot (`/copilot-loop`), both engines concurrently, or curator-only (no external bot). Sprint-auto resolves the choice from `review_engine:` in `.mind-vault.yml` or `CLAUDE.md` and dispatches per-engine; default is `none`. The codebase narrative is now engine-agnostic — `/bugbot-loop` and `/copilot-loop` are the two engine-specific surfaces, everything else refers to "the review loop" / `/<engine>-loop`.
 
@@ -62,7 +62,7 @@ Patch release on the v4 line. Adds a repo-root `Makefile` with a `release` targe
 
 ## v4.0.2 — Windows-host adopter bootstrap
 
-Patch release on the v4 line. Adds the `scripts/install-wsl.ps1` PowerShell installer so fresh Windows 10/11 hosts can bootstrap WSL2 before running any of mind-vault's POSIX setup scripts. No changes to the agent-facing surface (skills / agents / commands / rules untouched); this is purely an adopter-onboarding widening that opens a Windows-host path to the v4 OSS-release candidate.
+Patch release on the v4 line. Adds the `scripts/install-wsl.ps1` PowerShell installer so fresh Windows 10/11 hosts can bootstrap WSL2 before running any of mind-vault's POSIX setup scripts. No changes to the agent-facing surface (skills / agents / commands / rules untouched); this is purely an adopter-onboarding widening that opens a Windows-host path to the v4 OSS release.
 
 ### Added
 
