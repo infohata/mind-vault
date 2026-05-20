@@ -22,6 +22,13 @@ extract() {
         # failed `cd` would otherwise continue and run `make` from the
         # wrong directory, producing misleading PASS/FAIL.
         cd "$fixture_dir" || exit 1
+        # Defang an inherited shell VERSION env var — without this, every
+        # auto-detection assertion would short-circuit to that override
+        # value instead of reading the fixture's source file. Explicit
+        # override is still tested by passing VERSION=... via "$@" below
+        # (each invocation gets its own subshell, so the unset doesn't
+        # leak into the caller's environment).
+        unset VERSION
         # NOTE: stderr is intentionally NOT suppressed — on extraction
         # failure, the harness lets make's error message flow through so
         # failures have diagnostic context. assert_eq only captures stdout

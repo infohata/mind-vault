@@ -100,7 +100,12 @@ extract-version: ## Print the version `release` would tag (VERSION=v<N> override
 	@bash -c "$$EXTRACT_VERSION_SH"
 
 release: ## Tag + push + GH-release the current version (VERSION=v<N> overrides auto-detect)
-	@ver=$$(bash -c "$$EXTRACT_VERSION_SH"); \
+	@if ! command -v gh >/dev/null 2>&1; then \
+		echo "release: ERROR — \`gh\` CLI not on PATH; install GitHub CLI and authenticate (\`gh auth login\`) before running \`make release\`" >&2; \
+		echo "release: hint: the tag step alone (\`git tag -a -m 'Release v<N>' -- v<N> && git push origin -- v<N>\`) works without gh, but skips the GitHub Release surface" >&2; \
+		exit 1; \
+	fi; \
+	ver=$$(bash -c "$$EXTRACT_VERSION_SH"); \
 	if [[ -z "$$ver" ]]; then \
 		echo "release: extract-version returned empty; aborting" >&2; \
 		exit 1; \
@@ -116,8 +121,15 @@ release: ## Tag + push + GH-release the current version (VERSION=v<N> overrides 
 	fi; \
 	if git rev-parse --verify --quiet "refs/tags/$$ver" >/dev/null; then \
 		echo "release: local tag $$ver already exists — skipping tag create"; \
-		if [[ "$$remote_tag_exists" -eq 0 ]]; then \
-			local_tag_sha=$$(git rev-parse "refs/tags/$$ver^{commit}"); \
+		local_tag_sha=$$(git rev-parse "refs/tags/$$ver^{commit}"); \
+		if [[ "$$remote_tag_exists" -eq 1 ]]; then \
+			remote_tag_sha=$$(git ls-remote --tags origin "refs/tags/$$ver" "refs/tags/$$ver^{}" 2>/dev/null | awk 'END {print $$1}'); \
+			if [[ -n "$$remote_tag_sha" && "$$local_tag_sha" != "$$remote_tag_sha" ]]; then \
+				echo "release: ERROR — local tag $$ver points at $$local_tag_sha but origin's $$ver points at $$remote_tag_sha; aborting to surface tag divergence (git fetch --tags won't overwrite existing local tags)" >&2; \
+				echo "release: hint: delete the stale local tag (\`git tag -d $$ver\`) then re-run; the next fetch will pick up the remote tag cleanly" >&2; \
+				exit 1; \
+			fi; \
+		else \
 			head_sha=$$(git rev-parse HEAD); \
 			if [[ "$$local_tag_sha" != "$$head_sha" ]]; then \
 				echo "release: ERROR — local tag $$ver points at $$local_tag_sha but HEAD is $$head_sha; aborting to prevent publishing a stale local tag" >&2; \
