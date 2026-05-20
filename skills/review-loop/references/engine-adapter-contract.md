@@ -115,7 +115,7 @@ The orchestrator owns the per-engine state slots in the loop's scratch file unde
 Per-engine state slots:
 
 - `last_seen_<engine>_review` — `<id> @ <sha> CLEAN=<bool>`
-- `last_seen_<engine>_comment_id` — most recent processed inline finding id
+- `last_seen_<engine>_signal_id` — most recent processed inline finding id (engine-defined: comment id for comment-based engines, unset until first review for reviewer-assignment engines)
 - `last_<engine>_retrigger_at` — ISO-8601 timestamp of most recent retrigger
 - `pending_<engine>_retrigger` — bool, set true when Phase 3 defers due to spacing
 

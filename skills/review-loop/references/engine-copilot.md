@@ -19,9 +19,9 @@ Adapter specification for the GitHub Copilot review engine. The orchestrator at 
 
 ## § Clean-signal parsing
 
-`find_copilot_comments.sh` parses Copilot review bodies. The exact clean-signal phrasing is **TBD pending empirical observation** — the 2026-05-18 calibration run only observed inline findings OR service-error bodies, never a "clean" review.
+`find_copilot_comments.sh` parses Copilot review bodies and emits `COPILOT_CLEAN_SIGNAL=<review-id> COMMIT=<sha> AT=<ts>` when the most-recent review is clean. Empirically confirmed 2026-05-20 (PR #131 dogfood of IDEA-005): Copilot posts a review with body summary text ("Copilot reviewed the PR head and found no new issues" or similar phrasing) AND may simultaneously emit zero-to-many inline Info-severity hints (titled generically e.g. "Copilot Comment"). The clean signal lives on the review-body level; Info-severity hints do NOT block the CLEAN verdict.
 
-When the clean phrasing is observed in the wild, update `find_copilot_comments.sh` to detect it and emit `COPILOT_CLEAN_SIGNAL=<review-id> COMMIT=<sha> AT=<ts>` accordingly. Until then, Copilot clean-signal detection falls back to "no inline findings AND no recent service-error review" — best-effort, conservative.
+**Coexistence rule**: per the orchestrator's dual-signal enumeration, a Copilot CLEAN review can coexist with Info-severity inline comments on the same SHA. Phase 4's decision tree handles this correctly — clean signal + Info-severity hints together still hand back as CLEAN; the hints surface in the per-engine summary but do not gate the merge decision.
 
 ## § Staleness rule
 
@@ -58,10 +58,10 @@ The rule is **per-engine** — under multi-engine mode bugbot+copilot back-to-ba
 
 ## § Notes on first-run calibration
 
-The 2026-05-18 calibration run partially confirmed the adapter:
+The 2026-05-18 calibration run + 2026-05-20 IDEA-005 dogfood (PR #131) confirmed the full adapter:
 - ✅ Dual user.login identity (Copilot + copilot-pull-request-reviewer[bot]).
 - ✅ `remove+add` retrigger sequence required (bare `--add` is a no-op).
 - ✅ Service-error failure mode pattern.
-- ⏳ Clean-signal phrasing — still TBD.
+- ✅ Clean-signal phrasing — observed in PR #131 cycle 1 (review 4330402788 @ 5614eae). `find_copilot_comments.sh` correctly emitted `COPILOT_CLEAN_SIGNAL` alongside 9 Info-severity inline hints; the signal applied to current HEAD via the timestamp tiebreaker.
 
 If the loop misbehaves on first use against a new Copilot deployment, inspect `gh api repos/.../pulls/<N>/reviews --jq '.[].user.login'` to confirm the bot login, and adjust constants in the tool scripts accordingly.
