@@ -80,3 +80,19 @@ Pre-fill algorithm:
 **No teardown of the artefact post-merge.** The eval-checklist stays in the archive dir as part of the IDEA's history — a record of what the reviewer was asked to walk, what they noted, what follow-ups landed.
 
 **When the walk surfaces issues** — the back-and-forth of regression report → fix → re-walk gets ambiguous fast (multiple issues, multi-cycle fixes, "the user-menu thing… no the *other* user-menu thing"). Introduce a [`MANUAL_EVAL_ISSUES.md` tracker](MANUAL_EVAL_TRACKER.md) at the first regression report, not the fifth. Stable `M0`, `M1`, `M2`, … IDs + severity column + status emoji + fix-SHA column let the reviewer verify in-place; the tracker lives next to the eval-checklist in the same archive dir. Pattern surfaced in a 26-issue, 60+-commit cycle — full conventions in the reference.
+
+## Manual eval is a distinct signal class from review-bot output — not belt-and-suspenders
+
+Render-and-assert tests pin fragment SHAPE; bugbot/Copilot scan for KNOWN-PATTERN code smells; manual eval verifies USER-PERCEIVED STATE after a real-browser flow. The three signal classes overlap less than they look:
+
+| Signal | Catches | Misses |
+| --- | --- | --- |
+| Render-and-assert tests | Fragment HTML shape, attribute values, IDs in single response | Multi-swap DOM state, JS reactivity sequencing, browser-cache behaviour, integration-shape ("right code path actually invoked at all") |
+| Bugbot / Copilot review | Known code smells, contract drift visible in diff, generic anti-patterns, lint-class issues missed by linters | User-perceived regressions that look fine in code, double-render bugs, atomic-swap orphans, page-beyond-end edges |
+| Manual eval walk | Visible regressions, multi-step flow integrity, mobile gesture nuance, focus + keyboard interaction, "this looks subtly wrong" | Things a reviewer doesn't think to walk; race conditions outside the scripted scenarios |
+
+**Discipline**: emit the eval-checklist for any IDEA that touches user-visible UI behaviour, even when render-and-assert coverage exists. Field-observed: a double-empty-state regression caught by the user's manual walk (single-line "M2: double empty") was invisible to render-and-assert tests (each individual swap response was correctly shaped — the bug was the DOM state AFTER two consecutive swaps) and was only surfaced *later* by bugbot review, with imprecise framing. The user-walk framing was diagnostic; the review-bot framing was downstream.
+
+**Anti-pattern**: treating render-and-assert green + bot-clean as sufficient for IDEAs whose acceptance criteria include user-visible state. The two automated signals together miss integration-shape and multi-swap-state. Manual eval is the third leg, not a redundant cross-check.
+
+**`auto_safe: false` interaction**: an IDEA with manual-eval cases AND `auto_safe: false` indicates the human walk is the merge gate. `auto_safe_with_eval_gate: true` permits sprint-auto execution but emits the checklist for the integration-PR walker. Either way, the checklist is the artefact that ensures the third signal class is actually consulted.
