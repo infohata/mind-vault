@@ -1,0 +1,4 @@
+[project]
+name = "example"
+version = '5.5.5'
+description = "Fixture verifying single-quoted TOML version values extract correctly"

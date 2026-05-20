@@ -14,10 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-### IDEA-003: Version-tag automation post-`/wrap`
-
-**Status**: 💡 **idea** · **Created**: 2026-05-18 · **See**: [`IDEA-003-version-tag-automation.md`](IDEA-003-version-tag-automation.md).
-Automate the `git tag v<N>` + `gh release create` step that currently lives outside `/wrap`. Step 4b (introduced in [PR #121](https://github.com/infohata/mind-vault/pull/121)) updates the in-repo version source on merge, but the git tag remains manual. Two options surfaced during PR #121 review: Makefile `release` target (cheap, opt-in) vs GitHub Action `release-on-version-bump.yml` (hands-off). Recommendation: ship Option 1 first, layer Option 2 on later if the manual step proves forgettable in practice.
+_(none)_
 
 ## 💡 Low Priority (backlog)
 
@@ -28,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-003: Version-tag automation post-`/wrap` ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-05-19 · **See**: [Archive](../archive/2026-05-idea-003-version-tag-automation/IDEA-003-version-tag-automation.md), [PR #124](https://github.com/infohata/mind-vault/pull/124).
+Shipped Option 1 — `Makefile` `release` target + `extract-version` + `test-release` + `help`, with version-extraction covering the six sources `/wrap` Step 4b detects (`VERSION` / `pyproject.toml` / `package.json` / `Cargo.toml` / `setup.py` / `CHANGELOG.md` with both `## v<N>` and Keep-a-Changelog `## [<N>]` header forms). Explicit `VERSION=v<N>` override for projects whose CHANGELOG header version differs from the intended tag (mind-vault itself: CHANGELOG `## v4` but tags `v4.0.1`, `v4.0.2`, ...). Idempotency via `git rev-parse --verify --quiet refs/tags/$ver`. Ten-case bash test harness (`tests/test_release_extraction.sh`) covers seven source-format paths + two `VERSION=` override paths + one no-source error case; all green on first run. `/wrap` Step 4b § "Mechanics when a bump is warranted" gained sub-bullet 6 surfacing `make release` as the canonical post-merge hand-back (with manual-fallback mention for Makefile-less projects). Option 2 (GHA auto-tag-on-merge) intentionally deferred to a follow-up IDEA pending empirical evidence the manual step gets forgotten.
 
 ### IDEA-002: Skill debloat — extract over-budget SKILL.md bodies into references/ ✅ COMPLETE
 
