@@ -11,7 +11,7 @@ Adapter specification for the Cursor Bugbot review engine. The orchestrator at [
 
 ## § Tool invocations
 
-- `./tools/find_bugbot_comments.sh <PR_NUMBER>` — fetches reviews + inline findings from cursor[bot], emits the contract-shape stream (`BUGBOT_LATEST_REVIEW=...`, `BUGBOT_CLEAN_SIGNAL=...` if applicable, then findings).
+- `./tools/find_bugbot_comments.sh <PR_NUMBER>` — fetches reviews + inline findings from cursor[bot], emits the contract-shape stream (`BUGBOT_LATEST_REVIEW=...`, `BUGBOT_CLEAN_SIGNAL=...` if applicable, then findings, plus optional `BUGBOT_CHECKRUN=...` informational marker — surfaces the Cursor check-suite's status/conclusion on the PR head, used by the stall-detection failure mode below).
 - `./tools/bugbot_retrigger.sh <PR_NUMBER>` — posts the literal comment `bugbot run` on the PR. Hard-coded body so the script can be pre-approved in `~/.claude/settings.json`. Equivalent to `gh pr comment <PR> -b "bugbot run"`.
 
 ## § Clean-signal parsing

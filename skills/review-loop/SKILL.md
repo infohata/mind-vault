@@ -18,7 +18,7 @@ This skill is invoked from three command surfaces:
 
 - `max_commits_per_session = 20`
 - `max_active_work_minutes = 180` (excludes ScheduleWakeup sleep time)
-- `max_idle_polls = 20` (consecutive wakes with no new finding AND no new push, across all engines)
+- `max_idle_polls = 20` (consecutive wakes with no new finding AND no new push, across all engines). **New-push detection**: Phase 4 compares the scratch file's `last_push_sha` against `git rev-parse HEAD` on each wake; if they differ (e.g. an out-of-band push by another process or the user), reset `idle_polls=0`, update scratch `last_push_sha`, and re-enter Phase 1 to fetch fresh state for the new SHA. Without this check the counter accumulates forever past a push the loop didn't initiate.
 - Targeted tests only inside the loop; broader regression deferred to hand-back
 - Feature branch only — never main (per `RULE_git-safety`)
 - Batch fixes per cycle into one commit, not one-per-finding
