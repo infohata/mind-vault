@@ -1,6 +1,6 @@
 # Parallel worktrees
 
-`git worktree` lets multiple branches of the same repo coexist on disk simultaneously, each in its own directory. mind-vault uses worktrees aggressively for parallel IDEA work — each worktree is an isolated dev environment with its own docker stack, its own `.env`, its own port range.
+`git worktree` lets multiple branches of the same repo coexist on disk simultaneously, each in its own directory. mind-vault uses worktrees aggressively for parallel IDEA work — when running its own docker stack, each worktree gets its own `.env` and port range for isolation. (Sprint-auto's per-IDEA worktrees are an intentional exception — they're code-surface-only, deferring all runtime state to a shared integration worktree; see the [sprint-auto pattern](#sprint-autos-integration-worktree-pattern-v31) below.)
 
 ## Why worktrees beat branch-switching
 
@@ -30,8 +30,11 @@ Worktrees solve all three: branch A and branch B each live in their own director
 ## The basic pattern
 
 ```bash
-# Create a worktree at ../mind-vault-idea-007 for branch feat/idea-007
+# Create a worktree at ../mind-vault-idea-007 for an EXISTING branch
 git worktree add ../<repo>-<slug> feat/idea-007
+
+# Or — common case — create the worktree AND a new branch in one shot
+git worktree add -b feat/idea-007 ../<repo>-<slug> origin/main
 
 # Switch shell into it
 cd ../<repo>-<slug>
