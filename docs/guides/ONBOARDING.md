@@ -47,7 +47,7 @@ The four artefact types in mind-vault answer four different questions. Internali
 - **A persona/role to delegate work to** → agent. (Examples: an architect that reviews plans; a curator that pre-sweeps PRs.)
 - **A user-triggered action** → slash command. (Examples: kick off the sprint workflow stages.)
 
-Rules are the most expensive (always loaded) so be miserly. Skills are cheap (load-on-demand) — most domain knowledge should live there. See [`skills/idea/references/`](../../skills/idea/) and [`rules/`](../../rules/) for canonical examples of each.
+Rules are the most expensive (always loaded) so be miserly. Skills are cheap (load-on-demand) — most domain knowledge should live there. See [`skills/idea/references/`](../../skills/idea/references/) and [`rules/`](../../rules/) for canonical examples of each.
 
 ## 3. Workspace setup
 

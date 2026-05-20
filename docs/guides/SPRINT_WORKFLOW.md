@@ -109,7 +109,7 @@ The `source` field is what makes handoff possible: `/plan` reads an IDEA file an
 
 ## Directory layout inside a target project
 
-Per [`RULE_ideas-location-status`](../../skills/idea/references/IDEAS_LOCATION_STATUS.md), an IDEA file lives in exactly one of two locations across its whole life — `docs/ideas/` while in backlog, `docs/archive/YYYY-MM-idea-NNN-<slug>/` everything after. The only filesystem move is `idea → archive` at `/plan` time (or `/work` time for small-scope plans that bypassed `/plan`). Post-move, status flips are frontmatter-only.
+Per [`IDEAS_LOCATION_STATUS`](../../skills/idea/references/IDEAS_LOCATION_STATUS.md) (formerly `RULE_ideas-location-status`, moved to `skills/idea/references/` per PR #106's always-on-tier criterion), an IDEA file lives in exactly one of two locations across its whole life — `docs/ideas/` while in backlog, `docs/archive/YYYY-MM-idea-NNN-<slug>/` everything after. The only filesystem move is `idea → archive` at `/plan` time (or `/work` time for small-scope plans that bypassed `/plan`). Post-move, status flips are frontmatter-only.
 
 ```text
 <project>/
