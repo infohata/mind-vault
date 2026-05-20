@@ -1,11 +1,17 @@
 ---
 name: IDEA-003-version-tag-automation
-description: Automate the `git tag v<N>` + `gh release create` step that currently lives outside /wrap — Step 4b updates the version source but a human still tags by hand after merge
-status: idea
+description: Add a `make release` target that tags + pushes + GH-releases the version `/wrap` Step 4b just bumped, so the human runs one command post-merge instead of three. Option 2 (GHA auto-tag-on-merge) deferred to a follow-up IDEA.
+status: complete
 priority: medium
 created: 2026-05-18
+completed: 2026-05-19
 related:
   - 2026-05-idea-002-skill-debloat  # /wrap evolution thread
+# Sprint-auto eligibility gates
+auto_safe: true
+auto_safe_reason: "Additive Makefile target + one-line `/wrap` hand-back tweak; reversible by deleting the target. Version-extraction is mechanically testable against fixture CHANGELOG / pyproject.toml / package.json. No migrations, no schema, no docker stack."
+sensitive_paths_cleared: true
+sensitive_paths_cleared_reason: "Touches the `/wrap` skill (sprint-workflow infra), but the change is a single additive line in the hand-back message; cohort-position constraint (solo or LAST) prevents in-flight wrap modification while sibling IDEAs are still running. `gh release create` is invoked only by the human post-merge, never by sprint-auto."
 ---
 
 # IDEA-003 — Version-tag automation post-`/wrap`
@@ -68,25 +74,38 @@ jobs:
 
 **Cons**: more moving parts (GHA permissions, the diff-detection step is subtler than it looks — has to distinguish a *new* version section from edits to an existing one, has to handle the bump-without-CHANGELOG-edit case for VERSION-file projects), and re-firing on the same version (e.g. a typo-fix commit that touches the line) creates a duplicate-tag failure mode.
 
-## Recommendation when this is picked up
+## Scope decision (2026-05-19)
 
-Ship Option 1 first — single Makefile target, low risk, the wrap hand-back message gets one line added pointing at `make release`. Then evaluate after 2–3 wrap-and-bump cycles whether the manual step is actually getting forgotten in practice; if yes, layer Option 2 on top (the workflow can coexist with the Makefile — the Makefile becomes the local-override / dry-run path, the workflow is the production-automation path).
+**IDEA-003 = Option 1 only.** The GHA workflow (Option 2 above) is deferred to a separate follow-up IDEA — see [Follow-up: Option 2](#follow-up-option-2-gha-auto-tag-on-merge) below. Rationale: GHA permission setup + diff-detection logic is fiddly enough that getting it wrong creates more confusion than the current manual-tag flow; ship the cheap manual command first, observe whether the forgotten-tag pattern actually surfaces in practice, then decide whether to layer automation on top.
 
-**Don't ship Option 2 first** — the GHA diff-detection logic is fiddly enough that getting it wrong (false positives on commit-message typos, false negatives on multi-bump PRs) would create more confusion than the current manual-tag flow.
+## Cohort-position constraint (sprint-auto)
+
+This IDEA modifies the `/wrap` skill's hand-back message, and `/wrap` is invoked by sprint-auto itself. To avoid in-flight modification of `/wrap` while sibling IDEAs in the same cohort are still running their wrap passes:
+
+- **Run solo** (single-IDEA sprint-auto cohort), OR
+- **Run LAST in a multi-IDEA cohort** (after every sibling IDEA's per-IDEA wrap has completed; the modified wrap behaviour is then exercised only by the integration-branch batch wrap, which runs once).
+
+Sprint-auto's IDEA-ordering hints (or human cohort selection) must respect this.
 
 ## Acceptance criteria
 
-- A new IDEA-NNN sprint that delivers at least Option 1:
-  - [ ] `Makefile` `release` target added (or equivalent task in `pyproject.toml` / `package.json` scripts for non-Make projects)
-  - [ ] Version-extraction logic handles all the version sources `/wrap` Step 4b detects (one grep / parse per source format)
-  - [ ] Idempotent — re-running `make release` when the tag already exists is a no-op with a clear message, not a crash
-  - [ ] `/wrap`'s hand-back message points at the convention when Step 4b has fired
-  - [ ] Mind-vault dogfoods it: the IDEA's own merge bumps a version + runs `make release` in the same wrap pass
+- [ ] `Makefile` `release` target added (or equivalent task in `pyproject.toml` / `package.json` scripts for non-Make projects)
+- [ ] Version-extraction logic handles all the version sources `/wrap` Step 4b detects (one grep / parse per source format: `VERSION`, `pyproject.toml`, `package.json`, `Cargo.toml`, `setup.py`, `CHANGELOG.md` `## v<N>` header)
+- [ ] Idempotent — re-running `make release` when the tag already exists is a no-op with a clear message, not a crash
+- [ ] Version-extraction logic has unit-test coverage against fixture files for each version source (run in CI / by sprint-auto's test pass, without invoking `git tag` / `gh release` for real)
+- [ ] `/wrap`'s hand-back message gains a one-line instruction: when Step 4b has fired in the just-merged PR, suggest the human runs `make release` (or the project-specific equivalent) post-merge
 
-- If Option 2 layered on later (separate IDEA):
-  - [ ] GHA detects a new `## v<N>` header and skips edits to existing sections
-  - [ ] Multi-bump PRs (a single PR that introduces multiple `## v<N>` headers — rare but legal under cohort-finishing rules) tag the *latest* version, not the first
-  - [ ] Workflow-permission setup documented (the GHA token needs `contents: write` for tag creation)
+**Dogfood**: NOT automated as part of this IDEA's sprint-auto pass. Sprint-auto cannot run `make release` itself — tagging is post-merge to a protected branch, which is the human merge gate per [`RULE_git-safety`](../../rules/RULE_git-safety.md). Verification that the dogfood works happens manually after the human merges IDEA-003's PR and runs `make release` against mind-vault's own then-current version. The wrap hand-back message will surface the instruction.
+
+## Follow-up: Option 2 (GHA auto-tag-on-merge)
+
+Deferred to a separate IDEA, to be filed only after 2–3 wrap-and-bump cycles have empirically demonstrated that the manual `make release` step is being forgotten in practice. The workflow can coexist with the Makefile — the Makefile becomes the local-override / dry-run path, the workflow is the production-automation path. Scope when filed:
+
+- [ ] GHA detects a new `## v<N>` header and skips edits to existing sections
+- [ ] Multi-bump PRs (a single PR that introduces multiple `## v<N>` headers — rare but legal under cohort-finishing rules) tag the *latest* version, not the first
+- [ ] Workflow-permission setup documented (the GHA token needs `contents: write` for tag creation)
+- [ ] Duplicate-tag failure mode handled (re-fire on the same version, e.g. a typo-fix commit touching the line, must be a clean no-op)
+- [ ] Not sprint-auto eligible — GHA permission / diff-detection edge cases need human supervision on first fire
 
 ## Why this is medium-priority
 

@@ -1,0 +1,8 @@
+[project]
+name = "example"
+version = "2.0.0"
+description = "Fixture for pyproject.toml version extraction"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

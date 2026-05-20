@@ -1,0 +1,8 @@
+{
+  "name": "example",
+  "version": "3.1.4",
+  "description": "Fixture for package.json version extraction",
+  "scripts": {
+    "test": "echo \"no tests\" && exit 0"
+  }
+}
