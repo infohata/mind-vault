@@ -67,7 +67,7 @@ IDEA-002 (May 2026) debloated the three biggest mind-vault skills (`wrap`, `djan
 - **Project-specific paths or commands.** A skill that says `cd ~/projects/teisutis && make test` is broken for every other project. Use placeholders + describe the convention (`cd <project-root> && make test` + "this skill assumes a Makefile with a `test` target").
 - **Long verbatim code blocks copied from another file.** Link to the file instead. Skills rot when the source moves; links update naturally on rename.
 - **Decision matrices that should be rules.** "Always wrap in a transaction" — that's a rule. "When migrating a foreign key, here's a 5-commit sequence" — that's a skill.
-- **History / changelog inline.** Verbose "Last Updated 2026-05-10 — fixed bug found by Bugbot PR #87" trailers cost tokens on every fire. Route to `CHANGELOG.md`. (See memory: `feedback_skill_changelog_not_inline`.)
+- **History / changelog inline.** Verbose "Last Updated 2026-05-10 — fixed bug found by Bugbot PR #87" trailers cost tokens on every fire. Route to [CHANGELOG.md](../../CHANGELOG.md) instead — every line in a SKILL.md body is paid for on every activation, and incident narrative has nothing to do with how the skill fires.
 - **Multi-paragraph rationale.** One sentence per *why*. Reader-level skill = junior dev with the spec open in the other window, not someone needing a tutorial.
 - **Defensive language ("always carefully", "thoughtfully consider", "be aware that").** Junk tokens. Either prescribe the action or don't.
 
