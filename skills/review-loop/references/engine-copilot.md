@@ -51,6 +51,24 @@ Copilot review latency: ~30 seconds between trigger and review post — much fas
 | Copilot service-errored 3× consecutive | Third consecutive error | Durable service issue. Hand back to user with the offending review ids + SHAs so they can retry from UI, wait for recovery, or merge without Copilot's verdict. |
 | Copilot stalled (no review at all) | Review never posts within ~10× normal latency (~5 min) on `last_push_sha` | Proceed with other engines; surface in hand-back if Copilot doesn't recover within the idle-poll budget. |
 
+## § Stale-context findings — when to bail
+
+**Pattern**: Copilot's review prompt window includes prior review summaries / context, not just the current file state. When a fix lands that resolves a finding category at the root, Copilot may still flag the same category on an *adjacent surface* in the next cycle — arguing about the original broken-state geometry rather than the post-fix geometry. The agent's first instinct is "fix the new angle too", which triggers another cycle, and the pattern repeats.
+
+**Detection**: the orchestrator's no-progress map (per-engine, per-category) tracks this. If `copilot.<category>` hits ≥3 attempts and copilot's next review still flags the category — even on a different file/line — the loop is in a stale-context loop, NOT making real progress.
+
+**Hand-back rule**: when the per-engine no-progress counter for a category hits 3, **stop attempting that category**. Route the next same-category finding to Tier 3 with note `copilot reasoning from stale review-context, not current file state`. Surface in hand-back as: *"Open finding `<comment-id>` is a false positive — references state already resolved in commit `<sha>`. Resolve conversation on the PR."*
+
+**Why this rule is per-engine**: bugbot's review prompt appears to focus on current diff state more strictly (empirically less prone to this) — the rule doesn't fire as often for bugbot. Copilot's prompt includes more historical context, hence the higher no-progress trip rate.
+
+**Field-observed example** (PR #133, 2026-05-21):
+1. Cycle 4 (rules-rationale category attempt 1): forward link `rule → rationale` broken under host-symlink layout. Fix: add `docs/rules` symlink to claude-code/cursor/opencode setup scripts.
+2. Cycle 8 (attempt 2): same category re-flagged on VS Code Copilot host (different symlink layout). Fix: also symlink `docs/rules` under VS Code user dir.
+3. Cycle 9 (attempt 3): same category re-flagged on the REVERSE link (rationale → rule backlinks broken in VS Code's flat instructions/ layout). Root-cut fix: drop the backlink line from all 4 rationale files.
+4. Cycle 10 (attempt 4): copilot STILL flagged the category on `scripts/setup-vscode-copilot-symlinks.sh`, arguing rationale backlinks "still break VS Code Copilot" — but the backlinks had been removed in cycle 9. Pure stale-context false positive. **No-progress detector tripped; loop handed back with the finding as Tier 3.**
+
+**The compound rule**: counter ≥3 → next same-category finding is Tier 3 regardless of whether the finding text *looks* legitimate. The pattern is the signal, not the individual finding's apparent validity. Save the cycle.
+
 ## § Common patterns (codified Tier 1)
 
 Defer to [`agents/AGENT_copilot.md`](../../../agents/AGENT_copilot.md) § Common Review Findings for the codified Tier 1 catalogue. Triage rule: if a finding matches one of those patterns AND touches ≤1 file AND has an existing targeted test, classify Tier 1 (auto-fix without per-finding approval prompt).
