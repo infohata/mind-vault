@@ -66,6 +66,9 @@ mv_link_tree() {
     rm "$target"
   fi
   if [[ ! -e "$target" ]]; then
+    # Ensure parent dir exists — handles nested targets like ~/.claude/docs/rules
+    # where the intermediate ~/.claude/docs may not yet exist.
+    mkdir -p "$(dirname "$target")"
     ln -s "$(cd "$MV/$subdir" && pwd)" "$target"
     echo "$subdir: $target -> mind-vault/$subdir"
   else
