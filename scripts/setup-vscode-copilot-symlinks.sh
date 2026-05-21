@@ -49,6 +49,14 @@ echo ""
 mv_link_files_renamed rules "$VSC/instructions" .instructions
 echo ""
 
+# Rule rationale: rule bodies link out via `../docs/rules/<rule>-rationale.md`.
+# From ~/.config/Code/User/instructions/<rule>.instructions.md, that relative
+# path resolves to ~/.config/Code/User/docs/rules/... — symlink docs/rules here
+# so the rationale loads from VS Code Copilot too. (Antigravity forwards to this
+# script, so this covers both hosts.)
+mv_link_tree docs/rules "$VSC/docs/rules"
+echo ""
+
 echo "Skills and agents: skipped — Copilot has no native equivalent."
 echo ""
 echo "Done. Reload VS Code (Cmd/Ctrl+Shift+P → Developer: Reload Window)."
