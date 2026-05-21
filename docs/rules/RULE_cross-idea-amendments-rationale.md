@@ -1,6 +1,6 @@
 # RULE_cross-idea-amendments — Rationale + Anti-Patterns
 
-Companion to [`../RULE_cross-idea-amendments.md`](../RULE_cross-idea-amendments.md). Parent holds the imperative core; this file holds the "why" and anti-patterns.
+Companion to [`../../rules/RULE_cross-idea-amendments.md`](../../rules/RULE_cross-idea-amendments.md). Parent holds the imperative core; this file holds the "why" and anti-patterns.
 
 ## Why this rule exists
 

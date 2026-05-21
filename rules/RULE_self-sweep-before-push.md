@@ -2,7 +2,7 @@
 
 Before `git commit` on any cycle that touches Python or JS source, run a brief self-sweep on every file edited this cycle. The sweep catches the same trivial findings any code-review bot will catch — 1 second locally vs a 3-10 min bot round-trip.
 
-Grep recipes, full Why-This-Matters discussion, edge cases, and the Pyflakes Pipe Pattern live in [`references/RULE_self-sweep-before-push-rationale.md`](references/RULE_self-sweep-before-push-rationale.md). Load on first encounter or when adjudicating an edge case.
+Grep recipes, full Why-This-Matters discussion, edge cases, and the Pyflakes Pipe Pattern live in [`../docs/rules/RULE_self-sweep-before-push-rationale.md`](../docs/rules/RULE_self-sweep-before-push-rationale.md). Load on first encounter or when adjudicating an edge case.
 
 ## The Four Sweep Triggers
 
@@ -15,7 +15,13 @@ For every file edited in the current commit's working set, check:
 3. **Unused locals** — `var = something()` never read. Drop, or rename to `_` if the side effect matters.
 4. **Stale comment vs code** — does the comment still describe what the code does?
 
-Python: `python -m pyflakes <path>` catches #1 and #3 mechanically. For JS, eyeball at minimum. Scope is **touched files entirely**, not just the new diff — pre-existing dead imports in a file you just edited are in scope (threshold ~10 mechanical edits before splitting to a separate PR).
+Python: `python -m pyflakes <path>` catches #1 and #3 mechanically. In a docker-first project where the image lacks pyflakes, run as a one-shot:
+
+```bash
+docker compose exec -T web pip install --quiet pyflakes && docker compose exec -T web python -m pyflakes <changed-files>
+```
+
+For JS, eyeball at minimum. Scope is **touched files entirely**, not just the new diff — pre-existing dead imports in a file you just edited are in scope (threshold ~10 mechanical edits before splitting to a separate PR).
 
 ### 2. Contract-change sweep (when changing a public function's signature)
 

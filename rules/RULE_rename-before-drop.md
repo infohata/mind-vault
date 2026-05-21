@@ -2,7 +2,14 @@
 
 For any refactor that **renames a field, function, or symbol** AND **eventually drops the old name**, sequence commits so renames land first, a full test pass confirms green, **then** the legacy symbol drops in its own commit, **then** re-test for regressions. Never bundle "drop legacy" with the rename when the rename touches more than one or two files.
 
-Why-this-matters (bisectability, post-drop fall-through detection), anti-patterns, and the JS two-PR convention variant live in [`references/RULE_rename-before-drop-rationale.md`](references/RULE_rename-before-drop-rationale.md).
+Why-this-matters (bisectability, post-drop fall-through detection) and the JS two-PR convention variant live in [`../docs/rules/RULE_rename-before-drop-rationale.md`](../docs/rules/RULE_rename-before-drop-rationale.md).
+
+## Anti-patterns
+
+- ❌ Big-bang rename + drop in one commit — bisectability dies, regressions become undifferentiated noise.
+- ❌ Drop first, then rename references — every intermediate commit is broken; tests can't run.
+- ❌ Skip the post-drop re-test because the rename pass was green — defensive `getattr` fall-throughs hide here.
+- ❌ Append the drop to the same Django migration as the data migration — couples data + schema steps; separate `0NNN_drop_legacy_*.py` is cleaner.
 
 ## When This Applies
 

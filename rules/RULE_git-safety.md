@@ -2,7 +2,7 @@
 
 Protected branches are `main` and the release branch (`production` or `deployment`, whichever the project uses). Everything else is a feature branch and is the agent's sandbox. The HITL gate is **merge to a protected branch**, nothing else.
 
-Worked examples, recovery prose, the "which tip moves" disambiguation, and the canonical "please merge" response template live in [`references/RULE_git-safety-rationale.md`](references/RULE_git-safety-rationale.md). Load that file when adjudicating an edge case or when the user asks for the standard workflow.
+Worked examples, recovery prose, the full standard branch workflow, and commit-message format live in [`../docs/rules/RULE_git-safety-rationale.md`](../docs/rules/RULE_git-safety-rationale.md). Load that file when adjudicating an edge case or when the user asks for the full workflow.
 
 ## The Hard Rules
 
@@ -15,7 +15,7 @@ Worked examples, recovery prose, the "which tip moves" disambiguation, and the c
 
 ### 2. NEVER MERGE OR PUSH INTO A PROTECTED BRANCH
 
-The forbidden operation is writing to a protected branch, not the `git merge` command itself. Direction matters — see the "which tip moves" disambiguation in the rationale doc.
+The forbidden operation is writing to a protected branch, not the `git merge` command itself. Before any merge/rebase ask: *which branch's tip is about to move?* If the answer is a protected branch, abort.
 
 **On protected branches the agent:**
 
@@ -26,9 +26,24 @@ The forbidden operation is writing to a protected branch, not the `git merge` co
 - ✅ Creates PRs with `gh pr create` and hands the URL back to the human.
 - ✅ Cleans up local feature branches **after** the human has merged upstream.
 
-**Forward-sync IS allowed** — merging `main` *into* a feature branch (rebase, merge, pull --rebase). The feature branch's tip moves, `main` does not.
+**Forward-sync IS allowed** — feature-branch tip moves, protected tip doesn't:
 
-When asked to merge to a protected branch, decline and respond with the template in the rationale doc.
+- ✅ `git merge origin/main` while on a feature branch.
+- ✅ `git pull --rebase origin main` on a feature branch.
+- ✅ `git rebase origin/main` on a feature branch.
+
+When asked to merge to a protected branch, decline with this template:
+
+```text
+I've created/updated PR #X at [URL].
+
+To merge:
+  1. Review the changes on GitHub
+  2. Click the green 'Merge pull request' button
+  3. Confirm the merge
+
+Let me know once it's merged and I'll handle local cleanup.
+```
 
 ### 3. Feature branches — agent has normal commit authority
 

@@ -1,6 +1,6 @@
 # RULE_self-sweep-before-push — Recipes, Detailed Sweeps, Rationale
 
-Companion to [`../RULE_self-sweep-before-push.md`](../RULE_self-sweep-before-push.md). The parent rule holds the four sweep triggers + imperative core; this file holds the grep recipes, edge cases, and the "why".
+Companion to [`../../rules/RULE_self-sweep-before-push.md`](../../rules/RULE_self-sweep-before-push.md). The parent rule holds the four sweep triggers + imperative core; this file holds the grep recipes, edge cases, and the "why".
 
 ## The Pyflakes Pipe Pattern
 
@@ -149,6 +149,6 @@ Full ruff / mypy passes are PR-time / CI-time concerns. The sweep is the minimum
 
 ## Relationship to Other Rules
 
-- [`RULE_git-safety`](../RULE_git-safety.md) — the sweep runs on the feature branch before push; doesn't change branch policy.
-- [`RULE_rename-before-drop`](../RULE_rename-before-drop.md) — sweeps also catch leftover imports after a rename.
+- [`RULE_git-safety`](../../rules/RULE_git-safety.md) — the sweep runs on the feature branch before push; doesn't change branch policy.
+- [`RULE_rename-before-drop`](../../rules/RULE_rename-before-drop.md) — sweeps also catch leftover imports after a rename.
 - The review-loop skill should run pyflakes self-sweep between Phase 2 and Phase 3 as a built-in step.

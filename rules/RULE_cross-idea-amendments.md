@@ -6,7 +6,7 @@ When a later IDEA's work needs to modify a shipped earlier IDEA's files (CSS, JS
 
 The only invariant: **bidirectional documentation** — the change must be discoverable from BOTH the amending IDEA's archive AND the amended IDEA's archive.
 
-Concrete examples of when this fires, the "why" framing, and anti-patterns (re-opening original branch, filing supersedes, silent amendments) live in [`references/RULE_cross-idea-amendments-rationale.md`](references/RULE_cross-idea-amendments-rationale.md).
+Concrete examples of when this fires, the "why" framing, and anti-patterns (re-opening original branch, filing supersedes, silent amendments) live in [`../docs/rules/RULE_cross-idea-amendments-rationale.md`](../docs/rules/RULE_cross-idea-amendments-rationale.md).
 
 ## When this rule applies
 

@@ -1,6 +1,6 @@
 # RULE_rename-before-drop — Rationale, Variants, Anti-Patterns
 
-Companion to [`../RULE_rename-before-drop.md`](../RULE_rename-before-drop.md). The parent rule holds the imperative core; this file holds the "why", anti-patterns, and the two-PR JS convention variant.
+Companion to [`../../rules/RULE_rename-before-drop.md`](../../rules/RULE_rename-before-drop.md). The parent rule holds the imperative core; this file holds the "why", anti-patterns, and the two-PR JS convention variant.
 
 ## Why This Matters
 
@@ -26,5 +26,5 @@ The test-pass between phases is the safety gate that surfaces asymmetries (e.g. 
 
 ## Relationship To Other Rules
 
-- [`RULE_git-safety`](../RULE_git-safety.md) — every rename and drop commit lands on a feature branch; per-commit compilability makes `--force-with-lease` rebases safe inside the sequence.
-- [`RULE_self-sweep-before-push`](../RULE_self-sweep-before-push.md) — pyflakes after a rename catches leftover imports of the dropped symbol.
+- [`RULE_git-safety`](../../rules/RULE_git-safety.md) — every rename and drop commit lands on a feature branch; per-commit compilability makes `--force-with-lease` rebases safe inside the sequence.
+- [`RULE_self-sweep-before-push`](../../rules/RULE_self-sweep-before-push.md) — pyflakes after a rename catches leftover imports of the dropped symbol.
