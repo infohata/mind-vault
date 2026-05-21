@@ -16,7 +16,7 @@ Cross-host configuration library for AI coding agents — skills, commands, suba
 >
 > **v4 highlights.** The Stage 4 review surface is now engine-agnostic — opt into Cursor Bugbot, GitHub Copilot, both concurrently, or neither (curator-only fallback). Canonical entry: `/review-loop <PR> bugbot`, `/review-loop <PR> copilot`, or `/review-loop <PR> bugbot,copilot`.
 >
-> **Deprecation (v4.2, upcoming).** `/bugbot-loop` and `/copilot-loop` are deprecated thin wrappers and will be removed in a future release. Prefer `/review-loop <PR> <engine>` directly — same behaviour, one fewer command surface to load, further trimming the always-on token cost.
+> **Deprecation (v4.3, upcoming).** `/bugbot-loop` and `/copilot-loop` are deprecated thin wrappers and will be removed in a future release. Prefer `/review-loop <PR> <engine>` directly — same behaviour, one fewer command surface to load, further trimming the always-on token cost.
 
 ## Sprint workflow — the compound loop
 
@@ -33,7 +33,7 @@ flowchart LR
     C -.next sprint.-> I1
 ```
 
-**Design note on the review stage.** Stages 1–2–3–5 each have a dedicated skill (`/idea`, `/plan`, `/work`, `/compound`). Stage 4 (review) is engine-selectable via the unified `/review-loop` skill: pass `bugbot`, `copilot`, or `bugbot,copilot` as the engine argument. Both engines share the same Phase 1–4 orchestrator backed by `AGENT_bugbot` / `AGENT_copilot` / `AGENT_curator` / `AGENT_architect` personas; engine-specific details (clean-signal parsing, retrigger semantics, Tier 1 catalogue) live in per-engine adapter references. The legacy `/bugbot-loop` and `/copilot-loop` thin wrappers are deprecated as of v4.2 (upcoming).
+**Design note on the review stage.** Stages 1–2–3–5 each have a dedicated skill (`/idea`, `/plan`, `/work`, `/compound`). Stage 4 (review) is engine-selectable via the unified `/review-loop` skill: pass `bugbot`, `copilot`, or `bugbot,copilot` as the engine argument. Both engines share the same Phase 1–4 orchestrator backed by `AGENT_bugbot` / `AGENT_copilot` / `AGENT_curator` / `AGENT_architect` personas; engine-specific details (clean-signal parsing, retrigger semantics, Tier 1 catalogue) live in per-engine adapter references. The legacy `/bugbot-loop` and `/copilot-loop` thin wrappers are deprecated as of v4.3 (upcoming).
 
 See [docs/guides/SPRINT_WORKFLOW.md](docs/guides/SPRINT_WORKFLOW.md) for the full explainer — authoritative frontmatter schemas, compound-routing table, right-sizing guidance, and the handoff contract between stages.
 

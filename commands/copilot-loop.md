@@ -5,7 +5,7 @@ agent: general
 
 # /copilot-loop
 
-> **Deprecated (v4.2, upcoming).** Prefer `/review-loop <PR> copilot` directly. This thin wrapper will be removed in a future release; dropping it trims the always-loaded command surface and reduces initial token toll.
+> **Deprecated (v4.3, upcoming).** Prefer `/review-loop <PR> copilot` directly. This thin wrapper will be removed in a future release; dropping it trims the always-loaded command surface and reduces initial token toll.
 
 Single-engine wrapper around the shared review-loop skill. Equivalent to:
 
