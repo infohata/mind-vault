@@ -33,13 +33,13 @@ The single most common "wasted review-bot cycle" pattern this prevents: a helper
 
 ```bash
 # JS/TS/Python helper rename:
-grep -rn '\bfunctionName(' --include="*.js" --include="*.ts" --include="*.py"
+grep -rn '\bfunctionName(' --include="*.js" --include="*.ts" --include="*.py" .
 
 # Python method on a class:
-grep -rn '\.methodName(' --include="*.py"
+grep -rn '\.methodName(' --include="*.py" .
 ```
 
-Run from the project root, not the file's directory — the bot's review scope is the whole repo, so the sweep must match.
+Run from the project root, not the file's directory — the bot's review scope is the whole repo, so the sweep must match. The trailing `.` is mandatory: without a path operand, GNU `grep` reads stdin and appears to hang. (If you prefer `rg`, the directory defaults to the current working dir, so the trailing `.` isn't needed.)
 
 ### What counts as a contract change worth sweeping
 

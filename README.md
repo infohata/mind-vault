@@ -14,7 +14,9 @@ Cross-host configuration library for AI coding agents — skills, commands, suba
 
 > **Single source of truth.** You edit in `mind-vault/`; one setup script per host drops symlinks into each tool's native config directory. No copy-paste drift between Cursor, Claude Code, OpenCode, VS Code Copilot, or Antigravity.
 >
-> **v4 highlights.** The Stage 4 review surface is now engine-agnostic — opt into Cursor Bugbot (`/bugbot-loop`), GitHub Copilot (`/copilot-loop`), both concurrently via the unified `/review-loop <PR> bugbot,copilot` entry (v4.1+), or neither (curator-only fallback).
+> **v4 highlights.** The Stage 4 review surface is now engine-agnostic — opt into Cursor Bugbot, GitHub Copilot, both concurrently, or neither (curator-only fallback). Canonical entry: `/review-loop <PR> bugbot`, `/review-loop <PR> copilot`, or `/review-loop <PR> bugbot,copilot`.
+>
+> **Deprecation (v4.2).** `/bugbot-loop` and `/copilot-loop` are deprecated thin wrappers and will be removed in a future release. Prefer `/review-loop <PR> <engine>` directly — same behaviour, one fewer command surface to load, further trimming the always-on token cost.
 
 ## Sprint workflow — the compound loop
 
@@ -31,7 +33,7 @@ flowchart LR
     C -.next sprint.-> I1
 ```
 
-**Design note on the review stage.** Stages 1–2–3–5 each have a dedicated skill (`/idea`, `/plan`, `/work`, `/compound`). Stage 4 (review) is engine-selectable: `/bugbot-loop` (Cursor Bugbot) and `/copilot-loop` (GitHub Copilot) are the two engine-specific loops, both backed by `AGENT_bugbot` / `AGENT_copilot` / `AGENT_curator` / `AGENT_architect` personas with identical phase structure. Adding a generic wrapper skill would duplicate infrastructure without adding value — the per-engine loop IS the stage.
+**Design note on the review stage.** Stages 1–2–3–5 each have a dedicated skill (`/idea`, `/plan`, `/work`, `/compound`). Stage 4 (review) is engine-selectable via the unified `/review-loop` skill: pass `bugbot`, `copilot`, or `bugbot,copilot` as the engine argument. Both engines share the same Phase 1–4 orchestrator backed by `AGENT_bugbot` / `AGENT_copilot` / `AGENT_curator` / `AGENT_architect` personas; engine-specific details (clean-signal parsing, retrigger semantics, Tier 1 catalogue) live in per-engine adapter references. The legacy `/bugbot-loop` and `/copilot-loop` thin wrappers are deprecated as of v4.2.
 
 See [docs/guides/SPRINT_WORKFLOW.md](docs/guides/SPRINT_WORKFLOW.md) for the full explainer — authoritative frontmatter schemas, compound-routing table, right-sizing guidance, and the handoff contract between stages.
 
@@ -103,7 +105,7 @@ Slash commands surface from two sources via the host's symlink: `commands/` (7 r
 
 **Automation:** `/sprint-auto` — overnight unattended orchestrator that chains the full sprint workflow (stages 2–5: `/plan → /work → /<engine>-loop → /wrap (pre-merge) → /<engine>-loop → teardown → /compound → /<engine>-loop`) for curated IDEAs; `/<engine>-loop` resolves to `/bugbot-loop` and/or `/copilot-loop` per project config. See [`skills/sprint-auto/SKILL.md`](skills/sprint-auto/SKILL.md).
 
-**Review + PR flow:** `/review-loop` (multi-engine canonical entry; v4.1+), `/bugbot-loop` (single-engine wrapper), `/copilot-loop` (single-engine wrapper), `/create-pr`, `/test`. See `docs/guides/ONBOARDING.md` § "Pick a code-review engine" for the three-way choice (bugbot / copilot / curator-only); use `/review-loop <PR> bugbot,copilot` when both engines are enabled to get cycle-level synchronisation.
+**Review + PR flow:** `/review-loop` (canonical entry for all engine combinations — `bugbot`, `copilot`, or `bugbot,copilot`), `/create-pr`, `/test`. See `docs/guides/ONBOARDING.md` § "Pick a code-review engine" for the three-way choice (bugbot / copilot / curator-only); use `/review-loop <PR> bugbot,copilot` when both engines are enabled to get cycle-level synchronisation. `/bugbot-loop` and `/copilot-loop` still work as deprecated thin wrappers but will be removed; prefer `/review-loop <PR> <engine>` directly.
 
 **Utility:** `/git-status`, `/load-rules`.
 
