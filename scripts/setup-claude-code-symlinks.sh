@@ -30,6 +30,12 @@ echo ""
 mv_link_tree rules "$CLAUDE/rules"
 echo ""
 
+# Rule rationale: rules link out via `../docs/rules/<rule>-rationale.md` relative
+# paths to keep always-loaded rule bodies short. Symlinking docs/rules alongside
+# makes those relative paths resolve from ~/.claude/rules/.
+mv_link_tree docs/rules "$CLAUDE/docs/rules"
+echo ""
+
 echo "Done. Start a new Claude Code session to pick up changes."
 echo ""
 echo "Verify:"
