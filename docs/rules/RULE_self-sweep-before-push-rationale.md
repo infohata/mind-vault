@@ -1,7 +1,5 @@
 # RULE_self-sweep-before-push — Recipes, Detailed Sweeps, Rationale
 
-Companion to [`../../rules/RULE_self-sweep-before-push.md`](../../rules/RULE_self-sweep-before-push.md). The parent rule holds the four sweep triggers + imperative core; this file holds the grep recipes, edge cases, and the "why".
-
 ## The Pyflakes Pipe Pattern
 
 Most projects don't ship `pyflakes` in the production image. Two clean ways to run it on demand:

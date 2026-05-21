@@ -1,7 +1,5 @@
 # RULE_git-safety — Rationale, Workflow Examples, Recovery
 
-Companion to [`../../rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md). The parent rule holds the imperative core; this file holds the worked examples, recovery prose, and the "why".
-
 ## Standard Branch Workflow
 
 ```bash

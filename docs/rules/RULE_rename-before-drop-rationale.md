@@ -1,7 +1,5 @@
 # RULE_rename-before-drop — Rationale, Variants, Anti-Patterns
 
-Companion to [`../../rules/RULE_rename-before-drop.md`](../../rules/RULE_rename-before-drop.md). The parent rule holds the imperative core; this file holds the "why", anti-patterns, and the two-PR JS convention variant.
-
 ## Why This Matters
 
 - **Bisectability.** Every intermediate commit compiles; `git bisect` works against post-merge regressions.

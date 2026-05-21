@@ -1,7 +1,5 @@
 # RULE_cross-idea-amendments — Rationale + Anti-Patterns
 
-Companion to [`../../rules/RULE_cross-idea-amendments.md`](../../rules/RULE_cross-idea-amendments.md). Parent holds the imperative core; this file holds the "why" and anti-patterns.
-
 ## Why this rule exists
 
 The cost of preserving a shipped decision past its useful life is higher than the cost of revising it cleanly. A sprint cohort with multiple foundation-tier IDEAs (toast surface, modal primitives, drawer system, etc.) inevitably surfaces relationships that weren't visible when each IDEA shipped in isolation. Forcing every cross-IDEA touch through a separate "supersede + new IDEA" cycle adds ceremony that discourages real improvements.
