@@ -208,3 +208,7 @@ Commit all non-sensitive configuration to git.
 
 ⚠️ **Never commit**: `.env` files, credentials, API keys, tokens, private keys.
 ✅ **Do commit**: skills, agent personas, rules, commands, setup scripts, docs.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Kestutis Januskevicius.
