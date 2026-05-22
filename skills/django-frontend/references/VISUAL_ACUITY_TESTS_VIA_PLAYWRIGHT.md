@@ -29,13 +29,13 @@ Don't put playwright + pytest-playwright in `requirements-dev.txt` (host tooling
 
 ### 2. Use MS upstream image, accept Python-version gap
 
-`mcr.microsoft.com/playwright/python:vX.Y.Z-noble` — chromium + firefox + webkit pre-installed. Self-built off `python:3.14-slim` + `playwright install-deps` costs ~150MB of apt you'd maintain.
+`mcr.microsoft.com/playwright/python:vX.Y.Z-noble` — chromium + firefox + webkit pre-installed. Self-built off `python:<your-version>-slim` + `playwright install-deps` costs ~150MB of apt you'd maintain.
 
-MS image is Python 3.12 today; web image may be 3.14:
+Your app image's Python is often newer than what MS ships on the Playwright image. Treat the gap as load-bearing:
 
-- **No PEP 695 syntax** in shared e2e code (`type Alias =`, `def f[T]`). Use `typing.TypeVar`.
+- **No PEP 695-only syntax** in shared e2e code (`type Alias =`, `def f[T]`) if the Playwright image is older than 3.12. Use `typing.TypeVar`.
 - **Pin playwright pip lib to image version exactly.** Drift → `Executable doesn't exist at /ms-playwright/...`.
-- **Audit transitive 3.13+-only wheels.** `pydub` → `audioop-lts` (audioop removed in 3.13; `audioop-lts` ships only ≥3.13 wheels) fails install on 3.12 image. Filter at Dockerfile if e2e doesn't need that path.
+- **Audit transitive deps that ship only on the newer Python.** Example: `pydub` → `audioop-lts` (audioop removed in 3.13; `audioop-lts` ships only ≥3.13 wheels) fails install on a 3.12 Playwright image. Filter at Dockerfile if e2e doesn't need that path.
 
 ### 3. Playwright image needs full Django ORM
 

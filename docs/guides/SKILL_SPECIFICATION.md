@@ -149,7 +149,7 @@ Canonical section order (enforced by `skills/skill-writer/SKILL.md`):
 3. `## Pattern` — the actual conventions, named or numbered subsections.
 4. `## When NOT to use these patterns` — counter-cases that prevent over-application.
 5. `## References` — links to `./references/*.md`, external docs, related skills.
-6. Trailing `**Last Updated**: YYYY-MM-DD` line.
+6. **No trailing `**Last Updated**: YYYY-MM-DD` footer.** File mtime + `git log` carry the date; the inline footer costs ~10 tokens per activation for derivable info. History → `CHANGELOG.md`.
 
 ### DO / DON'T matrices
 
@@ -203,7 +203,7 @@ Before merging a new or refactored skill:
 - [ ] DO/DON'T matrices on non-trivial conventions.
 - [ ] No host-specific tricks in the body (cross-host portable).
 - [ ] No concrete project names asserted as universal rules.
-- [ ] Trailing `**Last Updated**: YYYY-MM-DD` line.
+- [ ] No trailing `**Last Updated**` footer (mtime + `git log` are the system of record).
 - [ ] Passes markdown lint (`mdformat --check` for mind-vault, `markdownlint-cli2` for doc-heavy repos).
 
 ______________________________________________________________________
@@ -231,5 +231,3 @@ ______________________________________________________________________
 - `skills/django/SKILL.md` — reference example of a feature-dense skill with 9 `references/` files.
 - `skills/artefact-retrieval/SKILL.md` — reference example of a lean, self-contained skill.
 - `skills/deployment/SKILL.md` — reference example of a skill split into SKILL + `references/` + `scripts/`.
-
-**Last Updated**: 2026-04-17

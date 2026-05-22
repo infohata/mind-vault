@@ -145,7 +145,7 @@ Why this matters: every line of `SKILL.md` is loaded into context on every activ
 
 ## Prose density — payload over framing
 
-Skills (and references) are token-priced on every activation. Cut explanatory prose to minimum without dropping payload. Compound runs naturally overwrite because the author is mid-context; a tighten-pass before commit collapses it.
+Skills (and references) are token-priced on every activation. Cut explanatory prose to minimum without dropping payload. First drafts naturally accrete framing prose because the author is mid-context and over-explaining feels safer; a tighten-pass before commit collapses it.
 
 **After authoring a new skill/reference, do a tighten-pass targeting ≥30% line reduction.** Payload-intact: every code snippet, every numbered trap, every decision rule, every cross-link survives. Only framing prose collapses.
 
