@@ -18,7 +18,7 @@ skills/deployment/
 │   ├── verify_deployment.sh  # Post-deploy health checks
 │   ├── setup_server.sh       # Initial host setup (Docker, pyenv, etc.)
 │   └── harden_server.sh      # SSH / UFW / fail2ban hardening
-└── references/           # Optional extensions (load on demand)
+└── references/           # On-demand references (linked from SKILL.md ## References)
     ├── SCREEN_SESSIONS.md    # Mandatory remote-deploy screen recipes
     ├── CICD.md               # GitHub Actions, GitLab CI, secrets, approval gates
     ├── MONITORING.md         # Prometheus, Grafana, ELK
