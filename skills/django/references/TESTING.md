@@ -511,7 +511,7 @@ def _tenant_schema_pool(django_db_setup, django_db_blocker):
           # (1) Build a fresh session FIRST, pop the guard key BEFORE any
           # storage attaches — so the signal-handler's
           # `session.get('<flag>')` reads False reliably.
-          SessionMiddleware(lambda r: HttpResponse()).process_request(request)
+          SessionMiddleware(lambda r: None).process_request(request)  # get_response unused by process_request
           request.session.pop('<flag>', None)
           request.session.save()
 
