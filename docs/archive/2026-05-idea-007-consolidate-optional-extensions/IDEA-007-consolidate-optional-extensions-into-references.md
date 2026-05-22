@@ -1,14 +1,14 @@
 ---
 id: 007
 title: Consolidate `Optional extensions` blocks into `## References` across feature-dense skills
-status: in-progress
+status: complete
 priority: medium
 supersedes: []
 superseded_by: null
 depends_on: []
 related: [002]
 created: 2026-05-22
-completed: null
+completed: 2026-05-22
 auto_safe: true
 auto_safe_reason: "Purely mechanical bullet relocation between two markdown lists in three SKILL.md files. Fully additive→subtractive (move + dedupe), reversible by git revert, no design unknowns. No code paths exercised."
 sensitive_paths_cleared: true
@@ -17,7 +17,7 @@ sensitive_paths_cleared_reason: "Touches only `skills/{deployment,django,django-
 
 # IDEA-007: Consolidate `Optional extensions` blocks into `## References` across feature-dense skills
 
-**Status**: 🚧 In Progress
+**Status**: ✅ Complete
 **Priority**: Medium
 
 **Problem**: Three feature-dense skills — `deployment`, `django`, `django-frontend` — carry **two** parallel index blocks pointing at the same `references/*.md` files: a top-of-file `**Optional extensions** (load on demand):` list and a bottom-of-file `## References` section. Every line of `SKILL.md` is loaded into context on every activation, so the duplicate index doubles the token cost for the same information. The skill-writer spec (just-codified, PR #134) defines only **one** canonical body section — `## References` — for "links to `./references/*.md`, external docs, related skills". The `Optional extensions` block is a non-spec addition that predates the consolidation.
