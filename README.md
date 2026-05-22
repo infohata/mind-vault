@@ -151,6 +151,21 @@ cd mind-vault
 
 Hosts don't conflict with each other. Restart the host client after setup for it to rescan.
 
+### Claude Code extra config
+
+The `setup-claude-code-symlinks.sh` script also symlinks `~/.claude/statusline-command.sh` to the in-repo source at `scripts/statusline-command.sh` — a six-segment status line showing topic / context-window % / per-turn token meter / 7-day rolling rate-limit % / thinking effort / vim mode. To wire it into Claude Code, add this top-level key to `~/.claude/settings.json`:
+
+```jsonc
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/statusline-command.sh"
+  }
+}
+```
+
+If you have a pre-existing non-symlink `statusline-command.sh` at that path, the setup script leaves it intact and prints a "Skipped" line — remove it manually first if you want the mind-vault version to take over.
+
 ### OpenCode extra config
 
 Add to `~/.config/opencode/opencode.jsonc` so OpenCode auto-loads rules at session start:
