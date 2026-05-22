@@ -44,4 +44,4 @@ description: {{ONE_LINE_TRIGGER_UNDER_200_CHARS_NOUN_DENSE_NAMES_CONCRETE_STACK}
 
 - {{Related mind-vault skill or rule}}
 - {{External documentation if applicable}}
-- Origin: Promoted from {{source-project}} via `/compound` on {{date}}.
+- Origin: Promoted via `/compound` (source project recorded in the commit message, not here — mind-vault scrub policy keeps foreign-project names out of skill bodies).
