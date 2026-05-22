@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-007](../archive/2026-05-idea-007-consolidate-optional-extensions/IDEA-007-consolidate-optional-extensions-into-references.md) ⏳ — Consolidate `Optional extensions` blocks into `## References` across feature-dense skills (`deployment`, `django`, `django-frontend`)
 
 ## 💡 High Priority (backlog)
 
@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-- [IDEA-007](IDEA-007-consolidate-optional-extensions-into-references.md) — Consolidate `Optional extensions` blocks into `## References` across feature-dense skills (`deployment`, `django`, `django-frontend`); extends IDEA-002 token-cost lever to the index level
+_(none)_
 
 ## 💡 Low Priority (backlog)
 
