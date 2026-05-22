@@ -36,13 +36,13 @@ The rule fires during `/plan` (acceptance criteria), `/work` (test author),
 and `/wrap` (suite hygiene). Render-and-assert stays as the cheap fragment-shape
 coverage layer; Playwright is **additive**, not a replacement.
 
-## Bootstrap recipe — what IDEA-178 learned the hard way
+## Bootstrap recipe — what the first-suite stand-up learned the hard way
 
 The fixtures layer (Host injection, schema seeding, cookie pre-baking) lives in
 [`MULTI_TENANT_PLAYWRIGHT.md`](MULTI_TENANT_PLAYWRIGHT.md). Wait recipes live in
 [`HTMX_ALPINE_WAITS.md`](HTMX_ALPINE_WAITS.md). The pieces below are the
 **docker + django bootstrap mechanics** that surfaced as load-bearing during
-IDEA-178's first-suite stand-up — none of them were obvious from the fixtures
+the first-suite stand-up — none of them were obvious from the fixtures
 references alone.
 
 ### 1. Don't conflate dev-host and dev-test dependencies
@@ -172,9 +172,9 @@ coverage; the first-suite-day cost amortises across them.
 
 Each first-suite test file:
 
-- Targets one named regression class (`test_drawer_chrome_consistency.py` for
-  IDEA-168, etc.). Name the file by the bug it backstops; the test functions
-  inside become the specific cases (M29, M30 in IDEA-178's case).
+- Targets one named regression class (e.g. `test_drawer_chrome_consistency.py`).
+  Name the file by the bug it backstops; the test functions inside become the
+  specific cases.
 - Stays small (1–3 cases). Phase 2 isn't about exhaustive coverage; it's about
   proving the suite catches the documented class.
 - Documents what it doesn't yet cover via `@pytest.mark.skip(reason=...)`
@@ -194,8 +194,7 @@ Each first-suite test file:
 
 ## Provenance
 
-Method: IDEA-178 (Teisutis), 2026-05-22.
+Method: first-suite stand-up, 2026-05-22.
 First-suite scope: 4 files (chrome consistency, filter survival, bookmark
 roundtrip, mobile dropdown click-toggle), 10/13 active tests after
 documented skips, total wall-time ~26s.
-PR: <https://github.com/infohata/teisutis/pull/475>
