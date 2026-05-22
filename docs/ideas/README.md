@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-- [IDEA-007](IDEA-007-consolidate-optional-extensions-into-references.md) — Consolidate `Optional extensions` blocks into `## References` across feature-dense skills (`deployment`, `django`, `django-frontend`); extends IDEA-002 token-cost lever to the index level
+_(none)_
 
 ## 💡 Low Priority (backlog)
 
@@ -25,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-007: Consolidate `Optional extensions` blocks into `## References` across feature-dense skills ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-05-22 · **See**: [Archive](../archive/2026-05-idea-007-consolidate-optional-extensions/IDEA-007-consolidate-optional-extensions-into-references.md), [PR #135](https://github.com/infohata/mind-vault/pull/135).
+Swept the three feature-dense skills (`deployment`, `django`, `django-frontend`) that carried a duplicate index of `references/*.md` files — top-of-file `**Optional extensions** (load on demand):` block + bottom-of-file `## References` section. Per file: diffed top vs bottom, promoted any richer descriptions down, added genuinely-unique top entries, deleted the top block. **-39 lines total** (-12 django, -8 deployment, -19 django-frontend) — savings on every per-activation context load of three of the highest-frequency skills in the vault. Also dropped the same `Optional extensions` terminology from `skills/deployment/README.md`'s tree-diagram comment. Index-level continuation of [IDEA-002](../archive/2026-05-idea-002-skill-debloat/IDEA-002-skill-debloat.md)'s body-level debloat lever; the single-References-block rule had just been codified during PR #134 in `skills/skill-writer/SKILL.md` body §"Body structure" item 5.
 
 ### IDEA-005: Review-loop shared core — unify /bugbot-loop + /copilot-loop with engine adapters ✅ COMPLETE
 

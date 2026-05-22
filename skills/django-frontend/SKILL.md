@@ -25,25 +25,6 @@ Production frontend patterns for Django using **HTMX** for server-driven partial
 
 Compatibility: Django 4.2+ (tested through 5.2 LTS), any database.
 
-**Optional extensions** (load on demand):
-
-- [Base Template + Theme](references/BASE_TEMPLATE.md) — full `base.html`, Alpine theme store, SCSS build pipeline
-- [Modal System](references/MODAL_SYSTEM.md) — `openModal` / `closeModal` / `confirmAction` implementation
-- [HTMX Widgets](references/HTMX_WIDGETS.md) — autocomplete, file upload, colour/icon pickers
-- [Advanced Components](references/ADVANCED_COMPONENTS.md) — theme store, notifications, utilities
-- [HTMX Patterns](references/HTMX_PATTERNS.md) — detailed HTMX implementation patterns
-- [Alpine + HTMX Gotchas](references/ALPINE_HTMX_GOTCHAS.md) — Alpine 3 factory `x-data` auto-init trap, `HX-Trigger` value-wrapping shape, defer-vs-DOMContentLoaded ordering, `hx-on::*` plain-JS scope (not Alpine), `hx-trigger="click once"` doesn't fire on synthetic state changes, **Alpine `:class="cond && 'str'"` short-circuit doesn't remove SSR-applied classes (gotcha 10 — use object syntax)**
-- [CSS `display: contents` selector traps](references/CSS_DISPLAY_CONTENTS_SELECTOR_TRAPS.md) — CSS selectors see DOM hierarchy, not box-tree transparency; widen every breakpoint's selectors symmetrically when inserting `display: contents` intermediates; the asymmetric-fix anti-pattern (desktop widened, mobile missed)
-- [Data-attribute markers + JS click handler convention](references/DATA_ATTR_NAV_CONVENTION.md) — `<a data-shell-nav-link>` + single document-level JS handler instead of raw `hx-*` on the link; URL update is a deliberate `history.pushState` step, not a swap side-effect; shareable click-decision composition; disjoint vocabulary across marker families
-- [Router action vocabulary — atomic, never procedural](references/ROUTER_ACTION_VOCABULARY.md) — routers / dispatchers / state-machines emit `{action: '<verb>', …}` with atomic decision verbs (`open` / `push` / `close`) only, never compound procedures (`syncToTokens` / `applyAll` / `reconcile`); two-of-three-callers structural test; dispatcher switch stays one-line-per-case
-- [HTMX Scroll Preservation](references/HTMX_SCROLL_PRESERVATION.md) — Load-older / inverse-pagination scroll-position primitive; marker-offsetTop diff math (robust to `display: contents` wrappers + concurrent below-marker mutations)
-- [Cotton Components](references/COTTON.md) — django-cotton component primitives: file layout, settings, call-site syntax (`:prop` vs `prop`), render-and-assert tests, cotton-vs-`{% include %}` decision table, and the `:prop`-coercion hazard with its JSON-seed fix
-- [Preview Drawer URL Stack Contract](references/PREVIEW_DRAWER_URL_STACK.md) — round-trip a megastack drawer's full state through `?open=<base>&push=<f1>,…` URL params. 7-phase migration + popstate-without-state recovery via URL-pattern map; state-mutation primitives (`store.top` snapshot trap, walker rebind, edit-frame guard, universal edit→detail invariant, empty-snapshot pop fallback, `data-preview-route="open"` back-nav); natural-parent stacking via `openWith()` LCP-dedupe + server-emitted `data-preview-stack-prefix`
-- [Drawer Form-State Preservation](references/DRAWER_FORM_STATE_PRESERVATION.md) — clone-mirror-strip pipeline + `previewSurface:beforeSnapshot` widget-cleanup hook for drawers that snapshot/restore in-flight form state across megastack push/pop
-- [Session Filter Persistence](references/SESSION_FILTER_PERSISTENCE.md) — per-entity vs cross-entity filter session split (`cross_filters_<org_id>` for scope/property/category; `<namespace>_<entity>_filters_<org_id>` for tags/q); `_filter_form=1` real-submit sentinel; clear-filter `?clear=1` 302; `CHECKBOX_TOGGLE_KEYS` allowlist for unchecked-checkbox absence-as-uncheck; chip-row + per-filter-clear endpoint for navigation-driven filters
-- [Shell Notifications](references/SHELL_NOTIFICATIONS.md) — `uiNotify` CustomEvent is the canonical toast dispatch for shell-bound modules; legacy `window.show*` family + direct `#messages-container` writes forbidden; `HX-Trigger: <eventName>` event-name pattern for `outerHTML`-swap targets that contain the trigger button
-- [Collapsible Patterns](references/COLLAPSIBLE_PATTERNS.md) — native `<details>` defragilization (chevron + lazy-fetch + sessionStorage persist via `toggle` event; eliminates Alpine open/loaded/x-show/x-cloak desync); lazy-load bucket recipe (eager priority bucket + lazy rest via `:lazy_fetch_url`, cheap counts upfront, render-fn shared by three consumers)
-
 ## When to use
 
 **TRIGGER when:** editing templates (`*.html`) in a Django project; wiring an HTMX partial endpoint; adding a Bulma modal / form / table / widget; writing an Alpine.js component; debugging `htmx.process` or URL-encoding issues in `hx-*` attributes; converting Django messages to Bulma notifications.
@@ -595,8 +576,8 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [Active-state tracking](references/ACTIVE_STATE_TRACKING.md) — `aria-current="true"` + CSS `:has()` instead of JS class-toggling for "currently selected" list items: single source of truth, free a11y, HTMX-swap-friendly
 - [Template comment syntax](references/TEMPLATE_COMMENT_SYNTAX.md) — `{# inline #}` is single-line only; multi-line uses `{% comment %}`; content-leak failure mode; grep-based detection recipe for CI lint
 - [SCSS vendor-import hazard](references/SCSS_VENDOR_IMPORT.md) — `@import url()` is runtime, not compile-time; vendor CSS belongs in `<link>`; failure-mode + recurrence triggers + detection grep
-- [Base Template + Theme](references/BASE_TEMPLATE.md)
-- [Modal System](references/MODAL_SYSTEM.md)
+- [Base Template + Theme](references/BASE_TEMPLATE.md) — full `base.html`, Alpine theme store, SCSS build pipeline
+- [Modal System](references/MODAL_SYSTEM.md) — `openModal` / `closeModal` / `confirmAction` implementation
 - [HTMX Widgets](references/HTMX_WIDGETS.md) — autocomplete, file upload, colour/icon pickers
 - [Advanced Components](references/ADVANCED_COMPONENTS.md) — theme store, notifications, utilities
 - [HTMX Patterns](references/HTMX_PATTERNS.md) — detailed HTMX implementation patterns
@@ -609,7 +590,7 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [Cotton Components](references/COTTON.md) — django-cotton primitives: file layout, settings, call-site syntax (`:prop` vs `prop`), render-and-assert tests, and the `:prop`-coercion → JSON-seed pattern; three-layer split (shared / per-entity workflow / composition); `data-preview-link` href-as-fragment-url convention; nested-anchor anti-pattern; detail-variant `hx-target="this"`; default-true prop pattern
 - [Preview Drawer URL Stack](references/PREVIEW_DRAWER_URL_STACK.md) — `?open=&push=` URL contract + state-mutation primitives (`store.top` snapshot trap, walker rebind, edit-frame guard, universal edit→detail invariant, empty-snapshot pop fallback, `data-preview-route="open"`, `openWith()` LCP-dedupe natural-parent stacking)
 - [Drawer Form-State Preservation](references/DRAWER_FORM_STATE_PRESERVATION.md) — clone-mirror-strip snapshot pipeline + `previewSurface:beforeSnapshot` cleanup hook
-- [Session Filter Persistence](references/SESSION_FILTER_PERSISTENCE.md) — per-entity vs cross-entity filter session split; `_filter_form=1` real-submit sentinel; `?clear=1` 302; `CHECKBOX_TOGGLE_KEYS` allowlist; chip-row + per-filter-clear endpoint
+- [Session Filter Persistence](references/SESSION_FILTER_PERSISTENCE.md) — per-entity vs cross-entity filter session split (`cross_filters_<org_id>`, `<namespace>_<entity>_filters_<org_id>`); `_filter_form=1` real-submit sentinel; `?clear=1` 302; `CHECKBOX_TOGGLE_KEYS` allowlist for unchecked-checkbox absence-as-uncheck; chip-row + per-filter-clear endpoint
 - [Shell Notifications](references/SHELL_NOTIFICATIONS.md) — `uiNotify` CustomEvent canonical toast dispatch; legacy `window.show*` + `#messages-container` writes forbidden; `HX-Trigger: <eventName>` for `outerHTML`-swap targets containing the trigger
 - [Collapsible Patterns](references/COLLAPSIBLE_PATTERNS.md) — native `<details>` + `toggle` event for chevron + lazy-fetch + sessionStorage persist (eliminates Alpine state-machine desync); lazy-load bucket recipe for multi-bucket surfaces with cheap counts upfront
 - [Vendoring JS Bundles](references/VENDORING_JS_BUNDLES.md) — vendor pre-built JS to `static/vendor/`, zero Node toolchain in CI/Docker; disposable container build for ESM-only libraries (precedent: EasyMDE; planned: TipTap)
