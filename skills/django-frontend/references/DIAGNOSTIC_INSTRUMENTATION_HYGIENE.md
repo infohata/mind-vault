@@ -8,7 +8,7 @@ Load this reference when:
 - Authoring a helper wrapper like `function _trace() { if (!window.FLAG) return; … }` for the first time.
 - Reviewing a PR that adds diagnostic logging and the diff includes call sites passing object literals built from DOM queries.
 
-## 1. Why `if (FLAG) return;` inside the wrapper is too late
+## 1. Why `if (!FLAG) return;` inside the wrapper is too late
 
 ```js
 // LOOKS gated. ISN'T.
