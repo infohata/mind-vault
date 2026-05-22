@@ -20,18 +20,6 @@ Core Django backend patterns for project organisation, model abstractions, DRF c
 
 **Pairs with:** [django-frontend](../django-frontend/SKILL.md) for HTMX / Alpine / Bulma template patterns. Load both on full-stack feature work (e.g. a view that returns an HTMX partial on `HX-Request`).
 
-**Optional extensions** (load on demand):
-
-- [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation (django-tenants)
-- [Async WebSocket](references/ASYNC_WEBSOCKET.md) — Channels consumers and routing
-- [Celery Background Tasks](references/CELERY.md) — async job processing
-- [Logging Patterns](references/LOGGING.md) — structured logging and audit trails
-- [Internationalization](references/I18N.md) — translation workflow, fuzzy-wipe, locale testing
-- [Testing Patterns](references/TESTING.md) — query-count asserts, locale enforcement, isolation
-- [Development Workflow](references/DEVELOPMENT_WORKFLOW.md) — env config, Docker dev-loop
-- [Multi-Tenant + Async](references/MULTI_TENANT_ASYNC.md)
-- [Multi-Tenant + Celery](references/MULTI_TENANT_CELERY.md)
-
 ## When to use
 
 **TRIGGER when:** editing a Django project (`manage.py`, `models.py`, `views.py`, `serializers.py`, `admin.py`, `migrations/`); adding a DRF endpoint, viewset, or permission; touching BaseModel / mixins / middleware; running `makemessages`; debugging N+1 or query-count issues.
@@ -575,13 +563,13 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [FileField MIME capture](references/FILEFIELD_MIME_CAPTURE.md) — `FieldFile.content_type` is empty by design; capture browser MIME at upload + import-time `assert` that locks the canonical set ↔ consumer dict against drift
 - [Env-driven allowlists / denylists as `frozenset`](references/ENV_DRIVEN_ALLOWLISTS.md) — three-property pattern (env override + O(1) hot-path + immutable global), full BLOCKED_UPLOAD_MIMES + EXTENSIONS shape, replace-not-extend env semantics
 - [`ManifestStaticFilesStorage` restart contract](references/MANIFEST_STATIC_FILES_STORAGE.md) — `collectstatic` writes the new file + manifest, but the running app server's `{% static %}` cache holds the OLD hash; require `make static && make restart-web` for changes to land for users
-- [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation
+- [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation (django-tenants)
 - [Async WebSocket](references/ASYNC_WEBSOCKET.md) — Channels consumers and routing
-- [Celery Background Tasks](references/CELERY.md)
-- [Logging Patterns](references/LOGGING.md)
-- [Internationalization](references/I18N.md) — full translation workflow
-- [Testing Patterns](references/TESTING.md)
-- [Development Workflow](references/DEVELOPMENT_WORKFLOW.md)
+- [Celery Background Tasks](references/CELERY.md) — async job processing
+- [Logging Patterns](references/LOGGING.md) — structured logging and audit trails
+- [Internationalization](references/I18N.md) — translation workflow, fuzzy-wipe, locale testing
+- [Testing Patterns](references/TESTING.md) — query-count asserts, locale enforcement, isolation
+- [Development Workflow](references/DEVELOPMENT_WORKFLOW.md) — env config, Docker dev-loop
 - [Multi-Tenant + Async](references/MULTI_TENANT_ASYNC.md)
 - [Multi-Tenant + Celery](references/MULTI_TENANT_CELERY.md)
 - [django-frontend](../django-frontend/SKILL.md) — HTMX / Alpine / Bulma frontend pairing
