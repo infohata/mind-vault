@@ -143,6 +143,18 @@ routing, consumers, and tenant-aware auth middleware.
 
 Why this matters: every line of `SKILL.md` is loaded into context on every activation. A 1000-line skill spends context budget the downstream task could have used.
 
+## Prose density — payload over framing
+
+Skills (and references) are token-priced on every activation. Cut explanatory prose to minimum without dropping payload. Compound runs naturally over-write because the author is mid-context; a tighten-pass before commit collapses it.
+
+**After authoring a new skill/reference, do a tighten-pass targeting ≥30% line reduction.** Payload-intact: every code snippet, every numbered trap, every decision rule, every cross-link survives. Only framing prose collapses.
+
+✅ Keep: code blocks; trap-name + one-sentence mechanism; "don't do X — do Y" lines; cross-references; concrete numbers (file counts, wall-time, version pins).
+
+❌ Cut: paragraph framing ("The pieces below are…", "none of this was obvious from…"); re-statements of a bullet's content in surrounding prose; triple-framed "why this matters" expansions where the rule already implies the why; parallel-clause cascades in References-list pointer lines (one topic clause + one payload clause is enough).
+
+Apply identically to `references/<TOPIC>.md` files — references aren't free, they cost on demand and the user reads them. A 200-line reference that says the same thing in 100 lines is strictly better.
+
 ## Cross-project portability
 
 A skill in `mind-vault` is consumed by multiple projects. Therefore:
@@ -259,4 +271,4 @@ SKIP: <conditions>
 - [Git Safety Rule](../../rules/RULE_git-safety.md) — applies to commits produced while authoring skills
 - Anthropic's Claude Code Agent Skills documentation (`docs.claude.com`) — the official `SKILL.md` spec this skill aligns with
 
-**Last Updated**: 2026-04-30
+**Last Updated**: 2026-05-22

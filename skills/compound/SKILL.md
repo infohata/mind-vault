@@ -140,7 +140,7 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
    - **Customer-supplied filenames** → drop or replace with `<filename>`.
    - **Local filesystem paths** (`/Users/<name>/...`, `/home/<name>/...`) → drop.
    - **Customer domain hostnames** → drop or replace with `<tenant-host>`.
-   - **PR / IDEA / commit references** → KEEP (these are project provenance, expected in mind-vault per existing convention; matches the "Last Updated" footer style in other mind-vault files).
+   - **PR / IDEA / commit references** → KEEP only when they point at **mind-vault itself**. Foreign-project markers (`IDEA-NNN`, `PR #NNN`, `https://github.com/<other-repo>/pull/NNN`, project-name tags like `(Teisutis)`) are unresolvable noise inside mind-vault — DROP from file bodies. Generalise IDEA-tagged narrative ("what IDEA-178 learned") to neutral framing ("what the first-suite stand-up learned"). Commit messages may keep source-project refs (git history is acknowledged-noisy); the **file body** must be clean.
    - **Module / class / function names** (e.g. `AttachmentSerializer`, `_serialize_batch`, `<app>/`) → KEEP (these are public-API names that future readers need; they're already grep-able from the cited PR).
 
    The "would this be safe in a public repo today?" test is the gate. If the answer is "no", scrub before commit.
@@ -179,7 +179,7 @@ See [`references/review-finding-ingest.md`](references/review-finding-ingest.md)
 
 ## Interaction rules
 
-- **No project / customer data leaks into mind-vault — ever.** Mind-vault is a cross-project knowledge store and must contain only generic, reusable patterns. Run the customer-data scrub gate (step 5 above) on every mind-vault commit, regardless of the destination (skill / rule / agent / command / tool). The gate is mandatory, not advisory; a leak in a private repo today is a leak in a public repo tomorrow. Identifiers and IDs are out; PR / IDEA / commit references and module names are in.
+- **No project / customer data leaks into mind-vault — ever.** Mind-vault is a cross-project knowledge store and must contain only generic, reusable patterns. Run the customer-data scrub gate (step 5 above) on every mind-vault commit, regardless of destination (skill / rule / agent / command / tool). The gate is mandatory; a leak in a private repo today is a leak in a public repo tomorrow. Out: customer identifiers, foreign-project IDEA/PR numbers, project-name tags. In: mind-vault's own PR/IDEA refs and module/function names.
 - **Shape-C narrative probe asks three questions max.** If the user's still unsure after three, fall back to the taxonomy quiz rather than asking a fourth.
 - **Never silently promote to mind-vault.** Every mind-vault-destination write is explicit and confirmed.
 - **Never auto-merge the mind-vault PR.** `RULE_git-safety` is not negotiable.
