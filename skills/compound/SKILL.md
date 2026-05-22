@@ -152,7 +152,7 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
 
 ### 5. Cross-link and index
 
-- Every mind-vault promotion also references the project-local source that triggered it. If the learning started as a PR-review finding (from any review engine), the new skill/rule/agent entry cites the PR in its Last Updated / provenance section.
+- Every mind-vault promotion also references the project-local source that triggered it. If the learning started as a PR-review finding (from any review engine), the new skill/rule/agent entry cites the source PR in its provenance section (or in the commit message — provenance lives in `git log` + the commit body, not in an inline footer).
 - Project-local solution docs reference any mind-vault assets they generalised from, so future `/compound` invocations can detect duplicates.
 - Auto-memory entries include their one-line `MEMORY.md` pointer — that's the index.
 
