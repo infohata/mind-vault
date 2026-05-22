@@ -8,7 +8,11 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 ## Unreleased
 
-Rolling section for post-v4.2 work pending the next version cut. Narrative emerging around skill-writer rule codification + first enforcement sweep + reference-doc hygiene.
+_(none — v4.3 reserved for `/bugbot-loop` + `/copilot-loop` wrapper removal narrative; see v4.2's Deprecation block.)_
+
+## v4.2.1 — Single-References rule + first enforcement sweep + tool robustness
+
+Patch release on the v4.2 line. Four cohesive shipments under a single narrative theme of "the single `## References` block per skill, codified + enforced + protected". (1) **Skill-writer rule codified**: `skills/skill-writer/SKILL.md` body §"Body structure" item 5 now mandates the single canonical `## References` block per skill — no `Optional extensions` / `Further reading` / front-loaded mirror lists. Every line of `SKILL.md` is loaded into context on every activation, so duplicated lists double the bill for the same information. Names `django`, `django-frontend`, `deployment` as the three historical violators to consolidate opportunistically. (2) **First reference-doc additions enforcing the discipline**: a new `DIAGNOSTIC_INSTRUMENTATION_HYGIENE.md` reference (flag-gated JS `_trace()` arg-eval trap → lazy `_traceFn(label, () => payload)` remedy) and two new TESTING.md gotchas (FallbackStorage sibling-bleed under `loadscope`, plain-dict-vs-session contract in SimpleTestCase fixtures). (3) **Tool robustness fix**: `tools/find_copilot_comments.sh` clean-phrase matching is now case-insensitive at all three sites — robust to future Copilot template capitalization tweaks that would otherwise silently break review-loop's clean-signal detection. Caught by Copilot reviewing its own adapter; fixed inline rather than via a separate IDEA per [`feedback_inline_trivial_fix_over_idea.md`](https://github.com/anthropics/claude-code) (trivial single-file mechanical fix earns same-PR ship over backlog ceremony). (4) **First enforcement sweep (IDEA-007)**: removed the duplicate `**Optional extensions** (load on demand):` block from all three offenders, merged unique entries + richer descriptions into the canonical `## References` (append-only; preserves git-blame). **-39 lines total** (-12 django, -8 deployment, -19 django-frontend) on every per-activation context load of three of the highest-frequency skills in the vault. Index-level continuation of IDEA-002's body-level debloat lever. Also dropped the same `Optional extensions` terminology from `skills/deployment/README.md`'s tree-diagram comment.
 
 ### Added
 
@@ -25,7 +29,7 @@ Rolling section for post-v4.2 work pending the next version cut. Narrative emerg
 
 - `tools/find_copilot_comments.sh` § `_is_clean_body` + the latest-review CLEAN= classifier + the OTHER_REVIEWS pass — clean-phrase matching is now case-insensitive at all three sites. `CLEAN_PHRASES` stays lowercase; review body lower-cases at compare time. Robust to future Copilot template capitalization tweaks (`"Generated no new comments"` vs current lowercase phrasing) that would otherwise silently break clean-signal detection — the very tool review-loop relies on for the all-engines-CLEAN branch. Surfaced by Copilot reviewing its own adapter during PR #134's review-loop. (PR #134, fixed inline rather than via a separate IDEA — see [`feedback_inline_trivial_fix_over_idea.md`](https://github.com/infohata/mind-vault) — trivial single-file mechanical fix earns same-PR ship over backlog ceremony.)
 
-(Pending PRs: [#134](https://github.com/infohata/mind-vault/pull/134) — 2026-05-22, [#135](https://github.com/infohata/mind-vault/pull/135) — 2026-05-22.)
+(2026-05-22, [#134](https://github.com/infohata/mind-vault/pull/134), [#135](https://github.com/infohata/mind-vault/pull/135))
 
 ## v4.2 — Open-source LICENSE + rules-trim + canonical /review-loop
 
