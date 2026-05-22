@@ -152,7 +152,7 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
 
 ### 5. Cross-link and index
 
-- Every mind-vault promotion also references the project-local source that triggered it. If the learning started as a PR-review finding (from any review engine), the new skill/rule/agent entry cites the source PR in its provenance section (or in the commit message — provenance lives in `git log` + the commit body, not in an inline footer).
+- Every mind-vault promotion is traceable back to the project-local source that triggered it — but **foreign-project PR links and IDEA numbers go in the commit message only**, never in the skill/rule/agent file body (that's what the scrub gate enforces). In-body provenance is limited to mind-vault's own PR/IDEA refs. The commit's `git log` + body carry the foreign-project trail (review id, source PR URL, etc.).
 - Project-local solution docs reference any mind-vault assets they generalised from, so future `/compound` invocations can detect duplicates.
 - Auto-memory entries include their one-line `MEMORY.md` pointer — that's the index.
 
