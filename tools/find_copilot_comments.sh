@@ -179,10 +179,14 @@ copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
 #     '## Pull request overview\n\nCopilot reviewed N out of N changed files
 #     in this pull request and generated no new comments.' The legacy matcher
 #     missed it; review-loop had to fetch the body manually to confirm CLEAN.
-# Match either phrasing.
+# Match either phrasing. Compare case-insensitively so a future Copilot
+# template tweak (e.g. sentence-case 'Generated no new comments') doesn't
+# silently break clean detection — CLEAN_PHRASES stays lowercase, body
+# is lower-cased at compare time.
 CLEAN_PHRASES = ('found no new issues', 'generated no new comments')
 def _is_clean_body(body):
-    return any(p in body for p in CLEAN_PHRASES)
+    body_l = (body or '').lower()
+    return any(p in body_l for p in CLEAN_PHRASES)
 if copilot:
     r = copilot[0]
     body = r.get('body') or ''
@@ -314,7 +318,8 @@ body = (latest.get('body') or '').strip()
 # for the full rationale and the PR #474 (teisutis) reference that surfaced
 # the 'generated no new comments' variant.
 CLEAN_PHRASES = ('found no new issues', 'generated no new comments')
-clean = 'true' if any(p in body for p in CLEAN_PHRASES) else 'false'
+body_l = body.lower()
+clean = 'true' if any(p in body_l for p in CLEAN_PHRASES) else 'false'
 print(f'COPILOT_LATEST_REVIEW={rid} COMMIT={commit} AT={at} CLEAN={clean}')
 " 2>/dev/null || true)
 
@@ -338,7 +343,8 @@ copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
 shown = 0
 CLEAN_PHRASES = ('found no new issues', 'generated no new comments')
 def _is_clean_body(body):
-    return any(p in body for p in CLEAN_PHRASES)
+    body_l = (body or '').lower()
+    return any(p in body_l for p in CLEAN_PHRASES)
 for r in copilot:
     body = (r.get('body') or '').strip()
     if not body or _is_clean_body(body):
