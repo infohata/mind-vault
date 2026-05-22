@@ -153,7 +153,7 @@ Hosts don't conflict with each other. Restart the host client after setup for it
 
 ### Claude Code extra config
 
-The `setup-claude-code-symlinks.sh` script also symlinks `~/.claude/statusline-command.sh` to the in-repo source at `scripts/statusline-command.sh` — a six-segment status line showing topic / context-window % / per-turn token meter / 7-day rolling rate-limit % / thinking effort / vim mode. To wire it into Claude Code, add this top-level key to `~/.claude/settings.json`:
+The `setup-claude-code-symlinks.sh` script also symlinks `~/.claude/statusline-command.sh` to the in-repo source at `scripts/statusline-command.sh` — a six-segment status line showing topic / context-window % / per-turn token meter / 7-day rolling rate-limit % / thinking effort / vim mode. Runtime dependency: **`jq`** (only — token-formatting uses pure bash arithmetic, no `bc` needed). If `jq` isn't on `PATH`, the status line falls back to a single `jq missing` segment so Claude Code keeps rendering. To wire it in, add this top-level key to `~/.claude/settings.json`:
 
 ```jsonc
 {

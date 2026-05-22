@@ -39,19 +39,23 @@ echo ""
 # Status line: single file (not a tree). Symlink directly so edits in mind-vault
 # propagate to ~/.claude/statusline-command.sh. Claude Code invokes it per the
 # "statusLine" entry in ~/.claude/settings.json (see snippet below).
-statusline_src="$MV/scripts/statusline-command.sh"
+#
+# Canonicalize the source path to an absolute path before linking (mirrors
+# `_symlink-lib.sh:mv_link_tree`'s `$(cd "$MV/$subdir" && pwd)` pattern for the
+# directory case) — otherwise a relative MIND_VAULT env var produces a relative
+# symlink target that fails to resolve from ~/.claude/.
+statusline_src="$(cd "$MV/scripts" && pwd)/statusline-command.sh"
 statusline_dst="$CLAUDE/statusline-command.sh"
 if [[ -f "$statusline_src" ]]; then
     if [[ -L "$statusline_dst" ]]; then
         ln -sfn "$statusline_src" "$statusline_dst"
-        echo "  Updated statusline-command.sh"
+        echo "statusline: $statusline_dst -> mind-vault/scripts/statusline-command.sh (updated)"
     elif [[ -e "$statusline_dst" ]]; then
-        echo "  Skipped statusline-command.sh (non-symlink exists at $statusline_dst — leave intact)"
+        echo "statusline: $statusline_dst already exists as non-symlink (left intact — rm and re-run to adopt the mind-vault version)"
     else
         ln -s "$statusline_src" "$statusline_dst"
-        echo "  Linked statusline-command.sh"
+        echo "statusline: $statusline_dst -> mind-vault/scripts/statusline-command.sh (linked)"
     fi
-    echo "statusline: $statusline_dst -> mind-vault/scripts/statusline-command.sh"
 fi
 echo ""
 
@@ -66,5 +70,5 @@ echo "    then restart Claude Code:"
 echo ''
 echo '      "statusLine": {'
 echo '        "type": "command",'
-echo "        \"command\": \"bash $statusline_dst\""
+echo '        "command": "bash ~/.claude/statusline-command.sh"'
 echo '      }'
