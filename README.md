@@ -164,7 +164,7 @@ The `setup-claude-code-symlinks.sh` script also symlinks `~/.claude/statusline-c
 }
 ```
 
-If you have a pre-existing non-symlink `statusline-command.sh` at that path, the setup script leaves it intact and prints a "Skipped" line — remove it manually first if you want the mind-vault version to take over.
+If you have a pre-existing non-symlink `statusline-command.sh` at that path, the setup script leaves it intact and prints a `(skip)` line (matching the convention used by `_symlink-lib.sh:mv_link_tree` elsewhere) — remove it manually first if you want the mind-vault version to take over.
 
 ### OpenCode extra config
 

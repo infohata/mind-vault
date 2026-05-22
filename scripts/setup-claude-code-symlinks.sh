@@ -51,7 +51,7 @@ if [[ -f "$statusline_src" ]]; then
         ln -sfn "$statusline_src" "$statusline_dst"
         echo "statusline: $statusline_dst -> mind-vault/scripts/statusline-command.sh (updated)"
     elif [[ -e "$statusline_dst" ]]; then
-        echo "statusline: $statusline_dst already exists as non-symlink (left intact — rm and re-run to adopt the mind-vault version)"
+        echo "statusline: $statusline_dst exists as non-symlink (skip — rm and re-run to adopt the mind-vault version)"
     else
         ln -s "$statusline_src" "$statusline_dst"
         echo "statusline: $statusline_dst -> mind-vault/scripts/statusline-command.sh (linked)"

@@ -32,9 +32,16 @@ input=$(cat)
 #
 # Newline-per-field (not @tsv): bash `read` with IFS=$'\t' collapses consecutive
 # tab separators because tab counts as whitespace, which loses leading-empty
-# fields and shifts subsequent positions. `mapfile` with default `\n` separator
-# preserves empties as distinct lines and assigns cleanly by index.
-mapfile -t _sl_fields < <(jq -r '
+# fields and shifts subsequent positions. A `while IFS= read -r` loop with
+# default `\n` separator preserves empties as distinct lines.
+#
+# bash-3 compatibility: avoid `mapfile` (Bash 4+) so macOS's default Bash 3.2
+# doesn't error with `mapfile: command not found`. The read-loop pattern below
+# is portable.
+_sl_fields=()
+while IFS= read -r _sl_line; do
+    _sl_fields+=("$_sl_line")
+done < <(jq -r '
     .session_name // "",
     (.context_window.used_percentage // ""),
     (.rate_limits.seven_day.used_percentage // ""),
@@ -45,15 +52,15 @@ mapfile -t _sl_fields < <(jq -r '
     (.effort.level // ""),
     (.vim.mode // "")
 ' <<< "$input")
-session_name="${_sl_fields[0]}"
-used_pct="${_sl_fields[1]}"
-seven_day="${_sl_fields[2]}"
-in_tok="${_sl_fields[3]}"
-out_tok="${_sl_fields[4]}"
-cache_write="${_sl_fields[5]}"
-cache_read="${_sl_fields[6]}"
-effort="${_sl_fields[7]}"
-vim_mode="${_sl_fields[8]}"
+session_name="${_sl_fields[0]:-}"
+used_pct="${_sl_fields[1]:-}"
+seven_day="${_sl_fields[2]:-}"
+in_tok="${_sl_fields[3]:-}"
+out_tok="${_sl_fields[4]:-}"
+cache_write="${_sl_fields[5]:-0}"
+cache_read="${_sl_fields[6]:-0}"
+effort="${_sl_fields[7]:-}"
+vim_mode="${_sl_fields[8]:-}"
 
 SEP=" $(printf "${DIM}│${RESET}") "
 
