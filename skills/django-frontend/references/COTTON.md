@@ -468,5 +468,3 @@ Naive composition — `{% if not items %}<empty>{% endif %}` plus an independent
 ```
 
 Empty-state in the cards-or-empty alternation (see preceding section) is mutually exclusive with the pager by construction — items are either present (cards + maybe-pager) or absent (empty-state, no pager). Don't carry two independent visibility gates for them.
-
-**Last Updated**: 2026-05-20

@@ -107,7 +107,3 @@ If a learning genuinely applies to multiple destinations (e.g. a new pattern + a
 3. **Command third** (the "shortcut").
 
 One compound invocation, multiple destination commits — they share the same provenance and end up on the same mind-vault PR.
-
----
-
-**Last Updated**: 2026-04-19

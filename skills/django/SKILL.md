@@ -580,5 +580,3 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [Django Documentation](https://docs.djangoproject.com/)
 - [Django REST Framework](https://www.django-rest-framework.org/)
 - [Django ORM Query Optimisation](https://docs.djangoproject.com/en/stable/topics/db/optimization/)
-
-**Last Updated**: 2026-05-01

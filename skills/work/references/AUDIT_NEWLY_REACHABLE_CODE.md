@@ -59,7 +59,3 @@ The same pattern recurs across stacks: a guard added to a primitive unmasks a co
 - [`agents/AGENT_curator`](../../../agents/AGENT_curator.md) — surfaces during PASS 3 (Architecture & DRY)'s asymmetric-fix sweep when reviewing a bug-fix PR that removed a short-circuit.
 - [`agents/AGENT_test-engineer`](../../../agents/AGENT_test-engineer.md) — surfaces during PASS 1 (Boundary Contradiction Sweep) when the fix newly exposes a code branch the boundary matrix didn't previously have to enumerate.
 - the review loop ([`commands/bugbot-loop.md`](../../../commands/bugbot-loop.md) / [`commands/copilot-loop.md`](../../../commands/copilot-loop.md)) — fires Phase 2, right after applying a Tier 1 / Tier 2 finding's edit and before committing: audit what the fix newly reaches, fold the latent fix into the same Phase 3 commit if scope allows.
-
----
-
-**Last Updated**: 2026-05-15

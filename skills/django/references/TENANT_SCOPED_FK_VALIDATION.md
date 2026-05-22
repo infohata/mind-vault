@@ -100,7 +100,3 @@ rg -n 'objects\.filter\(id__in=' --type=py | grep -iE 'prune|exist|valid|sanit|c
 ```
 
 For django-tenants projects, `SHARED_APPS` and `TENANT_APPS` lists in `settings.py` are the source of truth.
-
----
-
-**Last Updated**: 2026-05-06

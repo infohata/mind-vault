@@ -263,5 +263,3 @@ The cotton + render-fn-sibling combo is generic across any surface where renderi
 
 - Pattern 1's `toggle`-based lazy fetch supersedes the `x-effect`-driven lazy-fetch pattern in [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 5 — that section's `x-effect="if (open && !loaded) { … }"` was the workaround when Alpine owned the open state. With native `<details>`, the `toggle` event is the right hook.
 - Pattern 2's render-fn signature follows the same render-fn convention used elsewhere in this skill for cotton-consuming view functions — `(request, filters, …extra)` keeps the signature stable across surfaces.
-
-**Last Updated**: 2026-05-14

@@ -605,5 +605,3 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [Alpine.js Documentation](https://alpinejs.dev/)
 - [Bulma CSS Documentation](https://bulma.io/documentation/)
 - [Django Crispy Forms](https://django-crispy-forms.readthedocs.io/)
-
-**Last Updated**: 2026-05-01

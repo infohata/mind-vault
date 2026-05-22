@@ -57,7 +57,3 @@ The tracker also captures cycle history that the conversation drops on context c
 ## Provenance
 
 Surfaced 2026-05-07 during a mobile bottom-tab nav + pane swipe + iOS Safari gotchas project: a 26-issue 60+-commit cycle (M0–M25). The tracker was retroactively introduced when the ad-hoc back-and-forth started losing track of which issue was which; after introduction, every reference was unambiguous, and the reviewer could verify in-place by changing the emoji and appending a commit SHA.
-
----
-
-**Last Updated**: 2026-05-07

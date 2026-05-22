@@ -103,7 +103,3 @@ If the findings file is missing or malformed:
 1. Ask the user to point at the correct path.
 2. Fall back to interactive mode (step 1's "what did you learn?" prompt).
 3. Never try to reconstruct findings from git log — that's an anti-pattern; the findings file is the authority.
-
----
-
-**Last Updated**: 2026-04-19

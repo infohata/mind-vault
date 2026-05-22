@@ -177,7 +177,3 @@ Independent of the bundle, the integration glue (`<library>-widget.js`) handles:
 5. **Form integration** — sync widget state to the underlying `<input>` / `<textarea>` so Django form submit picks up the value.
 
 Don't put any of this inside the bundle. The bundle is pure-library; the glue is your project's integration boundary.
-
----
-
-**Last Updated**: 2026-04-25

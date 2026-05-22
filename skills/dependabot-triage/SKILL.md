@@ -182,7 +182,3 @@ If only one isolated PR remains and its review window is short, fold the docs co
 - [`rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — forward-sync is allowed; merge-into-main is HITL.
 - [`skills/wrap/SKILL.md`](../wrap/SKILL.md) — for the docs sweep at step 9 when the dep sweep was non-trivial enough to deserve a devlog entry.
 - [`commands/bugbot-loop.md`](../../commands/bugbot-loop.md) / [`commands/copilot-loop.md`](../../commands/copilot-loop.md) — when a bundle PR's review surfaces issues (rare for dep bumps, but the review-fix loop applies if invoked, on whichever engine the project has opted into).
-
----
-
-**Last Updated**: 2026-04-28

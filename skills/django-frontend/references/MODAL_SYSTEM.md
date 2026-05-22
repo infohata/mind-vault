@@ -208,5 +208,3 @@ document.body.addEventListener("htmx:afterSwap", (ev) => {
     if (window.initIconPickers) window.initIconPickers();
 });
 ```
-
-**Last Updated**: 2026-04-17

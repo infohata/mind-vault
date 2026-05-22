@@ -150,7 +150,3 @@ This catalogue is **project-agnostic**. Patterns 1–8 cover the structural conf
 **Project-specific resolutions** (e.g. "in this project, when both IDEAs edit `chat.html`, prefer the layout from `auto/audio-playback-*` because its Alpine state is canonical") are NOT catalogued here. They live in:
 - The project's own `tools/sprint-auto-hooks.sh` — specifically a new optional function `resolve_integration_conflict <file>` that the integration-stage bash machinery calls before falling back to this catalogue.
 - A future per-project `docs/sprint-auto-conflict-overrides.md` if the project accumulates enough patterns to warrant one. Mind-vault doesn't ship a template for this; let it emerge organically from real batches.
-
----
-
-**Last Updated**: 2026-04-27

@@ -162,7 +162,3 @@ Scope drives axis selection, not the other way around:
 - [ ] The candidate count is within the right-sizing budget (see `SKILL.md`).
 
 Move to the adversarial filter.
-
----
-
-**Last Updated**: 2026-04-19

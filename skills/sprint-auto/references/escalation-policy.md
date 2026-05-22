@@ -127,7 +127,3 @@ docs_escalation_attempts: []   # cleared on first docs-pass review invocation; c
 ```
 
 Every attempt's commit is in git history; the log is just the human-readable narrative pointer.
-
----
-
-**Last Updated**: 2026-04-22

@@ -530,7 +530,3 @@ When a partial template is migrated to a cotton primitive that emits its own out
 2. **Switch the filter form from `innerHTML` to `outerHTML`.** The partial's outer wrapper REPLACES (not nests-into) the prior render. The shell-migrated workspaces already use this shape; legacy non-shell filter forms shipped with `innerHTML` that fit a partial-with-no-outer-id shape.
 
 Either fix alone closes the visible bug; both together close the class. The discipline generalises: **once a partial emits its own outer wrapper, all swap targets pointed at that wrapper switch to `outerHTML`**.
-
----
-
-**Last Updated**: 2026-05-20

@@ -45,7 +45,3 @@ description: {{ONE_LINE_TRIGGER_UNDER_200_CHARS_NOUN_DENSE_NAMES_CONCRETE_STACK}
 - {{Related mind-vault skill or rule}}
 - {{External documentation if applicable}}
 - Origin: Promoted from {{source-project}} via `/compound` on {{date}}.
-
----
-
-**Last Updated**: {{TODAY}}

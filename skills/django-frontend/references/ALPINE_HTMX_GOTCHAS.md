@@ -609,7 +609,3 @@ Object syntax is also the safe default whenever a static attribute might carry t
 ### When to skip this pattern entirely
 
 The cleanest variant is the [`ACTIVE_STATE_TRACKING.md`](ACTIVE_STATE_TRACKING.md) pattern: drop `:class` entirely, use `aria-current="true"` (or another semantic attribute) as the single source of truth, style via CSS `:has()`. Single attribute, no SSR / reactive sync to manage, no syntax trap to remember. The dual-bound pattern above is for cases where `:has()` styling isn't viable (parent-styling chain too deep, or browser-support constraints).
-
----
-
-**Last Updated**: 2026-05-16

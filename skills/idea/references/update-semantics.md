@@ -67,7 +67,3 @@ After any update that changes `status`, `priority`, or `title`:
 2. Locate the corresponding line in `docs/ideas/README.md`.
 3. Update in place; move across sections if needed.
 4. If the index is malformed (missing section headings, duplicate entries), regenerate it from scratch by scanning all `docs/ideas/IDEA-*.md`.
-
----
-
-**Last Updated**: 2026-04-19

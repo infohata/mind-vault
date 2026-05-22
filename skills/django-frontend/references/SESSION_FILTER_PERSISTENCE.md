@@ -288,5 +288,3 @@ class EventChipRowFilterClearTests(TenantTestCaseBase):
 ## Reference
 
 Pairs with [`RULE_tenant-scoped-fk-validation`](../../django/references/TENANT_SCOPED_FK_VALIDATION.md) for the org-scoped session keys.
-
-**Last Updated**: 2026-05-14

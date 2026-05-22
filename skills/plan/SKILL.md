@@ -179,7 +179,3 @@ The plan's philosophy stays the same at every scope; the depth scales.
 - [skills/idea/SKILL.md](../idea/SKILL.md) — previous stage; produces the IDEA file this skill consumes
 - [skills/work/SKILL.md](../work/SKILL.md) — next stage; executes the plan this skill emits
 - [agents/AGENT_architect.md](../../agents/AGENT_architect.md) — the reviewer persona invoked in step 5
-
----
-
-**Last Updated**: 2026-04-20

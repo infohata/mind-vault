@@ -129,7 +129,3 @@ After merge:
 4. Per-IDEA worktree spin-up runs through `/work → /<engine>-loop → /wrap → /compound`.
 
 Mixed-eligibility batches are fine — IDEAs in the same PR can be flagged sprint-auto-eligible OR human-driven (`auto_safe: false`). Sprint-auto skips the human-driven ones; you `/work` those manually.
-
----
-
-**Last Updated**: 2026-04-25

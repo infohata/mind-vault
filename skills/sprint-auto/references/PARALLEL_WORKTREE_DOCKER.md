@@ -281,7 +281,3 @@ The `<tenant_schema>` is `public` for non-multi-tenant projects, or the per-tena
 - Single-track work. The pattern adds ceremony; worth it only when two streams genuinely need to run concurrently.
 - Small repos / no container stack. If the project is just a Python venv with no Docker, a simple second worktree with its own venv is enough.
 - Repos whose compose project already sets `COMPOSE_PROJECT_NAME` explicitly and shares volumes by name — those override the directory-name defaults and the stacks may still collide.
-
----
-
-**Last Updated**: 2026-04-29

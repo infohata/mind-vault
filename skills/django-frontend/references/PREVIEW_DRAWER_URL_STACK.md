@@ -502,5 +502,3 @@ The drawer's click router checks `data-preview-route`; absent attribute stays de
 ## Reference
 
 When this contract is added by a downstream IDEA on top of an upstream preview-drawer foundation IDEA, file the cross-IDEA backref per [`RULE_cross-idea-amendments`](../../../rules/RULE_cross-idea-amendments.md).
-
-**Last Updated**: 2026-05-14

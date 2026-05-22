@@ -156,6 +156,3 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
 - [skills/plan/SKILL.md](../plan/SKILL.md) — next stage; consumes the IDEA file and triggers `idea` → `in-progress` move
 - [skills/work/SKILL.md](../work/SKILL.md) — triggers the `in-progress` → `complete` move on PR merge
 - [skills/ingest-backlog/SKILL.md](../ingest-backlog/SKILL.md) — brownfield-takeover helper when the project has a legacy monolithic backlog
----
-
-**Last Updated**: 2026-04-20

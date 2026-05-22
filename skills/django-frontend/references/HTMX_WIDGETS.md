@@ -375,7 +375,3 @@ function attachmentUpload() {
 - All validation happens server-side with client-side UX enhancements
 - CSRF tokens included in all HTMX requests
 - Error handling provides user feedback without breaking UX
-
----
-
-**Last Updated**: 2026-01-28

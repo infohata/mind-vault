@@ -196,5 +196,3 @@ test('cleanup hook removes widget artefacts', () => {
 ## Reference
 
 The pipeline name + the event-based cleanup contract are reusable across any drawer-style UI in any project; the implementation is project-specific to the framework + widget set. See [`PREVIEW_DRAWER_URL_STACK.md`](PREVIEW_DRAWER_URL_STACK.md) for the surrounding URL-stack contract this pipeline operates within.
-
-**Last Updated**: 2026-05-14

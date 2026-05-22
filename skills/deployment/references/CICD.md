@@ -183,5 +183,3 @@ Slack on deploy result:
 - ❌ Embedding the deploy key in the repo (even encrypted) — use the CI secret store.
 - ❌ Silent rollback on failure — leaves the human unaware the state changed.
 - ❌ `chmod 777` anywhere in the pipeline — if permissions are wrong, fix the cause.
-
-**Last Updated**: 2026-04-17

@@ -211,7 +211,3 @@ The math is unit-testable in JSDOM with a fake layout. The trickier verification
 If the project supports Playwright/Selenium, automate (1)-(3). Otherwise the manual checklist is the merge gate.
 
 The lesson generalises beyond HTMX: any DOM math that walks `previousElementSibling`/`nextElementSibling` summing `offsetHeight` is fragile to `display: contents` wrappers. The `offsetTop`-diff approach (capture before, measure after, subtract) is the more robust idiom — works for any "how much did THIS element move" question regardless of subtree shape.
-
----
-
-**Last Updated**: 2026-05-04

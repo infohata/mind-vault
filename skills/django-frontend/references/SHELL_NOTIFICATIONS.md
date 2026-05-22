@@ -150,5 +150,3 @@ The `refreshOnly` flag is the signal to the JS handler: "do your data-side work,
 ## Reference
 
 Pairs with [`COTTON.md`](COTTON.md) for cotton component conventions and [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) for HTMX `HX-Trigger` value-wrapping shape. [`HTMX_PATTERNS.md`](HTMX_PATTERNS.md) § *Modal scoping* covers the three-gate listener that distinguishes form_valid from form_invalid responses.
-
-**Last Updated**: 2026-05-14

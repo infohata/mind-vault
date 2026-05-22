@@ -205,7 +205,3 @@ If `tools/sprint-auto-bootstrap.sh` doesn't exist in the project at all, the `/s
 Tests that depend on fixtures, buckets, or indices will fail in `/work`'s verification, and the IDEA will be skipped. This is why the preflight warns loudly when the wrapper is missing and the scripted path is strongly preferred for overnight batches.
 
 For v3.1, the inline fallback only applies to the integration worktree (per-IDEA worktrees never call the script). If the integration bootstrap falls back to the inline minimal mode, it uses `--port-offset 30000` semantics (offset `+10000` is the fallback's hard-coded value — collides with conventional v1 worktrees, so the fallback should be replaced with the proper script promptly).
-
----
-
-**Last Updated**: 2026-04-27

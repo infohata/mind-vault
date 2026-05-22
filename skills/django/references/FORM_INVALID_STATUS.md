@@ -121,5 +121,3 @@ Cons:
 - ❌ **Detect form errors by parsing the response body's HTML**. Fragile; tied to template structure; breaks on every template refactor.
 
 See [`../../django-frontend/references/HTMX_PATTERNS.md`](../../django-frontend/references/HTMX_PATTERNS.md) § *Modal scoping* for the three-gate composition on the client side.
-
-**Last Updated**: 2026-05-14

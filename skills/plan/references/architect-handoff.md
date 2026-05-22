@@ -87,7 +87,3 @@ Architect amendments to a drafted plan sometimes pair a CORRECT structural inten
 This isn't permission to ignore architect findings — the intent is load-bearing. It's permission to refine the mechanic when implementation-time evidence (manual eval, browser walk, integration-shape failure) contradicts the architect's derivation. The architect reviewed the plan against the codebase as understood at review time; implementation-time evidence is downstream of that and authoritative for mechanics.
 
 When applying a reinterpretation, prefer to surface it back into mind-vault via `/compound` after the IDEA ships — both as a refinement to the relevant skill reference (the actual mechanic that worked) and, if the misderivation cluster recurs, as a sharper architect prompt for future similar reviews.
-
----
-
-**Last Updated**: 2026-05-20

@@ -229,7 +229,3 @@ Patterns surfaced in the same IDEA-143 cycle but applicable beyond mobile work â
 Surfaced during a mobile-shell sprint (bottom-tab nav + pane swipe + iOS Safari gotchas, 60+ commits, 26-issue manual-eval cycle). The five patterns above were lessons from the closing M23-M25 segment of that cycle; sibling patterns that surfaced alongside but apply beyond mobile work live in their proper homes (see Related material elsewhere).
 
 Initial mind-vault landing was as `RULE_mobile-ux-polish-discipline` (PR #103); reshaped into a progressive-disclosure skill in the same PR â€” the trigger surface (touch + scroll-snap + drawer + iOS quirks) is narrow enough that on-demand activation is the right tradeoff against context-budget spend on every conversation, and the broader patterns belong with their stack-mates rather than bundled under a "mobile" rubric.
-
----
-
-**Last Updated**: 2026-05-07

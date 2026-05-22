@@ -80,5 +80,3 @@ Every match is a candidate for conversion. The Django i18n workflow reference co
 ## `{% blocktrans %}` placeholder format is `%(var)s` in `.po`, not `{{ var }}`
 
 Inside a `{% blocktrans %}…{% endblocktrans %}` block, template variables write as `{{ var }}` — but Django's makemessages converts them to `%(var)s` in the extracted `.po` file. Translation maps that key on the visible-on-template form (`Hello {{ user }}!`) never match — see [`../../django/references/I18N_WORKFLOW.md`](../../django/references/I18N_WORKFLOW.md) § *`{% blocktrans %}` placeholders extract as `%(var)s`, not `{{ var }}`* for the canonical map-key contract + audit-tool placeholder-parity check.
-
-**Last Updated**: 2026-05-14

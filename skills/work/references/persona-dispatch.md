@@ -108,7 +108,3 @@ Silent plan deviation is the pattern that makes execution expensive to review la
 - **Pure refactors without feature content.** If the plan is "extract `EventRenderer` into its own module, no behaviour change", architect is the author; backend is not needed.
 - **Documentation-only work.** `AGENT_documentation` handles it; the work skill barely orchestrates.
 - **Exploratory prototyping with no plan.** If there's no plan, there's nothing to dispatch. Drop to direct work or route to `/plan`.
-
----
-
-**Last Updated**: 2026-04-19

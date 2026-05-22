@@ -170,7 +170,3 @@ def event_list_view(request):
 - [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) — gotchas 1 / 3 / 4 / 10 all touch the handler-vs-attribute design surface from different angles.
 - [`PREVIEW_DRAWER_URL_STACK.md`](PREVIEW_DRAWER_URL_STACK.md) — the other marker family (`data-preview-link`) referenced as the disjoint-vocabulary sibling.
 - [`HTMX_PATTERNS.md`](HTMX_PATTERNS.md) — `HX-Shell-Fragment`-style discriminator headers in the broader HTMX response-routing context.
-
----
-
-**Last Updated**: 2026-05-16

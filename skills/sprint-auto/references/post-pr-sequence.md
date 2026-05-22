@@ -454,7 +454,3 @@ Per `SKILL.md`'s "Abort-the-batch triggers":
 - Mind-vault repo unreachable during S12 AND no more candidates would succeed anyway.
 
 On abort, jump directly to S15 with whatever partial state exists. Do NOT retroactively tear down the integration worktree — the human reviewer needs it as the diagnostic artefact (it's the only stack with state).
-
----
-
-**Last Updated**: 2026-04-27

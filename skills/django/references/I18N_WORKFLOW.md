@@ -179,7 +179,3 @@ APP_TRANSLATIONS = {
 ```
 
 The audit's placeholder-parity check is the canary — every map entry whose key contains `{{ }}` is suspect; convert to `%(var)s` form.
-
----
-
-**Last Updated**: 2026-05-14

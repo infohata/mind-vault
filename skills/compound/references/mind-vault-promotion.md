@@ -122,7 +122,3 @@ Include the PR URL explicitly so the user can click through.
 - **Target file has merge conflicts.** The skill detected an existing file to extend but git shows conflict markers. Stop, report, and let the user resolve manually.
 
 Silent retry loops are forbidden. Report and ask.
-
----
-
-**Last Updated**: 2026-04-19

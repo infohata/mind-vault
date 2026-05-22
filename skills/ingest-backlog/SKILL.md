@@ -202,7 +202,3 @@ Multi-phase completion markers (e.g. `Phase 1 ✅ / Phase 2 ✅ / Phase 3 ✅` o
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — location-by-status routing contract honoured by step 3 and step 5
 - [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — authoritative IDEA frontmatter schema
 - [skills/idea/SKILL.md](../idea/SKILL.md) — the skill that consumes the per-idea format this one produces
-
----
-
-**Last Updated**: 2026-04-20

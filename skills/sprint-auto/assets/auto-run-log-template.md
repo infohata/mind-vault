@@ -271,7 +271,3 @@ Cosmetic UI quirk you'll see before the first merge: every PR in the batch shows
 - Disk free at start: <GB>
 - Disk free at end: <GB>
 ```
-
----
-
-**Last Updated**: 2026-04-29
