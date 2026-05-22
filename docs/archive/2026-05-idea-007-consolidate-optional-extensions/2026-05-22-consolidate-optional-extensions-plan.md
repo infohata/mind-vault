@@ -3,7 +3,7 @@ stage: plan
 slug: consolidate-optional-extensions
 created: 2026-05-22
 source: ./IDEA-007-consolidate-optional-extensions-into-references.md
-status: ready
+status: shipped
 project: mind-vault
 ---
 
@@ -63,7 +63,7 @@ None at draft time. All entries are mechanical; no judgment calls expected. If d
 
 For each of the three files, repeat the same per-file pattern:
 
-### Step 1: `skills/django/SKILL.md` (smallest dedup surface, do first as canary)
+### Step 1: `skills/django/SKILL.md` (smallest dedup surface, do first as canary) ✅ 67e9997
 
 1. Read both blocks (top `Optional extensions` at L23, bottom `## References` at L572).
 2. Build a diff: which top-block entries are absent from the bottom block?
@@ -72,11 +72,11 @@ For each of the three files, repeat the same per-file pattern:
 5. Verify line count drops by ~10-13 lines.
 6. Commit: `chore(skills): django — consolidate Optional extensions into ## References (IDEA-007)`.
 
-### Step 2: `skills/deployment/SKILL.md`
+### Step 2: `skills/deployment/SKILL.md` ✅ 3395484 (+ 42c2f75 README terminology fix)
 
 Same pattern. Top block at L25 (9 entries), bottom at L460. Commit:  `chore(skills): deployment — consolidate Optional extensions into ## References (IDEA-007)`.
 
-### Step 3: `skills/django-frontend/SKILL.md`
+### Step 3: `skills/django-frontend/SKILL.md` ✅ 3d81557
 
 Same pattern. Top block at L28 (18 entries — largest), bottom at L591. The bottom block already includes some entries not in the top block (`App-shell layout`, `Alpine.store coordinators`, `Active-state tracking`, `Template comment syntax`, `SCSS vendor-import` — these are referenced inline from `## Critical hazards` and `## Pattern`). Most of the top block IS mirrored in the bottom block already (PR #134 audit visible in conversation), so the merge is mostly dedup-and-delete, light promotion of any unique descriptions. Commit: `chore(skills): django-frontend — consolidate Optional extensions into ## References (IDEA-007)`.
 
