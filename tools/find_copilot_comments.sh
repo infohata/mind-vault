@@ -19,8 +19,10 @@
 #
 # Output contract:
 #   - Prints a single `COPILOT_CLEAN_SIGNAL=<id> COMMIT=<sha> AT=<iso-timestamp>` line
-#     on its own when copilot's most recent review on the PR is a "found no new issues"
-#     clean-signal. The loop's Phase 4 decision tree greps for this line.
+#     on its own when copilot's most recent review on the PR is a clean-signal
+#     ("found no new issues" OR "generated no new comments" — both phrasings observed
+#     in the wild as of 2026-05-22). The loop's Phase 4 decision tree greps for
+#     this line.
 #     The signal source is /pulls/<N>/reviews PRIMARILY, with a /commits/<sha>/check-runs
 #     fallback (added 2026-05-06): copilot can post the clean signal as a GitHub Check
 #     instead of a review-body — the script synthesizes COPILOT_CLEAN_SIGNAL from a
@@ -106,7 +108,8 @@ REVIEWS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews?per_page
 # /check-runs API — added 2026-05-06 after PR #429 spent ~35 min polling /reviews
 # for a clean signal that copilot had posted as a successful GitHub Check.
 # Copilot's clean signal can land in EITHER:
-#   - /pulls/<N>/reviews with body "found no new issues" (the original signal source)
+#   - /pulls/<N>/reviews with a clean-body matching one of CLEAN_PHRASES
+#     ("found no new issues" / "generated no new comments") — original signal source
 #   - /commits/<sha>/check-runs with conclusion=success on the Copilot app's check-run
 # This script accepts either as clean. The /check-runs path requires the PR HEAD SHA;
 # we fetch it via /pulls/<N> and gracefully degrade to empty state if that fetch fails.
@@ -165,13 +168,29 @@ copilot = [r for r in reviews if (r.get('user') or {}).get('login') in ('Copilot
 # Newest first
 copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
 # The output contract (file header, lines 5-8) says the marker fires iff copilot's
-# MOST RECENT review is the 'found no new issues' clean-signal. Check the newest
-# review only — never skip past a newer non-clean review to find an older clean
-# one. The 'Recent reviews' pass below separately surfaces non-clean history.
+# MOST RECENT review is a clean-signal. Check the newest review only — never skip
+# past a newer non-clean review to find an older clean one. The 'Recent reviews'
+# pass below separately surfaces non-clean history.
+#
+# Two body-text phrasings observed in the wild as of 2026-05-22:
+#   * 'found no new issues' — classic Copilot wording.
+#   * 'generated no new comments' — newer wording, surfaced on PR #474 (teisutis)
+#     when the final review was effectively clean but the body started with
+#     '## Pull request overview\n\nCopilot reviewed N out of N changed files
+#     in this pull request and generated no new comments.' The legacy matcher
+#     missed it; review-loop had to fetch the body manually to confirm CLEAN.
+# Match either phrasing. Compare case-insensitively so a future Copilot
+# template tweak (e.g. sentence-case 'Generated no new comments') doesn't
+# silently break clean detection — CLEAN_PHRASES stays lowercase, body
+# is lower-cased at compare time.
+CLEAN_PHRASES = ('found no new issues', 'generated no new comments')
+def _is_clean_body(body):
+    body_l = (body or '').lower()
+    return any(p in body_l for p in CLEAN_PHRASES)
 if copilot:
     r = copilot[0]
     body = r.get('body') or ''
-    if 'found no new issues' in body:
+    if _is_clean_body(body):
         rid = r.get('id')
         commit = r.get('commit_id') or ''
         at = r.get('submitted_at') or ''
@@ -185,7 +204,7 @@ if [ -n "$CLEAN_SIGNAL_LINE" ]; then
     # `\033[0;32m`, breaks the anchor, and suffixes `AT=<ts>` with `\033[0m` — the
     # exact failure mode this script exists to prevent.
     echo "$CLEAN_SIGNAL_LINE"
-    echo -e "${GREEN}✅ Copilot reviewed the PR head and found no new issues.${NC}"
+    echo -e "${GREEN}✅ Copilot's most recent review on the PR head is a clean-signal (no new findings).${NC}"
     echo ""
 fi
 
@@ -295,7 +314,12 @@ rid = latest.get('id')
 commit = latest.get('commit_id') or ''
 at = latest.get('submitted_at') or ''
 body = (latest.get('body') or '').strip()
-clean = 'true' if 'found no new issues' in body else 'false'
+# Match either of the two known clean-body phrasings — see Pass 1 comment block
+# for the full rationale and the PR #474 (teisutis) reference that surfaced
+# the 'generated no new comments' variant.
+CLEAN_PHRASES = ('found no new issues', 'generated no new comments')
+body_l = body.lower()
+clean = 'true' if any(p in body_l for p in CLEAN_PHRASES) else 'false'
 print(f'COPILOT_LATEST_REVIEW={rid} COMMIT={commit} AT={at} CLEAN={clean}')
 " 2>/dev/null || true)
 
@@ -317,10 +341,15 @@ except Exception:
 copilot = [r for r in reviews if (r.get('user') or {}).get('login') in ('Copilot', 'copilot-pull-request-reviewer[bot]')]
 copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
 shown = 0
+CLEAN_PHRASES = ('found no new issues', 'generated no new comments')
+def _is_clean_body(body):
+    body_l = (body or '').lower()
+    return any(p in body_l for p in CLEAN_PHRASES)
 for r in copilot:
     body = (r.get('body') or '').strip()
-    if not body or 'found no new issues' in body:
-        # Skip empties and the clean-signal review already surfaced above.
+    if not body or _is_clean_body(body):
+        # Skip empties and any clean-signal review (newest one already surfaced
+        # above; older ones are stale clean signals for prior SHAs).
         continue
     rid = r.get('id')
     commit = (r.get('commit_id') or '')[:8]

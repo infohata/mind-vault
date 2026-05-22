@@ -490,6 +490,64 @@ def _tenant_schema_pool(django_db_setup, django_db_blocker):
   ```
 
   Held only during the migration; monkey-patching of `TenantTestCase.setUpClass` afterwards doesn't need the lock.
+- **Sibling-test bleed via `FallbackStorage` tier walk under `loadscope`.** `--dist loadscope` keeps every test in a module on one worker. Django's default `MESSAGE_STORAGE` (`FallbackStorage`) walks `CookieStorage → SessionStorage` on the first iteration of any `_loaded_messages` access, lazy-warming `_loaded_data` from whatever's reachable through `request.session` / cookies. When a sibling test class on the same worker has `@override_settings(MESSAGE_STORAGE=...)` to a different backend, or attached storage to the request before the test's session-key reset ran, the next test's storage instance can capture leaked state — assertions like `assertGreaterEqual(len(messages), 1)` or `assertEqual(set(severities), {…})` fail because either (a) a signal-handler guard read leaked `session['<flag>']` and short-circuited, or (b) leftover messages from a sibling test crowded the assertion set. Targeted runs pass in isolation; only the full suite under `loadscope` reproduces. Fix in **three layers**, all in the test's `setUp` / fixture:
+
+  ```python
+  from django.contrib.messages.storage.session import SessionStorage
+  from django.contrib.sessions.middleware import SessionMiddleware
+  from django.test import override_settings
+
+  @override_settings(
+      # (3) Lock the storage backend at class level so an upstream sibling
+      # test that overrode MESSAGE_STORAGE can't leak its tier choice into
+      # this class's storage instances.
+      MESSAGE_STORAGE='django.contrib.messages.storage.session.SessionStorage',
+  )
+  class SignalHandlerTest(TestCase):
+      def _setup_request(self):
+          request = self.factory.get('/')
+          request.user = self.user
+
+          # (1) Build a fresh session FIRST, pop the guard key BEFORE any
+          # storage attaches — so the signal-handler's
+          # `session.get('<flag>')` reads False reliably.
+          SessionMiddleware(lambda r: None).process_request(request)  # get_response unused by process_request
+          request.session.pop('<flag>', None)
+          request.session.save()
+
+          # (2) Instantiate the chosen backend EXPLICITLY — never
+          # FallbackStorage(request) which walks the cookie→session tier
+          # and lazy-loads from whatever's reachable. Direct SessionStorage
+          # skips the tier walk entirely.
+          request._messages = SessionStorage(request)
+          return request
+  ```
+
+- **Plain `dict` ≠ Django session in `SimpleTestCase` fixtures.** `request.session = {}` satisfies `SessionStorage._get`'s `session.get(key)` call and `_store`'s `session[key] = …` — but doesn't satisfy the full session contract that `FallbackStorage`'s lazy-load + `MessageMiddleware`'s `session.modified = True` path expects. Symptoms identical to the bleed above (full-suite-only failures). Fix: a minimal `dict` subclass with the attributes the messages-framework path actually exercises — never `SessionBase` (its abstract `load` / `create` / `cycle_key` methods raise `NotImplementedError` if any code path hits them):
+
+  ```python
+  class _InMemorySession(dict):
+      """Minimal in-memory session for SimpleTestCase fixtures.
+
+      Covers `get` / `__setitem__` (via dict) plus `modified` flag and
+      no-op `save()` that the messages framework + middleware exercise.
+      Subclassing SessionBase would expose NotImplementedError-risk via
+      its abstract backend methods.
+      """
+      modified: bool = False
+
+      def save(self, must_create: bool = False) -> None:
+          pass
+
+
+  def _build_request_with_messages(factory: RequestFactory):
+      request = factory.get("/")
+      request.session = _InMemorySession()
+      request._messages = SessionStorage(request)
+      return request
+  ```
+
+  Diagnostic note: when the failing-test symptom is "passes in isolation, fails only under full-suite `loadscope`", the fix recipe above is **independent of the exact bleed path** because it forecloses every plausible vector (storage instance, session contract, backend override) at once. Empirical fix-and-verify converges faster than instrumental `print`-injection diagnosis when the recipe is well-bounded. Validation gate: full-suite × 2 successive green runs (or `pytest --count 10 -n auto <target node>` if the flake repros under repeat-in-isolation, which is rare for this class).
 
 ### When to use each lever
 

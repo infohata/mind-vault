@@ -93,7 +93,7 @@ Canonical `SKILL.md` body, in order:
 2. `## When to use` — scoping rules, with TRIGGER/SKIP block if applicable.
 3. `## Pattern` — the actual conventions, numbered or named subsections.
 4. `## When NOT to use these patterns` — counter-cases that prevent over-application.
-5. `## References` — links to `./references/*.md`, external docs, related skills.
+5. `## References` — the **single** canonical list of links to `./references/*.md`, external docs, and related skills. **Maintain only one such block per skill.** Do not duplicate it under aliases like `**Optional extensions**`, `**Further reading**`, or a front-loaded mirror near the top of the file — every line of `SKILL.md` is loaded into context on every activation, so duplicated lists double the bill for the same information. If a reference must be foreshadowed early in the body (e.g. inside `## Critical hazards`), link to it inline at the point of mention rather than re-listing it. (Several feature-dense skills — `django`, `django-frontend`, `deployment` — historically carried both a top "Optional extensions" block and a bottom `## References` block; consolidate on `## References` when touching them.)
 6. Trailing `**Last Updated**: YYYY-MM-DD` line — **bare date only**. No parenthetical narrative, no `**Previous**:` lines. History lives in `CHANGELOG.md`.
 
 ## The additive-only rule
