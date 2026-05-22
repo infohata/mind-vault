@@ -596,7 +596,7 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [Vendoring JS Bundles](references/VENDORING_JS_BUNDLES.md) — vendor pre-built JS to `static/vendor/`, zero Node toolchain in CI/Docker; disposable container build for ESM-only libraries (precedent: EasyMDE; planned: TipTap)
 - [HTMX + Alpine Waits](references/HTMX_ALPINE_WAITS.md) — Playwright wait recipes: four-class HTMX swap completion, Alpine readiness via `Alpine.$data()`, HTMX-during-Alpine-init race
 - [Multi-tenant Playwright](references/MULTI_TENANT_PLAYWRIGHT.md) — django-tenants Playwright fixtures: Host-header injection, schema seeding, storage_state cookie pre-baking inside `schema_context`
-- [Visual-acuity tests via Playwright](references/VISUAL_ACUITY_TESTS_VIA_PLAYWRIGHT.md) — Playwright-vs-render-and-assert decision; ≥3 regression classes before bootstrapping; docker + django bootstrap traps (separate `requirements-e2e.txt`, MS image Python-version gap, `audioop-lts` transitive trap, chromium refuses Host overrides → ALLOWED_HOSTS + non-primary Domain row, live-DB Django opt-outs, file-under-dir mount trap)
+- [Visual-acuity tests via Playwright](references/VISUAL_ACUITY_TESTS_VIA_PLAYWRIGHT.md) — Playwright-vs-render-and-assert decision table + Docker/Django bootstrap traps (full list in the reference)
 - [Visual Baseline Bumps](references/VISUAL_BASELINE_BUMPS.md) — AI agents NEVER auto-`--update-snapshots`; baseline regen requires explicit human invocation; default-locale baselines + structural-only locale assertions
 - [django](../django/SKILL.md) — backend pairing (BaseModel, DRF, ORM optimisation, permissions)
 - [surgical-tdd](../surgical-tdd/SKILL.md) — testing approach for Django apps
