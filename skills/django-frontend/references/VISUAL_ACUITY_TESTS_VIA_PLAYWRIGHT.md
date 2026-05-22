@@ -45,9 +45,14 @@ Session-cookie minting imports `django.contrib.sessions.backends.db.SessionStore
 
 ```python
 # conftest.py
+import os
+import pytest
+
 @pytest.fixture(scope="session")
 def django_db_setup(django_db_blocker):
-    django_db_blocker.unblock()  # bypass pytest-django test-DB lifecycle
+    # bypass pytest-django test-DB lifecycle; e2e hits the live dev DB
+    with django_db_blocker.unblock():
+        yield
 
 @pytest.fixture(scope="session", autouse=True)
 def django_initialized(django_db_setup) -> None:
@@ -56,6 +61,8 @@ def django_initialized(django_db_setup) -> None:
     import django
     django.setup()
 ```
+
+`django_db_blocker.unblock()` returns a context manager — the bare call form is a no-op (CM created but never entered). Always use `with ... :` + `yield` for session-scope unblock, matching the sibling [`MULTI_TENANT_PLAYWRIGHT.md`](MULTI_TENANT_PLAYWRIGHT.md) pattern.
 
 `DJANGO_ALLOW_ASYNC_UNSAFE` is honest: pytest-playwright owns the asyncio loop, fixtures are sequential per test — no actual race.
 
