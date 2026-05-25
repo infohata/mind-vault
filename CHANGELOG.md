@@ -10,6 +10,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.3.3 — Compound: 5 review-loop patterns
+
+Patch release on the v4.3 line. A pure `/compound` harvest from a cross-project dual-engine review loop — five reusable patterns routed into existing references (no new files, references-first placement), then curated for DRY against the vault and Copilot-cleared.
+
+### Changed
+
+- `skills/django-frontend/references/PREVIEW_DRAWER_URL_STACK.md` — extends the per-entity hard-gate trap with its at-scale resolution: collapse ≥3 per-entity `entityChanged` listeners to ONE convention-driven generic listener (selectors derived from `payload.type`; new surfaces opt in with nothing to register), loaded GLOBALLY (not per-shell `extra_js`, which dies on cross-surface shell-nav). The document-vs-`document.body` registration rationale points to [`ALPINE_HTMX_GOTCHAS.md`](skills/django-frontend/references/ALPINE_HTMX_GOTCHAS.md) §11 rather than restating it (curation dedup).
+- `skills/django/references/I18N_WORKFLOW.md` — the same msgid can be extracted into MULTIPLE app catalogs; translate-fill force-sync resolves per-app, so a msgid must be aligned in EVERY app map + `FORCE_SYNC_MSGIDS`, not just the one you noticed — else catalogs silently disagree across surfaces.
+- `skills/review-loop/references/common-review-findings.md` — two catalogue entries: #20 destructive function-based view reachable via GET = CSRF vector (`@require_POST` + GET→405 test); #21 the judgment sibling-sweep (a security/correctness finding on new code usually pre-exists in siblings — fix all same-PR, severity-gated), contrasted with the mechanical contract-sweep (#19).
+
+(2026-05-25, [#144](https://github.com/infohata/mind-vault/pull/144))
+
 ## v4.3.2 — `/wrap --scope` enum: docs-default, merge opt-in
 
 Patch release on the v4.3 line (IDEA-008). The structural completion of v4.3.1's wrap-before-review pattern: replaces `/wrap`'s `SCOPE_IDEA_ONLY` boolean with a three-value `--scope` enum (`docs` default | `full` | `idea-only`) and **flips the no-arg default from full-wrap (reached Step 8 atomic-merge) to docs-only (structurally cannot reach Step 8)**. Atomic merge is now the explicit `--scope=full` opt-in — so the two-pass `docs → review → full` flow is enforced by the tool, not by an operator remembering to "stop before Step 8" (the v4.3.1 footgun). Architect-reviewed 🟢 SOUND; dogfooded by wrapping this very PR with the new `docs` default. Behavioral change for adopters: a bare `/wrap NNN` no longer auto-merges non-protected targets — run `/wrap --scope=full NNN` for that.
