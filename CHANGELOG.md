@@ -8,7 +8,23 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 ## Unreleased
 
-- **Compound — wrap-before-review ordering + two review-surfaced traps** (three learnings from a doc-heavy dual-engine review run, plus a token-optimization prose pass — ~20% off the new reference, no semantic change). **Added** `skills/wrap/references/WRAP_BEFORE_REVIEW.md` — for doc-heavy PRs, run wrap's doc-finalization (frontmatter flip, ideas-index move, devlog, downstream-docs scan) *before* `/review-loop` so the reviewer sees docs at shipped state (doc-consistency findings land in the same pass as code findings, no post-review drift; merge stays post-review-clear, wrap Step 8 unaffected). **Changed** `skills/wrap/SKILL.md` Step 2 — mandatory sub-step syncing the human-readable `**Status**:` body-prose line on the `status` flip (else a doc-reviewing engine flags the frontmatter↔body mismatch — a self-inflicted finding), plus a `## References` pointer; `skills/django-frontend/references/PREVIEW_DRAWER_URL_STACK.md` — new "per-entity hard-gate reuse trap" section (a type-gated `entityChanged` listener `if payload.type !== 'X' return` can't be shared across entity surfaces by `<script>` include — the gate silently swallows foreign-type payloads, leaving the drawer open on a just-deleted record; each surface needs its own `<entity>_actions.js`, or a type-keyed dispatch past ~3 entities; includes the `RULE_self-sweep` grep heuristic); `skills/review-loop/references/engine-adapter-contract.md` — CWD/repo-resolution gotcha for `find_*` / `*_retrigger` scripts (`gh` resolves the repo from the current dir, so running shared tools from the wrong dir yields a false "no activity" or `Could not resolve to a PullRequest`; invoke by absolute path from the project checkout, or cross-check with `gh api`). (open [#141](https://github.com/infohata/mind-vault/pull/141))
+_(none)_
+
+## v4.3.1 — Wrap-before-review ordering + two review-surfaced traps
+
+Patch release on the v4.3 line. A doc-heavy compound: codifies running wrap's doc-finalization *before* `/review-loop` for doc-heavy PRs (the reviewer then sees docs at shipped state, so doc-consistency findings land alongside code findings with no post-review drift), plus two traps surfaced by a downstream dual-engine review run, plus a token-optimization prose pass (~20% off the new reference, no semantic change). Dogfooded its own lesson — wrapped before the Copilot review, which then caught the doc-consistency nits the pattern predicts (a "frontmatter-edit only" contradiction, a merge-terminus ambiguity, an Unreleased-formatting divergence), each fixed in-loop.
+
+### Added
+
+- `skills/wrap/references/WRAP_BEFORE_REVIEW.md` — for doc-heavy PRs, run wrap's doc-finalization (frontmatter flip, ideas-index move, devlog, downstream-docs scan) *before* `/review-loop` so the reviewer sees docs at shipped state: doc-consistency findings land in the same pass as code findings, no post-review doc drift. Merge stays post-review-clear (wrap Step 8 unaffected).
+
+### Changed
+
+- `skills/wrap/SKILL.md` Step 2 — mandatory sub-step: the `status` frontmatter flip must also sync the human-readable `**Status**: 🚧 In Progress` body-prose line, else a doc-reviewing engine flags the frontmatter↔body mismatch (a self-inflicted finding the wrap itself creates). Plus a `## References` pointer to the new ordering doc.
+- `skills/django-frontend/references/PREVIEW_DRAWER_URL_STACK.md` — new "per-entity hard-gate reuse trap" section: a type-gated `entityChanged` listener (`if payload.type !== 'X' return`) can't be shared across entity surfaces by `<script>` include — the gate silently swallows foreign-type payloads, leaving the drawer open on a just-deleted record. Each surface needs its own `<entity>_actions.js` (or a type-keyed dispatch past ~3 entities); includes the `RULE_self-sweep` grep heuristic.
+- `skills/review-loop/references/engine-adapter-contract.md` — CWD/repo-resolution gotcha for `find_*` / `*_retrigger` adapter scripts: `gh` resolves the repo from the current dir, so running shared tools from the wrong dir yields a false "no activity" or `Could not resolve to a PullRequest`. Invoke by absolute path from the project checkout, or cross-check with direct `gh api`.
+
+(2026-05-25, [#141](https://github.com/infohata/mind-vault/pull/141))
 
 ## v4.3 — Review-surface collapse: single `/review-loop` entry
 
