@@ -1040,7 +1040,7 @@ class SeedProvisionTests(TransactionTestCase):   # NOT TestCase — real DDL
 
 `auto_drop_schema` defaults to `True` on `TenantMixin` — but `org.delete()` (which
 would trigger it) is exactly the call that fails above, so call `_drop_schema(
-force_drop=True)` directly. For a foreign-org fixture you only need a Domain row on
+force_drop=True)` directly. For a foreign-org fixture you only need a Domain row
 (not a full schema), set `org.auto_create_schema = False` before `save()` to skip
 the migration cost.
 

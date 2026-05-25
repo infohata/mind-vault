@@ -24,6 +24,8 @@ Patch release on the v4.3 line. A `/compound` harvest from a reproducible-e2e-en
 - `skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md` — adds the `networks: !reset` trap: a per-service network reset nullifies the whole key and the stack falls back to the compose `default` network; a profile-gated service (e.g. e2e `playwright`) the override generator didn't enumerate keeps the parent's pinned `ipv4_address` and breaks ("no configured subnet contains IP" / "could not translate host name db"). Fix: attach the profile service to BOTH the custom network and `default`.
 - `skills/django-frontend/references/VISUAL_ACUITY_TESTS_VIA_PLAYWRIGHT.md` — two bootstrap traps: (8) empty `STATIC_ROOT` on a fresh volume → `/static/*.js` 404 → Alpine/HTMX shell never initialises → mass `wait_for_selector` timeouts that look like a harness bug; the e2e entrypoint must `compile_scss` + `collectstatic` (provision assets AND data). (9) the e2e `pytest.ini` `testpaths` must be absolute — a flags-only `ARGS` drops the path and collects the whole repo's unit suite against the live DB, seeding stray rows.
 
+(2026-05-25, [#145](https://github.com/infohata/mind-vault/pull/145))
+
 ## v4.3.3 — Compound: 5 review-loop patterns
 
 Patch release on the v4.3 line. A pure `/compound` harvest from a cross-project dual-engine review loop — five reusable patterns routed into existing references (no new files, references-first placement), then curated for DRY against the vault and Copilot-cleared.
