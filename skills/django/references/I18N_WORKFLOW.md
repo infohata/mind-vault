@@ -168,7 +168,7 @@ When a translation isn't updating:
 - Correcting the msgid in only `ui.py` updates `ui/<locale>.po` but leaves `kb/<locale>.po` on the old/stale value (or, worse, *introduces* a wrong value if `kb.py` had its own divergent entry that force-sync then writes).
 - The catalogs silently disagree: one surface renders the corrected term, another the stale one.
 
-**Fix recipe**: grep ALL maps for the msgid (`grep -rn "^    '<msgid>':" tools/translation_maps/*.py`), set the same value in **every** app map that has it (or that its `.po` extracts to), add the msgid to `FORCE_SYNC_MSGIDS` once (it's global), then `translate-fill`. Verify each affected `.po` shows the new msgstr. A one-map edit is the trap — the per-app resolution means consistency is only as good as the *least*-updated catalog.
+**Fix recipe**: grep ALL maps for the msgid — anchor on the quoted key, not a fixed indent, since maps nest (`APP_TRANSLATIONS = { 'lt': { … } }`) and msgid lines sit deeper than any one column: `grep -rn "'<msgid>':" tools/translation_maps/*.py` (or `grep -rnF "'<msgid>':"` if the msgid has regex metachars). Set the same value in **every** app map that has it (or that its `.po` extracts to), add the msgid to `FORCE_SYNC_MSGIDS` once (it's global), then `translate-fill`. Verify each affected `.po` shows the new msgstr. A one-map edit is the trap — the per-app resolution means consistency is only as good as the *least*-updated catalog.
 
 ## Don't translate developer notes — they leak into `.po` and ship to users
 
