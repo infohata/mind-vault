@@ -57,7 +57,7 @@ Three distinct review passes happen under sprint-auto, each with its own indepen
 | Docs | Per IDEA, after `/wrap-docs` (state S6+S7) | **5** attempts | `docs_escalation_attempts` in the per-IDEA log |
 | Mind-vault compound | Per compound PR at batch end (state S13+S14) | **5** attempts | attempt table in the mind-vault compound PR's summary block |
 
-Each cap is the budget of **one `/review-loop` session** for that pass — when multiple engines are configured the session carries them together (concurrent sync, findings batched per cycle), so the cap is *not* multiplied by engine count.
+Each cap counts **escalation attempts** (sprint-auto re-entries to resolve T2/T3 findings) for that pass — distinct from `/review-loop`'s own internal session bounds (`max_commits_per_session` etc.). With one multi-engine session per pass, the cap is a single shared budget, *not* multiplied by engine count.
 
 An IDEA may legitimately burn up to 25 escalation attempts (20 deliverables + 5 docs) and still produce a valid PR. That is the point of the budget being generous: overnight wall-clock is cheap, and the alternative (shipping non-clean when one more attempt would have landed) erases the value of automating the fix work at all.
 
