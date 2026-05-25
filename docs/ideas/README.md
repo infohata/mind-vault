@@ -6,11 +6,11 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-006](../archive/2026-05-idea-006-review-surface-collapse/IDEA-006-review-surface-collapse.md) — v4.3 review-surface collapse: delete `AGENT_bugbot`/`AGENT_copilot` + the `/bugbot-loop`·`/copilot-loop` wrappers, leaving only `/review-loop` (migrate content into `engine-<x>.md` + rewire sprint-auto dispatch)
 
 ## 💡 High Priority (backlog)
 
-- [IDEA-006](IDEA-006-thin-agent-files.md) — Delete `AGENT_bugbot.md` + `AGENT_copilot.md`; migrate unique content into `skills/review-loop/references/engine-<x>.md` (spinoff of IDEA-005)
+_(none)_
 
 ## 💡 Medium Priority (backlog)
 
