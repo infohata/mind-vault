@@ -110,7 +110,8 @@ runs with `DEBUG=False`:
 
 ```python
 def handle(self, *args, **options):
-    if not settings.DEBUG and not options["allow_non_debug"]:
+    # options.get(): falsy if --allow-non-debug (store_true) isn't yet wired into add_arguments
+    if not settings.DEBUG and not options.get("allow_non_debug"):
         raise CommandError(
             "<cmd> is dev/test-only (creates privileged users with a known "
             "password) and refuses to run with DEBUG=False. Pass "
