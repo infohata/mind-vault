@@ -1,6 +1,6 @@
 # Wrap before review — finalize docs to shipped state *before* the review-loop runs
 
-**When this fires**: a doc-heavy PR (substantial IDEA-file / plan / index / devlog / guide changes alongside code) headed for `/review-loop` (single- or dual-engine). The default chain is `work → review-loop → wrap`; for doc-heavy PRs, **run doc-finalization first**: `work → wrap(docs) → review-loop → human-merge`.
+**When this fires**: a doc-heavy PR (substantial IDEA-file / plan / index / devlog / guide changes alongside code) headed for `/review-loop` (single- or dual-engine). The default chain is `work → review-loop → wrap`; for doc-heavy PRs, **run doc-finalization first**: `work → wrap(docs) → review-loop → merge` (the merge is human-gated on protected targets, wrap Step 8 atomic on non-protected — see below).
 
 ## Why
 

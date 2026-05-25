@@ -128,7 +128,7 @@ Short-circuit: if frontmatter already shows `status: complete`, assume Step 2 ha
 
 **Pre-condition — IDEA completeness audit.** Before flipping `status: in-progress` → `complete`, walk the plan's acceptance criteria one by one and confirm each is satisfied by the merged code at PR HEAD. Any unmet criterion BLOCKS the flip — either ship the missing work on the same PR, or keep `status: in-progress` and document the pending piece with the ⚠️ marker in every wrap output (devlog entry, ideas-index entry, hand-back report). Phase-shipped IDEAs (multiple PRs over time) use `phase_N_completed:` plus `completed:` to track both phase boundaries and final close-out. Full audit procedure + a worked premature-wrap precedent (status flipped despite a later-phase criterion unmet, surfaced at /compound time) live in [`references/IDEA_COMPLETENESS_AUDIT.md`](references/IDEA_COMPLETENESS_AUDIT.md). Read that reference when this step fires for any IDEA whose plan documented multiple phases or whose acceptance criteria might not all be shipped on this PR.
 
-Per `RULE_ideas-location-status`, frontmatter-edit only — **no file move** (archive dir already exists):
+Per `RULE_ideas-location-status`, edit the frontmatter in place — **no file move** (archive dir already exists); the body-prose status line is synced in the mandatory sub-step below:
 
 ```yaml
 status: complete
