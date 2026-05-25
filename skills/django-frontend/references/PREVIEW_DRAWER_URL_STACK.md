@@ -189,6 +189,28 @@ function flipDrawerEditFrameOnSave(surface, payload) {
 
 URL conventions live as a project-level pattern map (mirrors `URL_PATTERN_BY_TYPE` from the URL contract). Per-entity files own only entity-specific cosmetics (title hints, post-save toasts, etc.). New entities inherit the routing for free.
 
+### The per-entity hard-gate reuse trap — a type-gated listener can't be shared by `<script>` include
+
+Per-entity cosmetics files (`<entity>_actions.js`: drawer-close-on-delete, drawer-title-on-save) almost always open with a type discriminator that bails for foreign payloads:
+
+```js
+function onEntityChanged(event) {
+    var payload = event.detail || {};
+    if (payload.type !== 'article') return;   // ← the hard gate
+    if (payload.action === 'saved') onSaveCosmetics();
+    else if (payload.action === 'deleted') onDelete(payload);
+}
+document.addEventListener('entityChanged', onEntityChanged, { capture: true });   // document, not document.body — see ALPINE_HTMX_GOTCHAS §11
+```
+
+The trap: standing up a new entity surface and wanting the same drawer-close-on-delete behaviour, **reusing the file via `<script src="…/article_actions.js">` does NOT work** — the gate `payload.type !== 'article'` returns early for every `faq` / `event` payload, so the listener silently no-ops. The new entity's delete emits `entityChanged{type:'faq', action:'deleted'}`, the listener bails, the drawer stays open on the just-deleted record. The save-title cosmetic dies the same way.
+
+It's **silent** — no console error; the page mostly works (the declarative `data-refresh-on` list refresh still fires — that's walker-owned, not gated), so the bug hides until someone deletes a record *while its drawer is open*. A template comment like "reused from the article surface — graceful no-op where article selectors aren't in the DOM" is the tell-tale wrong model: it doesn't no-op on missing *selectors*, it hard-returns on the *type gate* before touching the DOM.
+
+The fix matches the per-entity convention: **each surface gets its own `<entity>_actions.js`** — a copy with type token, detail-body class, and title-hint attribute swapped (`'faq'`, `.faq-detail-body`, `[data-faq-title-hint]`). The detail-body partial usually already exposes the right selectors (a tell the original author intended a dedicated file and took the reuse shortcut). Generalising to a type-keyed dispatch table is only worth it past ~3 entities; below that the per-entity copy is lower-risk and matches the walker-vs-per-entity split above.
+
+Sweep heuristic (`RULE_self-sweep` defensive-code sweep): a new shell template adding `<script src="…/<otherentity>_actions.js">` is the smell. Grep the included file's first `if (payload.type !== …)` line; if the literal doesn't match the new surface's type, it's a dead include.
+
 ### Empty-snapshot fallback in pop / popstate handlers
 
 Cold-loading via `?open=parent&push=child` renders only the TOP frame's body — parent frames' snapshots are empty. Browser back at depth>1 then restores an empty body. Guard in both `store.pop()` and the popstate handler:

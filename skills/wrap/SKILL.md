@@ -122,13 +122,13 @@ Derive the IDEA-NNN from one of (in order of precedence):
 
 Locate the idea file. Per `RULE_ideas-location-status`, it's at `docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md` once `/plan` or `/work` has run; if still in `docs/ideas/`, the `/plan` → archive move was skipped — fire it now (single `git mv` + frontmatter update) before continuing.
 
-Short-circuit: if frontmatter already shows `status: complete`, assume Step 2 has run and skip it. Steps 3–5 are idempotent and should run regardless.
+Short-circuit: if frontmatter already shows `status: complete`, skip the frontmatter flip — but still run the body-prose status-line sub-step below (it's idempotent and catches a pre-existing frontmatter↔body mismatch the flip-skip would otherwise leave). Steps 3–5 are idempotent and should run regardless.
 
 ### Step 2 — Flip the idea frontmatter
 
 **Pre-condition — IDEA completeness audit.** Before flipping `status: in-progress` → `complete`, walk the plan's acceptance criteria one by one and confirm each is satisfied by the merged code at PR HEAD. Any unmet criterion BLOCKS the flip — either ship the missing work on the same PR, or keep `status: in-progress` and document the pending piece with the ⚠️ marker in every wrap output (devlog entry, ideas-index entry, hand-back report). Phase-shipped IDEAs (multiple PRs over time) use `phase_N_completed:` plus `completed:` to track both phase boundaries and final close-out. Full audit procedure + a worked premature-wrap precedent (status flipped despite a later-phase criterion unmet, surfaced at /compound time) live in [`references/IDEA_COMPLETENESS_AUDIT.md`](references/IDEA_COMPLETENESS_AUDIT.md). Read that reference when this step fires for any IDEA whose plan documented multiple phases or whose acceptance criteria might not all be shipped on this PR.
 
-Per `RULE_ideas-location-status`, frontmatter-edit only — **no file move** (archive dir already exists):
+Per `RULE_ideas-location-status`, edit the frontmatter in place — **no file move** (archive dir already exists); the body-prose status line is synced in the mandatory sub-step below:
 
 ```yaml
 status: complete
@@ -141,6 +141,8 @@ completed: YYYY-MM-DD
 - **Post-merge fallback**: use `gh pr view <N> --json mergedAt --jq '.mergedAt | split("T")[0]'` to get the real merge date.
 
 Leave `created:` unchanged. If the completed PR superseded or was superseded by another idea, update `superseded_by:` / `supersedes:` too.
+
+**Mandatory sub-step — sync the body-prose status line.** The frontmatter flip isn't the whole job: IDEA files (and many plan/README docs) carry a *second*, human-readable `**Status**: 🚧 In Progress` prose line. After editing frontmatter, grep the same file (and sibling plan/index docs) for a `**Status**:` / `Status:` line and sync it (`✅ Complete (YYYY-MM-DD)`). Skipping this leaves a frontmatter↔body mismatch a doc-reviewing engine **will** flag — a self-inflicted finding. Zero review cost. See [`references/WRAP_BEFORE_REVIEW.md`](references/WRAP_BEFORE_REVIEW.md).
 
 ### Step 3 — Re-sort the ideas index
 
@@ -355,6 +357,7 @@ The HITL gate is *protected-branch* merge, not *every* merge; the gate stays exa
 - [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md) — Step 5 mechanics: destructive teardown sequence, per-file evaluation when `git worktree remove` refuses, last-of-batch integration cleanup for sprint-auto v3.1 batches.
 - [`references/EVAL_GATE_EMISSION.md`](references/EVAL_GATE_EMISSION.md) — Step 7 mechanics: emission shell + placeholder substitution, Playwright-coverage pre-fill algorithm for Direction-1 IDEAs, MANUAL_EVAL_TRACKER hand-off when the walk surfaces issues.
 - [`references/ATOMIC_MERGE.md`](references/ATOMIC_MERGE.md) — Step 8 mechanics: protected-branch detection, pre-merge review re-clearance, squash-merge sequence, permission-denial handling, deployment-branch override.
+- [`references/WRAP_BEFORE_REVIEW.md`](references/WRAP_BEFORE_REVIEW.md) — ordering for doc-heavy PRs: run wrap's doc-finalization steps *before* `/review-loop` so the reviewer sees docs at shipped state (catches doc-consistency findings in the same pass, no post-review drift). Merge stays post-review-clear. Includes the Step 2 body-prose status-line sync rationale.
 - [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md) — the frontmatter-only transition this skill relies on.
 - [`RULE_parallel-worktree-docker`](../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — the worktree + compose-project contract Step 5 tears down.
 - [`/work`](../work/SKILL.md) — the stage before; its output (a PR on a feature branch, review-cleared deliverables) is `/wrap`'s input.
