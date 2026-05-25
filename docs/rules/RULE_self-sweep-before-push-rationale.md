@@ -149,9 +149,9 @@ Full ruff / mypy passes are PR-time / CI-time concerns. The sweep is the minimum
 
 Doc-heavy commits (IDEA files, the ideas index/README, plan docs, dev logs) draw a predictable review-bot Info-finding class that is **entirely locally checkable**. Bots tend to surface these **one fresh nit per review cycle** — and each cycle is a billed round-trip — so a session can otherwise burn N cycles clearing N cosmetic doc nits one at a time. Sweeping all five checks before the *first* trigger collapses that to zero.
 
-### The five checks
+### The six checks
 
-1. **Frontmatter ↔ body cross-ref symmetry.** Every id in a file's `related:` / `depends_on:` / `supersedes:` frontmatter should be discoverable in the body's prose, and every id discussed in the body's "Related" section should be in the frontmatter. When you *add* an edge in frontmatter (e.g. `related: [..., NNN]`), add the matching one-line backref in the body — bots flag the asymmetry.
+1. **Frontmatter ↔ body cross-ref symmetry.** Every id in a file's `related:` / `depends_on:` / `supersedes:` frontmatter should be discoverable in the body's prose, and every id discussed in the body's "Related" section should be in the frontmatter. When you *add* an edge in frontmatter (e.g. `related: [..., NNN]`), add the matching one-line backref in the body — bots flag the asymmetry. **Applies to every edge type, and to every id within a list** — a `depends_on: [137, 158]` whose prose mentions only 158 is the exact asymmetry bots catch. Name all the ids the frontmatter lists, not just the one you were focused on.
 
 2. **Ordering-block ↔ index/table membership.** Every entity named in a locked-order / sequence / recap block must have a corresponding row in any progress/index table the same doc maintains. A reorder that introduces an id into the chain without a table row is the classic miss. Mechanical check:
    ```bash
@@ -166,6 +166,11 @@ Doc-heavy commits (IDEA files, the ideas index/README, plan docs, dev logs) draw
 4. **Domain-terminology precision.** Name the actual layer, not a plausible-sounding neighbour. Multi-tenancy example (django-tenants): a model that lives in a `SHARED_APPS` app is shared/public-schema — adding a field to it is a **shared-schema migration**, NOT a per-tenant one. "Per-tenant" describes data that *varies* per tenant, not the schema it physically lives in. Mis-scoped schema/auth/permission terminology is a favourite bot nit because it reads as a correctness risk.
 
 5. **PR-description ↔ final-diff drift.** After a mid-PR reorder or a dependency-edge flip, the PR body written for the first commit goes stale. Re-read the PR description against the *final* diff before the next trigger — bots compare the two resources and flag conflicting guidance. A one-line "earlier draft said X; reversed in a follow-up — the diff below is authoritative" note also resolves it.
+
+6. **Frontmatter formatting matches repo convention.** When a file is created from a template, strip the template's placeholder hint comments (`status: idea  # idea | in-progress | …`, gate-explanation comment blocks) before commit if the repo's existing files keep frontmatter comment-free. Mismatched frontmatter style is a low-cost bot nit. Quick check — compare the new file's comment count against a sibling:
+   ```bash
+   awk '/^---$/{c++;next} c==1 && /#/{n++} c==2{exit} END{print n+0}' <new-file>   # vs a sibling; should match
+   ```
 
 ### Why the bot path is the expensive one here
 

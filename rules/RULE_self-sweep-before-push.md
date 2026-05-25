@@ -37,7 +37,7 @@ When `make test` reports pre-existing failures unrelated to your change, fix the
 
 ### 5. Doc-consistency sweep (doc-heavy commits)
 
-When a commit carries substantial doc/markdown changes (IDEA files, the ideas index/README, plan docs, dev logs) — **even alongside code** — sweep for the locally-checkable consistency class review bots flag one-nit-per-cycle: frontmatter `related`/`depends_on` ↔ body "Related" prose symmetry; every entity named in an ordering/recap block having a row in the doc's progress/index table; count/range claims matching the actually-listed set; domain-terminology precision (e.g. shared-schema vs per-tenant); and PR-description ↔ final-diff drift after a mid-PR reorder. Grep recipes + the five-check list → rationale doc.
+When a commit carries substantial doc/markdown changes (IDEA files, the ideas index/README, plan docs, dev logs) — **even alongside code** — sweep for the locally-checkable consistency class review bots flag one-nit-per-cycle: frontmatter `related`/`depends_on` ↔ body "Related" prose symmetry (every id, every edge type); every entity named in an ordering/recap block having a row in the doc's progress/index table; count/range claims matching the actually-listed set; domain-terminology precision (e.g. shared-schema vs per-tenant); PR-description ↔ final-diff drift after a mid-PR reorder; and frontmatter formatting matching the repo convention (no leftover template placeholder comments). Grep recipes + the six-check list → rationale doc.
 
 ## When This Applies
 
