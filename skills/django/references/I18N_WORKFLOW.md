@@ -161,6 +161,15 @@ When a translation isn't updating:
 3. If populated, add the msgid to `FORCE_SYNC_MSGIDS` and re-run translate-fill.
 4. Re-check the `.po` to confirm the new value landed.
 
+### The same msgid can live in MULTIPLE app catalogs — fix EVERY map, not just one
+
+*Map ownership* above describes the single-owner case (a string `makemessages` extracts to exactly one app's `.po`). But a short literal used in templates across apps (e.g. `"FAQ"` appearing in both a `ui` shell template and a `kb` partial) is extracted into **each** of those apps' `.po` files. The fill script resolves the force-sync value **per-app** — `all_trans = SHARED + <that-app>.py` — so:
+
+- Correcting the msgid in only `ui.py` updates `ui/<locale>.po` but leaves `kb/<locale>.po` on the old/stale value (or, worse, *introduces* a wrong value if `kb.py` had its own divergent entry that force-sync then writes).
+- The catalogs silently disagree: one surface renders the corrected term, another the stale one.
+
+**Fix recipe**: grep ALL maps for the msgid (`grep -rn "^    '<msgid>':" tools/translation_maps/*.py`), set the same value in **every** app map that has it (or that its `.po` extracts to), add the msgid to `FORCE_SYNC_MSGIDS` once (it's global), then `translate-fill`. Verify each affected `.po` shows the new msgstr. A one-map edit is the trap — the per-app resolution means consistency is only as good as the *least*-updated catalog.
+
 ## Don't translate developer notes — they leak into `.po` and ship to users
 
 A `{% trans "TODO: refactor this in Phase 2" %}` block extracts into `.po`, translation maps add msgstr entries, the result ships to end users as page copy. The fix is at the template layer (`{% comment %}` instead of `{% trans %}`) — see [`../../django-frontend/references/TEMPLATE_COMMENT_SYNTAX.md`](../../django-frontend/references/TEMPLATE_COMMENT_SYNTAX.md) § *Don't translate developer notes* for the canonical template-side recipe + audit grep.
