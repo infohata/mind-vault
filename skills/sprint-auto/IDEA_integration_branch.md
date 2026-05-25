@@ -191,7 +191,7 @@ First batches will calibrate; numbers above are starting points, not contracts.
 
 ### Cross-skill (verification routing)
 - `skills/work/SKILL.md` — verification step honors `SPRINT_AUTO_INTEGRATION_WORKTREE` env var
-- `commands/bugbot-loop.md` and `commands/copilot-loop.md` — Phase 0 skip-bootstrap rule when env var set (both engine-specific loops carry the same rule)
+- `skills/review-loop/SKILL.md` — Phase 0 skip-bootstrap rule when env var set (the unified loop carries it)
 
 ### Tooling (per project)
 - `tools/sprint-auto-bootstrap.sh` — accept `--code-only` flag (skips `.env` rewrite + `docker compose up` + post-up init); standard mode (no flag) for integration worktree
@@ -231,7 +231,7 @@ If these signals hold on the first batch, v3 is working. If a signal breaks, the
 When green-lit:
 1. Open `feature/sprint-auto-integration-stage` off `origin/main`
 2. Implement S(-1) bootstrap + S0 code-surface narrowing in `skills/sprint-auto/SKILL.md`
-3. Add verification routing in `skills/work/SKILL.md` + `commands/bugbot-loop.md` + `commands/copilot-loop.md`
+3. Add verification routing in `skills/work/SKILL.md` + `skills/review-loop/SKILL.md`
 4. Add `--scope=idea-only` mode in `skills/wrap/SKILL.md`
 5. Add `--code-only` flag to `tools/sprint-auto-bootstrap.sh` (per project)
 6. Implement S11.5–S11.13 + new reference docs
@@ -245,7 +245,7 @@ When green-lit:
 - [`references/worktree-lifecycle.md`](references/worktree-lifecycle.md) — touched by v3.1 (code-surface mode, integration-worktree-as-runtime)
 - [`../wrap/SKILL.md`](../wrap/SKILL.md) — touched by this plan (`--scope=idea-only`, last-of-batch detection)
 - [`../work/SKILL.md`](../work/SKILL.md) — touched by this plan (verification routing via env var)
-- [`../../commands/bugbot-loop.md`](../../commands/bugbot-loop.md) / [`../../commands/copilot-loop.md`](../../commands/copilot-loop.md) — touched by this plan (Phase 0 skip-bootstrap rule when env var set, in both engine-specific loops)
+- [`../review-loop/SKILL.md`](../review-loop/SKILL.md) — touched by this plan (Phase 0 skip-bootstrap rule when env var set, in the unified loop)
 - [`references/PARALLEL_WORKTREE_DOCKER.md`](references/PARALLEL_WORKTREE_DOCKER.md) — worktree pattern; v3.1 narrows the per-worktree stack assumption for sprint-auto
 - [`../../rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — confirms forward-sync (S11.11) is agent-allowed; the `[INTEGRATION]` draft PR is a non-merging artefact
 - Existing sprint-auto state machine: `skills/sprint-auto/SKILL.md` (S0–S15)

@@ -53,14 +53,14 @@ mind-vault supports two external review engines and one local fallback:
 
 ```text
 /work …          # feature branch, commits, push
-/bugbot-loop     # (or /copilot-loop) — semi-autonomous fix-rerun cycle
+/review-loop <PR> <engine>   # semi-autonomous fix-rerun cycle
 ```
 
 Each loop polls the engine's GitHub API surface, classifies findings into tiers (auto-fix / approve-then-fix / escalate), batches fixes per review-cycle into ONE commit, retriggers, repeats until CLEAN or a hard bound trips.
 
 ### Dual-engine flow
 
-Use `/review-loop <PR> bugbot,copilot` (the canonical multi-engine entry) — the loop **syncs each cycle**: wait for the slower engine, batch findings from BOTH into one fix commit, push once, retrigger BOTH. Prevents the failure mode where independent loops' pushes invalidate each other's pending reviews. The legacy form (running `/bugbot-loop` AND `/copilot-loop` independently in two sessions) is supported but undermines the sync contract — prefer the unified entry.
+Use `/review-loop <PR> bugbot,copilot` (the canonical multi-engine entry) — the loop **syncs each cycle**: wait for the slower engine, batch findings from BOTH into one fix commit, push once, retrigger BOTH. Prevents the failure mode where two independent single-engine sessions' pushes invalidate each other's pending reviews — always drive both engines through the one `/review-loop <PR> bugbot,copilot` session.
 
 Escape hatches when one engine stalls or service-errors are codified in each loop's SKILL.md — see the dual-engine sync rule blocks.
 
@@ -177,6 +177,6 @@ The container-stop step is non-obvious but important: checking out a stale branc
 
 - [`rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — the always-on hard rules.
 - [`rules/RULE_rename-before-drop.md`](../../rules/RULE_rename-before-drop.md) — multi-commit rename sequencing.
-- [`skills/review-loop/SKILL.md`](../../skills/review-loop/SKILL.md) — shared Phase 0/1/2/3/4 orchestrator; [`commands/bugbot-loop.md`](../../commands/bugbot-loop.md) and [`commands/copilot-loop.md`](../../commands/copilot-loop.md) are thin wrappers, [`commands/review-loop.md`](../../commands/review-loop.md) is the multi-engine direct entry. Engine specifics live in `skills/review-loop/references/engine-{bugbot,copilot}.md`.
+- [`skills/review-loop/SKILL.md`](../../skills/review-loop/SKILL.md) — shared Phase 0/1/2/3/4 orchestrator; [`commands/review-loop.md`](../../commands/review-loop.md) is the command entry. Engine specifics live in `skills/review-loop/references/engine-{bugbot,copilot}.md`.
 - [`skills/sprint-auto/SKILL.md`](../../skills/sprint-auto/SKILL.md) — integration-branch pattern in full.
 - [WORKTREE_PRACTICES.md](WORKTREE_PRACTICES.md) — parallel-worktree counterpart.

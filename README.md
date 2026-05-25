@@ -15,8 +15,6 @@ Cross-host configuration library for AI coding agents — skills, commands, suba
 > **Single source of truth.** You edit in `mind-vault/`; one setup script per host drops symlinks into each tool's native config directory. No copy-paste drift between Cursor, Claude Code, OpenCode, VS Code Copilot, or Antigravity.
 >
 > **v4 highlights.** The Stage 4 review surface is now engine-agnostic — opt into Cursor Bugbot, GitHub Copilot, both concurrently, or neither (curator-only fallback). Canonical entry: `/review-loop <PR> bugbot`, `/review-loop <PR> copilot`, or `/review-loop <PR> bugbot,copilot`.
->
-> **Deprecation (v4.3, upcoming).** `/bugbot-loop` and `/copilot-loop` are deprecated thin wrappers and will be removed in a future release. Prefer `/review-loop <PR> <engine>` directly — same behaviour, one fewer command surface to load, further trimming the always-on token cost.
 
 ## Sprint workflow — the compound loop
 
@@ -28,12 +26,12 @@ flowchart LR
     I1(["/idea — capture"]) --> P
     P(["/plan · /brainstorm — what + how"]) --> W
     W(["/work — execute"]) --> R
-    R(["/review-loop <engine>\n+ AGENT_bugbot / AGENT_copilot · curator · architect"]) --> C
+    R(["/review-loop <engine>\n+ curator · architect"]) --> C
     C(["/compound — router"]) -.promotes.-> V[("mind-vault\nskills · rules · agents\ncommands · memory")]
     C -.next sprint.-> I1
 ```
 
-**Design note on the review stage.** Stages 1–2–3–5 each have a dedicated skill (`/idea`, `/plan`, `/work`, `/compound`). Stage 4 (review) is engine-selectable via the unified `/review-loop` skill: pass `bugbot`, `copilot`, or `bugbot,copilot` as the engine argument. Both engines share the same Phase 1–4 orchestrator backed by `AGENT_bugbot` / `AGENT_copilot` / `AGENT_curator` / `AGENT_architect` personas; engine-specific details (clean-signal parsing, retrigger semantics, Tier 1 catalogue) live in per-engine adapter references. The legacy `/bugbot-loop` and `/copilot-loop` thin wrappers are deprecated as of v4.3 (upcoming).
+**Design note on the review stage.** Stages 1–2–3–5 each have a dedicated skill (`/idea`, `/plan`, `/work`, `/compound`). Stage 4 (review) is engine-selectable via the unified `/review-loop` skill: pass `bugbot`, `copilot`, or `bugbot,copilot` as the engine argument. Both engines share the same Phase 1–4 orchestrator backed by the `AGENT_curator` / `AGENT_architect` personas; engine-specific details (clean-signal parsing, retrigger semantics, Tier 1 catalogue) live in per-engine adapter references under `skills/review-loop/references/`.
 
 See [docs/guides/SPRINT_WORKFLOW.md](docs/guides/SPRINT_WORKFLOW.md) for the full explainer — authoritative frontmatter schemas, compound-routing table, right-sizing guidance, and the handoff contract between stages.
 
@@ -105,7 +103,7 @@ Slash commands surface from two sources via the host's symlink: `commands/` (7 r
 
 **Automation:** `/sprint-auto` — overnight unattended orchestrator that chains the full sprint workflow (stages 2–5: `/plan → /work → /review-loop → /wrap (pre-merge) → /review-loop → teardown → /compound → /review-loop`) for curated IDEAs; the `/review-loop` invocation expands to `bugbot`, `copilot`, or `bugbot,copilot` per project config (`SPRINT_AUTO_REVIEW_ENGINE`). See [`skills/sprint-auto/SKILL.md`](skills/sprint-auto/SKILL.md).
 
-**Review + PR flow:** `/review-loop` (canonical entry for all engine combinations — `bugbot`, `copilot`, or `bugbot,copilot`), `/create-pr`, `/test`. See `docs/guides/ONBOARDING.md` § "Pick a code-review engine" for the three-way choice (bugbot / copilot / curator-only); use `/review-loop <PR> bugbot,copilot` when both engines are enabled to get cycle-level synchronisation. `/bugbot-loop` and `/copilot-loop` still work as deprecated thin wrappers but will be removed; prefer `/review-loop <PR> <engine>` directly.
+**Review + PR flow:** `/review-loop` (canonical entry for all engine combinations — `bugbot`, `copilot`, or `bugbot,copilot`), `/create-pr`, `/test`. See `docs/guides/ONBOARDING.md` § "Pick a code-review engine" for the three-way choice (bugbot / copilot / curator-only); use `/review-loop <PR> bugbot,copilot` when both engines are enabled to get cycle-level synchronisation.
 
 **Utility:** `/git-status`, `/load-rules`.
 

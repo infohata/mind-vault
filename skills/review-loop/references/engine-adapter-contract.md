@@ -98,7 +98,7 @@ Each failure mode mapped to an orchestrator action (proceed with other engines, 
 
 ### § Common patterns (codified Tier 1 findings)
 
-Numbered list of engine-specific recurring findings the orchestrator can auto-fix without per-finding approval. Borrows from `AGENT_<engine>.md`'s Common Patterns block where one exists.
+Engine-specific recurring findings the orchestrator can auto-fix without per-finding approval. The shared cross-engine catalogue lives in [`common-review-findings.md`](common-review-findings.md); an adapter's § Common patterns section links there and documents only its engine-specific deltas.
 
 ### § Spacing rule
 

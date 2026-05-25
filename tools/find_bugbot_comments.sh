@@ -1,6 +1,6 @@
 #!/bin/bash
 # Find bugbot activity on a PR — inline comments, top-level PR comments, and reviews.
-# Used by the /bugbot-loop skill (mind-vault) as well as human inspection.
+# Used by the /review-loop skill (mind-vault) as well as human inspection.
 #
 # Output contract:
 #   - Prints a single `BUGBOT_CLEAN_SIGNAL=<id> COMMIT=<sha> AT=<iso-timestamp>` line
@@ -94,7 +94,7 @@ fi
 #
 #   1. CLEAN_SIGNAL_LINE   — "is bugbot saying HEAD is clean right now?"
 #                            Emits BUGBOT_CLEAN_SIGNAL only on positive match.
-#                            Empty otherwise. Drives /bugbot-loop's Phase 4
+#                            Empty otherwise. Drives /review-loop's Phase 4
 #                            fast-path hand-back.
 #
 #   2. LATEST_REVIEW_LINE  — "what is the most recent bugbot review, regardless
@@ -113,7 +113,7 @@ fi
 #   - Each block answers ONE question and is independently readable (~15 lines
 #     vs ~40 for a consolidated emit-three-markers block).
 #   - The line-by-line stdout shape (independently empty-able markers in their
-#     existing order) IS a contract — `/bugbot-loop` Phase 4 greps the
+#     existing order) IS a contract — `/review-loop` Phase 4 greps the
 #     `^BUGBOT_CLEAN_SIGNAL=` anchor; consolidating risks reordering or
 #     emitting empty placeholders that subtly change consumer behaviour.
 #   - Three python3 spawns is ~150ms total — invisible at the loop's 270s
@@ -147,7 +147,7 @@ if bugbot:
 " 2>/dev/null || true)
 
 if [ -n "$CLEAN_SIGNAL_LINE" ]; then
-    # Machine-readable marker for /bugbot-loop Phase 4: MUST be plain text, no ANSI
+    # Machine-readable marker for /review-loop Phase 4: MUST be plain text, no ANSI
     # escapes. Phase 4 greps `^BUGBOT_CLEAN_SIGNAL=` and parses `COMMIT=<sha>` for
     # the fast-path hand-back. Wrapping this in color codes prefixes the line with
     # `\033[0;32m`, breaks the anchor, and suffixes `AT=<ts>` with `\033[0m` — the
@@ -166,7 +166,7 @@ fi
 # /commits/<sha>/check-runs. Make the script tolerant: emit BUGBOT_CHECKRUN
 # unconditionally (informational), and SYNTHESIZE BUGBOT_CLEAN_SIGNAL when the
 # check-run reports success and /reviews didn't already produce a clean signal
-# for HEAD. Downstream consumers (/bugbot-loop Phase 4) only need to grep
+# for HEAD. Downstream consumers (/review-loop Phase 4) only need to grep
 # BUGBOT_CLEAN_SIGNAL — the synthesis preserves the existing contract.
 #
 # App identification — match by app.slug for cursor's bot. Tolerant filter so
@@ -207,7 +207,7 @@ print(f'BUGBOT_CHECKRUN={rid} COMMIT={sha} STATUS={status} CONCLUSION={conclusio
 if [ -n "$BUGBOT_CHECKRUN_LINE" ]; then
     echo "$BUGBOT_CHECKRUN_LINE"
     # Synthesize BUGBOT_CLEAN_SIGNAL from a successful check-run when /reviews
-    # didn't produce one for HEAD. The downstream /bugbot-loop Phase 4 only
+    # didn't produce one for HEAD. The downstream /review-loop Phase 4 only
     # greps BUGBOT_CLEAN_SIGNAL; this preserves the existing consumer contract.
     cr_status=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'STATUS=[^ ]+' | cut -d= -f2)
     cr_conclusion=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'CONCLUSION=[^ ]+' | cut -d= -f2)
@@ -341,7 +341,7 @@ for i, comment in enumerate(comments, 1):
     url = comment.get('html_url', '')
     cid = comment.get('id', '')
     # The pull_request_review_id field ties a comment to a specific bugbot review.
-    # /bugbot-loop Phase 1 compares this against the BUGBOT_LATEST_REVIEW marker
+    # /review-loop Phase 1 compares this against the BUGBOT_LATEST_REVIEW marker
     # to distinguish active findings (latest-review) from stale persistent threads
     # (older reviews kept by GitHub UI until manually Resolve-conversation-clicked).
     # GitHub documents the field as integer-or-null. .get(key, default) returns the

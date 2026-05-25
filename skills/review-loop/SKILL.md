@@ -9,10 +9,7 @@ Drive a review-fix-rerun cycle on the given PR using one or more review engines.
 - `PR_NUMBER` (optional; defaults to PR for current branch).
 - `ENGINES` (one or more of: `bugbot`, `copilot`; defaults to all engines whose adapter is present + retrigger tool is reachable).
 
-This skill is invoked from three command surfaces:
-- `commands/review-loop.md` — direct multi-engine entry (`ENGINES=bugbot,copilot` or any subset).
-- `commands/bugbot-loop.md` — thin wrapper, `ENGINES=bugbot`.
-- `commands/copilot-loop.md` — thin wrapper, `ENGINES=copilot`.
+This skill is invoked via `commands/review-loop.md` — the single review entry point. Pass `ENGINES` as `bugbot`, `copilot`, or `bugbot,copilot` (any subset); single-engine runs are just a one-element list.
 
 ## Hard bounds (enforced by the loop)
 
@@ -108,14 +105,14 @@ For every Tier 1 and Tier 2 finding, write a one-sentence justification: *why is
 
 ### Scratch-file persistence
 
-Persist to `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (engine-agnostic filename) so the next wake cycle can reload state without re-reading summaries. **Supersedes the older per-engine `bugbot-pr-<N>.md` / `copilot-pr-<N>.md` paths** that pre-shared-core `AGENT_bugbot.md` / `AGENT_copilot.md` referenced. When migrating a project from the old wrappers, drop the per-engine scratch files; the shared file holds all engines' state. The scratch file must checkpoint every piece of state that a hard bound depends on, after every mutation:
+Persist to `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (engine-agnostic filename) so the next wake cycle can reload state without re-reading summaries. **Supersedes the older per-engine `bugbot-pr-<N>.md` / `copilot-pr-<N>.md` scratch paths** from the pre-shared-core single-engine wrappers. When migrating a project off those, drop the per-engine scratch files; the shared file holds all engines' state. The scratch file must checkpoint every piece of state that a hard bound depends on, after every mutation:
 
 - `commits_this_session` (int, /20)
 - `active_work_minutes` (int, /180; best-effort)
 - `idle_polls` (int, /20)
 - `engines` (comma-separated list of active engines for this session)
 - `last_push_sha`
-- `no_progress_map` — **always namespaced per engine** (uniform across single-engine and multi-engine modes): `{ bugbot: {<category>: <count>} }` for `/bugbot-loop`, `{ copilot: {<category>: <count>} }` for `/copilot-loop`, `{ bugbot: {...}, copilot: {...} }` for dual-engine. Flat (un-namespaced) maps from pre-shared-core sessions must be migrated to the per-engine shape on first wake — otherwise Phase 4's no-progress guard reads the wrong slot and never trips.
+- `no_progress_map` — **always namespaced per engine** (uniform across single-engine and multi-engine modes): `{ bugbot: {<category>: <count>} }` for a bugbot-only run, `{ copilot: {<category>: <count>} }` for copilot-only, `{ bugbot: {...}, copilot: {...} }` for dual-engine. Flat (un-namespaced) maps from pre-shared-core sessions must be migrated to the per-engine shape on first wake — otherwise Phase 4's no-progress guard reads the wrong slot and never trips.
 
 Per-engine state slots (replicate the pattern for each engine in `engines`):
 
@@ -161,7 +158,7 @@ If at least one fix was applied:
 3. **Retrigger** — for each `<engine>` in `ENGINES` iterated **alphabetically** (deterministic order so behaviour is reproducible regardless of how the caller orders `ENGINES`, matching [`references/dual-engine-sync.md`](references/dual-engine-sync.md) § Retrigger discipline), conditional on the **per-engine** spacing rule:
    - If `last_<engine>_retrigger_at` is unset OR ≥5 min ago: fire `./tools/<engine>_retrigger.sh [PR_NUMBER]`. Update `last_<engine>_retrigger_at` to the post-time. Clear `pending_<engine>_retrigger` if set.
    - Else (last retrigger <5 min ago): do NOT fire now. Set `pending_<engine>_retrigger=true`. The defer for the slow engine does NOT block other engines firing this cycle — each engine is independent.
-   - After processing all engines, if any deferred: `ScheduleWakeup(delaySeconds=300, prompt="/review-loop <PR_NUMBER> <ENGINES>")` (or the single-engine wrapper command if invoked via `/bugbot-loop` / `/copilot-loop`). Phase 4's pending-retrigger branch will fire the deferred scripts on the next wake. **The `prompt` arg is mandatory** — without it the harness wake fires but does not re-enter the loop, orphaning the deferred retrigger.
+   - After processing all engines, if any deferred: `ScheduleWakeup(delaySeconds=300, prompt="/review-loop <PR_NUMBER> <ENGINES>")`. Phase 4's pending-retrigger branch will fire the deferred scripts on the next wake. **The `prompt` arg is mandatory** — without it the harness wake fires but does not re-enter the loop, orphaning the deferred retrigger.
 
    **Spacing rationale**: engine queues stack — rapid same-engine retriggers don't preempt a pending review, they stack behind it. Field-observed: 4 bugbot retriggers in 10 min stretched per-review latency from ~1-10 min to ~16 min. The rule is **per-engine** — under multi-engine mode firing bugbot + copilot back-to-back is fine (different queues); firing bugbot twice in <5 min is not.
 
@@ -213,6 +210,6 @@ Under sprint-auto v3.1, the "user" the loop hands back to is sprint-auto itself 
 - [`references/engine-bugbot.md`](references/engine-bugbot.md) — Cursor Bugbot adapter.
 - [`references/engine-copilot.md`](references/engine-copilot.md) — GitHub Copilot adapter.
 - [`references/dual-engine-sync.md`](references/dual-engine-sync.md) — multi-engine synchronisation contract.
-- [`agents/AGENT_bugbot.md`](../../agents/AGENT_bugbot.md) — bugbot-specific bounded-autonomy policy (codified Tier 1 patterns).
+- [`references/common-review-findings.md`](references/common-review-findings.md) — shared codified Tier-1 catalogue (engine-agnostic).
 - `RULE_git-safety` — feature-branch sandbox, never-merge-to-protected discipline.
 - `RULE_self-sweep-before-push` — pyflakes self-sweep between Phase 2 and Phase 3.

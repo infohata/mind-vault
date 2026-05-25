@@ -49,14 +49,10 @@ The `BUGBOT_CLEAN_SIGNAL` `COMMIT` field is the **trigger-anchor** SHA, not the 
 
 ## § Common patterns (codified Tier 1)
 
-Defer to [`agents/AGENT_bugbot.md`](../../../agents/AGENT_bugbot.md) § Common Bugbot Patterns §1-8 for the codified auto-fix patterns. Triage rule: if a finding matches one of those 8 patterns AND touches ≤1 file AND has an existing targeted test, classify Tier 1 (auto-fix without per-finding approval prompt).
+The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). Bugbot's catalogue is the empirically-validated baseline (multi-tenant Django SaaS PRs); no bugbot-specific deltas at present.
 
 ## § Spacing rule
 
 ≥5 minutes between same-engine retriggers. Field-observed degradation: 4 retriggers in 10 minutes stretched per-review latency from ~1-10 min (typical) to ~16 min as Cursor's check-suite queue worked through superseded entries.
 
 The rule is **per-engine** — under multi-engine mode bugbot+copilot back-to-back is fine (different queues). Only same-engine retriggers within 5 min violate the spacing.
-
-## § Notes on Common Bugbot Patterns location
-
-`AGENT_bugbot.md` predates this adapter split. Its Common Patterns block remains the canonical Tier-1 catalogue; this adapter does not duplicate it. If Common Patterns grows engine-specific subsections (rare), they land here under § Common patterns above.

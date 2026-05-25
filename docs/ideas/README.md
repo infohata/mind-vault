@@ -6,11 +6,11 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-006](../archive/2026-05-idea-006-review-surface-collapse/IDEA-006-review-surface-collapse.md) — v4.3 review-surface collapse: delete `AGENT_bugbot`/`AGENT_copilot` + the `/bugbot-loop`·`/copilot-loop` wrappers, leaving only `/review-loop` (migrate content into `engine-<x>.md` + rewire sprint-auto dispatch)
 
 ## 💡 High Priority (backlog)
 
-- [IDEA-006](IDEA-006-thin-agent-files.md) — Delete `AGENT_bugbot.md` + `AGENT_copilot.md`; migrate unique content into `skills/review-loop/references/engine-<x>.md` (spinoff of IDEA-005)
+_(none)_
 
 ## 💡 Medium Priority (backlog)
 
@@ -34,7 +34,7 @@ Swept the three feature-dense skills (`deployment`, `django`, `django-frontend`)
 ### IDEA-005: Review-loop shared core — unify /bugbot-loop + /copilot-loop with engine adapters ✅ COMPLETE
 
 **Status**: ✅ **COMPLETE** · **Completed**: 2026-05-20 · **See**: [Archive](../archive/2026-05-idea-005-review-loop-shared-core/IDEA-005-review-loop-shared-core.md), [PR #131](https://github.com/infohata/mind-vault/pull/131).
-Extracted the duplicated Phase 0/1/2/3/4 orchestrator from `commands/bugbot-loop.md` + `commands/copilot-loop.md` into a single `skills/review-loop/SKILL.md` driven by per-engine adapter references (`engine-bugbot.md`, `engine-copilot.md`, `engine-adapter-contract.md`, `dual-engine-sync.md`). New `commands/review-loop.md` is the canonical multi-engine entry; the two existing commands cut from ~260L each to ~15L thin wrappers. Dual-engine concurrent execution is now a first-class supported mode with explicit per-engine spacing, asymmetric-clearance hand-back, and N-engine generalisation in the adapter contract. The rename absorbed from PR #130 was bundled into the same merge; cross-project numbering guard added in `skills/idea/SKILL.md` to prevent recurrence of the IDEA-167 → IDEA-005 confusion that motivated the rename. **Dogfood validation**: 10 cycles of `/review-loop 131 bugbot,copilot` on the implementation PR surfaced ~50 findings across 7 files, demonstrating the dual-engine value (each engine consistently caught issues the other missed). Spinoff: [IDEA-006](IDEA-006-thin-agent-files.md) extends the same delegation treatment to `AGENT_bugbot.md` + `AGENT_copilot.md`.
+Extracted the duplicated Phase 0/1/2/3/4 orchestrator from `commands/bugbot-loop.md` + `commands/copilot-loop.md` into a single `skills/review-loop/SKILL.md` driven by per-engine adapter references (`engine-bugbot.md`, `engine-copilot.md`, `engine-adapter-contract.md`, `dual-engine-sync.md`). New `commands/review-loop.md` is the canonical multi-engine entry; the two existing commands cut from ~260L each to ~15L thin wrappers. Dual-engine concurrent execution is now a first-class supported mode with explicit per-engine spacing, asymmetric-clearance hand-back, and N-engine generalisation in the adapter contract. The rename absorbed from PR #130 was bundled into the same merge; cross-project numbering guard added in `skills/idea/SKILL.md` to prevent recurrence of the IDEA-167 → IDEA-005 confusion that motivated the rename. **Dogfood validation**: 10 cycles of `/review-loop 131 bugbot,copilot` on the implementation PR surfaced ~50 findings across 7 files, demonstrating the dual-engine value (each engine consistently caught issues the other missed). Spinoff: [IDEA-006](../archive/2026-05-idea-006-review-surface-collapse/IDEA-006-review-surface-collapse.md) extends the same delegation treatment to `AGENT_bugbot.md` + `AGENT_copilot.md`.
 
 ### IDEA-004: ONBOARDING — full dev-environment walkthrough ✅ COMPLETE
 

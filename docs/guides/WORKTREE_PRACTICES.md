@@ -93,7 +93,7 @@ If `.env` is missing inside a worktree and `.env.template` exists:
 
 This is bootstrap-only — for disposable test-data stacks. **Never read or copy from the primary checkout's `.env`.** Never populate real credentials. Never apply this exception in the primary working tree.
 
-The rule is auto-enforced by the shared review-loop skill's Phase 0 worktree bootstrap — see [`skills/review-loop/SKILL.md` § Phase 0](../../skills/review-loop/SKILL.md) for the canonical in-repo wording (the sanitisation steps + sentinel-value replacements are codified there verbatim). Invoked via `/review-loop`, `/bugbot-loop`, or `/copilot-loop`.
+The rule is auto-enforced by the shared review-loop skill's Phase 0 worktree bootstrap — see [`skills/review-loop/SKILL.md` § Phase 0](../../skills/review-loop/SKILL.md) for the canonical in-repo wording (the sanitisation steps + sentinel-value replacements are codified there verbatim). Invoked via `/review-loop`.
 
 ## sprint-auto's integration-worktree pattern (v3.1+)
 
@@ -110,7 +110,7 @@ Each worktree opens in its own editor window with its own language-server instan
 
 - **VS Code / Cursor**: open each worktree as a separate window. Workspace settings (`.vscode/settings.json`) commit naturally.
 - **Vim / Neovim**: spawn one tmux pane per worktree.
-- **Claude Code**: launch one `claude` instance per worktree from inside that worktree's directory. The host detects you're in a worktree (`git rev-parse --git-common-dir` differs from `.git`) and the shared `/review-loop` skill (driving `/bugbot-loop`, `/copilot-loop`, or both) applies the worktree-specific bootstrap.
+- **Claude Code**: launch one `claude` instance per worktree from inside that worktree's directory. The host detects you're in a worktree (`git rev-parse --git-common-dir` differs from `.git`) and the shared `/review-loop` skill applies the worktree-specific bootstrap.
 
 ## Teardown — non-trivial
 
