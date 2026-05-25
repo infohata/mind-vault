@@ -3,7 +3,7 @@ stage: plan
 slug: wrap-doc-finalization-scope
 created: 2026-05-25
 source: ./IDEA-008-wrap-doc-finalization-scope.md
-status: ready
+status: shipped
 project: mind-vault
 ---
 
@@ -99,6 +99,8 @@ The user's design directive at `/plan` time sharpened the original IDEA: rather 
 - **Q2. Architect-review verdict** — **🟢 ARCHITECTURALLY SOUND** (2026-05-25). Five findings, all integrated above: 2a (R1 drop "or Step 5"), 2b (Step 4b enum predicate → exec 1b), 3b (Step 3/4 idempotency guards → exec 4b), 3c/Major (ATOMIC_MERGE rationale reframe → exec 5(b)), 4 (`docs` parallel-branch callout → exec 1). No re-review required — core design (three-value enum, `docs` default, Step 5 orthogonal to scope, pass-2 idempotent re-run) confirmed sound.
 
 ## Execution Sequence
+
+✅ **All items 1–8 shipped in `8c90c71`** (4 files: SKILL.md, ATOMIC_MERGE.md, WRAP_BEFORE_REVIEW.md, SPRINT_WORKFLOW.md). Verification greps green (enum consistent, footgun gone, no `SCOPE_IDEA_ONLY` residue, sprint-auto S5 intact). Item 9 (dogfood) runs at the wrap stage of this PR.
 
 1. **`skills/wrap/SKILL.md` — scope detection (§ lines ~45-69).** Replace the `SCOPE_IDEA_ONLY` boolean parse with a `SCOPE` enum parse: `--scope=docs|full|idea-only` (default `docs`); retain `--no-batch-writes` as the `idea-only` alias. Emit the per-scope step-set table (above) in place of the single idea-only RUN/SKIP list. **Add a one-line callout to the `docs` scope description** that it runs Steps 3/4 and is therefore unsafe for parallel-branch invocations — the same constraint `idea-only` was designed to avoid (architect finding 4).
    - **1b. Step 4b predicate (SKILL.md line ~242).** Step 4b currently gates on the `SCOPE_IDEA_ONLY=false` boolean prose; update to the enum comparison (`scope != idea-only` — i.e. fires under both `docs` and `full`). Don't miss this when replacing the boolean (architect finding 2b).
