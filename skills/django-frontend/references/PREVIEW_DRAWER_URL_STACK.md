@@ -200,7 +200,7 @@ function onEntityChanged(event) {
     if (payload.action === 'saved') onSaveCosmetics();
     else if (payload.action === 'deleted') onDelete(payload);
 }
-document.body.addEventListener('entityChanged', onEntityChanged, { capture: true });
+document.addEventListener('entityChanged', onEntityChanged, { capture: true });   // document, not document.body — see ALPINE_HTMX_GOTCHAS §11
 ```
 
 The trap: standing up a new entity surface and wanting the same drawer-close-on-delete behaviour, **reusing the file via `<script src="…/article_actions.js">` does NOT work** — the gate `payload.type !== 'article'` returns early for every `faq` / `event` payload, so the listener silently no-ops. The new entity's delete emits `entityChanged{type:'faq', action:'deleted'}`, the listener bails, the drawer stays open on the just-deleted record. The save-title cosmetic dies the same way.
