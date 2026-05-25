@@ -11,6 +11,8 @@ The orchestrator (`SKILL.md`) only calls into the tool surface. The reference su
 
 Every adapter MUST provide these scripts (project-local, `tools/<engine>_*.sh`). The orchestrator invokes them by name; the contract is the script's stdout shape.
 
+> **⚠️ CWD / repo-resolution gotcha — invoke from the TARGET PROJECT's checkout.** These scripts shell out to `gh`, which resolves the repo from the **CWD's git remote** unless given `-R owner/repo`. When the scripts live in a *shared* tools dir (mind-vault symlinked / cloned separately from the project under review), running them with the shared dir as CWD makes `gh` query the *wrong* repo — the PR won't resolve, `find_*` reports a false **"no activity yet"**, `*_retrigger` fails with `Could not resolve to a PullRequest`. The false "no activity" is the dangerous one — the orchestrator may wrongly take the zero-activity branch or miss findings. **Invoke by absolute path with CWD = the project under review** (`cd <project> && /path/to/shared/tools/find_<engine>_comments.sh <PR>`), or hardcode `gh -R` in the script. When in doubt, cross-check with `gh api repos/<owner>/<repo>/pulls/<PR>/reviews` — authoritative and CWD-independent.
+
 ### `tools/find_<engine>_comments.sh <PR_NUMBER>`
 
 Emit zero or more marker lines on stdout. **Order is not guaranteed** — the orchestrator parses by anchor-based grep on `^<ENGINE>_<MARKER>=` rather than positional reading. Adapters MAY emit markers in any order, MAY interleave informational output (banners, summaries) between markers, and SHOULD prefer printing markers as early as possible after their underlying data is fetched. The required marker set:
