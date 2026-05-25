@@ -1,7 +1,7 @@
 ---
 name: mobile-ux-polish
 description: Apply mobile + tablet touch-interaction patterns when authoring shell-extending surfaces with swipe gestures, scroll-snap panes, swipe drawers, sticky-on-scroll navbars, or iOS Safari quirk handling. Covers touch drag-vs-tap dual-signal discriminator, scroll-snap settle-timer debounce, deferred-clear flag vs wall-clock timeouts, cold-start instant vs runtime smooth scrollIntoView, and animation-preserving state-lag on close-paths. Pairs with django-frontend for HTMX/Alpine/Bulma fundamentals.
-license: MIT
+license: Apache-2.0
 metadata:
   author: mind-vault
   version: '1.0'

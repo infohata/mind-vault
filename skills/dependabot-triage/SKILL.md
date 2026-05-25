@@ -1,7 +1,7 @@
 ---
 name: dependabot-triage
 description: Triage and batch-merge accumulated Dependabot PRs in multi-requirements-file Python repos (web + lsp + dev + per-workspace) — diff-based duplicate detection across the root vs per-workspace ecosystems, risk-tier batching for git-bisect cleanliness, worktree-isolated verification, live-staging smoke, post-merge forward-sync of remaining branches. TRIGGER when the user says "review dependabot PRs", "merge dependabot batch", "dependabot sweep", "what to do with these dep PRs", "clean up the dep updates", or asks for a roadmap merging multiple `chore(deps)` PRs.
-license: MIT
+license: Apache-2.0
 metadata:
   author: mind-vault
   version: '1.0'

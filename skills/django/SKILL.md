@@ -1,7 +1,7 @@
 ---
 name: django
 description: Apply cross-project Django backend conventions — BaseModel abstractions, DRF viewsets, ORM optimisation (select_related / prefetch_related), multi-tenancy boundaries, generic-FK patterns, permission probes, and translation workflow — before hitting templates.
-license: MIT
+license: Apache-2.0
 metadata:
   author: mind-vault
   version: '5.0'

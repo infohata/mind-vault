@@ -1,7 +1,7 @@
 ---
 name: django-frontend
 description: Apply Django frontend conventions — HTMX partial responses, Alpine.js state, Bulma components, HTMX modal/formset JS contracts, safe query-string generation, dynamic hx-* attribute handling, and Cotton component primitives — pairing with django backend patterns. Includes hard hazard rules every template edit must respect — multi-line `{# … #}` Django comments leak as visible content (use `{% comment %}…{% endcomment %}` for prose blocks), Django tag literals inside JS `//` comments still compile and 500 the page, and SCSS `@import url('../vendor.css')` is browser-runtime-resolved (relocate-fragile; vendor CSS belongs in a `<link>` tag).
-license: MIT
+license: Apache-2.0
 metadata:
   author: mind-vault
   version: '2.0'

@@ -1,7 +1,7 @@
 ---
 name: deployment
 description: Deploy Docker Compose web applications across any project — branch strategy, change-aware scripts, database backup + rollback safety, screen-session remote execution, Let's Encrypt SSL, health checks, and CI/CD wiring.
-license: MIT
+license: Apache-2.0
 metadata:
   author: mind-vault
   version: '2.0'

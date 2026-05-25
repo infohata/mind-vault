@@ -46,7 +46,7 @@ description: <one-line trigger> # <200 chars, noun-dense
 **Optional on larger skills** (use when the skill is versioned, replaces older skills, or needs provenance):
 
 ```yaml
-license: MIT
+license: Apache-2.0
 metadata:
   author: mind-vault
   version: "1.0"
