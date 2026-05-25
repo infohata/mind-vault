@@ -16,7 +16,7 @@ This skill never commits to `main` and never merges a PR. It stages, commits to 
 **TRIGGER when:**
 
 - user says "compound this", "let's capture what we learned", "document this fix", "promote this to mind-vault", "write this up", "save this learning"
-- a review loop (`/bugbot-loop` or `/copilot-loop`) just cleared findings and there's a non-trivial lesson worth preserving — the review output file is a first-class input source (see [`references/review-finding-ingest.md`](references/review-finding-ingest.md))
+- a review loop (`/review-loop`) just cleared findings and there's a non-trivial lesson worth preserving — the review output file is a first-class input source (see [`references/review-finding-ingest.md`](references/review-finding-ingest.md))
 - a bug was just fixed and the root cause is non-obvious / recurring / cross-project
 - a pattern that kept coming up across multiple tasks finally got named
 
@@ -168,7 +168,7 @@ match the new trigger, revise the frontmatter and try again.
 
 ## Review-finding input mode
 
-When the input is a review-loop output file (`/bugbot-loop` or `/copilot-loop`), iterate each cleared finding:
+When the input is a review-loop output file (`/review-loop`), iterate each cleared finding:
 
 1. Read the finding: category, severity, file, one-line description, fix applied.
 2. Decide if it's compound-worthy: if the finding appeared the first time in this project, probably not (noise). If the same category has appeared before — grep solutions and mind-vault for prior matches — promote.
@@ -197,11 +197,11 @@ See [`references/review-finding-ingest.md`](references/review-finding-ingest.md)
 
 - [references/routing-decision-tree.md](references/routing-decision-tree.md) — the 6-destination taxonomy, narrative-probe questions, disambiguation heuristics
 - [references/mind-vault-promotion.md](references/mind-vault-promotion.md) — full branch policy, PR maintenance, commit-message conventions for mind-vault destinations
-- [references/review-finding-ingest.md](references/review-finding-ingest.md) — parsing rules for review-loop output (engine-agnostic; same shape from `/bugbot-loop` or `/copilot-loop`), de-duplication against prior findings
+- [references/review-finding-ingest.md](references/review-finding-ingest.md) — parsing rules for review-loop output (engine-agnostic; same shape regardless of engine), de-duplication against prior findings
 - [assets/solution-template.md](assets/solution-template.md) — project-local solution doc structure
 - [assets/skill-scaffold-template.md](assets/skill-scaffold-template.md) — minimal new-skill scaffold to emit when promoting a cross-project pattern
 - [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with the compound-routing table
 - [skills/skill-writer/SKILL.md](../skill-writer/SKILL.md) — meta-standard consulted when emitting a new skill
 - [rules/RULE_git-safety.md](../../rules/RULE_git-safety.md) — branching and commit contract honoured during mind-vault promotion
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — location-by-status routing; `/compound` may trigger the `idea`→archive move when post-incident routing classifies an IDEA as superseded or rejected before any execution started
-- [commands/bugbot-loop.md](../../commands/bugbot-loop.md) / [commands/copilot-loop.md](../../commands/copilot-loop.md) — the preceding review stage whose output this skill consumes (engine-specific commands; same output shape)
+- [skills/review-loop/SKILL.md](../review-loop/SKILL.md) — the preceding review stage whose output this skill consumes (engine-agnostic; same output shape regardless of engine)

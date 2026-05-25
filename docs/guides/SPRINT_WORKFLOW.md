@@ -8,7 +8,7 @@ flowchart LR
     I1(["/idea — capture"]) --> P
     P(["/plan · /brainstorm — what + how"]) --> W
     W(["/work — execute"]) --> R
-    R(["review-loop\n+ AGENT_bugbot / AGENT_copilot · curator · architect"]) --> C
+    R(["review-loop\n+ curator · architect"]) --> C
     C(["/compound — router"]) -.promotes.-> V[("mind-vault\nskills · rules · agents\ncommands · memory")]
     C -.next sprint.-> I1
 ```
@@ -22,7 +22,7 @@ The optional `/ideate` stage sits above `/idea` — use it between sprints to di
 - **Each unit of engineering work should make the next unit easier.** Traditional development accumulates debt; the compound loop inverts it.
 - **Stage skipping is a first-class affordance.** Trivial fixes bypass `/idea` and `/plan` entirely. The loop is a pipeline, not a bureaucracy.
 - **Artifacts live in the target project.** Mind-vault is the library; projects are the journal. Mind-vault grows only when `/compound` explicitly promotes a cross-cutting pattern.
-- **Review stage is engine-agnostic.** Projects opt into `/bugbot-loop` (Cursor Bugbot), `/copilot-loop` (GitHub Copilot), or both — same phase structure, same hard bounds. `/compound` reads either engine's findings file as an input source and routes each cleared finding.
+- **Review stage is engine-agnostic.** Projects opt into `/review-loop <PR> bugbot` (Cursor Bugbot), `/review-loop <PR> copilot` (GitHub Copilot), or `/review-loop <PR> bugbot,copilot` (both) — same phase structure, same hard bounds. `/compound` reads either engine's findings file as an input source and routes each cleared finding.
 
 ## The five stages (plus optional discovery)
 
@@ -32,7 +32,7 @@ The optional `/ideate` stage sits above `/idea` — use it between sprints to di
 | 1. Idea | `/idea [slug]` | Title (new) or slug (update) | `<project>/docs/ideas/IDEA-NNN-<slug>.md` |
 | 2. Brainstorm / Plan | `/plan` or `/brainstorm` | IDEA file, or raw description | `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md` (co-located with the moved IDEA file per `RULE_ideas-location-status`) |
 | 3. Work | `/work` | Plan file | Code changes on a feature branch |
-| 4. Review | `/bugbot-loop` (Cursor Bugbot) or `/copilot-loop` (GitHub Copilot), per project config; curator-only fallback if no external bot | Open PR | Cleared review findings + loop output file |
+| 4. Review | `/review-loop <PR> bugbot` (Cursor Bugbot) or `/review-loop <PR> copilot` (GitHub Copilot), per project config; curator-only fallback if no external bot | Open PR | Cleared review findings + loop output file |
 | 4.5. Wrap | `/wrap` | Merged PR | IDEA frontmatter `complete` + re-sorted index + devlog entry + worktree stack torn down + docs patched for renamed / added identifiers |
 | 5. Compound | `/compound` | Solved problem, or PR-review output file | Solution doc OR mind-vault skill/rule/agent/command/memory update |
 
@@ -40,7 +40,7 @@ The optional `/ideate` stage sits above `/idea` — use it between sprints to di
 
 ## Overnight unattended mode — `/sprint-auto`
 
-`/sprint-auto` is an optional wrapper around the **full sprint workflow** (stages 2–5) for unattended overnight execution on a VPS. Per IDEA it drives `/plan → /work → review-loop (deliverables) → escalation → /wrap (pre-merge, auto-detected) → review-loop (docs) → escalation → pre-merge container teardown`; at batch end it runs `/compound` per candidate and the review-loop on each mind-vault PR produced. The review-loop dispatches to `/bugbot-loop` and/or `/copilot-loop` per project config (`SPRINT_AUTO_REVIEW_ENGINE`), or is skipped when engine is `none` (curator-only fallback). T2/T3 review findings resolve autonomously via rollback-able fresh commits; per-pass attempt caps are 20 (deliverables) / 5 (docs) / 5 (mind-vault compound), each independent per engine. The skill runs each IDEA in its own git worktree + docker-compose project, and stops at the HITL merge boundary per `RULE_git-safety`.
+`/sprint-auto` is an optional wrapper around the **full sprint workflow** (stages 2–5) for unattended overnight execution on a VPS. Per IDEA it drives `/plan → /work → review-loop (deliverables) → escalation → /wrap (pre-merge, auto-detected) → review-loop (docs) → escalation → pre-merge container teardown`; at batch end it runs `/compound` per candidate and the review-loop on each mind-vault PR produced. The review-loop carries `bugbot`, `copilot`, or `bugbot,copilot` per project config (`SPRINT_AUTO_REVIEW_ENGINE`), or is skipped when engine is `none` (curator-only fallback). T2/T3 review findings resolve autonomously via rollback-able fresh commits; per-pass attempt caps are 20 (deliverables) / 5 (docs) / 5 (mind-vault compound), each an independent `/review-loop` session (budget spans all configured engines). The skill runs each IDEA in its own git worktree + docker-compose project, and stops at the HITL merge boundary per `RULE_git-safety`.
 
 Opt-in is belt-and-suspenders: every IDEA needs `auto_safe: true` + `auto_safe_reason` in frontmatter **and** explicit presence in the invocation args. Never scan-mode. IDEAs touching sensitive paths (`.env*`, base `docker-compose.yml`, CI workflows, destructive migrations, auth middleware) require `sensitive_paths_cleared: true`. Priority is queue order only (scheduling preference), not a safety dimension — `auto_safe: true` is the authoritative signal. See `skills/sprint-auto/references/safety-gates.md` for the full gate list.
 
@@ -148,7 +148,7 @@ Typical invocation on a new feature:
 /plan <slug>               # or /brainstorm <slug> — produces plan doc
 /work <plan-path>          # dispatches to personas, commits as it goes
 # ... open PR ...
-/<engine>-loop <pr-url>    # /bugbot-loop or /copilot-loop, per project's review_engine
+/review-loop <pr-url> <engine>    # bugbot | copilot | bugbot,copilot, per project's review_engine
 /compound                  # routes what we learned
 ```
 
@@ -158,7 +158,7 @@ Stage skipping on a trivial fix:
 # no /idea, no /plan — just go
 git checkout -b fix/typo
 # ... fix ...
-# open PR, /<engine>-loop (bugbot or copilot) clears it, maybe /compound if you learned something
+# open PR, /review-loop <PR> <engine> (bugbot or copilot) clears it, maybe /compound if you learned something
 ```
 
 ## Right-sizing

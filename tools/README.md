@@ -129,7 +129,7 @@ sudo ./tools/install-gcloud-cli.sh --with-components gke-gcloud-auth-plugin,clou
 `atomic` (default), `jandedobbeleer`, `agnoster`, `paradox`, `powerlevel10k_classic`, `powerlevel10k_lean`, `robbyrussell`, `star`, `tokyonight_storm`, `zash`. Any theme name from the [official theme gallery](https://ohmyposh.dev/docs/themes) also works via `--theme NAME`.
 
 ### install-mosh-tmux.sh
-**Purpose**: Install and configure `mosh` + `tmux` for resilient SSH sessions on Debian/Ubuntu — survives spotty networks, laptop sleep, cell-tower handoffs, and long-running agentic CLI sessions (Claude Code, bugbot-loop's `ScheduleWakeup` cycles) without losing context.
+**Purpose**: Install and configure `mosh` + `tmux` for resilient SSH sessions on Debian/Ubuntu — survives spotty networks, laptop sleep, cell-tower handoffs, and long-running agentic CLI sessions (Claude Code, the review loop's `ScheduleWakeup` cycles) without losing context.
 
 **Problem Solved**:
 - SSH over unstable links drops → shell + running CLI tool both die → re-login, lose context, re-orient. For long Claude Code sessions (sprint workflows, bugbot loops, plan/work/compound cycles) this happens repeatedly.

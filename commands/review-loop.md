@@ -17,7 +17,7 @@ Drive a review-fix-rerun cycle on the given PR using one or more review engines 
 ```
 /review-loop                     # current branch's PR, all available engines
 /review-loop 129                 # PR #129, all available engines
-/review-loop 129 bugbot          # PR #129, bugbot only (equivalent to /bugbot-loop 129)
+/review-loop 129 bugbot          # PR #129, bugbot only
 /review-loop 129 bugbot,copilot  # PR #129, both engines (dual-engine sync mode)
 ```
 
@@ -41,13 +41,6 @@ The `ENGINES` argument is a comma-separated list. Currently supported:
 - `copilot` — GitHub Copilot (`tools/find_copilot_comments.sh`, `tools/copilot_retrigger.sh`)
 
 To add a new engine, see [`skills/review-loop/references/engine-adapter-contract.md`](../skills/review-loop/references/engine-adapter-contract.md) § Adding a new engine.
-
-## Related commands
-
-- [`/bugbot-loop`](bugbot-loop.md) — single-engine wrapper, equivalent to `/review-loop <PR> bugbot`.
-- [`/copilot-loop`](copilot-loop.md) — single-engine wrapper, equivalent to `/review-loop <PR> copilot`.
-
-The single-engine wrappers exist for ergonomics and backward compatibility; `/review-loop` is the canonical multi-engine entry.
 
 ## Hand-back
 

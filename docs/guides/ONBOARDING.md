@@ -22,10 +22,10 @@ A **cross-host configuration library** for AI coding agents. Skills, subagent pe
 **Five building blocks** (see [README.md](../../README.md) for the full inventory):
 
 - **Skills** (`skills/`) — `SKILL.md` files with frontmatter `name` + `description`. The description is a probabilistic trigger: the agent decides on its own when to invoke a skill.
-- **Agents** (`agents/`) — subagent personas (`AGENT_architect`, `AGENT_bugbot`, `AGENT_backend`, …) with prime directives, multi-pass workflows, structured verdict formats.
+- **Agents** (`agents/`) — subagent personas (`AGENT_architect`, `AGENT_backend`, `AGENT_curator`, …) with prime directives, multi-pass workflows, structured verdict formats.
 - **Commands** (`commands/`) — slash commands invoked as `/<name>` from any host that supports them.
 - **Rules** (`rules/`) — always-on guardrails auto-loaded every session (e.g. `RULE_git-safety` blocks pushes to `main`).
-- **Sprint workflow** — a compounding 5-stage loop (`/ideate → /idea → /plan → /work → /<engine>-loop → /wrap → /compound`, where `/<engine>-loop` is `/bugbot-loop` or `/copilot-loop` per project config) that makes the *next* sprint start with a higher floor via the final `/compound` stage. See [SPRINT_WORKFLOW.md](SPRINT_WORKFLOW.md).
+- **Sprint workflow** — a compounding 5-stage loop (`/ideate → /idea → /plan → /work → /review-loop → /wrap → /compound`, where `/review-loop` carries the configured engine(s) — `bugbot`, `copilot`, or `bugbot,copilot` per project config) that makes the *next* sprint start with a higher floor via the final `/compound` stage. See [SPRINT_WORKFLOW.md](SPRINT_WORKFLOW.md).
 
 **The workflow principle** — every sprint should make the next sprint cheaper. `/compound` is the lever: any recurring fix-up becomes a new skill / rule / agent improvement.
 
@@ -37,7 +37,7 @@ The four artefact types in mind-vault answer four different questions. Internali
 | --- | --- | --- | --- | --- |
 | **Rule** (`rules/RULE_*.md`) | Every session, unconditionally | Auto-loaded by harness | Permanent context budget | `RULE_git-safety` blocks pushes to `main` on every conversation |
 | **Skill** (`skills/<name>/SKILL.md`) | On demand, when description matches the task | The agent (probabilistic match against `description` field) | Per-invocation | `/wrap` for post-merge doc sweep; `django` skill loads when editing Django code |
-| **Agent profile** (`agents/AGENT_*.md`) | When dispatched as a subagent | The orchestrating agent (you or another skill) | Per-dispatch, runs in isolated context window | `AGENT_architect` invoked by `/plan`; `AGENT_bugbot` invoked by `/bugbot-loop` |
+| **Agent profile** (`agents/AGENT_*.md`) | When dispatched as a subagent | The orchestrating agent (you or another skill) | Per-dispatch, runs in isolated context window | `AGENT_architect` invoked by `/plan`; `AGENT_curator` invoked by `/review-loop` |
 | **Slash command** (`commands/*.md`) | Explicit user invocation | The human typing `/<name>` | Per-invocation | `/idea`, `/work`, `/sprint-auto` |
 
 **Mental shortcuts:**
@@ -143,8 +143,8 @@ Stage 4 (review) supports three modes — pick whichever your repo has enabled. 
 
 | Mode | Command | What it needs | When to pick it |
 | --- | --- | --- | --- |
-| **Cursor Bugbot** | `/bugbot-loop` | Cursor Bugbot enabled on the GitHub org/repo | Strongest catches in our experience; paid via Cursor subscription |
-| **GitHub Copilot** | `/copilot-loop` | Copilot enabled on the org; `gh` CLI ≥ 2.88 | Native to GitHub; consumes Actions minutes from June 1, 2026 |
+| **Cursor Bugbot** | `/review-loop <PR> bugbot` | Cursor Bugbot enabled on the GitHub org/repo | Strongest catches in our experience; paid via Cursor subscription |
+| **GitHub Copilot** | `/review-loop <PR> copilot` | Copilot enabled on the org; `gh` CLI ≥ 2.88 | Native to GitHub; consumes Actions minutes from June 1, 2026 |
 | **Internal curator (default fallback)** | Invoke `AGENT_curator` directly before push | Nothing — local Claude review only | No external bot; cheapest; **weaker than the two above — known to miss edge cases** |
 
 For `/sprint-auto` (unattended overnight runs), the review engine is declared per-project. Add this to your project's `CLAUDE.md` or a `.mind-vault.yml` at the repo root:
@@ -228,15 +228,15 @@ Thin orchestrator: enforces `RULE_git-safety` + parallel-worktree-docker discipl
 Pick the command matching the review engine your repo has enabled (see § "Pick a code-review engine" above):
 
 ```text
-/review-loop <PR> bugbot,copilot   # v4.1+: multi-engine canonical entry, cycle-level sync
-/bugbot-loop      # Cursor Bugbot single-engine wrapper (= /review-loop <PR> bugbot)
-/copilot-loop     # GitHub Copilot single-engine wrapper (= /review-loop <PR> copilot)
+/review-loop <PR> bugbot,copilot   # multi-engine canonical entry, cycle-level sync
+/review-loop <PR> bugbot           # Cursor Bugbot only
+/review-loop <PR> copilot          # GitHub Copilot only
 # or no external bot: invoke AGENT_curator directly before opening the PR
 ```
 
-Both `*-loop` commands are semi-autonomous review loops with bounded-autonomy policy: post a PR if needed, apply findings under the autonomy ladder (auto-fix / approve-then-fix / escalate), retrigger the bot, halt at the HITL merge gate. The phase structure, dual-signal enumeration, staleness rules, and hard bounds are identical between the two — only the bot user.login, trigger mechanism, and clean-signal phrase differ.
+`/review-loop` is a semi-autonomous review loop with bounded-autonomy policy: post a PR if needed, apply findings under the autonomy ladder (auto-fix / approve-then-fix / escalate), retrigger the engine(s), halt at the HITL merge gate. The phase structure, dual-signal enumeration, staleness rules, and hard bounds are identical across engines — only the bot user.login, trigger mechanism, and clean-signal phrase differ per engine.
 
-If your repo has no external review bot, run `AGENT_curator` against the local diff before opening the PR. It's a Claude-driven reviewer with the same six-pass workflow as `AGENT_bugbot` / `AGENT_copilot`, but it's known to miss edge cases the external bots catch — treat it as the cheapest gate, not the best one.
+If your repo has no external review bot, run `AGENT_curator` against the local diff before opening the PR. It's a Claude-driven reviewer with the same workflow the `/review-loop` engines run, but it's known to miss edge cases the external bots catch — treat it as the cheapest gate, not the best one.
 
 ### Stage 4.5 — wrap
 

@@ -1,10 +1,10 @@
 # Review-finding ingest
 
-Parsing rules for review-loop output (`/bugbot-loop` for Cursor Bugbot, `/copilot-loop` for GitHub Copilot) when supplied as the `/compound` input source. Load on demand when step 1 selects a review-loop output file as input. The parsing rules are engine-agnostic — the file shape and finding fields are the same regardless of which bot's findings the loop ingested.
+Parsing rules for review-loop output (`/review-loop`, carrying Cursor Bugbot and/or GitHub Copilot) when supplied as the `/compound` input source. Load on demand when step 1 selects a review-loop output file as input. The parsing rules are engine-agnostic — the file shape and finding fields are the same regardless of which bot's findings the loop ingested.
 
 ## Source file shape
 
-The review loop writes its run artifact to a project-local location (typical: `<project>/.bugbot-loop/<run-id>/findings.md` or `<project>/.copilot-loop/<run-id>/findings.md` — projects may vary). Check the corresponding command file in mind-vault (`commands/bugbot-loop.md` / `commands/copilot-loop.md`) for the exact convention.
+The review loop writes its run artifact to a project-local location (typical: `<project>/.bugbot-loop/<run-id>/findings.md` or `<project>/.copilot-loop/<run-id>/findings.md` — projects may vary). Check `skills/review-loop/references/engine-{bugbot,copilot}.md` for the exact convention.
 
 Typical findings file structure:
 

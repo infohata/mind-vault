@@ -61,7 +61,7 @@ If the learning's violations require a conversation ("why did you do it this way
 
 ### Command vs. script
 
-- **Slash command** (`/compound`, `/bugbot-loop`) = user-facing, interactive, part of the workflow.
+- **Slash command** (`/compound`, `/review-loop`) = user-facing, interactive, part of the workflow.
 - **Script** (`tools/bugbot_retrigger.sh`) = headless utility, usually called from another command or a human-run shell.
 
 ### Body vs. reference vs. asset (within mind-vault)
