@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Unit tests for `make extract-version` — verifies each of the six version-source
 # formats `/wrap` Step 4b detects extracts to the expected value, plus the
-# explicit VERSION= override and the no-source-error cases.
+# explicit VERSION= override, the no-source-error case, the bare-milestone
+# shadow guard (require MAJOR.MINOR), and the real-repo-CHANGELOG invariant.
 
 set -uo pipefail
 
@@ -49,6 +50,18 @@ assert_eq() {
     fi
 }
 
+assert_matches() {
+    local label="$1" actual="$2" pattern="$3"
+    if [[ "$actual" =~ $pattern ]]; then
+        printf '  PASS  %s (%q =~ %s)\n' "$label" "$actual" "$pattern"
+        PASS=$((PASS + 1))
+    else
+        printf '  FAIL  %s\n        pattern: %s\n        actual:  %q\n' \
+            "$label" "$pattern" "$actual"
+        FAIL=$((FAIL + 1))
+    fi
+}
+
 assert_nonzero_exit() {
     local label="$1" rc="$2"
     if [[ "$rc" -ne 0 ]]; then
@@ -75,6 +88,20 @@ assert_eq "CHANGELOG.md ## V<N>"               "$(extract "$FIXTURES/changelog-V
 assert_eq "CHANGELOG.md ## [<N>]"              "$(extract "$FIXTURES/changelog-kac")"            "4.0.2"
 assert_eq "package.json no-version → fallthrough to CHANGELOG" \
                                                 "$(extract "$FIXTURES/package-no-jq-fallthrough")" "v7.7.7"
+
+echo
+echo "Bare-milestone shadow guard (require MAJOR.MINOR):"
+# A bare `## v5` banner above the real `## v5.0.0` header must be SKIPPED, not
+# returned truncated. This is the regression the MAJOR.MINOR regex prevents.
+assert_eq "bare '## v5' banner skipped → real release header" \
+                                                "$(extract "$FIXTURES/changelog-bare-milestone")" "v5.0.0"
+
+echo
+echo "Real repository CHANGELOG (invariant: newest header is fully-qualified):"
+# Guards the actual file, not just fixtures: `make release` must never tag a
+# bare `vMAJOR`. The topmost version header must carry at least MAJOR.MINOR.
+assert_matches "repo CHANGELOG extracts fully-qualified" \
+                                                "$(extract "$REPO_ROOT")" '^v?[0-9]+\.[0-9]+'
 
 echo
 echo "Explicit VERSION= override:"

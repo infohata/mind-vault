@@ -71,7 +71,10 @@ if [[ -f setup.py ]]; then
 fi
 
 if [[ -f CHANGELOG.md ]]; then
-    line=$$(grep -m1 -E '^## ([vV][0-9]|\[[0-9])' CHANGELOG.md || true)
+    # Require MAJOR.MINOR (a dot) so a bare milestone banner like `## v5`
+    # placed above the real `## v5.0.0` release header is SKIPPED, not picked
+    # up by grep -m1. Keeps `make release` from ever tagging a truncated `v5`.
+    line=$$(grep -m1 -E '^## ([vV][0-9]+\.[0-9]|\[[0-9]+\.[0-9])' CHANGELOG.md || true)
     if [[ -n "$$line" ]]; then
         case "$$line" in
             "## v"*|"## V"*) printf '%s\n' "$$line" | sed -E 's/^## ([vV][^ ]+).*/\1/' ;;
