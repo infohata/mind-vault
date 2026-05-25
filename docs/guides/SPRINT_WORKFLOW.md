@@ -33,7 +33,7 @@ The optional `/ideate` stage sits above `/idea` — use it between sprints to di
 | 2. Brainstorm / Plan | `/plan` or `/brainstorm` | IDEA file, or raw description | `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md` (co-located with the moved IDEA file per `RULE_ideas-location-status`) |
 | 3. Work | `/work` | Plan file | Code changes on a feature branch |
 | 4. Review | `/review-loop <PR> bugbot` (Cursor Bugbot) or `/review-loop <PR> copilot` (GitHub Copilot), per project config; curator-only fallback if no external bot | Open PR | Cleared review findings + loop output file |
-| 4.5. Wrap | `/wrap` | Merged PR | IDEA frontmatter `complete` + re-sorted index + devlog entry + worktree stack torn down + docs patched for renamed / added identifiers |
+| 4.5. Wrap | `/wrap` (default `--scope=docs`); `--scope=full` to also merge | Review-cleared open PR | IDEA frontmatter `complete` + re-sorted index + devlog entry + downstream docs patched. Default `docs` scope stops before merge; `--scope=full` additionally squash-merges non-protected targets (then post-merge teardown). Protected targets always hand back for human merge. |
 | 5. Compound | `/compound` | Solved problem, or PR-review output file | Solution doc OR mind-vault skill/rule/agent/command/memory update |
 
 **Brainstorm folds into plan.** `/brainstorm` is an alias for `/plan`. When the IDEA file is thin or the description is under-specified, the plan skill interactively explores requirements (the brainstorm front-end) before emitting the plan artifact.

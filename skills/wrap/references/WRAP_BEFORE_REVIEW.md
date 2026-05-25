@@ -1,6 +1,6 @@
 # Wrap before review — finalize docs to shipped state *before* the review-loop runs
 
-**When this fires**: a doc-heavy PR (substantial IDEA-file / plan / index / devlog / guide changes alongside code) headed for `/review-loop` (single- or dual-engine). The default chain is `work → review-loop → wrap`; for doc-heavy PRs, **run doc-finalization first**, splitting wrap into two passes: `work → wrap pass 1 (docs; stops before Step 8) → review-loop → wrap pass 2 (Step 8 merge) | human merge`. The pre-review pass 1 finalizes docs and stops. The post-review terminal is a *second* wrap invocation that runs Step 8 on non-protected targets — or, on protected targets, Step 8 auto-skips and the human merges. See *The merge doesn't move* below.
+**When this fires**: a doc-heavy PR (substantial IDEA-file / plan / index / devlog / guide changes alongside code) headed for `/review-loop` (single- or dual-engine). The default chain is `work → review-loop → wrap`; for doc-heavy PRs, **run doc-finalization first**, splitting wrap into two passes: `work → wrap pass 1 (/wrap, scope=docs default) → review-loop → wrap pass 2 (/wrap --scope=full) | human merge`. Pass 1 is a bare `/wrap NNN` — the `docs` default finalizes docs and **structurally cannot reach Step 8 (merge)**, so there is nothing to "remember to stop." Pass 2 is `/wrap --scope=full NNN`, the explicit merge opt-in that runs Step 8 on non-protected targets — or, on protected targets, Step 8 auto-skips and the human merges. See *The two-pass model* below.
 
 ## Why
 
@@ -11,12 +11,12 @@ Modern review engines review **docs, not just code** — Copilot in particular c
 
 Wrapping first collapses both: the reviewer sees docs in their merge shape, doc findings land alongside code findings, no post-review drift.
 
-**The merge doesn't move — and the pre-review pass must stop before it.** This is a **two-pass** model:
+**The merge doesn't move — and the default scope can't reach it.** This is a **two-pass** model, enforced by the `--scope` enum:
 
-1. **Pre-review pass (pass 1)** — doc-finalization steps only (frontmatter flip, ideas-index move, devlog entry, downstream-docs scan — wrap Steps 1–4 and 6, plus the conditional Step 7 eval-gate emission when it fires). It **stops there**. On a non-protected target, do *not* let this pass fall through to Step 8 (atomic merge): `ATOMIC_MERGE.md` requires a clean review signal at HEAD, and pre-review there is none — Step 8 would block (re-trigger + wait) or abort. (`--scope=idea-only` skips Step 8 but *also* skips the devlog/index steps you want pre-review, so it's not the right tool here.)
-2. **Post-review pass (pass 2)** — re-run `/wrap` after `/review-loop` clears: Step 8 atomic-merges on non-protected targets, or the human merges on protected targets (where Step 8 auto-skips, or under a "never agent-merge" rule).
+1. **Pre-review pass (pass 1) — bare `/wrap NNN` (`--scope=docs`, the default).** Runs the doc-finalization steps (frontmatter flip, ideas-index move, devlog entry, downstream-docs scan — wrap Steps 1–4 and 6, plus the conditional Step 7 eval-gate emission when it fires) and **structurally cannot reach Step 8 (atomic merge)**. No "remember to stop" — the default scope makes the stop a property of the tool, not operator discipline. (`--scope=idea-only` also skips Step 8 but *additionally* skips the devlog/index steps you want pre-review, so it's the sprint-auto tool, not this one.)
+2. **Post-review pass (pass 2) — `/wrap --scope=full NNN`.** Re-run after `/review-loop` clears. The doc-finalization steps are idempotent guards (Step 2 short-circuits on `status: complete`; Steps 3/4 detect their existing entries), so pass 2 effectively just re-audits docs (Step 6) and runs Step 8 — atomic-merges on non-protected targets, or hands back on protected targets (where Step 8 auto-skips). `ATOMIC_MERGE.md`'s `clean_sha == head_sha` gate handles the HEAD that review-loop moved.
 
-Mentally split wrap: **doc-finalization is pre-review; merge is post-review-clear.** A cleaner long-term shape is a dedicated docs-finalization scope (Steps 1–4 and 6, plus conditional Step 7, that structurally cannot reach Step 8) — tracked as IDEA-008; until it exists, the pre-review pass is operationally "run wrap, stop before Step 8."
+Mentally split wrap: **doc-finalization is pre-review (`docs`); merge is post-review-clear (`full`).** The scope enum makes the split structural, not a discipline you have to remember.
 
 ## The tension this creates, and how to handle it
 
