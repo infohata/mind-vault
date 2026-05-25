@@ -45,9 +45,9 @@ Once these land in the references / shared skill, the agent files have no remain
 **Agent-file collapse:**
 
 - `agents/AGENT_bugbot.md` and `agents/AGENT_copilot.md` deleted from the repo.
-- Common Bugbot Patterns §1-8 preserved verbatim in `skills/review-loop/references/engine-bugbot.md` § Common patterns (no content loss; replaces the current "defer to AGENT_bugbot.md" pointer).
-- Copilot failure-mode taxonomy + Common Review Findings preserved in `skills/review-loop/references/engine-copilot.md` (consolidating overlap with the existing § Failure modes table + § Common patterns pointer).
-- Autonomy-ladder examples preserved in `skills/review-loop/SKILL.md` Phase 1 § Triage tier classification (whichever examples are pedagogically load-bearing).
+- The two identical 19-pattern catalogues (Common Bugbot Patterns ≡ Copilot Common Review Findings, word-for-word) consolidated into ONE shared `skills/review-loop/references/common-review-findings.md`, **deduplicated in both dimensions**: merged across the two agent files, AND not re-stating patterns that already have canonical homes elsewhere in the vault (#15→SHELL_INSTALLERS, #19→RULE_self-sweep § Contract-Change Sweep, #1/#11→django, #16/#17/#18→django-frontend gotchas). Catalogue is a scannable Tier-1 index (one-line + link to home; full prose only for homeless patterns) — no relocated redundancy. Both engine refs link to it.
+- Engine-specific facts kept in their engine ref (`engine-bugbot.md` stall threshold; `engine-copilot.md` self-removal / COMMENTED-never-APPROVED / stale-context).
+- Autonomy-ladder + hard-bounds already canonical in `skills/review-loop/SKILL.md` — not re-added; only port a pedagogically load-bearing example into Phase 1 § Triage if one adds signal (expect ~none).
 
 **Command-wrapper collapse:**
 
