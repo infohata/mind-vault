@@ -89,12 +89,11 @@ If no PR exists yet (branch pushed but PR not opened), treat as pre-merge defaul
 
 ### Self-mode: running on mind-vault itself
 
-Mind-vault does **not** track IDEA-NNN files of its own — per-project IDEA numbering would collide across the projects mind-vault serves. If `/wrap` is invoked on the mind-vault repository itself, Steps 1–3 (IDEA resolution, frontmatter flip, ideas index re-sort) do not apply and must be skipped.
+Mind-vault **dogfoods its own sprint workflow** — it tracks its own IDEAs in `docs/ideas/` + `docs/archive/YYYY-MM-idea-NNN-<slug>/` and maintains `docs/ideas/README.md`, exactly like any project it serves. So when a mind-vault wrap maps to a mind-vault IDEA, **Steps 1–3 (IDEA resolve, frontmatter flip, ideas-index re-sort) DO apply** — run them normally. Skip Steps 1–3 only when the PR has **no associated IDEA** (a pure `/compound`, chore, or tooling PR) — and that's the universal "no IDEA → nothing to flip" rule, not anything special to mind-vault.
 
-Detection (first match wins):
+The **only** self-mode specialization is **Step 4**: the chronological log is `CHANGELOG.md` at the repo root (Keep-a-Changelog + `## v<N>` version sections), NOT the per-project `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md`.
 
-- `git remote get-url origin` → URL contains `mind-vault`.
-- Repo root has `skills/`, `rules/`, `commands/`, and **no** `docs/ideas/README.md` — the mind-vault signature.
+Detection: `git remote get-url origin` → URL contains `mind-vault`. (Do NOT use "absence of `docs/ideas/README.md`" as a signature — mind-vault has one.)
 
 In self-mode, Step 4 targets `CHANGELOG.md` at the repo root (not `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md`, which is the per-project convention). **End-to-end maintenance is the wrap's job** — not split between "add to Unreleased pre-merge" and "promote to dated section manually later":
 
