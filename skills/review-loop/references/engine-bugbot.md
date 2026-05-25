@@ -53,6 +53,6 @@ The codified Tier-1 catalogue is shared across engines — see [`common-review-f
 
 ## § Spacing rule
 
-≥5 minutes between same-engine retriggers. Field-observed degradation: 4 retriggers in 10 minutes stretched per-review latency from ~1-10 min (typical) to ~16 min as Cursor's check-suite queue worked through superseded entries.
+≥5 minutes between same-engine retriggers **against the same SHA** (post-push retriggers on a new SHA are exempt — see below). Field-observed degradation: 4 retriggers in 10 minutes stretched per-review latency from ~1-10 min (typical) to ~16 min as Cursor's check-suite queue worked through superseded entries.
 
 The rule is **per-engine** — under multi-engine mode bugbot+copilot back-to-back is fine (different queues). Only same-engine retriggers **against the same SHA** within 5 min violate the spacing; a retrigger after a fresh push is exempt (SKILL.md Phase 3 § new-push exemption).

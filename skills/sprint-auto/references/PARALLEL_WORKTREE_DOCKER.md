@@ -118,7 +118,8 @@ with:
 
 ```bash
 docker compose config | grep -A2 networks:
-docker inspect "$(docker compose ps -q <svc>)" --format '{{range $k,$_ := .NetworkSettings.Networks}}{{$k}} {{end}}'
+svc=web   # the service to inspect — edit to taste
+docker inspect "$(docker compose ps -q "$svc")" --format '{{range $k,$_ := .NetworkSettings.Networks}}{{$k}} {{end}}'
 ```
 
 Look for `<project>_default`, not `<project>_<custom>`.
