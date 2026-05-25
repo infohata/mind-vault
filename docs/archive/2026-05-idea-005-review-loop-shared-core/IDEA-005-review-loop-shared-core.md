@@ -103,3 +103,7 @@ commands/copilot-loop.md         — ditto
 
 - PR #129 — the compound branch that surfaced the duplication cost concretely via bugbot's self-referential meta-loop on the spacing rule.
 - `skills/sprint-auto/` — already uses `SPRINT_AUTO_REVIEW_ENGINE` selector; consumer of this abstraction.
+
+## Amended by
+
+- The thin `commands/bugbot-loop.md` + `commands/copilot-loop.md` wrappers this IDEA created were **deleted by [IDEA-006](../2026-05-idea-006-review-surface-collapse/IDEA-006-review-surface-collapse.md)** (PR #140, v4.3) — `/review-loop <PR> <engine>` is now the sole entry point and sprint-auto dispatches it directly. IDEA-006 finishes the surface collapse this IDEA started (commands → shared skill; agents + wrappers → deleted).

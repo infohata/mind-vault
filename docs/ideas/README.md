@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-- [IDEA-006](../archive/2026-05-idea-006-review-surface-collapse/IDEA-006-review-surface-collapse.md) — v4.3 review-surface collapse: delete `AGENT_bugbot`/`AGENT_copilot` + the `/bugbot-loop`·`/copilot-loop` wrappers, leaving only `/review-loop` (migrate content into `engine-<x>.md` + rewire sprint-auto dispatch)
+_(none)_
 
 ## 💡 High Priority (backlog)
 
@@ -25,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-006: v4.3 review-surface collapse — single `/review-loop` entry ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-05-25 · **See**: [Archive](../archive/2026-05-idea-006-review-surface-collapse/IDEA-006-review-surface-collapse.md), [PR #139](https://github.com/infohata/mind-vault/pull/139) + [PR #140](https://github.com/infohata/mind-vault/pull/140).
+Deleted `AGENT_bugbot.md` + `AGENT_copilot.md` (sub-agent profiles) and the deprecated `/bugbot-loop` + `/copilot-loop` command wrappers, leaving `/review-loop <PR> <engine>` as the sole review entry point. The two **word-for-word identical** Tier-1 catalogues consolidated into one shared [`common-review-findings.md`](../../skills/review-loop/references/common-review-findings.md) (deduplicated against existing vault homes, not just across engines). `sprint-auto` now dispatches a single multi-engine `/review-loop` call (concurrent sync, N-engine-general). Shipped in two PRs per [`rename-before-drop`](../../rules/RULE_rename-before-drop.md): #139 prepare (migrate + rewire), #140 drop (delete) — ships as **v4.3**. Extends [IDEA-005](../archive/2026-05-idea-005-review-loop-shared-core/IDEA-005-review-loop-shared-core.md)'s shared-core refactor to the agent + command surfaces.
 
 ### IDEA-007: Consolidate `Optional extensions` blocks into `## References` across feature-dense skills ✅ COMPLETE
 

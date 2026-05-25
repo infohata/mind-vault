@@ -1,7 +1,8 @@
 ---
 id: 006
 title: v4.3 review-surface collapse — delete AGENT_bugbot/AGENT_copilot + the /bugbot-loop·/copilot-loop wrappers, leaving only /review-loop
-status: in-progress
+status: complete
+completed: 2026-05-25
 priority: high
 supersedes: []
 superseded_by: null
@@ -17,7 +18,7 @@ sensitive_paths_cleared_reason: "Touches agents/AGENT_bugbot.md + AGENT_copilot.
 
 # IDEA-006: v4.3 review-surface collapse (delete the 3rd-party-engine agent profiles + the deprecated command wrappers)
 
-**Status**: 🚧 In Progress
+**Status**: ✅ Complete (2026-05-25)
 **Priority**: High
 **Ships as**: v4.3 (the wrapper-removal narrative the v4.2 CHANGELOG reserved + the deprecation banners targeted)
 

@@ -3,7 +3,7 @@ stage: plan
 slug: review-surface-collapse
 created: 2026-05-25
 source: ./IDEA-006-review-surface-collapse.md
-status: ready
+status: shipped
 project: mind-vault
 target_version: v4.3
 ---
