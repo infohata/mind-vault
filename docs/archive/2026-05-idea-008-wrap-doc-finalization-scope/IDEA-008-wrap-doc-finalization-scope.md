@@ -1,7 +1,7 @@
 ---
 id: 008
 title: Separate wrap's doc-finalization phase from its merge phase (--scope=docs mode)
-status: idea          # idea | in-progress | complete | superseded
+status: in-progress          # idea | in-progress | complete | superseded
 priority: high   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
@@ -20,7 +20,7 @@ sensitive_paths_cleared_reason: "Modifies a core sprint-workflow skill (wrap) th
 
 # IDEA-008: Separate wrap's doc-finalization phase from its merge phase (--scope=docs mode)
 
-**Status**: 💡 Idea
+**Status**: 🚧 In Progress
 **Priority**: High
 
 **Problem** (or opportunity): `/wrap` bundles three phases that have different timing relative to review:

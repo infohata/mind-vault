@@ -6,11 +6,11 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-008](../archive/2026-05-idea-008-wrap-doc-finalization-scope/IDEA-008-wrap-doc-finalization-scope.md) ⏳ — Separate wrap's doc-finalization phase from its merge phase (`--scope` enum, `docs` default)
 
 ## 💡 High Priority (backlog)
 
-- [IDEA-008](IDEA-008-wrap-doc-finalization-scope.md) — Separate wrap's doc-finalization phase from its merge phase (`--scope=docs` mode)
+_(none)_
 
 ## 💡 Medium Priority (backlog)
 
