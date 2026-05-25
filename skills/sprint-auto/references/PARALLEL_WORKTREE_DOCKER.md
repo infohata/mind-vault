@@ -113,10 +113,15 @@ the whole `networks:` key, not just the static-IP sub-field. With every service'
 custom-network attachment reset and the custom network no longer referenced, compose
 **prunes the custom network from the merged config** and the services fall back to
 the implicit `default` network. The worktree stack still works (everyone's together
-on `default`), just on a different network than the parent compose names — confirm
-with `docker compose config | grep -A2 networks:` and `docker inspect <svc> --format
-'{{range $k,$_ := .NetworkSettings.Networks}}{{$k}} {{end}}'` (look for
-`<project>_default`, not `<project>_<custom>`).
+on `default`), just on a different network than the parent compose names. Confirm
+with:
+
+```bash
+docker compose config | grep -A2 networks:
+docker inspect <svc> --format '{{range $k,$_ := .NetworkSettings.Networks}}{{$k}} {{end}}'
+```
+
+Look for `<project>_default`, not `<project>_<custom>`.
 
 The trap: a **profile-gated service** (e.g. an e2e `playwright` service under
 `profiles: [e2e]`) that the override generator didn't enumerate keeps the **parent
