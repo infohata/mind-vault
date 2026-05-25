@@ -1,14 +1,14 @@
 ---
 id: 008
 title: Separate wrap's doc-finalization phase from its merge phase (--scope=docs mode)
-status: in-progress          # idea | in-progress | complete | superseded
+status: complete          # idea | in-progress | complete | superseded
 priority: high   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
 depends_on: []       # list of IDEA ids required before starting, or []
 related: []             # list of IDEA ids that share context, or []
 created: 2026-05-25
-completed: null
+completed: 2026-05-25
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
@@ -20,7 +20,7 @@ sensitive_paths_cleared_reason: "Modifies a core sprint-workflow skill (wrap) th
 
 # IDEA-008: Separate wrap's doc-finalization phase from its merge phase (--scope=docs mode)
 
-**Status**: 🚧 In Progress
+**Status**: ✅ Complete (2026-05-25)
 **Priority**: High
 
 **Problem** (or opportunity): `/wrap` bundles three phases that have different timing relative to review:

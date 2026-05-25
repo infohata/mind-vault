@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-- [IDEA-008](../archive/2026-05-idea-008-wrap-doc-finalization-scope/IDEA-008-wrap-doc-finalization-scope.md) ⏳ — Separate wrap's doc-finalization phase from its merge phase (`--scope` enum, `docs` default)
+_(none)_
 
 ## 💡 High Priority (backlog)
 
@@ -25,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-008: Separate wrap's doc-finalization phase from its merge phase ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-05-25 · **See**: [Archive](../archive/2026-05-idea-008-wrap-doc-finalization-scope/IDEA-008-wrap-doc-finalization-scope.md), [PR #142](https://github.com/infohata/mind-vault/pull/142).
+Replaced `/wrap`'s `SCOPE_IDEA_ONLY` boolean with a three-value `--scope` enum (`docs` default | `full` | `idea-only`) and flipped the no-arg default from full-wrap (reached Step 8 atomic-merge) to docs-only (structurally cannot reach Step 8). Atomic merge is now the explicit `--scope=full` opt-in — making the [IDEA-006](../archive/2026-05-idea-006-review-surface-collapse/IDEA-006-review-surface-collapse.md)/v4.3.1 wrap-before-review two-pass model structural instead of an operator "remember to stop before Step 8" discipline. Step 3/4 gained idempotency guards (the two-pass `docs`→`full` flow re-runs them routinely). Architect-reviewed 🟢 SOUND. Structural completion of the v4.3.1 (PR #141) wrap-before-review compound.
 
 ### IDEA-006: v4.3 review-surface collapse — single `/review-loop` entry ✅ COMPLETE
 

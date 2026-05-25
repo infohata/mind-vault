@@ -10,6 +10,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.3.2 — `/wrap --scope` enum: docs-default, merge opt-in
+
+Patch release on the v4.3 line (IDEA-008). The structural completion of v4.3.1's wrap-before-review pattern: replaces `/wrap`'s `SCOPE_IDEA_ONLY` boolean with a three-value `--scope` enum (`docs` default | `full` | `idea-only`) and **flips the no-arg default from full-wrap (reached Step 8 atomic-merge) to docs-only (structurally cannot reach Step 8)**. Atomic merge is now the explicit `--scope=full` opt-in — so the two-pass `docs → review → full` flow is enforced by the tool, not by an operator remembering to "stop before Step 8" (the v4.3.1 footgun). Architect-reviewed 🟢 SOUND; dogfooded by wrapping this very PR with the new `docs` default. Behavioral change for adopters: a bare `/wrap NNN` no longer auto-merges non-protected targets — run `/wrap --scope=full NNN` for that.
+
+### Changed
+
+- `skills/wrap/SKILL.md` — scope detection rewritten from the `SCOPE_IDEA_ONLY` boolean to a `--scope=docs|full|idea-only` enum with a per-scope step-set table; `docs` is the default. Step 8 (atomic merge) now gates on `scope=full`; Step 5 (teardown) stays mode-gated (post-merge), orthogonal to scope. Steps 3 + 4 gained idempotency guards (the two-pass flow re-runs them routinely, so grep-and-skip prevents duplicate index/devlog entries). Step 4b predicate + description + opening framing updated.
+- `skills/wrap/references/ATOMIC_MERGE.md` — Step 8 now requires the `--scope=full` precondition; the "Why this exists" rationale reframed (it previously argued against what is now the safe default).
+- `skills/wrap/references/WRAP_BEFORE_REVIEW.md` — the two-pass model is now structural (`docs` pass-1 cannot reach merge; `--scope=full` pass-2 merges); dropped the resolved "tracked as IDEA-008" forward-reference.
+- `docs/guides/SPRINT_WORKFLOW.md`, `README.md`, `docs/guides/ONBOARDING.md` — wrap stage description corrected: pre-merge docs-finalization by default, `--scope=full` to also merge (was mislabeled "post-merge" in README/ONBOARDING).
+
+(2026-05-25, [#142](https://github.com/infohata/mind-vault/pull/142))
+
 ## v4.3.1 — Wrap-before-review ordering + two review-surfaced traps
 
 Patch release on the v4.3 line. A doc-heavy compound: codifies running wrap's doc-finalization *before* `/review-loop` for doc-heavy PRs (the reviewer then sees docs at shipped state, so doc-consistency findings land alongside code findings with no post-review drift), plus two traps surfaced by a downstream dual-engine review run, plus a token-optimization prose pass (~20% off the new reference, no semantic change). Dogfooded its own lesson — wrapped before the Copilot review, which then caught the doc-consistency nits the pattern predicts (a "frontmatter-edit only" contradiction, a merge-terminus ambiguity, an Unreleased-formatting divergence), each fixed in-loop.
