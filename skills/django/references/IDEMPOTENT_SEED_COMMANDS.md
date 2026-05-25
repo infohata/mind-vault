@@ -109,9 +109,12 @@ underlying function) on `DEBUG`, with an explicit opt-in for the rare CI case th
 runs with `DEBUG=False`:
 
 ```python
+def add_arguments(self, parser):
+    parser.add_argument("--allow-non-debug", action="store_true",
+                        help="permit running with DEBUG=False (CI only)")
+
 def handle(self, *args, **options):
-    # options.get(): falsy if --allow-non-debug (store_true) isn't yet wired into add_arguments
-    if not settings.DEBUG and not options.get("allow_non_debug"):
+    if not settings.DEBUG and not options["allow_non_debug"]:   # store_true → always present
         raise CommandError(
             "<cmd> is dev/test-only (creates privileged users with a known "
             "password) and refuses to run with DEBUG=False. Pass "

@@ -77,7 +77,7 @@ The codified Tier-1 catalogue is shared across engines — see [`common-review-f
 
 ≥5 minutes between same-engine retriggers — same as bugbot. The mechanism is different (reviewer-request churn vs comment post) but the queueing behaviour is analogous. Rate-limit cost is more visible on Copilot (billed per-review on GitHub Copilot Business / Enterprise).
 
-The rule is **per-engine** — under multi-engine mode bugbot+copilot back-to-back is fine (different queues). Only same-engine retriggers within 5 min violate the spacing.
+The rule is **per-engine** — under multi-engine mode bugbot+copilot back-to-back is fine (different queues). Only same-engine retriggers **against the same SHA** within 5 min violate the spacing; a retrigger after a fresh push is exempt (SKILL.md Phase 3 § new-push exemption).
 
 ## § Notes on first-run calibration
 

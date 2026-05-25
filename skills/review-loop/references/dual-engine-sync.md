@@ -43,7 +43,7 @@ Phase 3 fires after the batch commit. For each engine in `ENGINES` (deterministi
 - For `bugbot`: `./tools/bugbot_retrigger.sh <PR>` (posts a `bugbot run` comment).
 - For `copilot`: `./tools/copilot_retrigger.sh <PR>` (`gh pr edit <PR> --add-reviewer @copilot`; Copilot self-removes from `requested_reviewers` post-review so bare `--add` is the canonical retrigger — see [`engine-copilot.md`](engine-copilot.md) § Tool invocations for the still-pending fallback case).
 
-Both retriggers happen post-push. The per-engine spacing rule (≥5 min between same-engine retriggers) is checked per engine, not globally — bugbot+copilot back-to-back is fine (different queues).
+Both retriggers happen post-push. The per-engine spacing rule (≥5 min between same-engine retriggers) is checked per engine, not globally — bugbot+copilot back-to-back is fine (different queues). Because these retriggers follow a fresh push, SKILL.md Phase 3's **new-push exemption** applies — they fire immediately regardless of the window (a new SHA has no pending same-SHA review to stack behind); the 5-min window governs only same-SHA re-triggers.
 
 ## Hand-back when only one engine cleared
 

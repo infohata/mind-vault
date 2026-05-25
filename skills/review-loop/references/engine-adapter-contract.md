@@ -104,7 +104,7 @@ Engine-specific recurring findings the orchestrator can auto-fix without per-fin
 
 ### § Spacing rule
 
-The minimum interval between same-engine retriggers. Default 5 min; engines with different rate-limit profiles override here.
+The minimum interval between same-engine retriggers **against the same SHA**. Default 5 min; engines with different rate-limit profiles override here. Retriggers following a fresh push are exempt (SKILL.md Phase 3 § new-push exemption) — the window only guards re-triggers on a SHA whose review may still be pending.
 
 ## Scratch-file state ownership
 
