@@ -10,7 +10,7 @@ _(none)_
 
 ## 💡 High Priority (backlog)
 
-_(none)_
+- [IDEA-008](IDEA-008-wrap-doc-finalization-scope.md) — Separate wrap's doc-finalization phase from its merge phase (`--scope=docs` mode)
 
 ## 💡 Medium Priority (backlog)
 
