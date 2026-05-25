@@ -108,7 +108,7 @@ For every Tier 1 and Tier 2 finding, write a one-sentence justification: *why is
 
 ### Scratch-file persistence
 
-Persist to `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (engine-agnostic filename) so the next wake cycle can reload state without re-reading summaries. **Supersedes the older per-engine `bugbot-pr-<N>.md` / `copilot-pr-<N>.md` paths** that pre-shared-core `AGENT_bugbot.md` / `AGENT_copilot.md` referenced. When migrating a project from the old wrappers, drop the per-engine scratch files; the shared file holds all engines' state. The scratch file must checkpoint every piece of state that a hard bound depends on, after every mutation:
+Persist to `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (engine-agnostic filename) so the next wake cycle can reload state without re-reading summaries. **Supersedes the older per-engine `bugbot-pr-<N>.md` / `copilot-pr-<N>.md` scratch paths** from the pre-shared-core single-engine wrappers. When migrating a project off those, drop the per-engine scratch files; the shared file holds all engines' state. The scratch file must checkpoint every piece of state that a hard bound depends on, after every mutation:
 
 - `commits_this_session` (int, /20)
 - `active_work_minutes` (int, /180; best-effort)
@@ -213,6 +213,6 @@ Under sprint-auto v3.1, the "user" the loop hands back to is sprint-auto itself 
 - [`references/engine-bugbot.md`](references/engine-bugbot.md) — Cursor Bugbot adapter.
 - [`references/engine-copilot.md`](references/engine-copilot.md) — GitHub Copilot adapter.
 - [`references/dual-engine-sync.md`](references/dual-engine-sync.md) — multi-engine synchronisation contract.
-- [`agents/AGENT_bugbot.md`](../../agents/AGENT_bugbot.md) — bugbot-specific bounded-autonomy policy (codified Tier 1 patterns).
+- [`references/common-review-findings.md`](references/common-review-findings.md) — shared codified Tier-1 catalogue (engine-agnostic).
 - `RULE_git-safety` — feature-branch sandbox, never-merge-to-protected discipline.
 - `RULE_self-sweep-before-push` — pyflakes self-sweep between Phase 2 and Phase 3.

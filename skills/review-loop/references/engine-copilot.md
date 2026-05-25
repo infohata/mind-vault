@@ -15,11 +15,11 @@ Adapter specification for the GitHub Copilot review engine. The orchestrator at 
 - `./tools/find_copilot_comments.sh <PR_NUMBER>` — fetches reviews + inline findings from BOTH Copilot logins (`Copilot` on `/pulls/<N>/requested_reviewers` and `copilot-pull-request-reviewer[bot]` on `/pulls/<N>/reviews` — see § Identity above), emits the contract-shape stream (`COPILOT_LATEST_REVIEW=...`, `COPILOT_CLEAN_SIGNAL=...` if applicable, then findings, plus optional `COPILOT_CHECKRUN=...` informational marker).
 - `./tools/copilot_retrigger.sh <PR_NUMBER>` — runs `gh pr edit <PR> --add-reviewer @copilot` (requires `gh` ≥ 2.88). Pre-approvable in `~/.claude/settings.json`. A `remove+add` fallback is commented in the script body for projects where Copilot has NOT self-removed after a prior review (rare; the bare `--add` works for the typical post-review re-trigger case).
 
-**Retrigger semantics — empirically confirmed (per [`AGENT_copilot.md`](../../../agents/AGENT_copilot.md))**: Copilot self-removes from `requested_reviewers` after posting each review. Bare `--add-reviewer @copilot` therefore IS the canonical retrigger for the in-loop case (Copilot has posted a review and self-removed; we re-add to request another). The earlier "bare `--add` is a no-op" observation applies only to the *still-pending* reviewer state (review never posted) — for which the commented-out `remove+add` fallback exists.
+**Retrigger semantics — empirically confirmed**: Copilot self-removes from `requested_reviewers` after posting each review. Bare `--add-reviewer @copilot` therefore IS the canonical retrigger for the in-loop case (Copilot has posted a review and self-removed; we re-add to request another). The earlier "bare `--add` is a no-op" observation applies only to the *still-pending* reviewer state (review never posted) — for which the commented-out `remove+add` fallback exists.
 
 ## § Clean-signal parsing
 
-Per [`AGENT_copilot.md`](../../../agents/AGENT_copilot.md): **clean ≡ no new inline comments on the latest review**. Copilot's review state is always `COMMENTED` (never `APPROVED`), so APPROVED-state matching is not applicable.
+**Clean ≡ no new inline comments on the latest review.** Copilot's review state is always `COMMENTED` (never `APPROVED`), so APPROVED-state matching is not applicable.
 
 `find_copilot_comments.sh` emits `COPILOT_CLEAN_SIGNAL=<review-id> COMMIT=<sha> AT=<ts>` in two cases:
 
@@ -71,7 +71,7 @@ Copilot review latency: ~30 seconds between trigger and review post — much fas
 
 ## § Common patterns (codified Tier 1)
 
-Defer to [`agents/AGENT_copilot.md`](../../../agents/AGENT_copilot.md) § Common Review Findings for the codified Tier 1 catalogue. Triage rule: if a finding matches one of those patterns AND touches ≤1 file AND has an existing targeted test, classify Tier 1 (auto-fix without per-finding approval prompt).
+The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). No copilot-specific deltas at present; copilot's behavioural quirks live in § Stale-context findings and § Clean-signal parsing above.
 
 ## § Spacing rule
 
