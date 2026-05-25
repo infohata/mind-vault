@@ -94,6 +94,53 @@ Docker creates empty `./web/requirements-web.txt` on host as the second mount's 
 - ORM-set test user `language='en'` once.
 - Inject `django_language=en` cookie at BrowserContext creation alongside session cookie. Belt-and-braces.
 
+### 8. Empty `STATIC_ROOT` ⇒ silently dead shell ⇒ mass timeouts (fresh volume)
+
+nginx serves `/static/` from `STATIC_ROOT` (e.g. `alias /app/static/`). A **fresh
+docker volume** (CI, a sprint-auto fresh-volume worktree, a new dev) has it empty
+because `collectstatic` never ran — so every `/static/*.js` 404s, the Alpine/HTMX
+shell never initialises, and **every interaction test (drawer open, dropdown,
+deep-link) times out at `wait_for_selector`** while the non-JS tests (list
+visibility, smoke) pass. The failure presents as "23/37 wholesale timeouts", which
+looks like a harness/routing bug, not a missing build step.
+
+Diagnose: `find $STATIC_ROOT -name '*.js' | wc -l` (zero?) and
+`curl -s -o /dev/null -w '%{http_code}' -H 'Host: <e2e-host>' http://<host>/static/.../alpine.min.js`
+(404?). Fix — make the e2e entrypoint self-provision static, not just data:
+
+```make
+test-e2e:
+	@docker compose up -d web nginx          # cold-stack guard
+	@docker compose exec -T web python manage.py compile_scss      # build CSS
+	@docker compose exec -T web python manage.py collectstatic --noinput
+	@docker compose exec -T web python manage.py seed_e2e_tenant   # then data
+	@docker compose --profile e2e run --rm playwright pytest -c /e2e/pytest.ini /e2e
+```
+
+Put the same `compile_scss` + `collectstatic` in the fresh-volume bootstrap hook
+(sprint-auto `post_up_init` or equivalent) so a worktree's e2e is green without a
+manual `make static`. **A reproducible e2e env provisions assets AND data — not
+just data.**
+
+### 9. `testpaths` must be absolute in the e2e `pytest.ini`
+
+The e2e suite uses a **separate** `pytest.ini` (pytest-playwright plugin set differs
+from the unit runner). If `testpaths = .` (relative) and someone runs a **flags-only**
+invocation — `make test-e2e ARGS="-rs"` → `pytest -c /e2e/pytest.ini -rs` with **no
+path** — collection falls back to `testpaths`, and `.` resolves against the
+container's cwd (often `/app`, the source mount), pulling the **whole repo's unit
+suite** into the e2e runner. Those tests then run against the **live DB** (the e2e
+conftest overrides `django_db_setup` to use the running DB, no test-DB isolation) and
+seed **stray tenants / rows** into it. Pin it absolute:
+
+```ini
+[pytest]
+testpaths = /e2e        # NOT `.` — a flags-only ARGS would otherwise collect /app
+```
+
+An explicit CLI path still overrides `testpaths`, so single-file runs are unaffected;
+only the bare/flags-only case is rescoped.
+
 ## First-suite-worthy threshold
 
 Aggregate **≥3 documented integration-shape regressions** before bootstrapping. Don't bootstrap for one bug.

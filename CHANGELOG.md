@@ -10,6 +10,20 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.3.4 — Compound: reproducible-e2e + tenant-seed patterns
+
+Patch release on the v4.3 line. A `/compound` harvest from a reproducible-e2e-environment sprint (idempotent tenant seed + Playwright gate hardened to run from a fresh docker volume), five reusable patterns routed into existing skill references (one new reference) — references-first placement, no new top-level rules.
+
+### Added
+
+- `skills/django/references/IDEMPOTENT_SEED_COMMANDS.md` — new reference for seed/management commands that must provision from nothing AND top up an existing DB: the idempotency trio (attach M2M/GenericFK unconditionally not only on `created`; correct privileged-user flags on existing rows without touching passwords; handle a globally-unique-field conflict by claim-if-free-else-warn instead of `IntegrityError`-abort, then re-assert invariants like "a primary always exists") + a `DEBUG`-gated production safety guard on the **command** (not the function, so the `DEBUG=False` unit test can still call it).
+
+### Changed
+
+- `skills/django/references/MULTI_TENANT.md` — adds § *Tearing down a real tenant in tests*: a `TransactionTestCase` that creates a real tenant schema can't tear down via `org.delete()` ORM cascade (the collector queries tenant-schema tables — `django_admin_log`, content FKs — from the public connection → `relation does not exist`); drop the schema with `_drop_schema(force_drop=True)` then raw-SQL-delete the public rows.
+- `skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md` — adds the `networks: !reset` trap: a per-service network reset nullifies the whole key and the stack falls back to the compose `default` network; a profile-gated service (e.g. e2e `playwright`) the override generator didn't enumerate keeps the parent's pinned `ipv4_address` and breaks ("no configured subnet contains IP" / "could not translate host name db"). Fix: attach the profile service to BOTH the custom network and `default`.
+- `skills/django-frontend/references/VISUAL_ACUITY_TESTS_VIA_PLAYWRIGHT.md` — two bootstrap traps: (8) empty `STATIC_ROOT` on a fresh volume → `/static/*.js` 404 → Alpine/HTMX shell never initialises → mass `wait_for_selector` timeouts that look like a harness bug; the e2e entrypoint must `compile_scss` + `collectstatic` (provision assets AND data). (9) the e2e `pytest.ini` `testpaths` must be absolute — a flags-only `ARGS` drops the path and collects the whole repo's unit suite against the live DB, seeding stray rows.
+
 ## v4.3.3 — Compound: 5 review-loop patterns
 
 Patch release on the v4.3 line. A pure `/compound` harvest from a cross-project dual-engine review loop — five reusable patterns routed into existing references (no new files, references-first placement), then curated for DRY against the vault and Copilot-cleared.
