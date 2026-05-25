@@ -122,7 +122,7 @@ Derive the IDEA-NNN from one of (in order of precedence):
 
 Locate the idea file. Per `RULE_ideas-location-status`, it's at `docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md` once `/plan` or `/work` has run; if still in `docs/ideas/`, the `/plan` → archive move was skipped — fire it now (single `git mv` + frontmatter update) before continuing.
 
-Short-circuit: if frontmatter already shows `status: complete`, assume Step 2 has run and skip it. Steps 3–5 are idempotent and should run regardless.
+Short-circuit: if frontmatter already shows `status: complete`, skip the frontmatter flip — but still run the body-prose status-line sub-step below (it's idempotent and catches a pre-existing frontmatter↔body mismatch the flip-skip would otherwise leave). Steps 3–5 are idempotent and should run regardless.
 
 ### Step 2 — Flip the idea frontmatter
 

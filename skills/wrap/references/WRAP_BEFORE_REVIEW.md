@@ -13,10 +13,10 @@ Wrapping first collapses both: the reviewer sees docs in their merge shape, doc 
 
 **The merge doesn't move — and the pre-review pass must stop before it.** This is a **two-pass** model:
 
-1. **Pre-review pass (pass 1)** — doc-finalization steps only (frontmatter flip, ideas-index move, devlog entry, downstream-docs scan — wrap Steps 1–4, 6, 7). It **stops there**. On a non-protected target, do *not* let this pass fall through to Step 8 (atomic merge): `ATOMIC_MERGE.md` requires a clean review signal at HEAD, and pre-review there is none — Step 8 would block (re-trigger + wait) or abort. (`--scope=idea-only` skips Step 8 but *also* skips the devlog/index steps you want pre-review, so it's not the right tool here.)
+1. **Pre-review pass (pass 1)** — doc-finalization steps only (frontmatter flip, ideas-index move, devlog entry, downstream-docs scan — wrap Steps 1–4 and 6, plus the conditional Step 7 eval-gate emission when it fires). It **stops there**. On a non-protected target, do *not* let this pass fall through to Step 8 (atomic merge): `ATOMIC_MERGE.md` requires a clean review signal at HEAD, and pre-review there is none — Step 8 would block (re-trigger + wait) or abort. (`--scope=idea-only` skips Step 8 but *also* skips the devlog/index steps you want pre-review, so it's not the right tool here.)
 2. **Post-review pass (pass 2)** — re-run `/wrap` after `/review-loop` clears: Step 8 atomic-merges on non-protected targets, or the human merges on protected targets (where Step 8 auto-skips, or under a "never agent-merge" rule).
 
-Mentally split wrap: **doc-finalization is pre-review; merge is post-review-clear.** A cleaner long-term shape is a dedicated docs-finalization scope (Steps 1–4/6/7 that structurally cannot reach Step 8) — tracked as a follow-up; until it exists, the pre-review pass is operationally "run wrap, stop before Step 8."
+Mentally split wrap: **doc-finalization is pre-review; merge is post-review-clear.** A cleaner long-term shape is a dedicated docs-finalization scope (Steps 1–4 and 6, plus conditional Step 7, that structurally cannot reach Step 8) — tracked as IDEA-008; until it exists, the pre-review pass is operationally "run wrap, stop before Step 8."
 
 ## The tension this creates, and how to handle it
 
