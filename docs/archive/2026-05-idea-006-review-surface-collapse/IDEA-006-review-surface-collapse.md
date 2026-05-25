@@ -52,7 +52,7 @@ Once these land in the references / shared skill, the agent files have no remain
 **Command-wrapper collapse:**
 
 - `commands/bugbot-loop.md` and `commands/copilot-loop.md` deleted; `/review-loop <PR> <engine>` is the sole review entry point.
-- `skills/sprint-auto/SKILL.md` rewired: every `/bugbot-loop` / `/copilot-loop` dispatch (S3, S6, S11.10, S13, S14, References) calls `/review-loop <PR> bugbot|copilot` instead. `SPRINT_AUTO_REVIEW_ENGINE` selector semantics unchanged.
+- `skills/sprint-auto/SKILL.md` rewired: every `/bugbot-loop` / `/copilot-loop` dispatch (S3, S6, S11.10, S13, S14, References) collapses to a **single multi-engine** `/review-loop <PR> $SPRINT_AUTO_REVIEW_ENGINE` call — concurrent multi-engine sync when ≥2 engines are configured/available, generalizing to N engines. Selector *grammar* unchanged; the per-engine-sequential dispatch + "20 cycles per engine" budget are replaced by review-loop's concurrent session + session-level caps (reconcile `references/escalation-policy.md`). `none`-skip preserved.
 - `tools/find_copilot_comments.sh` extend-the-tuple comment updated (no longer points at `commands/copilot-loop.md` / `AGENT_copilot.md`).
 
 **Both:**
