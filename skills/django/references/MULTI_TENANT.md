@@ -1020,6 +1020,7 @@ also what a production org-deletion view does):
 
 ```python
 class SeedProvisionTests(TransactionTestCase):   # NOT TestCase — real DDL
+    # imports elided: uuid, Org, schema_context, connection
     def setUp(self):
         self.schema = f"seedtest_{uuid.uuid4().hex[:12]}"  # throwaway, unique
 
@@ -1030,6 +1031,9 @@ class SeedProvisionTests(TransactionTestCase):   # NOT TestCase — real DDL
         org._drop_schema(force_drop=True)        # drop tenant schema (DDL)
         with schema_context("public"):
             with connection.cursor() as c:        # raw deletes — no ORM cascade
+                # tbl/col below are a FIXED literal allowlist (not user input), so
+                # f-string identifier interpolation is safe here; never f-string an
+                # untrusted identifier into SQL. Replace <app> with your app_label.
                 for tbl, col in [("userscope", "org_id"), ("property", "org_id"),
                                  ("scope", "org_id"), ("domain", "tenant_id")]:
                     c.execute(f"DELETE FROM <app>_{tbl} WHERE {col} = %s", [org.id])
