@@ -1,6 +1,6 @@
 # Wrap before review — finalize docs to shipped state *before* the review-loop runs
 
-**When this fires**: a doc-heavy PR (substantial IDEA-file / plan / index / devlog / guide changes alongside code) headed for `/review-loop` (single- or dual-engine). The default chain is `work → review-loop → wrap`; for doc-heavy PRs, **run doc-finalization first**: `work → wrap(docs, stop before Step 8) → review-loop → merge`. This is a two-pass split of wrap — the pre-review pass finalizes docs and stops; the terminal `→ merge` is the post-review pass (wrap Step 8 atomic on non-protected targets, human on protected). See *The merge doesn't move* below.
+**When this fires**: a doc-heavy PR (substantial IDEA-file / plan / index / devlog / guide changes alongside code) headed for `/review-loop` (single- or dual-engine). The default chain is `work → review-loop → wrap`; for doc-heavy PRs, **run doc-finalization first**, splitting wrap into two passes: `work → wrap pass 1 (docs; stops before Step 8) → review-loop → wrap pass 2 (Step 8 merge) | human merge`. The pre-review pass 1 finalizes docs and stops. The post-review terminal is a *second* wrap invocation that runs Step 8 on non-protected targets — or, on protected targets, Step 8 auto-skips and the human merges. See *The merge doesn't move* below.
 
 ## Why
 
@@ -13,8 +13,8 @@ Wrapping first collapses both: the reviewer sees docs in their merge shape, doc 
 
 **The merge doesn't move — and the pre-review pass must stop before it.** This is a **two-pass** model:
 
-1. **Pre-review pass** — doc-finalization steps only (frontmatter flip, ideas-index move, devlog entry, downstream-docs scan — wrap Steps 1–4, 6, 7). It **stops there**. On a non-protected target, do *not* let this pass fall through to Step 8 (atomic merge): `ATOMIC_MERGE.md` requires a clean review signal at HEAD, and pre-review there is none — Step 8 would block (re-trigger + wait) or abort. (`--scope=idea-only` skips Step 8 but *also* skips the devlog/index steps you want pre-review, so it's not the right tool here.)
-2. **Post-review pass** — after `/review-loop` clears, Step 8 atomic-merges on non-protected targets, or the human merges on protected targets (or under a "never agent-merge" rule).
+1. **Pre-review pass (pass 1)** — doc-finalization steps only (frontmatter flip, ideas-index move, devlog entry, downstream-docs scan — wrap Steps 1–4, 6, 7). It **stops there**. On a non-protected target, do *not* let this pass fall through to Step 8 (atomic merge): `ATOMIC_MERGE.md` requires a clean review signal at HEAD, and pre-review there is none — Step 8 would block (re-trigger + wait) or abort. (`--scope=idea-only` skips Step 8 but *also* skips the devlog/index steps you want pre-review, so it's not the right tool here.)
+2. **Post-review pass (pass 2)** — re-run `/wrap` after `/review-loop` clears: Step 8 atomic-merges on non-protected targets, or the human merges on protected targets (where Step 8 auto-skips, or under a "never agent-merge" rule).
 
 Mentally split wrap: **doc-finalization is pre-review; merge is post-review-clear.** A cleaner long-term shape is a dedicated docs-finalization scope (Steps 1–4/6/7 that structurally cannot reach Step 8) — tracked as a follow-up; until it exists, the pre-review pass is operationally "run wrap, stop before Step 8."
 
