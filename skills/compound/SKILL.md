@@ -145,7 +145,7 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
 
    The "would this be safe in a public repo today?" test is the gate. If the answer is "no", scrub before commit.
 
-6. **Commit.** One commit per invocation, using the standard commit-message format (type(scope): description). **Mind-vault self-mode CHANGELOG bump:** when the destination is mind-vault itself (self-promotion, not a project-local write), patch-bump `CHANGELOG.md` in this same commit — pure `/compound` PRs bump 0.0.1 with their own `## v` section (no IDEA → `/wrap` never runs to do it). See [`references/mind-vault-promotion.md`](references/mind-vault-promotion.md) § Self-mode CHANGELOG bump.
+6. **Commit.** One commit per invocation, using the standard commit-message format (type(scope): description). **Mind-vault self-mode CHANGELOG bump:** when the destination is mind-vault itself (self-promotion, not a project-local write), patch-bump `CHANGELOG.md` in this same commit — pure `/compound` PRs increment the patch component by 1 (`vX.Y.Z → vX.Y.(Z+1)`, not a bump *to* `0.0.1`) with their own `## v` section (no IDEA → `/wrap` never runs to do it). See [`references/mind-vault-promotion.md`](references/mind-vault-promotion.md) § Self-mode CHANGELOG bump.
 7. **Push.** `git push --set-upstream origin <branch>`.
 8. **Ensure open PR.** `gh pr view <branch>` to check existence. If no PR exists, `gh pr create --title "..." --body "..."`. If one exists, append a short note to the PR body describing what this `/compound` invocation added — keeps the PR description current.
 9. **Report back.** Print the branch, commit SHA, and PR URL. Never suggest the human merge — that's theirs to do.

@@ -47,7 +47,7 @@ Write all target files for the routing decision. Common cases:
 
 When `/compound` writes to mind-vault **itself** (a self-promotion — not a project-local `docs/solutions/` write), maintain `CHANGELOG.md` in the SAME commit:
 
-- **Pure `/compound` PRs patch-bump by 0.0.1.** Mind-vault's policy is per-PR versioning. A compound has no IDEA, so `/wrap` (whose Step 4b would handle the bump for an IDEA PR) never fires — `/compound` owns the bump. Take the topmost `## vMAJOR.MINOR.PATCH` header, increment PATCH, insert the new section above it.
+- **Pure `/compound` PRs increment the patch component by 1** (`vX.Y.Z → vX.Y.(Z+1)` — not a bump *to* `0.0.1`). Mind-vault's policy is per-PR versioning. A compound has no IDEA, so `/wrap` (whose Step 4b would handle the bump for an IDEA PR) never fires — `/compound` owns the bump. Take the topmost `## vMAJOR.MINOR.PATCH` header, increment PATCH, insert the new section above it.
 - **Section shape** (match existing entries' prose density): `## v<X.Y.Z> — <short title>`, a one-paragraph intro, then `### Added` / `### Changed` / etc. (Keep-a-Changelog keys), and a `(YYYY-MM-DD, [#N](https://github.com/infohata/mind-vault/pull/N))` tail.
 - **`## Unreleased` stays `_(none)_`** — a compound that is the shipping unit writes its `## v` section directly, not a parked Unreleased bullet.
 - **Post-merge:** `make release` cuts the tag from the topmost CHANGELOG header (see wrap SKILL.md Step 4b § Mechanics, `make release` sub-bullet).
