@@ -147,11 +147,11 @@ Full ruff / mypy passes are PR-time / CI-time concerns. The sweep is the minimum
 
 ## Doc-Consistency Sweep — Full Recipe
 
-Doc-heavy commits (IDEA files, the ideas index/README, plan docs, dev logs) draw a predictable review-bot Info-finding class that is **entirely locally checkable**. Bots tend to surface these **one fresh nit per review cycle** — and each cycle is a billed round-trip — so a session can otherwise burn N cycles clearing N cosmetic doc nits one at a time. Sweeping all five checks before the *first* trigger collapses that to zero.
+Doc-heavy commits (IDEA files, the ideas index/README, plan docs, dev logs) draw a predictable review-bot Info-finding class that is **entirely locally checkable**. Bots emit these **one nit per cycle**, and each cycle is a billed round-trip — so the cost is multiplicative in the number of latent nits, not additive. Sweeping all six checks locally before the *first* trigger collapses that to zero.
 
 ### The six checks
 
-1. **Frontmatter ↔ body cross-ref symmetry.** Every id in a file's `related:` / `depends_on:` / `supersedes:` frontmatter should be discoverable in the body's prose, and every id discussed in the body's "Related" section should be in the frontmatter. When you *add* an edge in frontmatter (e.g. `related: [..., NNN]`), add the matching one-line backref in the body — bots flag the asymmetry. **Applies to every edge type, and to every id within a list** — a `depends_on: [137, 158]` whose prose mentions only 158 is the exact asymmetry bots catch. Name all the ids the frontmatter lists, not just the one you were focused on.
+1. **Frontmatter ↔ body cross-ref symmetry.** Every id in a file's `related:` / `depends_on:` / `supersedes:` frontmatter should be discoverable in the body's prose, and every id discussed in the body's "Related" section should be in the frontmatter. When you *add* an edge in frontmatter (e.g. `related: [..., NNN]`), add the matching one-line backref in the body — bots flag the asymmetry. **Applies to every edge type, and to every id within a list** — a `depends_on: [A, B]` whose prose mentions only B is the exact asymmetry bots catch. Name all the ids the frontmatter lists, not just the one you were focused on.
 
 2. **Ordering-block ↔ index/table membership.** Every entity named in a locked-order / sequence / recap block must have a corresponding row in any progress/index table the same doc maintains. A reorder that introduces an id into the chain without a table row is the classic miss. Mechanical check:
    ```bash
@@ -171,10 +171,6 @@ Doc-heavy commits (IDEA files, the ideas index/README, plan docs, dev logs) draw
    ```bash
    awk '/^---$/{c++;next} c==1 && /#/{n++} c==2{exit} END{print n+0}' <new-file>   # vs a sibling; should match
    ```
-
-### Why the bot path is the expensive one here
-
-All five checks are grep-or-eyeball local. A review bot finds them too — but charges a full review cycle (often billed, 1–10 min latency) per nit, and characteristically emits **one at a time**, so the cost is multiplicative in the number of latent nits, not additive. The sweep is the same logic the bot runs, paid once, locally, before the first trigger.
 
 ## Relationship to Other Rules
 
