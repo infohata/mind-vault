@@ -8,7 +8,17 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 ## Unreleased
 
-_(none — v4.3 reserved for `/bugbot-loop` + `/copilot-loop` wrapper removal narrative; see v4.2's Deprecation block.)_
+_v4.3 in progress (review-surface collapse, IDEA-006) — PR-1 "prepare" below; the `## v4.3` header lands with PR-2's deletions._
+
+### Added
+
+- `skills/review-loop/references/common-review-findings.md` — the codified Tier-1 review-finding catalogue, consolidated ONCE out of the (word-for-word identical) `AGENT_bugbot.md` + `AGENT_copilot.md` copies and deduplicated against existing homes (#15→SHELL_INSTALLERS, #17/#18→ALPINE_HTMX_GOTCHAS, #19→RULE_self-sweep): a scannable index — one-line + link for patterns with a canonical home, full prose only for the homeless. Both engine adapters reference it. (PR-1 of IDEA-006.)
+
+### Changed
+
+- `skills/sprint-auto/SKILL.md` + `references/escalation-policy.md` — review dispatch rewired from two sequential single-engine loops to a **single** `/review-loop <PR> $SPRINT_AUTO_REVIEW_ENGINE` call carrying all configured engines (concurrent multi-engine sync when >1, N-engine-general). Budget shifts from "20 per engine" to the review-loop session cap (shared across engines, findings batched per cycle). (PR-1 of IDEA-006.)
+- `engine-bugbot.md` / `engine-copilot.md` / `engine-adapter-contract.md` / `SKILL.md` (review-loop) — § Common patterns now links the shared catalogue; copilot's "Per AGENT_copilot.md" attributions made adapter-owned; obsolete pointers/notes dropped.
+- Project-wide reference sweep (README, guides, `compound`/`work`/`dependabot-triage`/`deployment` skills, tool-script comments) — every `AGENT_bugbot`/`AGENT_copilot` + `/bugbot-loop`/`/copilot-loop` pointer now targets `/review-loop` / the engine refs. The four files still exist (deleted in PR-2); this is the `rename-before-drop` overlap window. (PR-1 of IDEA-006.)
 
 ## v4.2.2 — Doc-consistency self-sweep (RULE_self-sweep-before-push trigger 5)
 
