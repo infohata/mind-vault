@@ -189,7 +189,7 @@ function flipDrawerEditFrameOnSave(surface, payload) {
 
 URL conventions live as a project-level pattern map (mirrors `URL_PATTERN_BY_TYPE` from the URL contract). Per-entity files own only entity-specific cosmetics (title hints, post-save toasts, etc.). New entities inherit the routing for free.
 
-### The per-entity hard-gate reuse trap — a type-gated listener cannot be shared by `<script>` include
+### The per-entity hard-gate reuse trap — a type-gated listener can't be shared by `<script>` include
 
 Per-entity cosmetics files (`<entity>_actions.js`: drawer-close-on-delete, drawer-title-on-save) almost always open with a type discriminator that bails for foreign payloads:
 
@@ -203,13 +203,13 @@ function onEntityChanged(event) {
 document.body.addEventListener('entityChanged', onEntityChanged, { capture: true });
 ```
 
-The trap: when you stand up a new entity surface (a new shell template) and want the same drawer-close-on-delete behaviour, **reusing the existing file by `<script src="…/article_actions.js">` does NOT work** — the gate `payload.type !== 'article'` returns early for every `faq` / `event` / new-type payload, so the listener silently no-ops. The new entity's delete emits `entityChanged{type:'faq', action:'deleted'}`, the listener bails, and the drawer stays open on the just-deleted record. The save-title cosmetic dies the same way.
+The trap: standing up a new entity surface and wanting the same drawer-close-on-delete behaviour, **reusing the file via `<script src="…/article_actions.js">` does NOT work** — the gate `payload.type !== 'article'` returns early for every `faq` / `event` payload, so the listener silently no-ops. The new entity's delete emits `entityChanged{type:'faq', action:'deleted'}`, the listener bails, the drawer stays open on the just-deleted record. The save-title cosmetic dies the same way.
 
-It is **silent** — no console error, the page mostly works (the declarative `data-refresh-on` list refresh still fires because that's walker-owned, not gated), so the bug hides until someone deletes a record *while its drawer is open*. A template comment claiming "reused from the article surface — graceful no-op where article-only selectors aren't in the DOM" is the tell-tale wrong mental model: the listener doesn't no-op on missing *selectors*, it hard-returns on the *type gate* before touching the DOM at all.
+It's **silent** — no console error; the page mostly works (the declarative `data-refresh-on` list refresh still fires — that's walker-owned, not gated), so the bug hides until someone deletes a record *while its drawer is open*. A template comment like "reused from the article surface — graceful no-op where article selectors aren't in the DOM" is the tell-tale wrong model: it doesn't no-op on missing *selectors*, it hard-returns on the *type gate* before touching the DOM.
 
-The fix matches the per-entity convention: **each entity surface gets its own `<entity>_actions.js`** — a copy with the type token, detail-body class, and title-hint attribute swapped (`'faq'`, `.faq-detail-body`, `[data-faq-title-hint]`). The detail-body partial usually already exposes the right selectors (a tell that the original author intended a dedicated file and reached for the reuse shortcut). The alternative — generalising the listener to a type-keyed dispatch table — is only worth it past ~3 entities; below that, the per-entity copy is the lower-risk move and matches what the walker-vs-per-entity split above already established.
+The fix matches the per-entity convention: **each surface gets its own `<entity>_actions.js`** — a copy with type token, detail-body class, and title-hint attribute swapped (`'faq'`, `.faq-detail-body`, `[data-faq-title-hint]`). The detail-body partial usually already exposes the right selectors (a tell the original author intended a dedicated file and took the reuse shortcut). Generalising to a type-keyed dispatch table is only worth it past ~3 entities; below that the per-entity copy is lower-risk and matches the walker-vs-per-entity split above.
 
-Sweep heuristic (ties to `RULE_self-sweep` defensive-code sweep): when a new shell template adds `<script src="…/<otherentity>_actions.js">`, that's the smell. Grep the included file's first `if (payload.type !== …)` line; if the literal doesn't match the new surface's type, it's a dead include.
+Sweep heuristic (`RULE_self-sweep` defensive-code sweep): a new shell template adding `<script src="…/<otherentity>_actions.js">` is the smell. Grep the included file's first `if (payload.type !== …)` line; if the literal doesn't match the new surface's type, it's a dead include.
 
 ### Empty-snapshot fallback in pop / popstate handlers
 

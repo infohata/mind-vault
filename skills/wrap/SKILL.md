@@ -142,7 +142,7 @@ completed: YYYY-MM-DD
 
 Leave `created:` unchanged. If the completed PR superseded or was superseded by another idea, update `superseded_by:` / `supersedes:` too.
 
-**Mandatory sub-step — sync the human-readable body-prose status line.** The frontmatter flip is not the whole job. IDEA files (and many plan/README docs) carry a *second*, human-readable status in the body — a `**Status**: 🚧 In Progress` prose line. After editing frontmatter, grep the same file (and sibling plan/index docs) for a `**Status**:` / `Status:` prose line and update it to match (`✅ Complete (YYYY-MM-DD)`). Skipping this leaves a frontmatter↔body mismatch that a doc-reviewing engine (Copilot) **will** flag — a self-inflicted review finding the wrap created. One-liner grep, zero review cost. This sub-step exists because that exact finding was observed on a wrapped-before-reviewed PR; see [`references/WRAP_BEFORE_REVIEW.md`](references/WRAP_BEFORE_REVIEW.md) for the wrap-before-review ordering it belongs to.
+**Mandatory sub-step — sync the body-prose status line.** The frontmatter flip isn't the whole job: IDEA files (and many plan/README docs) carry a *second*, human-readable `**Status**: 🚧 In Progress` prose line. After editing frontmatter, grep the same file (and sibling plan/index docs) for a `**Status**:` / `Status:` line and sync it (`✅ Complete (YYYY-MM-DD)`). Skipping this leaves a frontmatter↔body mismatch a doc-reviewing engine **will** flag — a self-inflicted finding. Zero review cost. See [`references/WRAP_BEFORE_REVIEW.md`](references/WRAP_BEFORE_REVIEW.md).
 
 ### Step 3 — Re-sort the ideas index
 
