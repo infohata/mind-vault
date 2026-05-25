@@ -97,7 +97,9 @@ Every live hit is rewired in PR-1; use **full-file replace** per file, not line-
 
 ## 8. Execution Sequence
 
-### PR-1 — Prepare (rename phase; additive + rewire, zero deletions)
+### PR-1 — Prepare (rename phase; additive + rewire, zero deletions) — ✅ shipped as [PR #139](https://github.com/infohata/mind-vault/pull/139)
+
+> Commits: `d98484f` (catalogue migration), `aec0704` (sprint-auto multi-engine dispatch), `1412bf5` (reference sweep), `cf31ef0` (CHANGELOG Unreleased). Verified: live-ref grep clean (only the 4 targets + historical/index), `make extract-version`→`v4.2.2`, links resolve. PR-2 (drop) pending — opens after PR-1 merges.
 
 1. **Create `skills/review-loop/references/common-review-findings.md`** — migrate from `AGENT_bugbot.md` (the canonical copy; #19 prose generalised to "the engine"), deduplicated per KD1. For each of the 19, audit for an existing canonical home (`grep -rl` the pattern's keyword across `rules/`, `skills/django*/`, `skills/deployment/`): if one exists, write a **one-line review-lens entry + link** (do not restate); only patterns with no home keep full prose. Known homes to link, not restate: #15→SHELL_INSTALLERS, #19→RULE_self-sweep § Contract-Change Sweep, #1/#11→django, #16/#17/#18→django-frontend gotchas. Result is a scannable Tier-1 index, not a 19-pattern wall.
 2. **`engine-bugbot.md`** — replace § Common patterns "defer to AGENT_bugbot.md" with a link to `common-review-findings.md`; fold the bugbot-specific stall threshold into § Failure modes; delete § Notes (the AGENT_bugbot location note is obsolete).
