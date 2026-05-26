@@ -165,7 +165,7 @@ The wake-loop in this phase IS a watcher in the [`skills/work/references/WATCHER
 2. On wake: re-fetch each engine via `./tools/find_<engine>_comments.sh` and recompute each `<engine>_review_state` from its check-run `STATUS` — `queued`/`in_progress` → `RUNNING`; `completed` → `DONE`; no check-run for head SHA → `TRIGGERED` if a trigger already fired this SHA, else `NOT_TRIGGERED`.
 3. **New-push detection (run BEFORE the decision tree)**: compare scratch's `last_push_sha` against `git rev-parse HEAD`. If they differ (out-of-band push by another process or the user), reset `idle_polls=0`, update `last_push_sha`, reset every `<engine>_review_state` to `NOT_TRIGGERED`, and re-enter Phase 1 for the new SHA. Without this the counter accumulates past a push the loop didn't initiate.
 
-4. **Decision tree — evaluate in order:**
+4. **Decision tree — evaluate in order** (every `ScheduleWakeup(Ns)` below is shorthand for the full mandatory-prompt form from step 1 — `ScheduleWakeup(delaySeconds=N, prompt="/review-loop <PR_NUMBER> <ENGINES>")`; the `prompt` arg is never optional):
    - **Guard: `commits_this_session` ≥ 20 OR active-work minutes ≥ 180** → hand back.
    - **Guard: no-progress detector trips** — same finding category flagged 2× across cycles where a commit *attempted* that category (success-or-revert both count), namespaced per engine → hand back.
    - **Any engine `NOT_TRIGGERED`** → fire its retrigger (Phase 1 zero-activity path), set it `TRIGGERED`, `ScheduleWakeup(180s)`.

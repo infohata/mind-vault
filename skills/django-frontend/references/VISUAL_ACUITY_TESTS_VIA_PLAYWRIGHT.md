@@ -105,7 +105,8 @@ visibility, smoke) pass. The failure presents as "23/37 wholesale timeouts", whi
 looks like a harness/routing bug, not a missing build step.
 
 Diagnose — set `host=` and `e2e_host=` for your stack first (the bare `<...>` form
-would be parsed as shell redirection): `find "$STATIC_ROOT" -name '*.js' | wc -l` (zero?) and
+would be parsed as shell redirection; `STATIC_ROOT` is a Django setting, so substitute
+its concrete container path e.g. `/app/static`): `find /app/static -name '*.js' | wc -l` (zero?) and
 `curl -s -o /dev/null -w '%{http_code}' -H "Host: $e2e_host" "http://$host/static/.../alpine.min.js"`
 (404?). Fix — make the e2e entrypoint self-provision static, not just data:
 
