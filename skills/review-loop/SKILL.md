@@ -1,6 +1,6 @@
 ---
 name: review-loop
-description: Drive a bounded-autonomy review-fix-rerun loop against one or more pluggable review engines (Cursor Bugbot, GitHub Copilot, future N-engines) on a PR. Triages findings into Tier 1 / 2 / 3, batches per-cycle fixes into single commits, retriggers engines after each push and gates on the engine's check-run status (triggered → running → done → clean), and hands back to the user with a structured report. Engine-agnostic core; per-engine specifics live in references/engine-<name>.md per the adapter contract.
+description: Drive a bounded-autonomy review-fix-rerun loop against one or more pluggable review engines (Cursor Bugbot, GitHub Copilot, future N-engines) on a PR. Triages findings into Tier 1 / 2 / 3, batches per-cycle fixes into single commits, retriggers engines after each push, tracks each engine through a review-state machine (NOT_TRIGGERED → TRIGGERED → RUNNING → DONE) read from its check-run status, treats an engine as clean only when DONE with zero active findings, and hands back to the user with a structured report. Engine-agnostic core; per-engine specifics live in references/engine-<name>.md per the adapter contract.
 ---
 
 Drive a review-fix-rerun cycle on the given PR using one or more review engines. The orchestrator is engine-agnostic — all engine-specific work routes through adapters described in `references/engine-adapter-contract.md`.
@@ -152,7 +152,7 @@ If at least one fix was applied:
 
 1. **One commit per cycle**, not per finding.
    - Format: `fix(scope): address review N (PR #M)` — under multi-engine mode the body lists all findings closed across engines.
-2. `git push origin HEAD`.
+2. `git push origin HEAD`, then **update scratch `last_push_sha` to the new HEAD**. Phase 4's new-push detection compares against it — without this update the loop reads its *own* push as an out-of-band change next wake, resets every engine to `NOT_TRIGGERED`, and double-retriggers (wasting billed reviews).
 3. **Retrigger** — for each `<engine>` in `ENGINES` (iterated **alphabetically** for reproducibility, matching [`references/dual-engine-sync.md`](references/dual-engine-sync.md) § Retrigger discipline): fire `./tools/<engine>_retrigger.sh [PR_NUMBER]` once and set `<engine>_review_state=TRIGGERED`. No interval, no defer — the push just created a new SHA, so there is no in-flight review for it to stack behind. (A retrigger is withheld in exactly one situation — Phase 4's `RUNNING` state — which Phase 3 never hits, because a fix push always supersedes any prior SHA's review.)
 
 4. Increment `commits_this_session`. If ≥ 20 → stop and hand back.

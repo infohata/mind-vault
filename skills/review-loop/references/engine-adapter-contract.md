@@ -15,11 +15,11 @@ Every adapter MUST provide these scripts (project-local, `tools/<engine>_*.sh`).
 
 ### `tools/find_<engine>_comments.sh <PR_NUMBER>`
 
-Emit zero or more marker lines on stdout. **Order is not guaranteed** — the orchestrator parses by anchor-based grep on `^<ENGINE>_<MARKER>=` rather than positional reading. Adapters MAY emit markers in any order, MAY interleave informational output (banners, summaries) between markers, and SHOULD prefer printing markers as early as possible after their underlying data is fetched. The required marker set:
+Emit zero or more marker lines on stdout. **Order is not guaranteed** — the orchestrator parses by anchor-based grep on `^<ENGINE>_<MARKER>=` rather than positional reading. Adapters MAY emit markers in any order, MAY interleave informational output (banners, summaries) between markers, and SHOULD prefer printing markers as early as possible after their underlying data is fetched. The marker set (each emitted when its underlying data exists — see per-line notes and the semantics below):
 
 ```text
 <ENGINE>_LATEST_REVIEW=<review-id> COMMIT=<sha> AT=<iso8601>
-<ENGINE>_CHECKRUN=<id> COMMIT=<sha> STATUS=<queued|in_progress|completed> CONCLUSION=<...> AT=<iso8601>   # REQUIRED state gate — RUNNING (queued/in_progress) vs DONE (completed)
+[<ENGINE>_CHECKRUN=<id> COMMIT=<sha> STATUS=<queued|in_progress|completed> CONCLUSION=<...> AT=<iso8601>]   # state gate — emitted when a check-run exists on the head SHA; ABSENCE = NOT_TRIGGERED. STATUS: RUNNING (queued/in_progress) vs DONE (completed)
 [<ENGINE>_CLEAN_SIGNAL=<review-id> COMMIT=<sha> AT=<iso8601>]   # legacy, non-authoritative — orchestrator derives clean structurally (DONE + zero active findings), NOT from this line
 ```
 
@@ -42,7 +42,7 @@ Followed by an empty line, then optionally:
 
 - `<ENGINE>` literal is uppercase engine name (`BUGBOT`, `COPILOT`).
 - `<ENGINE>_LATEST_REVIEW` is **mandatory** when any review exists for the PR — the orchestrator's staleness rule depends on it.
-- `<ENGINE>_CHECKRUN` is **REQUIRED** — it is the review-state gate. `STATUS` maps to `RUNNING` (`queued`/`in_progress`) vs `DONE` (`completed`). `CONCLUSION` is a run outcome, never a clean verdict.
+- `<ENGINE>_CHECKRUN` is the **review-state gate**, emitted whenever the engine has a check-run on the head SHA. Its **absence means `NOT_TRIGGERED`** (no review requested yet for this SHA) — Phase 4 relies on that. When present, `STATUS` maps to `RUNNING` (`queued`/`in_progress`) vs `DONE` (`completed`); `CONCLUSION` is a run outcome, never a clean verdict.
 - `<ENGINE>_CLEAN_SIGNAL` is **legacy and non-authoritative**: the orchestrator derives clean structurally (engine `DONE` + zero active findings matching `LATEST_REVIEW`), never from this line. A script MAY still emit it; the orchestrator ignores it for the verdict.
 - Each inline finding must include the `review <rid>` token so the orchestrator can filter active findings (`rid == LATEST_REVIEW`) vs persistent-thread stale findings (`rid != LATEST_REVIEW`).
 - The `COMMIT=<sha>` on `LATEST_REVIEW` is the trigger-anchor SHA; the authoritative review state is the `CHECKRUN STATUS` for the current head SHA.
