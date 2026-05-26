@@ -55,7 +55,7 @@ For each `<engine>` in `ENGINES`, invoke `./tools/find_<engine>_comments.sh [PR_
 
 The script can emit these markers (each on its own line):
 
-- `<ENGINE>_LATEST_REVIEW=<id> COMMIT=<sha> AT=<ts>` — the most-recent review id (the staleness anchor). Mandatory when any review exists for the PR.
+- `<ENGINE>_LATEST_REVIEW=<id> COMMIT=<sha> AT=<ts>` — the most-recent review id (the staleness anchor). Mandatory when any review exists for the PR. (The scripts may append a trailing legacy `CLEAN=<bool>` token; the orchestrator **ignores** it — clean is structural, not this flag. Parsers must tolerate extra trailing fields.)
 - `<ENGINE>_CHECKRUN=<id> COMMIT=<sha> STATUS=<status> CONCLUSION=<concl>` — the **review-state gate**. `STATUS` is the engine's own check-run status: `queued` / `in_progress` = **RUNNING**, `completed` = **DONE** (exact tokens — copilot's check-run is `copilot-pull-request-reviewer`, bugbot's per its adapter). `CONCLUSION` (`success` etc.) is the run outcome, **NOT a verdict** — an engine concludes `success` even when it posted inline findings, so never read clean/not-clean off `CONCLUSION`.
 - Zero or more inline findings, each tagged `(comment id <cid>, review <rid>)`.
 
