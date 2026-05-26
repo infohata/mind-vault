@@ -90,6 +90,35 @@ The `HTTP_ACCEPT_LANGUAGE='en'` keyword on the test client (`Client`, `APIClient
 
 **Rule of thumb**: every test class that asserts English visible-text strings AND uses anonymous (logged-out) requests needs **both** the decorator and the header. Logged-in tests usually only need the decorator (the user's saved language pref carries through), but adding the header is harmless belt-and-braces.
 
+### Pooled-suite catalog-cache leakage — a `gettext_lazy` message silently resolves to `''`
+
+A test that asserts a flash/messages-framework message *appears* can pass in isolation and fail **only under the full pooled/parallel suite**, with the message inexplicably absent (`_queued_messages == []`, the "added a message" assertion fails) — no exception, no traceback, just a dropped message.
+
+Root cause is a leaked translation-catalog cache, not anything in the test under inspection:
+
+1. The code under test builds its message with `gettext_lazy("…")` (a lazy proxy, common in signals / model methods).
+2. `messages.add_message(...)` evaluates the proxy at add-time and short-circuits on falsy: `if not message: return`. The message is **silently dropped** if the proxy resolves to an empty string — no error.
+3. Django caches `DjangoTranslation` instances in `django.utils.translation.trans_real._translations`, keyed by language. This cache is **process-global and survives across test classes** — pytest-xdist workers run many classes in one process.
+4. A sibling test that monkeypatches translations, force-loads a catalog, or otherwise corrupts the cached `en` entry can leave an **empty `en` catalog** cached. When your test's lazy proxy resolves against that corrupt entry, the msgid → `''`, the message is dropped, and the assertion fails — but **only when that sibling ran first in the same worker**, i.e. order-dependent and pool-only.
+
+**Fix** — flush the catalog cache in `setUp` so `en` rebuilds from disk (and with no `en` catalog on disk, `gettext` correctly returns the non-empty source msgid):
+
+```python
+from django.utils.translation import activate, trans_real
+
+def setUp(self):
+    # A sibling test under the pooled suite can leave a corrupted/empty `en`
+    # DjangoTranslation cached process-globally; a gettext_lazy message then
+    # resolves to '' and messages.add_message drops it (`if not message`).
+    # Flushing forces `en` to rebuild → non-empty → deterministic regardless
+    # of suite order.
+    trans_real._translations.clear()
+    activate('en')
+    ...
+```
+
+**Diagnosis signature**: passes solo (`make test-fresh ARGS="…ClassName"`), fails in the full run; the missing artefact is a *translated* string; instrumenting shows the lazy proxy resolving to `''` rather than the source text. The fix is one line and belongs in the class whose assertions depend on the message, not in the (innocent) sibling that corrupted the cache — though if you can find the sibling that force-loads a catalog without restoring it, fixing *that* is the more durable repair (see § *Gotchas both levers share* for the snapshot-restore discipline that prevents this class of cross-class state leak).
+
 ## External API Testing Patterns
 
 **CRITICAL**: Tests that make real external API calls MUST be properly mocked or guarded to prevent:

@@ -401,6 +401,26 @@ A cotton prop that defaults to true (most callers want it enabled, opt-out with 
 
 The cotton `<c-vars>` template tag (provided by django-cotton) is the right choice when 2+ props need defaults. Single-prop defaults can use `is not False`. Don't use `{% with %}` for prop defaults — its scope rules surprise everyone who reads the template later.
 
+### `is not False` is insufficient when callers might pass the string `"false"`
+
+`is not False` covers the bound-expression call site (`:show_x="False"` — the colon prefix evaluates the expression and the prop arrives as a real Python `False`). It does **NOT** cover an unbound string literal (`show_x="false"` — no colon, so the prop arrives as the **string** `"false"`, which is a non-empty string and therefore **truthy**). The two call shapes coexist in any real codebase (a test rendering `from_string("<c-table is_empty='false'>…")`, a caller who forgot the colon), so a primitive whose correctness flips on this prop needs the **dual guard**:
+
+```django
+{# ❌ Lets a string "false" through as truthy — table renders when caller meant empty #}
+{% if is_empty %}…empty-state…{% endif %}
+
+{# ❌ Catches :is_empty="False" but NOT is_empty="false" (string, truthy) #}
+{% if is_empty is not False %}…{% endif %}
+
+{# ✅ Dual guard — handles real-bool False AND string "false" #}
+{% if is_empty and is_empty != 'false' %}…empty-state…{% endif %}
+
+{# ✅ Same shape for a default-TRUE prop (opt-out): treat both falsy forms as off #}
+{% if scroll != False and scroll != 'false' %}<div class="scroll-wrapper">{% endif %}
+```
+
+This is the same opaque-`:prop`-coercion theme as the JSON-seed section above — cotton does not normalise `"false"`/`"False"`/`0` to a Python `False`; whatever the call site's quoting produces is what the template sees. A multi-default primitive with several boolean modifiers (`striped` / `hoverable` / `fullwidth` / `scroll`, each default-on) repeats the `X != False and X != 'false'` clause per modifier — verbose but unambiguous, and the only form that survives both call shapes. Lock it with a render-and-assert test that passes the prop as the **string** `"false"` (not just `:prop="False"`), since that's the case `is not False` silently misses.
+
 ## Slot truthiness sees whitespace as truthy — gate at the call site, not inside the cotton
 
 Inside a cotton component, `{% if slot_name %}` is **TRUE whenever the slot was declared at the call site** — even when the slot's inner content evaluates to empty whitespace (template-block residue with falsy conditions inside). The whitespace + tag remnants make the slot variable non-empty for Django truthiness purposes.
@@ -468,3 +488,49 @@ Naive composition — `{% if not items %}<empty>{% endif %}` plus an independent
 ```
 
 Empty-state in the cards-or-empty alternation (see preceding section) is mutually exclusive with the pager by construction — items are either present (cards + maybe-pager) or absent (empty-state, no pager). Don't carry two independent visibility gates for them.
+
+## A cotton primitive inside a Bulma layout class must render bare children — Bulma's descendant rules will grab any wrapper you add
+
+When a cotton primitive lives inside a Bulma structural class (`.control.has-icons-right`, `.field`, `.card`), Bulma ships **descendant selectors that force-position any matching child** — and they fire on *your* markup, not just Bulma's own. The trap: you wrap an interactive glyph (a clear-✕ button) in Bulma's own helper class (`.icon`) for convenience, and Bulma's `.control.has-icons-right .icon { position:absolute; top:0; height:2.5em; … }` rule seizes it and pins it to the top of a `2.5em` box. On a normal-height input that's roughly centred by accident; on an `is-small` input it's visibly pushed off the vertical midline.
+
+```scss
+// ❌ Glyph wrapped in .icon → Bulma's `.control.has-icons-right .icon`
+//    forces top:0 / height:2.5em → mis-centred on is-small inputs.
+<span class="icon is-right"><i class="fa fa-times"></i></span>
+
+// ✅ Render the glyph as a bare child (a real <button>, no .icon wrapper) so
+//    Bulma's descendant rule has nothing to match, then own the positioning —
+//    centre it the way Bulma centres the native <select> arrow (the proven
+//    recipe in the same framework), NOT the has-icons-right .icon box:
+.c-search-input__clear {
+  position: absolute;
+  top: 50%;                 // ← select-arrow recipe (top:50% + translateY),
+  right: 0.625em;           //    NOT the .icon box (top:0 / height:2.5em)
+  transform: translateY(-50%);
+}
+```
+
+Two transferable rules:
+
+1. **Don't reuse a framework's auto-positioned helper class on a child you intend to position yourself** — the framework's descendant selector wins the cascade and you'll fight `!important`-adjacent specificity. Render bare and scope your own rule.
+2. **When you do need to centre something the framework also centres elsewhere, copy the framework's *working* recipe for that case**, not a superficially-similar one. Bulma centres the native `<select>` arrow with `top:50% + translateY(-50%)` and the `has-icons-right .icon` with a fixed-height box; the former is the right donor for a vertically-centred affordance, the latter mis-centres at small sizes. The two look interchangeable until you test `is-small`.
+
+This generalises beyond Bulma: any utility-CSS framework with "container class styles its known children" semantics (the icon-in-input, addon-in-field, media-object patterns) has the same trap for a cotton primitive that injects its own children into that container.
+
+## A structural element that is itself an `hx-target` must persist even when empty — gate the empty-state OUTSIDE the primitive
+
+A refinement of *caller-decides-visibility* (see § *Slot truthiness* and § *Empty-state belongs INSIDE the slot*) for the case where the swap target is a **structural element the primitive owns**, not a list-wrapper div. A table primitive that emits `<table><tbody>{{ slot }}</tbody></table>` and also lets the caller poll-refresh rows by targeting that `<tbody>` (`hx-target` on the inner `<tbody>`, `hx-swap="innerHTML"`) hits a hazard: if the primitive swaps the **whole** `<table>` out for an empty-state when there are zero rows, the poll's `hx-target` (`#…-tbody`) **no longer exists in the DOM**, and every subsequent poll silently no-ops — the list can never repopulate without a full reload.
+
+```django
+{# Primitive: empty-state replaces the table when is_empty is truthy #}
+{% if is_empty and is_empty != 'false' %}{{ empty_text }}{% else %}<table>…<tbody>{{ slot }}</tbody></table>{% endif %}
+
+{# ✅ Poll-target call-site: keep the empty gate OUTSIDE the primitive,
+   force :is_empty="False" so the <table>/<tbody> ALWAYS render,
+   and put the "no rows yet" message inside the tbody slot instead. #}
+<c-table :is_empty="False" …>
+  {% for row in rows %}<tr>…</tr>{% empty %}<tr><td colspan="N">{% trans "No rows yet." %}</td></tr>{% endfor %}
+</c-table>
+```
+
+The discipline: a primitive's built-in empty-state (collapse-to-message) is correct for a **filter-driven full-swap** surface (the whole component is the `hx-target`), but **wrong** for a **poll-into-inner-target** surface (a child is the `hx-target`). Same primitive, opposite empty-state placement, decided by *which element the caller targets*. Document both modes in the primitive's prop comment and make the poll mode an explicit `:is_empty="False"` opt-out rather than a silently-fragile default.

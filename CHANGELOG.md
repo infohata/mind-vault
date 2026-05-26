@@ -10,6 +10,21 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.3.5 — Compound: cotton-Bulma prop/positioning traps + single-source filter trigger
+
+Patch release on the v4.3 line. A `/compound` harvest from a tables / search-input / pagination consolidation sprint (shared `<c-table>` + `<c-search-input>` primitives, all filter forms unified onto one HTMX trigger), three reusable patterns routed into existing skill references plus one new reference — references-first placement, no new top-level rules.
+
+### Added
+
+- `skills/django-frontend/references/FILTER_FORM_TRIGGER_SINGLE_SOURCE.md` — new reference: kill per-surface `hx-trigger` drift by sharing one `FILTER_FORM_HX_TRIGGER` constant via a `{% filter_form_trigger %}` tag across every filter form. Covers the form-level event-filtered trigger (`from:select` / `from:input[type=checkbox]` / `from:input[type=text]` / `from:input[type=search]`), the `type=search`-alongside-`type=text` drift bug (+ its JS `htmxFiresOnText` double-fire mirror), the enumerate-and-grep drift-guard test, and the clear-✕ that clears only `q` and re-submits carrying every other filter (document-delegated, CSS `:placeholder-shown` visibility).
+
+### Changed
+
+- `skills/django-frontend/references/COTTON.md` — three additions. (1) Refines § *Default-true cotton props*: `is not False` is insufficient when a caller passes the unbound string `"false"` (truthy non-empty string); a correctness-bearing boolean prop needs the dual guard `X != False and X != 'false'`, locked with a render-and-assert test that passes the prop as the string. (2) New § on a cotton primitive inside a Bulma layout class (`.control.has-icons-right` etc.): Bulma's descendant selectors force-position any matching child, so a glyph wrapped in `.icon` gets pinned to a `2.5em` box and mis-centres on `is-small` — render the glyph bare and copy Bulma's *working* centring recipe for the case (the native `<select>` arrow's `top:50% + translateY`), not the superficially-similar `has-icons-right .icon` box. (3) New § on a structural element that is itself an `hx-target` (poll-into-`<tbody>`): the primitive's collapse-to-empty-state would remove the poll target from the DOM, so gate the empty-state OUTSIDE the primitive and force `:is_empty="False"` — same primitive, opposite empty-state placement depending on which element the caller targets.
+- `skills/django/references/TESTING.md` — adds § *Pooled-suite catalog-cache leakage* under Language and Locale: a `gettext_lazy` message that resolves to `''` is silently dropped by `messages.add_message` (`if not message: return`); a sibling test can leave an empty `en` catalog cached in the process-global `trans_real._translations`, making a message-presence assertion pass solo but fail order-dependently under the pooled/xdist suite. Fix: `trans_real._translations.clear()` in `setUp` to force `en` to rebuild from disk.
+
+(2026-05-26, [#146](https://github.com/infohata/mind-vault/pull/146))
+
 ## v4.3.4 — Compound: reproducible-e2e + tenant-seed patterns
 
 Patch release on the v4.3 line. A `/compound` harvest from a reproducible-e2e-environment sprint (idempotent tenant seed + Playwright gate hardened to run from a fresh docker volume), five reusable patterns routed into existing skill references (one new reference) — references-first placement, no new top-level rules.
