@@ -15,12 +15,12 @@ Every adapter MUST provide these scripts (project-local, `tools/<engine>_*.sh`).
 
 ### `tools/find_<engine>_comments.sh <PR_NUMBER>`
 
-Emit zero or more marker lines on stdout. **Order is not guaranteed** — the orchestrator parses by anchor-based grep on `^<ENGINE>_<MARKER>=` rather than positional reading. Adapters MAY emit markers in any order, MAY interleave informational output (banners, summaries) between markers, and SHOULD prefer printing markers as early as possible after their underlying data is fetched. The required marker set:
+Emit zero or more marker lines on stdout. **Order is not guaranteed** — the orchestrator parses by anchor-based grep on `^<ENGINE>_<MARKER>=` rather than positional reading. Adapters MAY emit markers in any order, MAY interleave informational output (banners, summaries) between markers, and SHOULD prefer printing markers as early as possible after their underlying data is fetched. The marker set (each emitted when its underlying data exists — see per-line notes and the semantics below):
 
 ```text
-<ENGINE>_LATEST_REVIEW=<review-id> COMMIT=<sha> AT=<iso8601> CLEAN=<true|false>
-[<ENGINE>_CLEAN_SIGNAL=<review-id> COMMIT=<sha> AT=<iso8601>]   # optional, present iff most-recent review is classified clean (body-text match OR check-run synthesis)
-[<ENGINE>_CHECKRUN=<id> COMMIT=<sha> STATUS=<...> CONCLUSION=<...> AT=<iso8601>]   # optional, informational, present when a check-run for this engine exists on the PR head
+<ENGINE>_LATEST_REVIEW=<review-id> COMMIT=<sha> AT=<iso8601> [CLEAN=<bool>]   # trailing CLEAN= is legacy/ignored; parsers must tolerate extra trailing fields
+[<ENGINE>_CHECKRUN=<id> COMMIT=<sha> STATUS=<queued|in_progress|completed> CONCLUSION=<...> AT=<iso8601>]   # state gate — emitted when a check-run exists on the head SHA; ABSENCE = NOT_TRIGGERED or TRIGGERED (check-run not yet created). STATUS: RUNNING (queued/in_progress) vs DONE (completed)
+[<ENGINE>_CLEAN_SIGNAL=<review-id> COMMIT=<sha> AT=<iso8601>]   # legacy, non-authoritative — orchestrator derives clean structurally (DONE + zero active findings), NOT from this line
 ```
 
 Followed by zero or more inline-finding blocks. The exact display format is implementation-defined — current `tools/find_*_comments.sh` scripts emit ANSI-coloured + markdown-bold output (`**File:**`, separator lines, etc.) for human readability. The orchestrator consumes findings by anchor-based grep on the `(comment id <cid>, review <rid>)` token, so adapters MAY choose any human-readable layout as long as **every finding block includes this token verbatim**. Recommended fields per block (any layout):
@@ -41,11 +41,11 @@ Followed by an empty line, then optionally:
 **Required semantics:**
 
 - `<ENGINE>` literal is uppercase engine name (`BUGBOT`, `COPILOT`).
-- `<ENGINE>_LATEST_REVIEW` is **mandatory** when any review exists for the PR — the orchestrator's staleness rule depends on it.
-- `<ENGINE>_CLEAN_SIGNAL` is emitted when the most-recent review is classified clean. Detection is engine-defined and may be best-effort (body-text match against fixed phrases like "found no new issues", and/or synthesis from a successful check-run). False positives are acceptable — the orchestrator's Phase 4 ordering (new-findings branch precedes clean-signal branch) supersedes a synthesized CLEAN when active findings exist.
-- `<ENGINE>_CHECKRUN` is optional/informational. Adapters that don't have a check-run concept omit it.
+- `<ENGINE>_LATEST_REVIEW` is **mandatory** when any review exists for the PR — the orchestrator's staleness rule depends on it. It may carry a trailing legacy `CLEAN=<bool>` token; the orchestrator ignores it (clean is structural), and parsers must tolerate extra trailing fields.
+- `<ENGINE>_CHECKRUN` is the **review-state gate**, emitted whenever the engine has a check-run on the head SHA. Its **absence means the engine has no check-run for this SHA yet** — either `NOT_TRIGGERED` (no retrigger fired) or `TRIGGERED` (retrigger fired, check-run not yet created); Phase 4 distinguishes them by whether a trigger fired this SHA, so absence alone must not prompt a re-trigger. When present, `STATUS` maps to `RUNNING` (`queued`/`in_progress`) vs `DONE` (`completed`); `CONCLUSION` is a run outcome, never a clean verdict.
+- `<ENGINE>_CLEAN_SIGNAL` is **legacy and non-authoritative**: the orchestrator derives clean structurally (engine `DONE` + zero active findings matching `LATEST_REVIEW`), never from this line. A script MAY still emit it; the orchestrator ignores it for the verdict.
 - Each inline finding must include the `review <rid>` token so the orchestrator can filter active findings (`rid == LATEST_REVIEW`) vs persistent-thread stale findings (`rid != LATEST_REVIEW`).
-- The `COMMIT=<sha>` on `LATEST_REVIEW` / `CLEAN_SIGNAL` is the trigger-anchor SHA, NOT the reviewed SHA (race-condition caveat documented in the orchestrator).
+- The `COMMIT=<sha>` on `LATEST_REVIEW` is the trigger-anchor SHA; the authoritative review state is the `CHECKRUN STATUS` for the current head SHA.
 - Exit code 0 on success (regardless of whether findings exist); non-zero only on auth/network failure.
 
 ### `tools/<engine>_retrigger.sh <PR_NUMBER>`
@@ -56,7 +56,7 @@ Trigger a new review for the PR. Engine-specific mechanism (comment post for bug
 
 - Exit code 0 on success.
 - Hard-coded body / action so the script can be pre-approved in `~/.claude/settings.json` without permission prompts on each call.
-- Idempotent against pre-existing pending reviews — calling twice should not break the engine's queue (the orchestrator's spacing rule prevents abuse, but the script must not crash if the engine is already mid-review).
+- Idempotent against pre-existing pending reviews — calling twice should not break the engine's queue (the orchestrator only retriggers post-push or from the zero-activity bootstrap, never while RUNNING, but the script must not crash if the engine is already mid-review).
 - **Recommended (not required)**: print a tracking reference to stdout — the GitHub URL of the action taken (comment URL for comment-based engines like bugbot) or a status line. Useful for log forensics but not consumed by the orchestrator.
 
 ## Reference surface — required sections
@@ -76,9 +76,9 @@ The literal shell commands the orchestrator dispatches:
 
 Any engine-specific quirks (e.g. Copilot's bare `--add-reviewer` no-op against already-requested reviewers) documented inline.
 
-### § Clean-signal parsing
+### § Review-state + clean detection
 
-How the engine signals "found no new issues". For most engines this is a review-body marker (`<!-- CLEAN -->` or natural-language equivalent). Document the exact string match the `find_comments.sh` script uses.
+Document the engine's check-run (name / app-slug) and how `STATUS` maps to `RUNNING`/`DONE`. Clean is structural: `DONE` + zero active findings matching `LATEST_REVIEW`. If the script also emits a legacy `CLEAN_SIGNAL` (e.g. a review-body marker), note it as corroboration only — the orchestrator does not consume it for the verdict.
 
 ### § Staleness rule
 
@@ -92,7 +92,7 @@ Any engine-specific race conditions between review-firing and SHA observation. D
 
 Engine-specific failure signatures the orchestrator must recognise:
 
-- Stall / hang patterns (bugbot: `BUGBOT_CHECKRUN status=in_progress` >15 min; copilot: review never posts within ~10× normal latency).
+- Stall / hang patterns (bugbot: `BUGBOT_CHECKRUN STATUS=in_progress` >15 min; copilot: review never posts within ~10× normal latency).
 - Service-error patterns (copilot's literal `"Copilot encountered an error..."` body).
 - Rate-limit patterns.
 
@@ -102,9 +102,9 @@ Each failure mode mapped to an orchestrator action (proceed with other engines, 
 
 Engine-specific recurring findings the orchestrator can auto-fix without per-finding approval. The shared cross-engine catalogue lives in [`common-review-findings.md`](common-review-findings.md); an adapter's § Common patterns section links there and documents only its engine-specific deltas.
 
-### § Spacing rule
+### § Review-state gate
 
-The minimum interval between same-engine retriggers. Default 5 min; engines with different rate-limit profiles override here.
+The adapter MUST expose its engine's check-run on the PR head as `<ENGINE>_CHECKRUN ... STATUS=<status>`, mapping the engine's native status to `queued`/`in_progress` (**RUNNING**) and `completed` (**DONE**). The orchestrator gates on this: it never reads a verdict while RUNNING and never retriggers except after a push or from the zero-activity bootstrap — so no inter-retrigger interval exists. `CONCLUSION` is a run outcome, never a clean verdict.
 
 ## Scratch-file state ownership
 
@@ -112,12 +112,9 @@ The orchestrator owns the per-engine state slots in the loop's scratch file unde
 
 Per-engine state slots:
 
-- `last_seen_<engine>_review` — `<id> @ <sha> CLEAN=<bool>`
+- `<engine>_review_state` — `NOT_TRIGGERED` | `TRIGGERED` | `RUNNING` | `DONE` for the current head SHA (from the engine's check-run `STATUS`)
+- `last_seen_<engine>_review` — `<id> @ <sha>` (LATEST_REVIEW last acted on; staleness anchor)
 - `last_seen_<engine>_signal_id` — most recent processed inline finding id (engine-defined: comment id for comment-based engines, unset until first review for reviewer-assignment engines)
-- `last_<engine>_retrigger_at` — ISO-8601 timestamp of most recent retrigger
-- `pending_<engine>_retrigger` — bool, set true when Phase 3 defers due to spacing
-
-The `pending_<engine>_retrigger` field is independent per engine — under dual-engine mode it's possible to have one engine pending and the other fired this cycle.
 
 ## Adding a new engine
 
@@ -134,5 +131,5 @@ To add a third engine (e.g. CodeRabbit, a hypothetical new vendor):
 
 - ❌ Adapter writes directly to the orchestrator's scratch file. The orchestrator owns scratch; adapters expose stdout shape only.
 - ❌ Engine-specific decision-tree branches in the orchestrator. If an engine needs special-case handling, lift it into the adapter contract (e.g. service-error retry-budget) or hand back to the user.
-- ❌ Cross-engine knowledge in an adapter (e.g. bugbot's adapter referencing copilot's spacing rule). Each adapter is self-contained; cross-engine coordination lives in `dual-engine-sync.md` and the orchestrator.
+- ❌ Cross-engine knowledge in an adapter (e.g. bugbot's adapter referencing copilot's check-run name). Each adapter is self-contained; cross-engine coordination lives in `dual-engine-sync.md` and the orchestrator.
 - ❌ Skipping the `review <rid>` token in `find_comments.sh` output. The orchestrator's staleness filter depends on it.

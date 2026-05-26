@@ -17,18 +17,13 @@ Adapter specification for the GitHub Copilot review engine. The orchestrator at 
 
 **Retrigger semantics — empirically confirmed**: Copilot self-removes from `requested_reviewers` after posting each review. Bare `--add-reviewer @copilot` therefore IS the canonical retrigger for the in-loop case (Copilot has posted a review and self-removed; we re-add to request another). The earlier "bare `--add` is a no-op" observation applies only to the *still-pending* reviewer state (review never posted) — for which the commented-out `remove+add` fallback exists.
 
-## § Clean-signal parsing
+## § Clean detection
 
-**Clean ≡ no new inline comments on the latest review.** Copilot's review state is always `COMMENTED` (never `APPROVED`), so APPROVED-state matching is not applicable.
+**Clean is structural** — see § Review-state gate: Copilot's check-run `STATUS=completed` (DONE) AND zero active findings matching `COPILOT_LATEST_REVIEW`. Copilot's review state is always `COMMENTED` (never `APPROVED`), so APPROVED-state matching is not applicable, and `CONCLUSION=success` means "Copilot ran", not "code is clean" — never read a verdict off it.
 
-`find_copilot_comments.sh` emits `COPILOT_CLEAN_SIGNAL=<review-id> COMMIT=<sha> AT=<ts>` in two cases:
+`find_copilot_comments.sh` may still emit a legacy `COPILOT_CLEAN_SIGNAL` line (body-text "found no new issues" match, or check-run synthesis); the orchestrator does **not** consume it for the verdict. Always count active findings explicitly.
 
-1. **Body-text match** — the latest review body contains "found no new issues" (the original signal source).
-2. **Check-run synthesis** — when no body-text match exists, the script synthesizes a CLEAN signal from a successful Copilot check-run. **This is a best-effort fallback that produces false positives**: Copilot's check-run `success` conclusion means "Copilot ran", not "code is clean". The check-run passes regardless of whether Copilot generated comments.
-
-**The orchestrator's Phase 4 ordering is what makes this safe**: the new-findings branch evaluates BEFORE the clean-signal branch. Any active inline findings (those whose `review <rid>` matches `COPILOT_LATEST_REVIEW`) override a synthesized CLEAN signal — the loop re-triages instead of handing back. If Phase 4 reaches the clean-signal branch with synthesized CLEAN AND zero active findings, it's safe to treat as CLEAN.
-
-**Anti-pattern observed during IDEA-005 dogfood (PR #131 cycle 2)**: the agent parroted the script's `COPILOT_CLEAN_SIGNAL` line as a verdict without checking active-findings count. The script's CLEAN line is **input**, not **output** — Phase 4 collapses it with the findings count. Always count active findings explicitly before claiming CLEAN.
+**Anti-pattern observed during IDEA-005 dogfood (PR #131 cycle 2)**: the agent parroted the script's `COPILOT_CLEAN_SIGNAL` line as a verdict without checking active-findings count. That's exactly why clean is now structural — the finding count is the verdict.
 
 ## § Staleness rule
 
@@ -71,13 +66,13 @@ Copilot review latency: ~30 seconds between trigger and review post — much fas
 
 ## § Common patterns (codified Tier 1)
 
-The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). No copilot-specific deltas at present; copilot's behavioural quirks live in § Stale-context findings and § Clean-signal parsing above.
+The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). No copilot-specific deltas at present; copilot's behavioural quirks live in § Stale-context findings and § Clean detection above.
 
-## § Spacing rule
+## § Review-state gate
 
-≥5 minutes between same-engine retriggers — same as bugbot. The mechanism is different (reviewer-request churn vs comment post) but the queueing behaviour is analogous. Rate-limit cost is more visible on Copilot (billed per-review on GitHub Copilot Business / Enterprise).
+Copilot posts a `copilot-pull-request-reviewer` check-run on the PR head. `find_copilot_comments.sh` surfaces it as `COPILOT_CHECKRUN ... STATUS=<status>`: `queued`/`in_progress` = **RUNNING**, `completed` = **DONE**. Corroborating signal: Copilot adds itself to `requested_reviewers` when assigned and self-removes when done (present = pending, absent = done).
 
-The rule is **per-engine** — under multi-engine mode bugbot+copilot back-to-back is fine (different queues). Only same-engine retriggers within 5 min violate the spacing.
+`CONCLUSION` is **not** a verdict — Copilot's check-run concludes `success` even when it posted inline findings. **Clean for copilot**: check-run DONE AND zero active findings matching `COPILOT_LATEST_REVIEW`. The orchestrator retriggers only after a push or from the zero-activity bootstrap and never while a check-run is RUNNING, so there is no retrigger interval to enforce.
 
 ## § Notes on first-run calibration
 
@@ -85,6 +80,6 @@ The 2026-05-18 calibration run + 2026-05-20 IDEA-005 dogfood (PR #131) establish
 - ✅ Dual user.login identity (Copilot + copilot-pull-request-reviewer[bot]).
 - ✅ Plain `--add-reviewer @copilot` retrigger after Copilot has self-removed post-review. Remove+add fallback exists for the still-pending state.
 - ✅ Service-error failure mode pattern.
-- ✅ Clean-signal detection: body-text match on "found no new issues" + check-run synthesis fallback. The synthesis is known to false-positive (Copilot's check-run `success` ≠ "no findings"); Phase 4's new-findings-precedes-CLEAN ordering correctly supersedes false synthesized signals.
+- ✅ Review-state gate: `copilot-pull-request-reviewer` check-run `STATUS` (RUNNING/DONE) + `requested_reviewers` self-removal. Clean is structural — DONE + zero active findings — never `CONCLUSION` (`success` ≠ "no findings") or review-body prose.
 
 If the loop misbehaves on first use against a new Copilot deployment, inspect `gh api repos/.../pulls/<N>/reviews --jq '.[].user.login'` to confirm the bot login, and adjust constants in the tool scripts accordingly.

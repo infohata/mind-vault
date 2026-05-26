@@ -563,7 +563,8 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [FileField MIME capture](references/FILEFIELD_MIME_CAPTURE.md) — `FieldFile.content_type` is empty by design; capture browser MIME at upload + import-time `assert` that locks the canonical set ↔ consumer dict against drift
 - [Env-driven allowlists / denylists as `frozenset`](references/ENV_DRIVEN_ALLOWLISTS.md) — three-property pattern (env override + O(1) hot-path + immutable global), full BLOCKED_UPLOAD_MIMES + EXTENSIONS shape, replace-not-extend env semantics
 - [`ManifestStaticFilesStorage` restart contract](references/MANIFEST_STATIC_FILES_STORAGE.md) — `collectstatic` writes the new file + manifest, but the running app server's `{% static %}` cache holds the OLD hash; require `make static && make restart-web` for changes to land for users
-- [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation (django-tenants)
+- [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation (django-tenants); incl. cross-schema cascade teardown for tests that create a real tenant (drop-schema + raw-SQL deletes, not ORM cascade)
+- [Idempotent seed / management commands](references/IDEMPOTENT_SEED_COMMANDS.md) — top-up idempotency trio (attach M2M/FK not only on `created`; correct privileged-user flags on existing rows; globally-unique-conflict no-abort) + DEBUG prod-guard on privileged-user seeds
 - [Async WebSocket](references/ASYNC_WEBSOCKET.md) — Channels consumers and routing
 - [Celery Background Tasks](references/CELERY.md) — async job processing
 - [Logging Patterns](references/LOGGING.md) — structured logging and audit trails

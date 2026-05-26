@@ -10,6 +10,23 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.3.4 — Compound: reproducible-e2e + tenant-seed patterns
+
+Patch release on the v4.3 line. A `/compound` harvest from a reproducible-e2e-environment sprint (idempotent tenant seed + Playwright gate hardened to run from a fresh docker volume), five reusable patterns routed into existing skill references (one new reference) — references-first placement, no new top-level rules.
+
+### Added
+
+- `skills/django/references/IDEMPOTENT_SEED_COMMANDS.md` — new reference for seed/management commands that must provision from nothing AND top up an existing DB: the idempotency trio (attach M2M/GenericFK unconditionally not only on `created`; correct privileged-user flags on existing rows without touching passwords; handle a globally-unique-field conflict by claim-if-free-else-warn instead of `IntegrityError`-abort, then re-assert invariants like "a primary always exists") + a `DEBUG`-gated production safety guard on the **command** (not the function, so the `DEBUG=False` unit test can still call it).
+
+### Changed
+
+- `skills/django/references/MULTI_TENANT.md` — adds § *Tearing down a real tenant in tests*: a `TransactionTestCase` that creates a real tenant schema can't tear down via `org.delete()` ORM cascade (the collector queries tenant-schema tables — `django_admin_log`, content FKs — from the public connection → `relation does not exist`); drop the schema with `_drop_schema(force_drop=True)` then raw-SQL-delete the public rows.
+- `skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md` — adds the `networks: !reset` trap: a per-service network reset nullifies the whole key and the stack falls back to the compose `default` network; a profile-gated service (e.g. e2e `playwright`) the override generator didn't enumerate keeps the parent's pinned `ipv4_address` and breaks ("no configured subnet contains IP" / "could not translate host name db"). Fix: attach the profile service to BOTH the custom network and `default`.
+- `skills/django-frontend/references/VISUAL_ACUITY_TESTS_VIA_PLAYWRIGHT.md` — two bootstrap traps: (8) empty `STATIC_ROOT` on a fresh volume → `/static/*.js` 404 → Alpine/HTMX shell never initialises → mass `wait_for_selector` timeouts that look like a harness bug; the e2e entrypoint must `compile_scss` + `collectstatic` (provision assets AND data). (9) the e2e `pytest.ini` `testpaths` must be absolute — a flags-only `ARGS` drops the path and collects the whole repo's unit suite against the live DB, seeding stray rows.
+- `skills/review-loop/` — **removed the 5-min retrigger spacing rule entirely** and recast the retrigger/wait logic as an explicit per-engine state machine `NOT_TRIGGERED → TRIGGERED → RUNNING → DONE`, gated on the engine's check-run `STATUS` (`queued`/`in_progress` = RUNNING, `completed` = DONE). The orchestrator retriggers only after a push or from the zero-activity bootstrap and never while a check-run is RUNNING, so the timer it guarded against (same-SHA queue-stacking) is structurally impossible — the state machine subsumes it. **Clean is now structural** — DONE + zero active findings matching `LATEST_REVIEW` — never inferred from check-run `CONCLUSION` (`success` ≠ "no findings") or review-body prose; the legacy `*_CLEAN_SIGNAL` marker is demoted to non-authoritative. Touches SKILL.md (Phase 3 + Phase 4 decision tree + scratch fields) and all four references. Surfaced while dogfooding this loop on its own PR: the spacing timer caused billed Info-nit thrash cycles, and the check-run status (visible in the GitHub UI as "Copilot is reviewing…") proved programmatically queryable as a precise readiness gate.
+
+(2026-05-25, [#145](https://github.com/infohata/mind-vault/pull/145))
+
 ## v4.3.3 — Compound: 5 review-loop patterns
 
 Patch release on the v4.3 line. A pure `/compound` harvest from a cross-project dual-engine review loop — five reusable patterns routed into existing references (no new files, references-first placement), then curated for DRY against the vault and Copilot-cleared.

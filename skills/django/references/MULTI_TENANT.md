@@ -992,3 +992,61 @@ class TenantIsolationTest(TenantTestCase):
         articles = Article.objects.all()
         self.assertEqual(articles.count(), 0)  # Isolated!
 ```
+
+### Tearing down a real tenant in tests (cross-schema cascade trap)
+
+A test that exercises a **from-nothing** provision (a seed that creates the Org +
+its schema + runs migrations) can't use `TenantTestCase`'s rolled-back atomic
+block — the schema creation is real DDL. Use a non-atomic `TransactionTestCase`
+against a **throwaway uuid schema name**, and tear down explicitly.
+
+The trap: `org.delete()` (the ORM cascade) **fails** from the default/public
+connection. The deletion collector walks every reverse FK onto the tenant row and
+its public dependents — and some of those tables live in the *tenant* schema, not
+public. Two ways it bites:
+
+1. `admin` is typically a TENANT_APP, so `django_admin_log` (FK → `User`) lives in
+   the tenant schema. Deleting a public `User` from the public connection runs
+   `SELECT ... FROM django_admin_log ...`, which isn't on the public search-path →
+   `ProgrammingError: relation "django_admin_log" does not exist`.
+2. Public `Property`/`Scope`/`Org` have reverse FKs from tenant-schema content
+   (`Article.property`, `Event.scope`, …). The collector queries those tenant
+   tables from the public connection → same error.
+
+`schema_context(tenant)` doesn't save you — the ORM delete resets the connection
+schema mid-collection. The reliable teardown drops the schema first (raw DDL), then
+**raw-SQL-deletes** the public rows, bypassing the ORM collector entirely (this is
+also what a production org-deletion view does):
+
+```python
+class SeedProvisionTests(TransactionTestCase):   # NOT TestCase — real DDL
+    # imports elided: uuid, Org, schema_context, connection
+    def setUp(self):
+        self.schema = f"seedtest_{uuid.uuid4().hex[:12]}"  # throwaway, unique
+
+    def tearDown(self):
+        org = Org.objects.filter(schema_name=self.schema).first()
+        if org is None:
+            return
+        org._drop_schema(force_drop=True)        # drop tenant schema (DDL)
+        with schema_context("public"):
+            with connection.cursor() as c:        # raw deletes — no ORM cascade
+                # tbl/col below are a FIXED literal allowlist (not user input), so
+                # f-string identifier interpolation is safe here; never f-string an
+                # untrusted identifier into SQL. Replace <app> with your app_label.
+                for tbl, col in [("userscope", "org_id"), ("property", "org_id"),
+                                 ("scope", "org_id"), ("domain", "tenant_id")]:
+                    c.execute(f"DELETE FROM <app>_{tbl} WHERE {col} = %s", [org.id])
+                # synthetic global users created by the seed (after their FKs):
+                c.execute("DELETE FROM <app>_user WHERE username LIKE %s", ["seed-%"])
+                c.execute("DELETE FROM <app>_org WHERE id = %s", [org.id])
+```
+
+`auto_drop_schema` defaults to `True` on `TenantMixin` — but `org.delete()` (which
+would trigger it) is exactly the call that fails above, so call `_drop_schema(
+force_drop=True)` directly. For a foreign-org fixture you only need a Domain row
+(not a full schema), set `org.auto_create_schema = False` before `save()` to skip
+the migration cost.
+
+Pairs with [`IDEMPOTENT_SEED_COMMANDS.md`](IDEMPOTENT_SEED_COMMANDS.md) (the seed
+these tests exercise).

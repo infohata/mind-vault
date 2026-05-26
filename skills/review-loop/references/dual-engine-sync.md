@@ -1,6 +1,6 @@
 # Dual-engine (and N-engine) synchronisation contract
 
-When `|ENGINES| > 1` in the review-loop invocation, the orchestrator at [`SKILL.md`](../SKILL.md) MUST sync each cycle to avoid double-pushes that invalidate each engine's pending review. Each cycle waits for the slowest engine to either (a) post findings against `last_push_sha` OR (b) post a clean signal for `last_push_sha`, then batches findings from all engines into ONE fix commit + pushes once + retriggers all engines per the per-engine spacing rule.
+When `|ENGINES| > 1` in the review-loop invocation, the orchestrator at [`SKILL.md`](../SKILL.md) MUST sync each cycle to avoid double-pushes that invalidate each engine's pending review. Each cycle waits for the slowest engine to reach `DONE` (check-run `completed`) for `last_push_sha`, then batches findings from all engines into ONE fix commit + pushes once + retriggers all engines once each.
 
 The rationale: each push invalidates pending reviews of the prior SHA — without sync, bugbot's pending review of SHA-A becomes stale the moment a copilot-triggered fix lands on SHA-B, forcing bugbot to re-scan from scratch (and vice-versa).
 
@@ -10,10 +10,10 @@ Hard "wait for slowest" risks blocking the loop indefinitely if one engine hangs
 
 | Trip | Trigger | Action |
 |---|---|---|
-| Engine `<X>` stalled | Engine-specific stall condition per the engine's adapter doc § Failure modes (e.g. bugbot `CHECKRUN status=in_progress` >15 min — see [`engine-bugbot.md`](engine-bugbot.md); copilot variants in [`engine-copilot.md`](engine-copilot.md)) | Proceed with other engines' findings if any; retrigger `<X>` post-push. |
+| Engine `<X>` stalled | Engine-specific stall condition per the engine's adapter doc § Failure modes (e.g. bugbot `CHECKRUN STATUS=in_progress` >15 min — see [`engine-bugbot.md`](engine-bugbot.md); copilot variants in [`engine-copilot.md`](engine-copilot.md)) | Proceed with other engines' findings if any; retrigger `<X>` post-push. |
 | Copilot service-errored 2× consecutive | Copilot review body literally `"Copilot encountered an error..."` on two consecutive HEAD SHAs | Proceed with other engines' findings if any; do NOT retry Copilot in this cycle. |
 | Copilot service-errored 3× consecutive | Third consecutive error | Hand back to user — durable service issue, can't resolve from the loop. |
-| One engine CLEAN + another still hung | `<X>_CLEAN_SIGNAL` for `last_push_sha` + other engine still queued past idle-poll threshold | Wait up to `max_idle_polls × 270s`; if still no verdict from hung engine, hand back with the cleared engine's CLEAN status documented prominently. |
+| One engine DONE+clean + another still RUNNING | one engine `DONE` with zero active findings for `last_push_sha` + other engine's check-run still `queued`/`in_progress` past idle-poll threshold | Wait up to `max_idle_polls × 270s`; if the RUNNING engine never reaches `DONE`, hand back with the cleared engine's CLEAN status documented prominently. |
 
 ## Sync state — scratch-file fields per engine
 
@@ -21,20 +21,18 @@ Replicate per engine in the loop's scratch file:
 
 ```yaml
 engines: bugbot,copilot
-last_seen_bugbot_review:  <id> @ <sha> CLEAN=<bool>
-last_seen_copilot_review: <id> @ <sha> CLEAN=<bool>
+bugbot_review_state:  NOT_TRIGGERED|TRIGGERED|RUNNING|DONE
+copilot_review_state: NOT_TRIGGERED|TRIGGERED|RUNNING|DONE
+last_seen_bugbot_review:  <id> @ <sha>
+last_seen_copilot_review: <id> @ <sha>
 last_seen_bugbot_signal_id:  <id>
 last_seen_copilot_signal_id: <id>
-last_bugbot_retrigger_at:  <iso8601>
-last_copilot_retrigger_at: <iso8601>
-pending_bugbot_retrigger:  <bool>
-pending_copilot_retrigger: <bool>
 no_progress_map:
   bugbot:  { <category>: <count> }
   copilot: { <category>: <count> }
 ```
 
-The `pending_<engine>_retrigger` field is independent per engine — under dual-engine mode it's possible to have one engine pending (deferred due to <5min same-engine spacing) and the other fired this cycle.
+Each engine's `<engine>_review_state` is tracked independently — under dual-engine mode one engine can be `DONE` while the other is still `RUNNING`. The orchestrator waits for the slowest to reach `DONE` before reading any verdict (the Phase 4 sync gate).
 
 ## Retrigger discipline — different per engine, fired in deterministic order
 
@@ -43,7 +41,7 @@ Phase 3 fires after the batch commit. For each engine in `ENGINES` (deterministi
 - For `bugbot`: `./tools/bugbot_retrigger.sh <PR>` (posts a `bugbot run` comment).
 - For `copilot`: `./tools/copilot_retrigger.sh <PR>` (`gh pr edit <PR> --add-reviewer @copilot`; Copilot self-removes from `requested_reviewers` post-review so bare `--add` is the canonical retrigger — see [`engine-copilot.md`](engine-copilot.md) § Tool invocations for the still-pending fallback case).
 
-Both retriggers happen post-push. The per-engine spacing rule (≥5 min between same-engine retriggers) is checked per engine, not globally — bugbot+copilot back-to-back is fine (different queues).
+Both retriggers happen post-push and fire once each, back-to-back (different queues, no interval). The orchestrator never retriggers while an engine's check-run is RUNNING, so there is nothing to space out.
 
 ## Hand-back when only one engine cleared
 

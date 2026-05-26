@@ -14,14 +14,9 @@ Adapter specification for the Cursor Bugbot review engine. The orchestrator at [
 - `./tools/find_bugbot_comments.sh <PR_NUMBER>` — fetches reviews + inline findings from cursor[bot], emits the contract-shape stream (`BUGBOT_LATEST_REVIEW=...`, `BUGBOT_CLEAN_SIGNAL=...` if applicable, then findings, plus optional `BUGBOT_CHECKRUN=...` informational marker — surfaces the Cursor check-suite's status/conclusion on the PR head, used by the stall-detection failure mode below).
 - `./tools/bugbot_retrigger.sh <PR_NUMBER>` — posts the literal comment `bugbot run` on the PR. Hard-coded body so the script can be pre-approved in `~/.claude/settings.json`. Equivalent to `gh pr comment <PR> -b "bugbot run"`.
 
-## § Clean-signal parsing
+## § Clean detection
 
-`find_bugbot_comments.sh` emits `BUGBOT_CLEAN_SIGNAL=<review-id> COMMIT=<sha> AT=<ts>` in two cases:
-
-1. **Body-text match** — the latest bugbot review body contains "found no new issues".
-2. **Check-run synthesis** — when no body-text match exists, the script synthesizes from a successful bugbot check-run. For bugbot specifically, check-run-success aligns more closely with "no findings" than for Copilot (Cursor's check-suite turns neutral/non-success when bugbot finds issues), but the synthesis remains a best-effort fallback.
-
-**Phase 4 ordering supersedes synthesis errors**: the new-findings branch runs before the clean-signal branch, so any active findings (review `<rid>` == `BUGBOT_LATEST_REVIEW`) override a synthesized CLEAN. Always count active findings explicitly before claiming CLEAN.
+**Clean is structural** — see § Review-state gate: check-run `DONE` AND zero active findings matching `BUGBOT_LATEST_REVIEW`. `find_bugbot_comments.sh` may still emit a legacy `BUGBOT_CLEAN_SIGNAL` (body-text "found no new issues" match, or check-run synthesis); treat it as corroboration only. For bugbot, check-run-success aligns fairly well with "no findings" (Cursor's check-suite turns neutral/non-success when bugbot finds issues) — but the active-finding count is still authoritative. Always count active findings explicitly before claiming CLEAN.
 
 ## § Staleness rule
 
@@ -43,7 +38,7 @@ The `BUGBOT_CLEAN_SIGNAL` `COMMIT` field is the **trigger-anchor** SHA, not the 
 
 | Symptom | Detection | Orchestrator action |
 |---|---|---|
-| Bugbot stalled / hung | `BUGBOT_CHECKRUN status=in_progress` for >15 min on `last_push_sha` (well past 1-10 min normal range) | Proceed with other engines' findings if any; retrigger bugbot post-push. Surface in hand-back if bugbot doesn't recover within the idle-poll budget. |
+| Bugbot stalled / hung | `BUGBOT_CHECKRUN STATUS=in_progress` for >15 min on `last_push_sha` (well past 1-10 min normal range) | Proceed with other engines' findings if any; retrigger bugbot post-push. Surface in hand-back if bugbot doesn't recover within the idle-poll budget. |
 | Cursor service degraded | Bugbot reviews stop posting entirely for multiple PRs | Manual hand-back; no in-loop recovery. |
 | Bugbot self-withdraws a finding | A previously-active finding's `review <rid>` is no longer LATEST | Already handled by staleness filter — finding becomes stale, dropped from active triage. |
 
@@ -51,8 +46,8 @@ The `BUGBOT_CLEAN_SIGNAL` `COMMIT` field is the **trigger-anchor** SHA, not the 
 
 The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). Bugbot's catalogue is the empirically-validated baseline (multi-tenant Django SaaS PRs); no bugbot-specific deltas at present.
 
-## § Spacing rule
+## § Review-state gate
 
-≥5 minutes between same-engine retriggers. Field-observed degradation: 4 retriggers in 10 minutes stretched per-review latency from ~1-10 min (typical) to ~16 min as Cursor's check-suite queue worked through superseded entries.
+Bugbot posts a check-run on the PR head (the `cursor[bot]` app — matched by app-slug `cursor` / name `bugbot`). `find_bugbot_comments.sh` surfaces it as `BUGBOT_CHECKRUN ... STATUS=<status>`: `queued`/`in_progress` = **RUNNING**, `completed` = **DONE**. The orchestrator retriggers only after a push or from the zero-activity bootstrap and never while a check-run is RUNNING, so there is no retrigger interval to enforce.
 
-The rule is **per-engine** — under multi-engine mode bugbot+copilot back-to-back is fine (different queues). Only same-engine retriggers within 5 min violate the spacing.
+**Clean for bugbot**: check-run DONE AND zero active findings matching `BUGBOT_LATEST_REVIEW`. Bugbot also posts an explicit clean review on `/reviews`; treat that as corroboration, but the active-finding count is authoritative.
