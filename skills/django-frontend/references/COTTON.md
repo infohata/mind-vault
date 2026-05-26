@@ -412,14 +412,14 @@ The cotton `<c-vars>` template tag (provided by django-cotton) is the right choi
 {# ❌ Catches :is_empty="False" but NOT is_empty="false" (string, truthy) #}
 {% if is_empty is not False %}…{% endif %}
 
-{# ✅ Dual guard — handles real-bool False AND string "false" #}
-{% if is_empty and is_empty != 'false' %}…empty-state…{% endif %}
+{# ✅ Dual guard — handles real-bool False AND any-case string "false"/"False" #}
+{% if is_empty and is_empty|lower != 'false' %}…empty-state…{% endif %}
 
 {# ✅ Same shape for a default-TRUE prop (opt-out): treat both falsy forms as off #}
-{% if scroll != False and scroll != 'false' %}<div class="scroll-wrapper">{% endif %}
+{% if scroll != False and scroll|lower != 'false' %}<div class="scroll-wrapper">{% endif %}
 ```
 
-This is the same opaque-`:prop`-coercion theme as the JSON-seed section above — cotton does not normalise `"false"`/`"False"`/`0` to a Python `False`; whatever the call site's quoting produces is what the template sees. A multi-default primitive with several boolean modifiers (`striped` / `hoverable` / `fullwidth` / `scroll`, each default-on) repeats the `X != False and X != 'false'` clause per modifier — verbose but unambiguous, and the only form that survives both call shapes. Lock it with a render-and-assert test that passes the prop as the **string** `"false"` (not just `:prop="False"`), since that's the case `is not False` silently misses.
+This is the same opaque-`:prop`-coercion theme as the JSON-seed section above — cotton does not normalise `"false"`/`"False"`/`0` to a Python `False`; whatever the call site's quoting produces is what the template sees. The `|lower` keeps the guard case-insensitive so `"false"` and `"False"` both read as off; it does **not** rescue an arbitrary truthy string like `"0"` or `"no"` (a Django template has no general string→bool coercion) — when a prop's value isn't a literal you control, pass it bound (`:prop="…"`) so it arrives as a real Python bool and the `!= False` half handles it. A multi-default primitive with several boolean modifiers (`striped` / `hoverable` / `fullwidth` / `scroll`, each default-on) repeats the `X != False and X|lower != 'false'` clause per modifier — verbose but unambiguous, and the only form that survives both call shapes. Lock it with a render-and-assert test that passes the prop as the **string** `"false"` (not just `:prop="False"`), since that's the case `is not False` silently misses.
 
 ## Slot truthiness sees whitespace as truthy — gate at the call site, not inside the cotton
 
@@ -493,11 +493,13 @@ Empty-state in the cards-or-empty alternation (see preceding section) is mutuall
 
 When a cotton primitive lives inside a Bulma structural class (`.control.has-icons-right`, `.field`, `.card`), Bulma ships **descendant selectors that force-position any matching child** — and they fire on *your* markup, not just Bulma's own. The trap: you wrap an interactive glyph (a clear-✕ button) in Bulma's own helper class (`.icon`) for convenience, and Bulma's `.control.has-icons-right .icon { position:absolute; top:0; height:2.5em; … }` rule seizes it and pins it to the top of a `2.5em` box. On a normal-height input that's roughly centred by accident; on an `is-small` input it's visibly pushed off the vertical midline.
 
-```scss
-// ❌ Glyph wrapped in .icon → Bulma's `.control.has-icons-right .icon`
-//    forces top:0 / height:2.5em → mis-centred on is-small inputs.
+```html
+<!-- ❌ Glyph wrapped in .icon → Bulma's `.control.has-icons-right .icon`
+     forces top:0 / height:2.5em → mis-centred on is-small inputs. -->
 <span class="icon is-right"><i class="fa fa-times"></i></span>
+```
 
+```scss
 // ✅ Render the glyph as a bare child (a real <button>, no .icon wrapper) so
 //    Bulma's descendant rule has nothing to match, then own the positioning —
 //    centre it the way Bulma centres the native <select> arrow (the proven
@@ -523,7 +525,7 @@ A refinement of *caller-decides-visibility* (see § *Slot truthiness* and § *Em
 
 ```django
 {# Primitive: empty-state replaces the table when is_empty is truthy #}
-{% if is_empty and is_empty != 'false' %}{{ empty_text }}{% else %}<table>…<tbody>{{ slot }}</tbody></table>{% endif %}
+{% if is_empty and is_empty|lower != 'false' %}{{ empty_text }}{% else %}<table>…<tbody>{{ slot }}</tbody></table>{% endif %}
 
 {# ✅ Poll-target call-site: keep the empty gate OUTSIDE the primitive,
    force :is_empty="False" so the <table>/<tbody> ALWAYS render,
