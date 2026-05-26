@@ -38,7 +38,7 @@ The `BUGBOT_CLEAN_SIGNAL` `COMMIT` field is the **trigger-anchor** SHA, not the 
 
 | Symptom | Detection | Orchestrator action |
 |---|---|---|
-| Bugbot stalled / hung | `BUGBOT_CHECKRUN status=in_progress` for >15 min on `last_push_sha` (well past 1-10 min normal range) | Proceed with other engines' findings if any; retrigger bugbot post-push. Surface in hand-back if bugbot doesn't recover within the idle-poll budget. |
+| Bugbot stalled / hung | `BUGBOT_CHECKRUN STATUS=in_progress` for >15 min on `last_push_sha` (well past 1-10 min normal range) | Proceed with other engines' findings if any; retrigger bugbot post-push. Surface in hand-back if bugbot doesn't recover within the idle-poll budget. |
 | Cursor service degraded | Bugbot reviews stop posting entirely for multiple PRs | Manual hand-back; no in-loop recovery. |
 | Bugbot self-withdraws a finding | A previously-active finding's `review <rid>` is no longer LATEST | Already handled by staleness filter — finding becomes stale, dropped from active triage. |
 

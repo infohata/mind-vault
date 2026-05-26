@@ -82,7 +82,7 @@ A finding is active iff its `review <rid>` matches the engine's `<ENGINE>_LATEST
 
 ### Zero engine activity for `last_push_sha`
 
-If for any engine in `ENGINES` no review or finding exists for the current `last_push_sha`:
+If for any engine in `ENGINES` the review state is `NOT_TRIGGERED` for the current `last_push_sha` — i.e. **no check-run on the head SHA AND no trigger fired this SHA** (check-run presence counts as activity even when reviews/comments are still empty, so a `TRIGGERED`/`RUNNING` engine does NOT match this branch):
 
 - Invoke `./tools/<engine>_retrigger.sh [PR_NUMBER]` once for that engine.
 - Record any trigger-output id the script emits (a GitHub comment id for bugbot; reviewer-assignment doesn't produce a comment id for Copilot — in that case leave `last_seen_<engine>_signal_id` unchanged and rely on `<ENGINE>_LATEST_REVIEW` advancement to detect the eventual response). The shared field name is **`last_seen_<engine>_signal_id`**, engine-defined: for comment-based engines it's a comment id; for reviewer-assignment engines it stays unset until the first review posts.

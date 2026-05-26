@@ -10,7 +10,7 @@ Hard "wait for slowest" risks blocking the loop indefinitely if one engine hangs
 
 | Trip | Trigger | Action |
 |---|---|---|
-| Engine `<X>` stalled | Engine-specific stall condition per the engine's adapter doc § Failure modes (e.g. bugbot `CHECKRUN status=in_progress` >15 min — see [`engine-bugbot.md`](engine-bugbot.md); copilot variants in [`engine-copilot.md`](engine-copilot.md)) | Proceed with other engines' findings if any; retrigger `<X>` post-push. |
+| Engine `<X>` stalled | Engine-specific stall condition per the engine's adapter doc § Failure modes (e.g. bugbot `CHECKRUN STATUS=in_progress` >15 min — see [`engine-bugbot.md`](engine-bugbot.md); copilot variants in [`engine-copilot.md`](engine-copilot.md)) | Proceed with other engines' findings if any; retrigger `<X>` post-push. |
 | Copilot service-errored 2× consecutive | Copilot review body literally `"Copilot encountered an error..."` on two consecutive HEAD SHAs | Proceed with other engines' findings if any; do NOT retry Copilot in this cycle. |
 | Copilot service-errored 3× consecutive | Third consecutive error | Hand back to user — durable service issue, can't resolve from the loop. |
 | One engine DONE+clean + another still RUNNING | one engine `DONE` with zero active findings for `last_push_sha` + other engine's check-run still `queued`/`in_progress` past idle-poll threshold | Wait up to `max_idle_polls × 270s`; if the RUNNING engine never reaches `DONE`, hand back with the cleared engine's CLEAN status documented prominently. |

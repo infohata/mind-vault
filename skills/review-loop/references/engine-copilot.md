@@ -66,7 +66,7 @@ Copilot review latency: ~30 seconds between trigger and review post — much fas
 
 ## § Common patterns (codified Tier 1)
 
-The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). No copilot-specific deltas at present; copilot's behavioural quirks live in § Stale-context findings and § Clean-signal parsing above.
+The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). No copilot-specific deltas at present; copilot's behavioural quirks live in § Stale-context findings and § Clean detection above.
 
 ## § Review-state gate
 

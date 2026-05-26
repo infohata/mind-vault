@@ -92,7 +92,7 @@ Any engine-specific race conditions between review-firing and SHA observation. D
 
 Engine-specific failure signatures the orchestrator must recognise:
 
-- Stall / hang patterns (bugbot: `BUGBOT_CHECKRUN status=in_progress` >15 min; copilot: review never posts within ~10× normal latency).
+- Stall / hang patterns (bugbot: `BUGBOT_CHECKRUN STATUS=in_progress` >15 min; copilot: review never posts within ~10× normal latency).
 - Service-error patterns (copilot's literal `"Copilot encountered an error..."` body).
 - Rate-limit patterns.
 
