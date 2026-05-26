@@ -12,7 +12,7 @@ _(none)_
 
 ## v4.3.5 — Compound: cotton-Bulma prop/positioning traps + single-source filter trigger
 
-Patch release on the v4.3 line. A `/compound` harvest from a tables / search-input / pagination consolidation sprint (shared `<c-table>` + `<c-search-input>` primitives, all filter forms unified onto one HTMX trigger), three reusable patterns routed into existing skill references plus one new reference — references-first placement, no new top-level rules.
+Patch release on the v4.3 line. A `/compound` harvest from a tables / search-input / pagination consolidation sprint (shared `<c-table>` + `<c-search-input>` primitives, all filter forms unified onto one HTMX trigger), four reusable patterns routed into existing skill references plus one new reference — references-first placement, no new top-level rules.
 
 ### Added
 
