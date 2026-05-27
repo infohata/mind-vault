@@ -204,22 +204,85 @@ at = latest.get('completed_at') or latest.get('started_at') or ''
 print(f'BUGBOT_CHECKRUN={rid} COMMIT={sha} STATUS={status} CONCLUSION={conclusion} AT={at}')
 " 2>/dev/null || true)
 
+# Did bugbot post a REVIEW (not merely a check-run) for the current head SHA, and are
+# there any cursor[bot] inline findings already? Both feed the review-pending race guard.
+HEAD_REVIEW_POSTED=$(echo "$REVIEWS" | PR_HEAD_SHA="$PR_HEAD_SHA" python3 -c "
+import json, os, sys
+try:
+    reviews = json.load(sys.stdin)
+except Exception:
+    print('false'); sys.exit(0)
+head = os.environ.get('PR_HEAD_SHA','')
+bb = [r for r in reviews if (r.get('user') or {}).get('login') == 'cursor[bot]']
+print('true' if any((r.get('commit_id') or '') == head for r in bb) else 'false')
+" 2>/dev/null || echo "false")
+
+BUGBOT_INLINE_PRECHECK=$(echo "$INLINE_COMMENTS" | python3 -c "
+import json, sys
+try:
+    comments = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+bb = [c for c in comments if (c.get('user') or {}).get('login') == 'cursor[bot]']
+if bb:
+    print('yes')
+" 2>/dev/null || true)
+
 if [ -n "$BUGBOT_CHECKRUN_LINE" ]; then
+    # `|| true` on each pipeline: an in_progress check-run emits empty CONCLUSION=, so
+    # `grep -oE 'FIELD=[^ ]+'` exits 1 and would abort under `set -eo pipefail`.
+    cr_status=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'STATUS=[^ ]+' | cut -d= -f2 || true)
+    cr_conclusion=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'CONCLUSION=[^ ]+' | cut -d= -f2 || true)
+    cr_id=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'BUGBOT_CHECKRUN=[^ ]+' | cut -d= -f2 || true)
+    cr_sha=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'COMMIT=[^ ]+' | cut -d= -f2 || true)
+    cr_at=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'AT=[^ ]+' | cut -d= -f2 || true)
+
+    # ── Review-pending race guard (engine-general; see engine-adapter-contract.md
+    # § Review-state gate). A check-run can flip to completed BEFORE the engine's review /
+    # inline comments post; a poll in that gap sees DONE + zero findings and the loop
+    # declares a false CLEAN (observed on copilot, PR #148 — 3m42s lag). Cursor's
+    # check-suite turns non-success on findings so bugbot's window is narrower, but the
+    # orchestrator's structural clean ignores CONCLUSION, so the gap is still exploitable.
+    # Trust a completed+success check-run as DONE only once bugbot has posted a review for
+    # the head SHA; until then downgrade STATUS to in_progress (loop keeps waiting) + emit
+    # BUGBOT_REVIEW_PENDING. Settle valve (BUGBOT_REVIEW_SETTLE_SECONDS, default 600)
+    # covers the rare check-run-only-no-review case. Settle math in Python — `datetime`
+    # is cross-platform, unlike `date -d` (GNU-only; would fail on BSD/macOS).
+    SETTLE=${BUGBOT_REVIEW_SETTLE_SECONDS:-600}
+    if [ "$cr_status" = "completed" ] && [ "$cr_conclusion" = "success" ] && [ "$HEAD_REVIEW_POSTED" != "true" ]; then
+        settle_state=$(SETTLE="$SETTLE" CR_AT="$cr_at" python3 -c "
+import os
+from datetime import datetime, timezone
+try:
+    settle = int(os.environ.get('SETTLE', '600'))
+    dt = datetime.fromisoformat(os.environ.get('CR_AT', '').replace('Z', '+00:00'))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    age = (datetime.now(timezone.utc) - dt).total_seconds()
+    print('elapsed' if age >= settle else 'pending')
+except Exception:
+    print('pending')
+" 2>/dev/null || echo "pending")
+        if [ "$settle_state" != "elapsed" ]; then
+            cr_status="in_progress"
+            BUGBOT_CHECKRUN_LINE=$(echo "$BUGBOT_CHECKRUN_LINE" | sed 's/STATUS=completed/STATUS=in_progress/')
+        fi
+    fi
+
     echo "$BUGBOT_CHECKRUN_LINE"
-    # Synthesize BUGBOT_CLEAN_SIGNAL from a successful check-run when /reviews
-    # didn't produce one for HEAD. The downstream /review-loop Phase 4 only
-    # greps BUGBOT_CLEAN_SIGNAL; this preserves the existing consumer contract.
-    cr_status=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'STATUS=[^ ]+' | cut -d= -f2)
-    cr_conclusion=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'CONCLUSION=[^ ]+' | cut -d= -f2)
+
     if [ "$cr_status" = "completed" ] && [ "$cr_conclusion" = "success" ]; then
+        # Reached only when the review content has landed (HEAD_REVIEW_POSTED=true) or the
+        # settle valve fired. Synthesize BUGBOT_CLEAN_SIGNAL only if /reviews didn't emit
+        # one AND there are zero cursor[bot] inline findings — never paper over findings.
         echo -e "${GREEN}✅ Bugbot check-run reports success for PR head.${NC}"
-        if [ -z "$CLEAN_SIGNAL_LINE" ]; then
-            cr_id=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'BUGBOT_CHECKRUN=[^ ]+' | cut -d= -f2)
-            cr_sha=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'COMMIT=[^ ]+' | cut -d= -f2)
-            cr_at=$(echo "$BUGBOT_CHECKRUN_LINE" | grep -oE 'AT=[^ ]+' | cut -d= -f2)
+        if [ -z "$CLEAN_SIGNAL_LINE" ] && [ -z "$BUGBOT_INLINE_PRECHECK" ]; then
             echo "BUGBOT_CLEAN_SIGNAL=checkrun-${cr_id} COMMIT=${cr_sha} AT=${cr_at}"
             CLEAN_SIGNAL_LINE="checkrun-${cr_id}"  # mark non-empty for the summary check below
         fi
+    elif [ "$cr_status" = "in_progress" ] && [ "$cr_conclusion" = "success" ]; then
+        echo "BUGBOT_REVIEW_PENDING=checkrun-${cr_id} COMMIT=${cr_sha} SETTLE=${SETTLE}s"
+        echo -e "${YELLOW}⏳ Bugbot check-run completed but no review posted for HEAD yet — treating as RUNNING (review-pending race guard) to avoid a false CLEAN.${NC}"
     fi
     echo ""
 fi

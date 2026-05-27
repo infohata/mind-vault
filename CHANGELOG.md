@@ -10,6 +10,16 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.3.8 — Compound: review-pending race guard generalized to the engine-adapter contract + Bugbot
+
+Patch release on the v4.3 line. A `/compound` of the false-CLEAN failure mode that surfaced live in v4.3.7's own review loop (PR #148): a review engine's check-run flips to `completed` *before* its inline review posts, so a poll in that gap reads DONE + zero findings and the loop declares a false CLEAN. v4.3.7 fixed it in the Copilot adapter only; this generalizes the guard.
+
+### Added
+- **`skills/review-loop/references/engine-adapter-contract.md`** § Review-state gate — new **review-pending guard** as an engine-general MUST: an adapter must not report DONE (nor synthesize `CLEAN_SIGNAL`) off a `completed`+`success` check-run *alone*; it gates on a posted review for the head SHA (`LATEST_REVIEW.COMMIT == head SHA`), downgrades `STATUS` to `in_progress` until then, and MAY emit `<ENGINE>_REVIEW_PENDING`. A `<ENGINE>_REVIEW_SETTLE_SECONDS` valve (default 600) covers the check-run-only-no-review case; settle math must use Python `datetime` (cross-platform), never `date -d` (GNU-only). Any new engine that synthesizes clean from a check-run inherits the requirement.
+
+### Fixed
+- **`tools/find_bugbot_comments.sh`** — applied the review-pending guard (previously only in the Copilot adapter): the check-run→`CLEAN_SIGNAL` synthesis was structurally identical and equally susceptible. Now gated on a posted `cursor[bot]` review for the head SHA + zero inline findings, with `STATUS` downgrade + `BUGBOT_REVIEW_PENDING` marker and a `BUGBOT_REVIEW_SETTLE_SECONDS` valve. Also added `|| true` to the field-extract pipelines (an in-progress check-run's empty `CONCLUSION=` would abort the script under `set -eo pipefail`). `skills/review-loop/references/engine-bugbot.md` documents the caveat in § Clean detection + § Race-condition caveats.
+
 ## v4.3.7 — Compound: AST module-split recipe + xdist message level/tag isolation + forced-atomic rename bridge
 
 ### Added

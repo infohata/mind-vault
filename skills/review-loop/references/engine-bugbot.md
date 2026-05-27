@@ -16,7 +16,7 @@ Adapter specification for the Cursor Bugbot review engine. The orchestrator at [
 
 ## § Clean detection
 
-**Clean is structural** — see § Review-state gate: check-run `DONE` AND zero active findings matching `BUGBOT_LATEST_REVIEW`. `find_bugbot_comments.sh` may still emit a legacy `BUGBOT_CLEAN_SIGNAL` (body-text "found no new issues" match, or check-run synthesis); treat it as corroboration only. For bugbot, check-run-success aligns fairly well with "no findings" (Cursor's check-suite turns neutral/non-success when bugbot finds issues) — but the active-finding count is still authoritative. Always count active findings explicitly before claiming CLEAN.
+**Clean is structural** — see § Review-state gate: check-run `DONE` AND zero active findings matching `BUGBOT_LATEST_REVIEW`. `find_bugbot_comments.sh` may still emit a legacy `BUGBOT_CLEAN_SIGNAL` (body-text "found no new issues" match, or check-run synthesis); treat it as corroboration only. For bugbot, check-run-success aligns fairly well with "no findings" (Cursor's check-suite turns neutral/non-success when bugbot finds issues) — but the active-finding count is still authoritative. Always count active findings explicitly before claiming CLEAN. The check-run synthesis is now gated by the review-pending guard (§ Race-condition caveats) so it can't fire a clean in the check-run-before-review window.
 
 ## § Staleness rule
 
@@ -31,6 +31,8 @@ Bugbot review latency: typically 1–10 min between trigger and review post.
 The `BUGBOT_CLEAN_SIGNAL` `COMMIT` field is the **trigger-anchor** SHA, not the reviewed SHA. During the review window, a docs / wrap / no-content commit may land on the branch. The clean signal's `COMMIT` reflects trigger time; bugbot's diff scanner reads the PR's current diff vs base at review-firing time, which may already include post-trigger commits.
 
 **Heuristic when strict `COMMIT === last_push_sha` fails**: if intervening commits since the signal's `COMMIT` are docs-only / markdown-only / comments-only, skip the re-trigger and accept the clean signal. Bugbot doesn't review prose-only diffs.
+
+**Check-run-completes-before-review (review-pending guard).** Bugbot's check-run can flip to `completed` before its review + inline comments post, the same race that produced a false CLEAN on copilot (PR #148). Bugbot's window is narrower — Cursor's check-suite turns non-success when it finds issues, so a `completed`+`success` check-run correlates with "no findings" better than copilot's does — but the orchestrator's structural clean reads the active-finding count, not `CONCLUSION`, so the gap is still exploitable. `find_bugbot_comments.sh` therefore applies the engine-general guard ([`engine-adapter-contract.md`](engine-adapter-contract.md) § Review-state gate): a `completed`+`success` check-run is trusted as DONE only once a `cursor[bot]` review for the head SHA has posted; until then `STATUS` is downgraded to `in_progress` and a `BUGBOT_REVIEW_PENDING` marker is emitted. `BUGBOT_REVIEW_SETTLE_SECONDS` (default 600) trusts a review-less check-run after the window elapses.
 
 **Line-number drift is NOT a new-finding signal**. GitHub line-anchored comments track code position across commits. Example from PR #55: after a fix push, bugbot's unresolved comment 3119819571 shifted from `install-gcloud-cli.sh:88` to `:97`, and comment 3119819578 from `:135` to `:144`. Title and file stayed identical; only the line moved. The `comment id` is the identity for staleness comparison.
 
