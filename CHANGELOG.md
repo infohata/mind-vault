@@ -19,6 +19,8 @@ _(none)_
 - **`skills/django/references/TESTING.md`** — extended the `loadscope` message-framework isolation coverage with the **level + tag vector** the existing storage-lock recipe misses: an inferred-severity assertion can lose a level via ambient `settings.MESSAGE_LEVEL` (level-drop) or a leaked module-global `LEVEL_TAGS` remap (tag-mismap), independent of the storage instance. Fix = `@override_settings(MESSAGE_TAGS={})` (rebuild global tags) + instance `storage.level = messages.DEBUG`; "a severity can vanish only two ways → cover both" elimination logic; eager-`msg`-eval `AttributeError` diagnostic caution.
 - **`docs/rules/RULE_rename-before-drop-rationale.md`** — brief **forced-atomic member** pointer: a flat→package split has one rename member that can't keep a drop-later shim (module ≡ package dotted path → the package `__init__` re-export is its transparent bridge), the rest ride normal shims. Full mechanics + mixed-bridge sequencing live in the Python-general module-split reference; the rule points there rather than duplicating it.
 
+(2026-05-27, [#148](https://github.com/infohata/mind-vault/pull/148))
+
 ## v4.3.6 — Compound: shell-rebind re-seed + e2e seed determinism + review-loop cap
 
 Patch release on the v4.3 line. A `/compound` harvest from an org-management surface-migration sprint (largest admin surface reframed as a per-org dashboard, first real shared-table consumer), three reusable learnings routed into existing skill surfaces — references-first, no new files, no new top-level rules.

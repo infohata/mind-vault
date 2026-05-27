@@ -18,8 +18,12 @@ blank-line-only formatter pass so the diff stays a clean move.
 ## The recipe
 
 1. **Parse + bucket by name.** `ast.parse` the source; walk top-level statements
-   (`FunctionDef` / `AsyncFunctionDef` / `ClassDef` / `Assign`). Bucket each by a name-prefix
-   rule into target submodules (`article_*` / `_resolve_article_*` → `articles.py`, etc.).
+   (`FunctionDef` / `AsyncFunctionDef` / `ClassDef` / `Assign` / `AnnAssign`). Bucket each by a
+   name-prefix rule into target submodules (`article_*` / `_resolve_article_*` → `articles.py`, etc.).
+   Include **`AnnAssign`** — annotated module-level constants (`FOO: tuple[str, ...] = (...)`) are
+   `AnnAssign`, *not* `Assign`; miss them and step 3's lossless-coverage assertion flags their lines
+   as uncovered (or they get silently dropped). The name is on `node.target` (a single node), not
+   `node.targets` (the list `Assign` carries) — read the right attribute when bucketing.
    Symbols used by **more than one** bucket go to a neutral `helpers.py` — never let one
    domain submodule import from a sibling (keeps the dependency graph a star, not a mesh).
 
@@ -29,8 +33,8 @@ blank-line-only formatter pass so the diff stays a clean move.
      over a contiguous `#` run, bounded by the previous consumed symbol's `end_lineno` so a
      comment is never double-claimed. Include the comment block in the symbol's span.
    - **PEP-224 attribute docstrings.** A bare string `Expr` immediately following an
-     `Assign` (`FOO = (...)` then `"""docstring for FOO"""`) is a *separate* top-level node
-     with no name — attach it to the preceding assignment's bucket.
+     `Assign`/`AnnAssign` (`FOO = (...)` or `FOO: T = (...)`, then `"""docstring for FOO"""`) is a
+     *separate* top-level node with no name — attach it to the preceding assignment's bucket.
 
 3. **Verify coverage before writing.** Assert no two spans overlap, and that every non-blank
    source line outside the import header + module docstring is claimed by exactly one bucket.
