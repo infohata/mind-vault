@@ -217,32 +217,35 @@ bb = [r for r in reviews if (r.get('user') or {}).get('login') == 'cursor[bot]']
 print('true' if any((r.get('commit_id') or '') == head for r in bb) else 'false')
 " 2>/dev/null || echo "false")
 
-# Latest cursor[bot] review id — the staleness anchor (same one the orchestrator uses for
-# active-vs-stale findings).
-BUGBOT_LATEST_RID=$(echo "$REVIEWS" | python3 -c "
-import json, sys
+# cursor[bot] review id FOR THE HEAD SHA (empty if none yet) — HEAD-AWARE on purpose. Using the
+# head review (not merely the latest, which on the settle-valve path points at a PRIOR-SHA review)
+# keeps the precheck honest: stale comments from prior-SHA reviews don't block the valve's clean
+# synthesis, while a head review's own findings correctly do.
+BUGBOT_HEAD_RID=$(echo "$REVIEWS" | PR_HEAD_SHA="$PR_HEAD_SHA" python3 -c "
+import json, os, sys
 try:
     reviews = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-bb = [r for r in reviews if (r.get('user') or {}).get('login') == 'cursor[bot]']
+head = os.environ.get('PR_HEAD_SHA', '')
+bb = [r for r in reviews
+      if (r.get('user') or {}).get('login') == 'cursor[bot]' and (r.get('commit_id') or '') == head]
 bb.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
 if bb:
     print(bb[0].get('id') or '')
 " 2>/dev/null || true)
 
-# Any ACTIVE cursor[bot] inline findings — matching the LATEST review, NOT stale comments from
-# prior reviews that GitHub keeps visible after a fix. Gates the CLEAN_SIGNAL check-run synthesis
-# below; filtering to active findings lets a PR carrying only stale/resolved comments still emit a
-# synthesized clean signal (matches the orchestrator's active-finding rule). No reviews yet → no
-# active findings → empty (synthesis not blocked).
-BUGBOT_INLINE_PRECHECK=$(echo "$INLINE_COMMENTS" | BUGBOT_LATEST_RID="$BUGBOT_LATEST_RID" python3 -c "
+# Any ACTIVE cursor[bot] inline findings — on the HEAD-SHA review only, NOT stale comments from
+# prior reviews GitHub keeps visible after a fix. Gates the CLEAN_SIGNAL check-run synthesis below.
+# No head-SHA review yet (incl. the settle-valve check-run-only path) → empty rid → empty precheck →
+# synthesis not blocked by stale prior-SHA comments.
+BUGBOT_INLINE_PRECHECK=$(echo "$INLINE_COMMENTS" | BUGBOT_HEAD_RID="$BUGBOT_HEAD_RID" python3 -c "
 import json, os, sys
 try:
     comments = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-rid = os.environ.get('BUGBOT_LATEST_RID', '')
+rid = os.environ.get('BUGBOT_HEAD_RID', '')
 if not rid:
     sys.exit(0)
 active = [c for c in comments
