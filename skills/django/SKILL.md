@@ -579,6 +579,7 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [surgical-tdd](../surgical-tdd/SKILL.md) — focused test execution
 - [`RULE_i18n-workflow`](references/I18N_WORKFLOW.md) — hard rules for translations; FORCE_SYNC_MSGIDS overwrite-existing-msgstr gotcha; don't-translate-dev-notes; blocktrans `%(var)s` placeholder format
 - [Form-invalid status](references/FORM_INVALID_STATUS.md) — Django's default `form_invalid` returns 200 + form-with-errors, NOT 422; status-only gating closes HTMX modals on validation failure; fix via `HTMXFormStatusMixin` or `HX-Trigger` header gate
+- [Permission-gate probe](references/PERMISSION_GATE_PROBE.md) — when re-implementing a view's authorization elsewhere (fragment / 2nd endpoint / command), replicate the *effective* gate (`permission_classes` AND `get_queryset` AND `dispatch`/`get_object`), not the coarse declared class — copying the class alone silently widens the gate; the inverse (legacy gate authorizes on historical authorship → fix, don't copy) + re-gate-the-legacy-endpoint + UI-bypass test
 - [Django Documentation](https://docs.djangoproject.com/)
 - [Django REST Framework](https://www.django-rest-framework.org/)
 - [Django ORM Query Optimisation](https://docs.djangoproject.com/en/stable/topics/db/optimization/)

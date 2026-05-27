@@ -66,6 +66,47 @@ else document.addEventListener('DOMContentLoaded', boot);
 Eagerly-loaded scripts (cold-load `<head>` / `extra_js`) hit DCL normally and don't strictly need
 this — but writing every binder readyState-safe makes it reusable in both load modes for free.
 
+### 6. Synthetic swap events from a custom body-replacer (drawer / preview surface)
+
+A custom drawer or preview surface that replaces its body via `innerHTML` is **not** a real HTMX
+swap, so HTMX fires no lifecycle events for it. To get widgets to (re-)mount in the new subtree,
+the body-replacer typically **dispatches a synthetic `htmx:afterSettle` itself**. Two shape
+mismatches bite here, and they compound into a silent, latent break:
+
+1. **Dispatch on `document`, not `document.body`.** The replacer does
+   `document.dispatchEvent(new CustomEvent('htmx:afterSettle', …))`. A binder that listens on
+   `document.body` **never receives it** — an event dispatched *on* `document` doesn't travel down
+   to `body` (capture then bubble move between the event target and the root; `body` sits *below*
+   `document`, so it's never on the path). §1 already says subscribe on `document` for a
+   head-load-timing reason; this is a second, independent reason to do the same thing.
+
+2. **The host arrives as `detail.elt`, not `detail.target`.** Real HTMX swaps put the swapped
+   node on `evt.detail.target` (§1). A synthetic dispatch from a body-replacer commonly follows the
+   editor-widget convention and puts it on `evt.detail.elt`. A binder that only reads
+   `detail.target` early-returns on the synthetic event. **Read `evt.detail.elt || evt.detail.target`**
+   so one listener handles both the real-swap and synthetic-swap shapes.
+
+```js
+document.addEventListener('htmx:afterSettle', function (evt) {
+    var root = (evt.detail && (evt.detail.elt || evt.detail.target)) || document;
+    initWidgetsIn(root);               // idempotent per §2 — safe if this fires twice
+});
+```
+
+**Failure mode** — a binder that gets *both* wrong (listens on `document.body` AND reads only
+`detail.target`) is dead inside the drawer, and dies *silently*: it still works on a cold full-page
+load (real `DOMContentLoaded` + real HTMX paths fire there), so the bug only appears when the widget
+is opened in the drawer. Worse, it's **latent across surfaces** — a binder written for surface A's
+inline form keeps working there but is dead the instant the same widget first appears in a
+drawer-hosted form on surface B. Binders that already followed the editor convention "just work" in
+the drawer; the one that diverged is the one that breaks.
+
+**Contract for the body-replacer side:** pick one shape and hold it. If you dispatch a synthetic
+`htmx:afterSettle`, dispatch it on `document`, set `detail.elt` to the new body host, and make every
+widget binder read `elt || target`. Idempotency (§2) matters doubly here — a synthetic settle can
+fire alongside or twice with other settle events; the mounted-set guard turns the extra calls into
+no-ops.
+
 ## Who relies on this
 
 - **[`VENDORING_JS_BUNDLES.md`](VENDORING_JS_BUNDLES.md)** — the always-loaded integration glue follows §§1–4.

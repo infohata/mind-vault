@@ -1,0 +1,67 @@
+# Permission-gate probe — replicate the view's *effective* gate, not the permission class
+
+When you re-implement authorization for an existing surface in a **new place** — a render-fn or
+HTMX fragment that replaces a class-based view, a second API endpoint, a management command, a
+Celery task — replicate the gate the original view *effectively applies*. That effective gate is
+usually **narrower** than the view's declared `permission_classes` / `PermissionRequiredMixin`.
+Copying only the declared class into the new code path silently **widens** the gate — an
+authorization regression that no test catches unless you wrote one for the narrower case.
+
+## Why the declared class is not the gate
+
+A DRF `permission_classes = [CanManageThings]` (or a `PermissionRequiredMixin` permission) is a
+**coarse pre-filter**. The view's real authorization is the **AND** of three layers, and the last
+two are easy to miss:
+
+1. **`permission_classes` / mixin** — the coarse pre-filter ("is an org admin *somewhere*").
+2. **`get_queryset()`** — object-level scoping ("things in orgs the user administers"; current-tenant
+   vs the object's owning org cross-tenant). A view that edits via `get_queryset().get(pk=…)` is
+   gated by the queryset, not the class — a `pk` outside the queryset 404s before the class ever
+   matters.
+3. **`dispatch()` / `get_object()` / `has_object_permission()`** — per-object checks ("admin of
+   **this specific** thing", not any thing of the type).
+
+### Worked divergence (generic)
+
+- `CanManageThings` = "user administers *some* org in the current tenant."
+- But `ThingUpdateView.dispatch` *additionally* requires admin of **that specific thing** (a per-object
+  `UserThing(user, thing, role='admin')`) — strictly narrower.
+- And `OtherThingUpdateView.get_queryset` scopes to the **object's owning org**, allowed
+  *cross-tenant* — a different axis than "current tenant" the class implies.
+
+Port `CanManageThings` alone into a fragment and any current-tenant org-admin can edit any thing —
+wider than the CBV ever allowed. The architect/review catches this as "the gate moved"; cheaper to
+get right at design time.
+
+## The inverse case — sometimes the legacy gate is *wrong*
+
+The probe also surfaces gates that are narrower in the wrong way. The classic is **authorizing on
+historical authorship** — `author == request.user` (or `author_id == request.user.pk`). That
+authorizes on a *past* state: a user demoted from admin keeps mutate rights on rows they once
+created, and it's also wrong for team management (a current admin can't touch a colleague's row).
+
+When re-implementing, that's the moment to **fix** the gate to the correct current-role check
+(`user_can_admin_org(user, obj.org)` or equivalent), not faithfully copy the bug. Distinguish:
+
+- *"the view's gate is narrower than the class"* → **replicate** it, and
+- *"the view's gate is wrong"* → **fix** it — and when you do, re-gate the **legacy endpoint** too
+  (not just the new code path) and migrate the tests that asserted the old behaviour, in the same
+  change. Otherwise the loophole stays open on the old URL and a test still pins the bug.
+
+## The probe checklist (before porting any gate)
+
+1. Read the source view's `permission_classes`/mixin **AND** `get_queryset` **AND**
+   `dispatch`/`get_object`/`has_object_permission`. The effective gate is their AND.
+2. Classify the scope: per-object vs per-type vs per-org; current-tenant vs owning-org cross-tenant.
+3. Replicate the effective gate at the new call site — gate on the **queryset/selector**, not just
+   the class. A single `user_can_admin_<x>(user, obj)` selector reused everywhere beats re-deriving
+   the predicate per surface.
+4. **Enforce server-side at EVERY mutating endpoint.** Hiding a UI affordance is not authorization;
+   a direct (UI-bypassing) request must be rejected. Write a UI-bypass test: a non-admin / wrong-role
+   user POSTs straight to the endpoint and gets 403 + no state change.
+
+## When NOT to over-probe
+
+If the view's only gate genuinely *is* the permission class — no `get_queryset` narrowing, no
+`dispatch`/object check — then copying the class is correct and complete. Verify (read all three
+layers), don't assume. The rule is "read the effective gate," not "always invent a narrower one."

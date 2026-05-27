@@ -102,6 +102,7 @@ grep -rn "'<the visible string>'" tools/translation_maps/
 Logical-ownership traps that cause this regression:
 - A workspace button labelled with content-domain wording (e.g. "+ Article") *feels* like a content-app concern, but if it lives in the shared shell/UI app's template, the msgid extracts to the shell-app catalog.
 - A toast or label emitted by shared infra (e.g. a `notifications.js` helper) *feels* like UI, but if the calling code is in `<content-app>/static/...`, the msgid extracts wherever the JS path's source files reside.
+- **A toast / `messages.*` emitted from a view in app-A *about* an app-B entity** (e.g. app-A's shell-fragment or CRUD view sends a `_("…created")` success toast for a model that lives in app-B). The `_()` call site is in app-A's Python, so `makemessages` extracts the msgid into **app-A**'s catalog and the map entry belongs in `<app-A>.py` — NOT the app whose entity the message is "about". The about-ness is the trap; the `gettext` call-site app is the authority. (Symptom: blank toasts in every non-source locale because the entry sat in the entity's app map, where that catalog never extracted it.)
 - Cotton components consumed across apps: the msgid extracts to EVERY consuming app's catalog (one shared component → N entries needed in N maps; see the previous paragraph).
 
 ### Audit-First Principle
