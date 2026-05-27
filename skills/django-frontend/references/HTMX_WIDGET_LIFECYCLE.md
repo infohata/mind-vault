@@ -17,7 +17,7 @@ document.addEventListener('htmx:afterSwap', function (evt) {
     if (!evt.detail || !evt.detail.target) return;
     if (evt.detail.target.id !== 'my-region') return;          // gate: ignore unrelated swaps
     var node = document.getElementById('my-region');           // FRESH node, not evt.detail.target
-    initWidgetsIn(node);
+    initWidgetsIn(node);                                        // umbrella → each widget type's init<Widget>In(root), §4
 });
 ```
 
@@ -39,8 +39,12 @@ you leak event listeners and DOM-detached widget cores forever. This is why moun
 
 ### 4. Container-scoped init — honor the `root` arg
 
+Each widget type exposes its own `init<Widget>In(root)` (e.g. `initEditorIn`, `initDiagramIn` — the
+`initXIn(root)` referenced in §5 and the consuming refs). The §1 `htmx:afterSwap` umbrella
+(`initWidgetsIn`) calls each of them on the fresh region.
+
 ```js
-window.initWidgetIn = function (root) { root.querySelectorAll('[data-widget]').forEach(mount); };
+window.initEditorIn = function (root) { root.querySelectorAll('[data-editor]').forEach(mount); };
 ```
 
 ALWAYS scope queries to `root`. A wrapper that hardcodes `document` silently widens per-region init to
