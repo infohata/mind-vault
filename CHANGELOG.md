@@ -12,10 +12,6 @@ _(none)_
 
 ## v4.3.8 — Compound: lazy-load heavy assets on HTMX nav + isolate-to-classify test triage
 
-> ⚠️ Version coordination: a parallel self-compound (`compound/2026-05-27-checkrun-review-race-guard`)
-> is in flight off the same v4.3.7 base and also patch-bumps. Whichever PR merges second takes the
-> next free `## v` (this one claimed v4.3.8); the two only collide on this CHANGELOG header.
-
 ### Added
 
 - **`skills/django-frontend/references/LAZY_LOAD_HEAVY_ASSETS_ON_HTMX_NAV.md`** (+ SKILL.md pointer) —

@@ -134,13 +134,21 @@ surface-**specific**, heavy-or-narrow assets are load-on-nav candidates. Mixing
 the two up (moving an infra script to load-on-nav) breaks global behaviour
 everywhere; classifying requires a per-script audit.
 
-## Relationship to the data-attribute nav convention
+## Related references
 
-The `data-surface-assets` attribute is the same family as the
-`data-*-nav-link` markers in
-[`DATA_ATTR_NAV_CONVENTION.md`](DATA_ATTR_NAV_CONVENTION.md): declarative markers
-on the swapped DOM consumed by a document-level JS handler, co-located with the
-region they describe.
+- **[`DATA_ATTR_NAV_CONVENTION.md`](DATA_ATTR_NAV_CONVENTION.md)** — the `data-surface-assets`
+  attribute is the same family as the `data-*-nav-link` markers: declarative markers on the
+  swapped DOM consumed by a document-level JS handler, co-located with the region they describe.
+- **[`VENDORING_JS_BUNDLES.md`](VENDORING_JS_BUNDLES.md)** — how to produce/install the heavy
+  bundles this loads (CDN download or disposable-Node build → `static/vendor/`). Its
+  integration-glue contract (discover on `htmx:afterSwap`, idempotent mount, teardown on
+  `htmx:beforeSwap`) is the **always-loaded** counterpart; reach for *this* pattern instead when
+  the bundle is too heavy to load eagerly and its `<script>` (in `extra_js`, outside the swap
+  region) never executes on shell-nav.
+- **[`MANIFEST_STATIC_FILES_STORAGE.md`](../../django/references/MANIFEST_STATIC_FILES_STORAGE.md)**
+  — the sibling `static()`-timing trap: this pattern warns against resolving at module *import*
+  (manifest not loaded yet); that one warns that resolved URLs are cached at process *start*, so
+  `collectstatic` needs an app-server restart to take effect.
 
 ## Verification
 

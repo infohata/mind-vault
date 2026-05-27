@@ -39,6 +39,12 @@ Templates load via Django's `{% static %}`:
 <script src="{% static '<app>/js/easymde-widget.js' %}" defer></script>
 ```
 
+> **App-shell caveat.** These eager `<script>` tags live in `{% block extra_js %}`, *outside* an
+> HTMX shell-swap region — so on cross-surface shell-nav they never re-execute, and a heavy
+> per-surface bundle silently fails to load (renders nothing until a hard refresh). When that
+> bites, load the bundle on-nav instead: see
+> [`LAZY_LOAD_HEAVY_ASSETS_ON_HTMX_NAV.md`](LAZY_LOAD_HEAVY_ASSETS_ON_HTMX_NAV.md).
+
 Forms hook into the integration glue via data attributes:
 
 ```python
