@@ -69,7 +69,10 @@ document.addEventListener('htmx:afterSwap', function (evt) {
     // Read the manifest off the FRESH node — after an outerHTML swap,
     // evt.detail.target is the DETACHED old node, so its attribute is stale.
     var node = document.getElementById('shell-swap-target');
-    var manifest = JSON.parse(node.getAttribute('data-surface-assets') || '[]');
+    var manifest;
+    try { manifest = JSON.parse(node.getAttribute('data-surface-assets') || '[]'); }
+    catch (e) { console.warn('[load-on-nav] bad data-surface-assets JSON', e); manifest = []; }
+    if (!Array.isArray(manifest)) manifest = [];   // one bad attribute can't take down all swap handling
     manifest.forEach(function (b) {
         var entry = REGISTRY[b.key];
         // Guard a manifest key the client registry doesn't know (typo / renamed /
