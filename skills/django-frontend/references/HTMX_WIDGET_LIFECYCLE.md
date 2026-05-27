@@ -69,22 +69,33 @@ this — but writing every binder readyState-safe makes it reusable in both load
 ### 6. Synthetic swap events from a custom body-replacer (drawer / preview surface)
 
 A custom drawer or preview surface that replaces its body via `innerHTML` is **not** a real HTMX
-swap, so HTMX fires no lifecycle events for it. To get widgets to (re-)mount in the new subtree,
-the body-replacer typically **dispatches a synthetic `htmx:afterSettle` itself**. Two shape
-mismatches bite here, and they compound into a silent, latent break:
+swap, so HTMX fires no lifecycle events for it. To get widgets to (re-)mount in the new subtree, the
+body-replacer must **dispatch the rebind events itself**. That dispatch side is the
+[`PREVIEW_DRAWER_URL_STACK.md`](PREVIEW_DRAWER_URL_STACK.md) § *Walker rebind contract*: fire all
+three (`htmx:afterSwap` / `htmx:afterSettle` / `htmx:load`) **on the swapped element** with
+`bubbles: true`, and set **both** `detail.elt` *and* `detail.target` to the host (see also
+[`DRAWER_FORM_STATE_PRESERVATION.md`](DRAWER_FORM_STATE_PRESERVATION.md) § *Restore*). Dispatched
+that way, the event bubbles up to every ancestor listener and carries both detail keys, so every
+binder rebinds regardless of which event or which key it reads.
 
-1. **Dispatch on `document`, not `document.body`.** The replacer does
-   `document.dispatchEvent(new CustomEvent('htmx:afterSettle', …))`. A binder that listens on
-   `document.body` **never receives it** — an event dispatched *on* `document` doesn't travel down
-   to `body` (capture then bubble move between the event target and the root; `body` sits *below*
-   `document`, so it's never on the path). §1 already says subscribe on `document` for a
-   head-load-timing reason; this is a second, independent reason to do the same thing.
+This section is the **binder side** — what a widget binder must do to receive those events robustly,
+and the cautionary tale of what breaks when a body-replacer *diverges* from that contract (dispatches
+on `document` instead of the element, or sets only one detail key). Two shape mismatches bite, and
+they compound into a silent, latent break:
 
-2. **The host arrives as `detail.elt`, not `detail.target`.** Real HTMX swaps put the swapped
-   node on `evt.detail.target` (§1). A synthetic dispatch from a body-replacer commonly follows the
-   editor-widget convention and puts it on `evt.detail.elt`. A binder that only reads
-   `detail.target` early-returns on the synthetic event. **Read `evt.detail.elt || evt.detail.target`**
-   so one listener handles both the real-swap and synthetic-swap shapes.
+1. **Bind on `document`, not `document.body`.** The canonical element-with-`bubbles` dispatch reaches
+   both. But a divergent replacer that does `document.dispatchEvent(…)` reaches a `document` listener
+   only — an event dispatched *on* `document` doesn't travel *down* to `body` (`body` sits *below*
+   `document`, so it's never on the propagation path; see
+   [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 3). Binding on `document` catches the
+   canonical bubbled dispatch *and* a stray `document`-level one. §1 already says this for a
+   head-load-timing reason; this is a second, independent reason.
+
+2. **Read `evt.detail.elt || evt.detail.target`.** Canon sets both keys, but a divergent replacer
+   following the editor-widget convention sets only `detail.elt`; a real HTMX swap (§1) sets only
+   `detail.target`. A binder that reads just one early-returns on the other shape. Reading
+   `elt || target` makes one listener handle every shape — real-swap, canonical synthetic, and
+   divergent synthetic alike.
 
 ```js
 document.addEventListener('htmx:afterSettle', function (evt) {
@@ -101,11 +112,11 @@ inline form keeps working there but is dead the instant the same widget first ap
 drawer-hosted form on surface B. Binders that already followed the editor convention "just work" in
 the drawer; the one that diverged is the one that breaks.
 
-**Contract for the body-replacer side:** pick one shape and hold it. If you dispatch a synthetic
-`htmx:afterSettle`, dispatch it on `document`, set `detail.elt` to the new body host, and make every
-widget binder read `elt || target`. Idempotency (§2) matters doubly here — a synthetic settle can
-fire alongside or twice with other settle events; the mounted-set guard turns the extra calls into
-no-ops.
+**Two-sided fix:** make the dispatcher canonical (element + `bubbles: true` + both keys, per the
+Walker rebind contract) *and* make every binder defensive (bind on `document`, read `elt || target`).
+Either side alone closes this specific bug; doing both makes the widget surface-portable by
+construction. Idempotency (§2) matters doubly — a synthetic settle can fire alongside or twice with
+other settle events; the mounted-set guard turns the extra calls into no-ops.
 
 ## Who relies on this
 
