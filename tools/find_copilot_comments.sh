@@ -275,14 +275,40 @@ cop = [r for r in reviews if (r.get('user') or {}).get('login') in ('Copilot','c
 print('true' if any((r.get('commit_id') or '') == head for r in cop) else 'false')
 " 2>/dev/null || echo "false")
 
-COPILOT_INLINE_PRECHECK=$(echo "$INLINE_COMMENTS" | python3 -c "
-import json, sys
+# Copilot review id FOR THE HEAD SHA (empty if none yet) — HEAD-AWARE. The head review (not merely
+# the latest, which on the settle-valve path points at a PRIOR-SHA review) is what makes the precheck
+# honest: stale prior-SHA comments don't block the valve's clean synthesis; head findings correctly do.
+COPILOT_HEAD_RID=$(echo "$REVIEWS" | PR_HEAD_SHA="$PR_HEAD_SHA" python3 -c "
+import json, os, sys
+try:
+    reviews = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+head = os.environ.get('PR_HEAD_SHA', '')
+cop = [r for r in reviews
+       if (r.get('user') or {}).get('login') in ('Copilot','copilot-pull-request-reviewer[bot]')
+       and (r.get('commit_id') or '') == head]
+cop.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
+if cop:
+    print(cop[0].get('id') or '')
+" 2>/dev/null || true)
+
+# Any ACTIVE Copilot inline findings — on the HEAD-SHA review only, NOT stale comments from prior
+# reviews GitHub keeps visible. Gates the CLEAN_SIGNAL check-run synthesis. No head-SHA review yet
+# (incl. the settle-valve check-run-only path) → empty rid → empty precheck → not blocked by stale.
+COPILOT_INLINE_PRECHECK=$(echo "$INLINE_COMMENTS" | COPILOT_HEAD_RID="$COPILOT_HEAD_RID" python3 -c "
+import json, os, sys
 try:
     comments = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-cop = [c for c in comments if (c.get('user') or {}).get('login') in ('Copilot','copilot-pull-request-reviewer[bot]')]
-if cop:
+rid = os.environ.get('COPILOT_HEAD_RID', '')
+if not rid:
+    sys.exit(0)
+active = [c for c in comments
+          if (c.get('user') or {}).get('login') in ('Copilot','copilot-pull-request-reviewer[bot]')
+          and str(c.get('pull_request_review_id') or '') == rid]
+if active:
     print('yes')
 " 2>/dev/null || true)
 
@@ -310,8 +336,14 @@ if [ -n "$COPILOT_CHECKRUN_LINE" ]; then
     # (COPILOT_REVIEW_SETTLE_SECONDS, default 600) covers the rare case where Copilot
     # posts only a check-run and no review at all — after it elapses the check-run is
     # trusted so the loop doesn't poll to its idle timeout.
+    # CONCLUSION-AGNOSTIC downgrade: copilot always concludes `success` (even with findings),
+    # so the gate is moot for copilot today — but the orchestrator ignores CONCLUSION for
+    # structural clean, so the guard must hold for ANY completed check-run with no head-SHA
+    # review (keeps the contract uniform with bugbot, whose non-success findings runs need it).
+    # `CONCLUSION=success` gates only the CLEAN_SIGNAL synthesis below, never this downgrade.
     SETTLE=${COPILOT_REVIEW_SETTLE_SECONDS:-600}
-    if [ "$cr_status" = "completed" ] && [ "$cr_conclusion" = "success" ] && [ "$HEAD_REVIEW_POSTED" != "true" ]; then
+    COPILOT_DOWNGRADED=
+    if [ "$cr_status" = "completed" ] && [ "$HEAD_REVIEW_POSTED" != "true" ]; then
         # Settle decision in Python — `datetime` parsing is cross-platform, unlike
         # `date -d` (GNU coreutils only; BSD/macOS `date` needs `-j -f` and would fail,
         # leaving the guard permanently pinned on and the valve dead). Emits "elapsed"
@@ -331,9 +363,16 @@ try:
 except Exception:
     print('pending')
 " 2>/dev/null || echo "pending")
+        # Settle valve may only RELEASE (trust as DONE) a `success` review-less check-run.
+        # A non-success conclusion means findings — never trust a review-less findings run as
+        # DONE after the window (would report it clean); force pending → idle-timeout HUNG.
+        # (Copilot always concludes success, so this is a no-op for copilot but keeps the
+        # adapters consistent + future-proof.)
+        [ "$cr_conclusion" = "success" ] || settle_state=pending
         if [ "$settle_state" != "elapsed" ]; then
             cr_status="in_progress"
             COPILOT_CHECKRUN_LINE=$(echo "$COPILOT_CHECKRUN_LINE" | sed 's/STATUS=completed/STATUS=in_progress/')
+            COPILOT_DOWNGRADED=1
         fi
     fi
 
@@ -348,7 +387,7 @@ except Exception:
             echo "COPILOT_CLEAN_SIGNAL=checkrun-${cr_id} COMMIT=${cr_sha} AT=${cr_at}"
             CLEAN_SIGNAL_LINE="checkrun-${cr_id}"  # mark non-empty for the summary check below
         fi
-    elif [ "$cr_status" = "in_progress" ] && [ "$cr_conclusion" = "success" ]; then
+    elif [ -n "$COPILOT_DOWNGRADED" ]; then
         # Race window: check-run done, review not yet posted for HEAD. Surface the pending
         # state explicitly; the downgraded STATUS above already keeps the loop waiting.
         echo "COPILOT_REVIEW_PENDING=checkrun-${cr_id} COMMIT=${cr_sha} SETTLE=${SETTLE}s"
