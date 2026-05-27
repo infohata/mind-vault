@@ -98,32 +98,22 @@ returns false → re-injects (both srcs) on the next nav → recovers:
 diagram: { ready: () => !!window.Vendor && typeof window.initDiagramIn === 'function', … }
 ```
 
-### 5. readyState-safe boot for the injected binder scripts
+### 5. The injected binder must be `readyState`-safe + idempotent
 
-The binder (`init.js` — renders/mounts + registers its own `htmx:afterSwap` /
-`afterSettle` re-init listeners) typically binds on `DOMContentLoaded`. When
-**lazy-injected after `DOMContentLoaded`**, that handler never fires — so neither
-the initial init NOR the listener registration happens, and subsequent swaps
-break too. Wrap the boot so it self-runs whenever it loads:
+Two [HTMX widget lifecycle](HTMX_WIDGET_LIFECYCLE.md) rules stop being optional and become
+**mandatory** here, because the binder is injected *after* `DOMContentLoaded`:
 
-```js
-function boot() { initImmediately(); registerHtmxListeners(); }
-if (document.readyState !== 'loading') boot();
-else document.addEventListener('DOMContentLoaded', boot);
-// Expose an idempotent container-scoped init the loader calls on the fresh
-// region. It MUST honour its `root` arg — a wrapper hardcoding `document`
-// silently widens the loader's per-region scoping to the whole page.
-window.initDiagramIn = initDiagramInContainer;   // (init.js owns this global)
-```
+- **`readyState`-safe boot** (lifecycle §5) — a `DOMContentLoaded`-only boot never fires on a late
+  inject, so neither the initial init nor the binder's own `htmx:afterSwap` listener registration
+  happens, and subsequent swaps break too.
+- **Idempotent init** (lifecycle §2) — the late inject fires *two* inits from one `onload`: the
+  binder's own `boot()` inits the whole body **and** the loader calls `init(region)`. Both must
+  no-op safely (the diagram renderer consumes its source nodes on render; the editor guards on an
+  already-mounted set).
 
-### 6. Idempotency makes the double-init safe
-
-On a late inject the binder's own `boot()` inits the whole body **and** the
-loader calls `init(region)` — two inits from one `onload`. Both must be
-idempotent: the diagram renderer consumes its source nodes on render (a re-scan
-finds nothing); the editor guards on an already-mounted set. Then the double-call
-is a harmless no-op. Document this where the explicit init call lives so a future
-reader tracing it in devtools isn't confused.
+Expose a container-scoped `window.initXIn(root)` (lifecycle §4 — honor `root`) that the loader calls
+on the fresh region; document the double-init where the explicit call lives so a future reader
+tracing it in devtools isn't confused.
 
 ## What stays eager (NOT load-on-nav)
 
@@ -136,6 +126,9 @@ everywhere; classifying requires a per-script audit.
 
 ## Related references
 
+- **[`HTMX_WIDGET_LIFECYCLE.md`](HTMX_WIDGET_LIFECYCLE.md)** — the shared (re-)init / teardown /
+  idempotency / `readyState`-safe-boot contract every HTMX-swapped widget follows. §3–5 above are
+  the injection-specific layer on top of it; the binder rules in §5 are that contract's §2/§4/§5.
 - **[`DATA_ATTR_NAV_CONVENTION.md`](DATA_ATTR_NAV_CONVENTION.md)** — the `data-surface-assets`
   attribute is the same family as the `data-*-nav-link` markers: declarative markers on the
   swapped DOM consumed by a document-level JS handler, co-located with the region they describe.
