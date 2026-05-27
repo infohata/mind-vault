@@ -14,7 +14,7 @@ This skill is invoked via `commands/review-loop.md` — the single review entry 
 ## Hard bounds (enforced by the loop)
 
 - `max_commits_per_session = 20`
-- `max_active_work_minutes = 180` (excludes ScheduleWakeup sleep time)
+- `max_active_work_minutes = 240` (excludes ScheduleWakeup sleep time; 240 covers large dual-engine surface-migration PRs whose fix-cycle count legitimately accumulates past 180)
 - `max_idle_polls = 20` (consecutive wakes with no new finding AND no new push, across all engines). **New-push detection**: Phase 4 compares the scratch file's `last_push_sha` against `git rev-parse HEAD` on each wake; if they differ (e.g. an out-of-band push by another process or the user), reset `idle_polls=0`, update scratch `last_push_sha`, and re-enter Phase 1 to fetch fresh state for the new SHA. Without this check the counter accumulates forever past a push the loop didn't initiate.
 - Targeted tests only inside the loop; broader regression deferred to hand-back
 - Feature branch only — never main (per `RULE_git-safety`)
@@ -107,7 +107,7 @@ For every Tier 1 and Tier 2 finding, write a one-sentence justification: *why is
 Persist to `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (engine-agnostic filename) so the next wake cycle can reload state without re-reading summaries. **Supersedes the older per-engine `bugbot-pr-<N>.md` / `copilot-pr-<N>.md` scratch paths** from the pre-shared-core single-engine wrappers. When migrating a project off those, drop the per-engine scratch files; the shared file holds all engines' state. The scratch file must checkpoint every piece of state that a hard bound depends on, after every mutation:
 
 - `commits_this_session` (int, /20)
-- `active_work_minutes` (int, /180; best-effort)
+- `active_work_minutes` (int, /240; best-effort)
 - `idle_polls` (int, /20)
 - `engines` (comma-separated list of active engines for this session)
 - `last_push_sha`
@@ -166,7 +166,7 @@ The wake-loop in this phase IS a watcher in the [`skills/work/references/WATCHER
 3. **New-push detection (run BEFORE the decision tree)**: compare scratch's `last_push_sha` against `git rev-parse HEAD`. If they differ (out-of-band push by another process or the user), reset `idle_polls=0`, update `last_push_sha`, reset every `<engine>_review_state` to `NOT_TRIGGERED`, and re-enter Phase 1 for the new SHA. Without this the counter accumulates past a push the loop didn't initiate.
 
 4. **Decision tree — evaluate in order** (every `ScheduleWakeup(Ns)` below is shorthand for the full mandatory-prompt form from step 1 — `ScheduleWakeup(delaySeconds=N, prompt="/review-loop <PR_NUMBER> <ENGINES>")`; the `prompt` arg is never optional):
-   - **Guard: `commits_this_session` ≥ 20 OR active-work minutes ≥ 180** → hand back.
+   - **Guard: `commits_this_session` ≥ 20 OR active-work minutes ≥ 240** → hand back.
    - **Guard: no-progress detector trips** — same finding category flagged 2× across cycles where a commit *attempted* that category (success-or-revert both count), namespaced per engine → hand back.
    - **Any engine `NOT_TRIGGERED`** → fire its retrigger (Phase 1 zero-activity path), set it `TRIGGERED`, `ScheduleWakeup(180s)`.
    - **Any engine `TRIGGERED` or `RUNNING`** (review requested but check-run not yet `completed`) → still in flight: do NOT retrigger, do NOT read a verdict. This is the multi-engine sync gate — **wait for the slowest engine to reach `DONE` before reading any verdict.** Increment `idle_polls`, `ScheduleWakeup(270s)`. `idle_polls ≥ 20` here = a check-run wedged in `queued`/`in_progress` → treat as HUNG, hand back. (This is the sole idle backstop — once every engine is `DONE` the verdict is final and the branches below terminate without further polling.)
