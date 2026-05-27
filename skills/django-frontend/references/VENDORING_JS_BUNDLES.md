@@ -39,6 +39,12 @@ Templates load via Django's `{% static %}`:
 <script src="{% static '<app>/js/easymde-widget.js' %}" defer></script>
 ```
 
+> **App-shell caveat.** These eager `<script>` tags live in `{% block extra_js %}`, *outside* an
+> HTMX shell-swap region — so on cross-surface shell-nav they never re-execute, and a heavy
+> per-surface bundle silently fails to load (renders nothing until a hard refresh). When that
+> bites, load the bundle on-nav instead: see
+> [`LAZY_LOAD_HEAVY_ASSETS_ON_HTMX_NAV.md`](LAZY_LOAD_HEAVY_ASSETS_ON_HTMX_NAV.md).
+
 Forms hook into the integration glue via data attributes:
 
 ```python
@@ -168,12 +174,13 @@ Catches: someone hand-edits the bundle (bundle_sha256 mismatch), rebuilds withou
 
 ## Integration-glue contract
 
-Independent of the bundle, the integration glue (`<library>-widget.js`) handles:
+Independent of the bundle, the integration glue (`<library>-widget.js`) is your project's integration
+boundary — keep it OUT of the bundle (the bundle stays pure-library).
 
-1. **Discovery** — `document.querySelectorAll('[data-<library>]')` on `DOMContentLoaded` + after `htmx:afterSwap`.
-2. **Mount** — call the library's mount API; store handle in a `Map<HTMLElement, Handle>`.
-3. **Teardown on HTMX swap** — listen for `htmx:beforeSwap` / `htmx:beforeSettle`; for each tracked element about to be removed, call `handle.destroy()`. Without this, you leak event listeners and DOM-detached editor cores forever.
-4. **Race-safe uploads (if applicable)** — `AbortController` per upload; abort on destroy; check `if (!activeEditors.has(el)) return` in the success path before applying results to the editor (defends against responses arriving after teardown).
-5. **Form integration** — sync widget state to the underlying `<input>` / `<textarea>` so Django form submit picks up the value.
+The glue follows the shared **[HTMX widget lifecycle](HTMX_WIDGET_LIFECYCLE.md)** contract: discover
+`[data-<library>]` elements + (re-)mount on `htmx:afterSwap`, idempotent mount tracked in a
+`Map<HTMLElement, Handle>`, teardown (`handle.destroy()`) on `htmx:beforeSwap`/`htmx:beforeSettle` to avoid
+leaking detached editor cores. On top of that, two concerns the lifecycle contract doesn't cover:
 
-Don't put any of this inside the bundle. The bundle is pure-library; the glue is your project's integration boundary.
+- **Race-safe uploads (if applicable)** — `AbortController` per upload; abort on destroy; check `if (!activeEditors.has(el)) return` in the success path before applying results to the editor (defends against responses arriving after teardown).
+- **Form integration** — sync widget state to the underlying `<input>` / `<textarea>` so Django form submit picks up the value.

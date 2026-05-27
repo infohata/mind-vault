@@ -371,7 +371,7 @@ function attachmentUpload() {
 ---
 
 **Integration Notes:**
-- Widgets re-initialize after HTMX swaps using `htmx:afterSwap` event
+- Widgets re-initialize after HTMX swaps using the `htmx:afterSwap` event — follow the full (re-)init / teardown / idempotency contract in [HTMX_WIDGET_LIFECYCLE.md](HTMX_WIDGET_LIFECYCLE.md)
 - All validation happens server-side with client-side UX enhancements
 - CSRF tokens included in all HTMX requests
 - Error handling provides user feedback without breaking UX
