@@ -602,8 +602,10 @@ def _tenant_schema_pool(django_db_setup, django_db_blocker):
 ### Triage: isolate-to-classify a pooled-suite failure before fixing it
 
 When the pooled run (`pytest-xdist` + schema-pooling) surfaces failures, **re-run
-the failing set with the single-worker / cold-DB runner first** to classify each
-before deciding the fix:
+the failing set with the single-worker / cold-DB runner first** — disable xdist
+parallelism and force a fresh test DB (`pytest -n0 --create-db <nodeids>`, the inverse
+of the pooled `-n auto --reuse-db` run; or the project's single-worker `make` target) —
+to classify each before deciding the fix:
 
 - **Passes in isolation, fails only under the pooled / `loadscope` run** → a
   worker-order / pooling **state-bleed artifact** (the message-framework vectors

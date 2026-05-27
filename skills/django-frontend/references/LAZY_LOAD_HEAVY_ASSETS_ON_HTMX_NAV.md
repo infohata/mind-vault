@@ -21,12 +21,14 @@ eager" note below.)
 
 ### 1. One server-side manifest (single source of truth)
 
-A module maps `surface-slug → asset-keys` and `asset-key → ordered relative
-static paths` (the vendor lib **before** its init script — load order matters,
+A module maps `surface-slug → asset-keys` and `asset-key → ordered relative static paths`
+(the vendor lib **before** its init script — load order matters,
 the init script depends on the vendor global). A builder resolves the paths to
 URLs via `static()`.
 
 ```python
+from django.templatetags.static import static
+
 ASSET_BUNDLES = {            # RAW relative paths — NOT static()-resolved here
     'diagram': ('vendor/diagram.min.js', 'app/js/diagram-init.js'),
     'editor':  ('vendor/editor-bundle.js', 'app/js/editor-widget.js'),
@@ -69,8 +71,12 @@ document.addEventListener('htmx:afterSwap', function (evt) {
     var node = document.getElementById('shell-swap-target');
     var manifest = JSON.parse(node.getAttribute('data-surface-assets') || '[]');
     manifest.forEach(function (b) {
+        var entry = REGISTRY[b.key];
+        // Guard a manifest key the client registry doesn't know (typo / renamed /
+        // removed): skip + warn rather than throw and break the rest of the swap.
+        if (!entry) { console.warn('[load-on-nav] no registry entry for', b.key); return; }
         ensureBundle(b.key, b.srcs).then(function () {
-            REGISTRY[b.key].init(document.getElementById('shell-swap-target'));
+            entry.init(document.getElementById('shell-swap-target'));
         });
     });
 });
