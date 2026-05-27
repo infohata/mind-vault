@@ -10,6 +10,20 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.3.7 — Compound: AST module-split recipe + xdist message level/tag isolation + forced-atomic rename bridge
+
+### Added
+- **`skills/django/references/MODULE_SPLIT_AST_EXTRACTION.md`** — byte-exact `ast`-driven recipe for splitting a large flat module into a package: bucket-by-name-prefix, leading-comment + PEP-224 attribute-docstring span capture, lossless-coverage assertion, blank-line-only `autopep8 --select=E301..E306` normalization (not full reformat), `pyflakes` import-trim as the missed-cross-dependency safety net. The recipe is **Python-general** (stdlib `ast` / `autopep8` / `pyflakes`; only the verification step is framework-flavored) and **owns the forced-atomic-member sequencing** (§ *Sequencing — the forced-atomic member*) rather than duplicating it into the rename-before-drop rule. Pointer added to `skills/django/SKILL.md`.
+
+### Changed
+- **`skills/django/references/TESTING.md`** — extended the `loadscope` message-framework isolation coverage with the **level + tag vector** the existing storage-lock recipe misses: an inferred-severity assertion can lose a level via ambient `settings.MESSAGE_LEVEL` (level-drop) or a leaked module-global `LEVEL_TAGS` remap (tag-mismap), independent of the storage instance. Fix = `@override_settings(MESSAGE_TAGS={})` (rebuild global tags) + instance `storage.level = messages.DEBUG`; "a severity can vanish only two ways → cover both" elimination logic; eager-`msg`-eval `AttributeError` diagnostic caution.
+- **`docs/rules/RULE_rename-before-drop-rationale.md`** — brief **forced-atomic member** pointer: a flat→package split has one rename member that can't keep a drop-later shim (module ≡ package dotted path → the package `__init__` re-export is its transparent bridge), the rest ride normal shims. Full mechanics + mixed-bridge sequencing live in the Python-general module-split reference; the rule points there rather than duplicating it.
+
+### Fixed
+- **`tools/find_copilot_comments.sh` + `skills/review-loop/references/engine-copilot.md`** — Copilot **review-pending race guard**. Copilot's `copilot-pull-request-reviewer` check-run flips to `completed`+`success` *before* its inline review posts (3m42s lag observed on this very PR: check-run 13:32:56Z, review with 2 findings 13:36:38Z), so a `/review-loop` poll landing in that gap saw DONE + zero findings and declared a **false CLEAN**, missing both findings. The adapter now trusts a completed check-run as DONE only once Copilot has posted a review for the head SHA; until then it downgrades the emitted `STATUS` to `in_progress` (loop keeps waiting) and emits an informational `COPILOT_REVIEW_PENDING` marker. A `COPILOT_REVIEW_SETTLE_SECONDS` valve (default 600) covers the rare check-run-only-no-review case so the loop doesn't poll to its idle timeout. `CONCLUSION=success` is never a clean verdict (Copilot returns it with or without findings).
+
+(2026-05-27, [#148](https://github.com/infohata/mind-vault/pull/148))
+
 ## v4.3.6 — Compound: shell-rebind re-seed + e2e seed determinism + review-loop cap
 
 Patch release on the v4.3 line. A `/compound` harvest from an org-management surface-migration sprint (largest admin surface reframed as a per-org dashboard, first real shared-table consumer), three reusable learnings routed into existing skill surfaces — references-first, no new files, no new top-level rules.

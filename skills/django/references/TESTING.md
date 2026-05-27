@@ -578,6 +578,27 @@ def _tenant_schema_pool(django_db_setup, django_db_blocker):
 
   Diagnostic note: when the failing-test symptom is "passes in isolation, fails only under full-suite `loadscope`", the fix recipe above is **independent of the exact bleed path** because it forecloses every plausible vector (storage instance, session contract, backend override) at once. Empirical fix-and-verify converges faster than instrumental `print`-injection diagnosis when the recipe is well-bounded. Validation gate: full-suite × 2 successive green runs (or `pytest --count 10 -n auto <target node>` if the flake repros under repeat-in-isolation, which is rare for this class).
 
+- **Inferred-severity assertions: the level + tag vector the storage-lock recipe misses.** The two entries above foreclose the *storage* vectors (backend, session contract, tier walk). They do **not** cover a test that adds `django.contrib.messages` messages and asserts the *inferred severity* of each (e.g. `set(severities) == {"success","error","warning","info"}`). Such a test can still lose a level under `loadscope` because two **process-global** message-framework states leak across sibling tests on the worker, both independent of the storage instance:
+  - **Level-drop.** `storage.add()` silently skips a message when `level < storage.level`, and `storage.level` defaults to `settings.MESSAGE_LEVEL`. An ambient elevated level (e.g. a sibling that set it to `SUCCESS`=25) drops `INFO`=20 messages — and *only* the sub-threshold level vanishes, so the symptom is "exactly one severity missing from the set," which masquerades as a logic bug.
+  - **Tag-mismap.** `Message.level_tag` reads the **module-global** `django.contrib.messages.storage.base.LEVEL_TAGS`, rebuilt only on a `MESSAGE_TAGS` `setting_changed` signal. A leaked remap makes `INFO`→`"warning"`, so the message *is* recorded but its inferred severity collapses onto another — again "one severity missing."
+
+  Key reasoning move: **an inferred severity can vanish only two ways — level-drop OR tag-mismap — so cover both** and the test is deterministic regardless of which (or whether you can even find the leaker). The fix is two instance/duration-local locks, no need to pinpoint the offending sibling:
+
+  ```python
+  # (A) duration-local: rebuild the global LEVEL_TAGS to Django defaults for
+  #     this class — entering the decorator fires setting_changed → update_level_tags.
+  @override_settings(MESSAGE_TAGS={})
+  class MessageBridgeTests(SimpleTestCase):
+      ...
+  # (B) instance-local: pin the test storage's recording level so every level
+  #     records irrespective of ambient settings.MESSAGE_LEVEL.
+  storage = SessionStorage(request)
+  storage.level = messages.DEBUG          # 10 — records DEBUG..ERROR
+  request._messages = storage
+  ```
+
+  Note `settings.MESSAGE_LEVEL` is frequently **unset** (Django defaults to `INFO`); `getattr(settings, "MESSAGE_LEVEL", ...)` raising `AttributeError` is normal and is *not* evidence against the level vector — the leak is a sibling mutating it at runtime, not a configured value. Diagnostic caution: an `assertEqual(..., msg=f"...{settings.MESSAGE_LEVEL}")` evaluates the f-string **eagerly** (msg is a positional arg), so a bare `settings.MESSAGE_LEVEL` in a diagnostic message turns every run into an `AttributeError` — guard with `getattr`.
+
 ### When to use each lever
 
 | Use `pytest-xdist` alone (default) | Use `pytest-xdist` + pooling |

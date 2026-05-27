@@ -33,7 +33,7 @@ Copilot's GitHub UI behaviour matches bugbot's: persistent threads linger until 
 
 ## § Race-condition caveats
 
-Copilot review latency: ~30 seconds between trigger and review post — much faster than bugbot's 1-10 min. The race window is correspondingly narrower but still real (the timestamp tiebreaker in the orchestrator still applies).
+Copilot review latency: ~30 seconds between trigger and the *check-run*, but the inline **review** can post minutes later (3m42s observed, PR #148). The check-run-completes-before-review gap is the dangerous window — see § Review-state gate "Review-pending race guard" for how the adapter holds the loop in RUNNING until the review actually lands.
 
 **Heuristic when strict `COMMIT === last_push_sha` fails**: same as bugbot — if intervening commits since signal's `COMMIT` are docs-only, accept the clean signal. Empirically calibrate whether Copilot reviews prose-only diffs (initial assumption: no).
 
@@ -73,6 +73,8 @@ The codified Tier-1 catalogue is shared across engines — see [`common-review-f
 Copilot posts a `copilot-pull-request-reviewer` check-run on the PR head. `find_copilot_comments.sh` surfaces it as `COPILOT_CHECKRUN ... STATUS=<status>`: `queued`/`in_progress` = **RUNNING**, `completed` = **DONE**. Corroborating signal: Copilot adds itself to `requested_reviewers` when assigned and self-removes when done (present = pending, absent = done).
 
 `CONCLUSION` is **not** a verdict — Copilot's check-run concludes `success` even when it posted inline findings. **Clean for copilot**: check-run DONE AND zero active findings matching `COPILOT_LATEST_REVIEW`. The orchestrator retriggers only after a push or from the zero-activity bootstrap and never while a check-run is RUNNING, so there is no retrigger interval to enforce.
+
+**Review-pending race guard (check-run completes BEFORE the review posts).** Copilot's check-run flips to `completed`+`success` *before* its inline review lands — observed lag **3m42s** on mind-vault PR #148 (2026-05-27: check-run `completed` 13:32:56Z, review with 2 findings posted 13:36:38Z). A poll in that gap sees DONE + zero findings and the loop concludes a **false CLEAN**, shipping the about-to-post findings unreviewed. So `find_copilot_comments.sh` trusts a `completed`+`success` check-run as DONE **only once Copilot has posted a review for the head SHA**; until then it downgrades the emitted `STATUS` to `in_progress` (the orchestrator reads it as RUNNING and keeps waiting) and emits an informational `COPILOT_REVIEW_PENDING=...` marker. A settle valve (`COPILOT_REVIEW_SETTLE_SECONDS`, default 600) trusts a check-run with no posted review only after it elapses, covering the rare check-run-only-no-review case without polling to the idle timeout. The orchestrator needs no special handling — the `STATUS` downgrade is what keeps the loop honest.
 
 ## § Notes on first-run calibration
 

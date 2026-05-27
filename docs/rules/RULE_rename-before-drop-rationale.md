@@ -15,6 +15,16 @@ When the rename is a JS-level event-name / API-name convention rather than a sch
 
 The test-pass between phases is the safety gate that surfaces asymmetries (e.g. helper emitting on success path only, never on failure path — caught cleanly when isolated, hides inside a drop-bundled diff).
 
+## Forced-atomic member: module → package collision (flat → package refactor)
+
+A flat→package split (`app/x.py` → `app/x/`) has one rename member that can't keep a drop-later
+shim: a module and a package can't share a dotted name, so the colliding name is *forced atomic* —
+bridged transparently by the package `__init__` re-export instead of a shim, while the *other*
+absorbed flat modules ride normal one-commit shims. Full mechanics + mixed-bridge sequencing live
+in the (Python-general) module-split reference:
+[`skills/django/references/MODULE_SPLIT_AST_EXTRACTION.md`](../../skills/django/references/MODULE_SPLIT_AST_EXTRACTION.md)
+§ *Sequencing — the forced-atomic member*.
+
 ## Anti-Patterns
 
 - ❌ Big-bang rename + drop in one commit — bisectability dies, regressions become undifferentiated noise.
