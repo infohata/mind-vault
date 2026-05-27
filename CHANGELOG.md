@@ -43,6 +43,8 @@ _(none)_
   `LAZY_LOAD_…` (eager `extra_js` `<script>` doesn't re-run on shell-nav). `HTMX_WIDGETS.md`'s re-init
   note now points at the lifecycle contract too.
 
+(2026-05-27, [#150](https://github.com/infohata/mind-vault/pull/150))
+
 ## v4.3.7 — Compound: AST module-split recipe + xdist message level/tag isolation + forced-atomic rename bridge
 
 ### Added
