@@ -126,6 +126,33 @@ When filter state changes via HTMX (form submit refreshes the centre list, not t
 
 Path 2 is the right answer. i18n templates emitted as `data-tags-i18n-zero` / `data-tags-i18n-plural` on the form root carry localised pluralisable strings; JS substitutes a `{n}` placeholder at click time.
 
+## A shared rebind that REBUILDS a widget must re-seed selection from the server DOM
+
+The path-2 idempotent rebind above is fine when the widget's DOM survives the swap. It is **not** fine when a dependent-control cascade *rebuilds* the widget's options on (re-)bind — the classic case: a tag picker whose checkboxes are re-fetched and re-rendered whenever a parent `<select>` (scope/category) is set. There the rebind runs `fetchOptions(parent) → renderCheckboxes(options, selectedIds)`, and **whatever `selectedIds` the rebind passes becomes the new checked state, overwriting the server-rendered one.**
+
+The trap fires specifically on **re-entry** (shell-nav back / fragment swap), where the same shared init binds a *server-rendered* form whose selection is already correct:
+
+- The per-page init (first load) seeds `selectedIds` from the URL/initial state — works.
+- The shared shell-nav rebind binds the swapped-in form **without** re-deriving `selectedIds`, so the rebuild defaults to `[]` → wipes every checkbox.
+- **Silent desync**: the server session still has the filter, so the list stays filtered AND the section stays expanded — but the boxes show unchecked. The user's next click then submits only the visibly-checked set, **clobbering the persisted filter**. (Looks like "the filter randomly cleared itself.")
+
+**Fix — the rebind must re-seed `selectedIds` from the server-rendered checked DOM**, mirroring exactly what the first-load init does:
+
+```js
+initWidget(form, {
+    // ... triggerEvent etc ...
+    getInitialSelectedIds() {
+        // Read the truth the server already rendered into the swapped-in form.
+        return [...form.querySelectorAll('input[name="tags"]:checked')]
+            .map(cb => cb.value).filter(Boolean);
+    },
+});
+```
+
+**General rule**: any init that *rebuilds* a selection widget on re-entry must derive its initial-selection from the server-rendered DOM, not from an empty default — and the per-page init and the shell-nav rebind must use the **same** seeding source. A "fixed on first load, wiped on nav-back" selection bug is almost always a rebind that forgot to re-seed. Pairs with the server-session-is-truth contract above: the session never lost the filter; the *client* threw away its mirror of it.
+
+Lock it with a Playwright round-trip test: set the selection, shell-nav away + back, assert the control is still `checked` (not just that the list is still filtered — the desync leaves the list filtered while the control reads unchecked, so a list-only assertion passes through the bug).
+
 ## Checkbox-toggle filters need an explicit allowlist
 
 HTML omits unchecked checkboxes from form-data submissions. A `<input type="checkbox" name="needs_approval" value="1">` that's unchecked produces **no** `needs_approval` key in `request.GET` — indistinguishable from "this request came from a page that doesn't use that filter at all".

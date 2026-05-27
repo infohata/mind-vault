@@ -10,6 +10,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.3.6 — Compound: shell-rebind re-seed + e2e seed determinism + review-loop cap
+
+Patch release on the v4.3 line. A `/compound` harvest from an org-management surface-migration sprint (largest admin surface reframed as a per-org dashboard, first real shared-table consumer), three reusable learnings routed into existing skill surfaces — references-first, no new files, no new top-level rules.
+
+### Changed
+
+- `skills/review-loop/SKILL.md` — raise `max_active_work_minutes` 180 → 240 (and its two dependent references: the scratch-field `/240` and the Phase-4 hand-back guard). 180 was tripping on large dual-engine surface-migration PRs whose legitimate fix-cycle count accumulates real active-work minutes past the old cap; 240 covers them without weakening the runaway-loop backstop (the `commits_this_session = 20` and `max_idle_polls = 20` guards are unchanged).
+- `skills/django-frontend/references/SESSION_FILTER_PERSISTENCE.md` — new § *A shared rebind that REBUILDS a widget must re-seed selection from the server DOM*: when a dependent-control cascade re-renders a selection widget (e.g. a tag picker rebuilt on scope change), the shell-nav/fragment-swap rebind must re-seed `selectedIds` from the server-rendered checked DOM, exactly as the first-load init does. Otherwise re-entry rebuilds to `[]` and silently wipes the checked state while the server session keeps the filter — list stays filtered, boxes read unchecked, and the next click clobbers the persisted filter. Locked with a shell-nav round-trip Playwright assertion on the control's checked state, not just the list (the desync passes a list-only assertion).
+- `skills/django-frontend/references/MULTI_TENANT_PLAYWRIGHT.md` — new § *Seed determinism* + a matching anti-pattern bullet: a corpus shape a test needs (especially a parametrized sweep across surfaces/models) must be guaranteed deterministically by the seed, never assumed present in a long-lived dev tenant. A test that finds the shape incidentally passes locally and fails on a fresh-volume/CI/`--reset` tenant. Discipline: amend the seed (idempotent + non-destructive heal), lock the invariant in a fast unit test, make corpus-absence a hard `fail` not a `skip`.
+
+(2026-05-27, [#147](https://github.com/infohata/mind-vault/pull/147))
+
 ## v4.3.5 — Compound: cotton-Bulma prop/positioning traps + single-source filter trigger
 
 Patch release on the v4.3 line. A `/compound` harvest from a tables / search-input / pagination consolidation sprint (shared `<c-table>` + `<c-search-input>` primitives, all filter forms unified onto one HTMX trigger), four reusable patterns routed into existing skill references plus one new reference — references-first placement, no new top-level rules.
