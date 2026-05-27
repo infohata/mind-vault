@@ -599,6 +599,28 @@ def _tenant_schema_pool(django_db_setup, django_db_blocker):
 
   Note `settings.MESSAGE_LEVEL` is frequently **unset** (Django defaults to `INFO`); `getattr(settings, "MESSAGE_LEVEL", ...)` raising `AttributeError` is normal and is *not* evidence against the level vector — the leak is a sibling mutating it at runtime, not a configured value. Diagnostic caution: an `assertEqual(..., msg=f"...{settings.MESSAGE_LEVEL}")` evaluates the f-string **eagerly** (msg is a positional arg), so a bare `settings.MESSAGE_LEVEL` in a diagnostic message turns every run into an `AttributeError` — guard with `getattr`.
 
+### Triage: isolate-to-classify a pooled-suite failure before fixing it
+
+When the pooled run (`pytest-xdist` + schema-pooling) surfaces failures, **re-run
+the failing set with the single-worker / cold-DB runner first** to classify each
+before deciding the fix:
+
+- **Passes in isolation, fails only under the pooled / `loadscope` run** → a
+  worker-order / pooling **state-bleed artifact** (the message-framework vectors
+  above, schema-pool leakage, `search_path` drift). The fix lives in the test's
+  isolation (pin the storage level, reset the leaked global, restore the
+  snapshot) — **not** the production code.
+- **Fails in isolation too** → **deterministic-real**: either a genuine code bug,
+  or a stale test (e.g. an assertion a sibling feature's earlier change quietly
+  made wrong). Fix the code / the test.
+
+Skipping this step wastes effort on the wrong layer — patching "real" code for
+what was a pooling flake, or hardening isolation for what was a real bug. Note
+that **adding new tests shifts the `loadscope` distribution**, so a PR that only
+*adds* tests can surface a latent bleed in a *previously-green* sibling test —
+not the PR's fault, but its job to fix in-PR (touched-suite sweep). The
+isolate-to-classify pass is what tells you which layer that fix belongs in.
+
 ### When to use each lever
 
 | Use `pytest-xdist` alone (default) | Use `pytest-xdist` + pooling |

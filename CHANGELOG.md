@@ -10,6 +10,31 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.3.8 — Compound: lazy-load heavy assets on HTMX nav + isolate-to-classify test triage
+
+> ⚠️ Version coordination: a parallel self-compound (`compound/2026-05-27-checkrun-review-race-guard`)
+> is in flight off the same v4.3.7 base and also patch-bumps. Whichever PR merges second takes the
+> next free `## v` (this one claimed v4.3.8); the two only collide on this CHANGELOG header.
+
+### Added
+
+- **`skills/django-frontend/references/LAZY_LOAD_HEAVY_ASSETS_ON_HTMX_NAV.md`** (+ SKILL.md pointer) —
+  the load-on-nav pattern for heavy per-surface JS bundles in an HTMX app-shell: one server manifest
+  feeding both the cold-load `<script>` tags and a nav-time `data-*` attribute ("declare once, render
+  twice"; `static()`-resolved at request time because hashed-static can't be hardcoded client-side); a
+  loader with its own `htmx:afterSwap` that reads the fresh node, injects sequentially, in-flight-dedupes,
+  always re-inits; `ready()` must validate the bundle's LAST global (else a partial load sticks
+  half-loaded); injected binders need a `readyState`-safe boot + idempotent container-scoped init;
+  shell-infra scripts stay eager.
+
+### Changed
+
+- **`skills/django/references/TESTING.md`** — added an "isolate-to-classify" triage subsection: re-run a
+  pooled-suite failure under the single-worker/cold-DB runner FIRST to classify it (passes-in-isolation =
+  pooling state-bleed → fix the test's isolation; fails-in-isolation = deterministic-real → fix the
+  code/test) before spending effort on the wrong layer; adding tests shifts the `loadscope` distribution
+  and can surface a latent bleed in a previously-green sibling.
+
 ## v4.3.7 — Compound: AST module-split recipe + xdist message level/tag isolation + forced-atomic rename bridge
 
 ### Added
