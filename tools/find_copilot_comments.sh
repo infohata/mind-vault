@@ -275,14 +275,35 @@ cop = [r for r in reviews if (r.get('user') or {}).get('login') in ('Copilot','c
 print('true' if any((r.get('commit_id') or '') == head for r in cop) else 'false')
 " 2>/dev/null || echo "false")
 
-COPILOT_INLINE_PRECHECK=$(echo "$INLINE_COMMENTS" | python3 -c "
+# Latest Copilot review id — staleness anchor (same as the orchestrator's active-vs-stale rule).
+COPILOT_LATEST_RID=$(echo "$REVIEWS" | python3 -c "
 import json, sys
+try:
+    reviews = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+cop = [r for r in reviews if (r.get('user') or {}).get('login') in ('Copilot','copilot-pull-request-reviewer[bot]')]
+cop.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
+if cop:
+    print(cop[0].get('id') or '')
+" 2>/dev/null || true)
+
+# Any ACTIVE Copilot inline findings — matching the LATEST review, NOT stale comments from prior
+# reviews GitHub keeps visible. Gates the CLEAN_SIGNAL check-run synthesis so a PR with only
+# stale/resolved findings can still emit a synthesized clean signal. No reviews yet → empty.
+COPILOT_INLINE_PRECHECK=$(echo "$INLINE_COMMENTS" | COPILOT_LATEST_RID="$COPILOT_LATEST_RID" python3 -c "
+import json, os, sys
 try:
     comments = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-cop = [c for c in comments if (c.get('user') or {}).get('login') in ('Copilot','copilot-pull-request-reviewer[bot]')]
-if cop:
+rid = os.environ.get('COPILOT_LATEST_RID', '')
+if not rid:
+    sys.exit(0)
+active = [c for c in comments
+          if (c.get('user') or {}).get('login') in ('Copilot','copilot-pull-request-reviewer[bot]')
+          and str(c.get('pull_request_review_id') or '') == rid]
+if active:
     print('yes')
 " 2>/dev/null || true)
 

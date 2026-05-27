@@ -217,14 +217,38 @@ bb = [r for r in reviews if (r.get('user') or {}).get('login') == 'cursor[bot]']
 print('true' if any((r.get('commit_id') or '') == head for r in bb) else 'false')
 " 2>/dev/null || echo "false")
 
-BUGBOT_INLINE_PRECHECK=$(echo "$INLINE_COMMENTS" | python3 -c "
+# Latest cursor[bot] review id — the staleness anchor (same one the orchestrator uses for
+# active-vs-stale findings).
+BUGBOT_LATEST_RID=$(echo "$REVIEWS" | python3 -c "
 import json, sys
+try:
+    reviews = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+bb = [r for r in reviews if (r.get('user') or {}).get('login') == 'cursor[bot]']
+bb.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
+if bb:
+    print(bb[0].get('id') or '')
+" 2>/dev/null || true)
+
+# Any ACTIVE cursor[bot] inline findings — matching the LATEST review, NOT stale comments from
+# prior reviews that GitHub keeps visible after a fix. Gates the CLEAN_SIGNAL check-run synthesis
+# below; filtering to active findings lets a PR carrying only stale/resolved comments still emit a
+# synthesized clean signal (matches the orchestrator's active-finding rule). No reviews yet → no
+# active findings → empty (synthesis not blocked).
+BUGBOT_INLINE_PRECHECK=$(echo "$INLINE_COMMENTS" | BUGBOT_LATEST_RID="$BUGBOT_LATEST_RID" python3 -c "
+import json, os, sys
 try:
     comments = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-bb = [c for c in comments if (c.get('user') or {}).get('login') == 'cursor[bot]']
-if bb:
+rid = os.environ.get('BUGBOT_LATEST_RID', '')
+if not rid:
+    sys.exit(0)
+active = [c for c in comments
+          if (c.get('user') or {}).get('login') == 'cursor[bot]'
+          and str(c.get('pull_request_review_id') or '') == rid]
+if active:
     print('yes')
 " 2>/dev/null || true)
 
