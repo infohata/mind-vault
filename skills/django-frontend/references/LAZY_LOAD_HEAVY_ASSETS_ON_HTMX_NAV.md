@@ -3,7 +3,7 @@
 ## The problem
 
 An HTMX app-shell hot-swaps one region (e.g. `#shell-swap-target`) via
-`htmx.ajax(url, {target:'#shell-swap-target', swap:'outerHTML'})`. A surface's
+`htmx.ajax('GET', url, {target:'#shell-swap-target', swap:'outerHTML'})`. A surface's
 `{% block extra_js %}` lives **outside** the swapped region, so its heavy
 per-surface bundles — a diagram renderer (MBs), a rich-text editor (hundreds of
 KB) — only load on a **cold full-page load**, never when the surface is reached

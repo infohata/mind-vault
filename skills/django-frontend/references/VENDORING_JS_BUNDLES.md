@@ -179,7 +179,7 @@ boundary — keep it OUT of the bundle (the bundle stays pure-library).
 
 The glue follows the shared **[HTMX widget lifecycle](HTMX_WIDGET_LIFECYCLE.md)** contract: discover
 `[data-<library>]` elements + (re-)mount on `htmx:afterSwap`, idempotent mount tracked in a
-`Map<HTMLElement, Handle>`, teardown (`handle.destroy()`) on `htmx:beforeSwap`/`beforeSettle` to avoid
+`Map<HTMLElement, Handle>`, teardown (`handle.destroy()`) on `htmx:beforeSwap`/`htmx:beforeSettle` to avoid
 leaking detached editor cores. On top of that, two concerns the lifecycle contract doesn't cover:
 
 - **Race-safe uploads (if applicable)** — `AbortController` per upload; abort on destroy; check `if (!activeEditors.has(el)) return` in the success path before applying results to the editor (defends against responses arriving after teardown).
