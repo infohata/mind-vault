@@ -10,6 +10,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.3.7 — Compound: AST module-split recipe + xdist message level/tag isolation + forced-atomic rename bridge
+
+### Added
+- **`skills/django/references/MODULE_SPLIT_AST_EXTRACTION.md`** — byte-exact `ast`-driven recipe for splitting a large flat module into a package: bucket-by-name-prefix, leading-comment + PEP-224 attribute-docstring span capture, lossless-coverage assertion, blank-line-only `autopep8 --select=E301..E306` normalization (not full reformat), `pyflakes` import-trim as the missed-cross-dependency safety net. Pointer added to `skills/django/SKILL.md`.
+
+### Changed
+- **`skills/django/references/TESTING.md`** — extended the `loadscope` message-framework isolation coverage with the **level + tag vector** the existing storage-lock recipe misses: an inferred-severity assertion can lose a level via ambient `settings.MESSAGE_LEVEL` (level-drop) or a leaked module-global `LEVEL_TAGS` remap (tag-mismap), independent of the storage instance. Fix = `@override_settings(MESSAGE_TAGS={})` (rebuild global tags) + instance `storage.level = messages.DEBUG`; "a severity can vanish only two ways → cover both" elimination logic; eager-`msg`-eval `AttributeError` diagnostic caution.
+- **`docs/rules/RULE_rename-before-drop-rationale.md`** — added the **forced-atomic member** section: in a flat→package split, the colliding dotted name can't be shimmed (module ≡ package path) so the package `__init__` re-export IS its transparent bridge; only the *other* absorbed flat modules get throwaway shims. Mixed-bridge sequencing + temporary `__init__` private re-export trimmed in the drop commit.
+
 ## v4.3.6 — Compound: shell-rebind re-seed + e2e seed determinism + review-loop cap
 
 Patch release on the v4.3 line. A `/compound` harvest from an org-management surface-migration sprint (largest admin surface reframed as a per-org dashboard, first real shared-table consumer), three reusable learnings routed into existing skill surfaces — references-first, no new files, no new top-level rules.
