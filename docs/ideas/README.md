@@ -18,7 +18,7 @@ _(none)_
 
 ## 💡 Low Priority (backlog)
 
-_(none)_
+- [IDEA-009](IDEA-009-extract-python-general-from-django.md) — Extract Python-general patterns from the django skill into a python skill
 
 ## 🗃 Superseded / Rejected (archive)
 
