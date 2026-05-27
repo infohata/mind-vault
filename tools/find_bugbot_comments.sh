@@ -268,6 +268,12 @@ try:
 except Exception:
     print('pending')
 " 2>/dev/null || echo "pending")
+        # The settle valve may only RELEASE (trust as DONE) a review-less check-run whose
+        # conclusion is `success`. A non-success conclusion means findings were found; if its
+        # review/comments never post, the run is an anomaly — NEVER trust it as DONE (that
+        # would report a findings run as clean). Force pending so it holds → idle-timeout HUNG
+        # → human investigates the missing review.
+        [ "$cr_conclusion" = "success" ] || settle_state=pending
         if [ "$settle_state" != "elapsed" ]; then
             cr_status="in_progress"
             BUGBOT_CHECKRUN_LINE=$(echo "$BUGBOT_CHECKRUN_LINE" | sed 's/STATUS=completed/STATUS=in_progress/')

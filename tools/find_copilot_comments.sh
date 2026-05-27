@@ -337,6 +337,12 @@ try:
 except Exception:
     print('pending')
 " 2>/dev/null || echo "pending")
+        # Settle valve may only RELEASE (trust as DONE) a `success` review-less check-run.
+        # A non-success conclusion means findings — never trust a review-less findings run as
+        # DONE after the window (would report it clean); force pending → idle-timeout HUNG.
+        # (Copilot always concludes success, so this is a no-op for copilot but keeps the
+        # adapters consistent + future-proof.)
+        [ "$cr_conclusion" = "success" ] || settle_state=pending
         if [ "$settle_state" != "elapsed" ]; then
             cr_status="in_progress"
             COPILOT_CHECKRUN_LINE=$(echo "$COPILOT_CHECKRUN_LINE" | sed 's/STATUS=completed/STATUS=in_progress/')
