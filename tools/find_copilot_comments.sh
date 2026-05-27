@@ -312,12 +312,26 @@ if [ -n "$COPILOT_CHECKRUN_LINE" ]; then
     # trusted so the loop doesn't poll to its idle timeout.
     SETTLE=${COPILOT_REVIEW_SETTLE_SECONDS:-600}
     if [ "$cr_status" = "completed" ] && [ "$cr_conclusion" = "success" ] && [ "$HEAD_REVIEW_POSTED" != "true" ]; then
-        now=$(date -u +%s)
-        cr_epoch=$(date -u -d "$cr_at" +%s 2>/dev/null || echo 0)
-        age=$(( now - cr_epoch ))
-        # Default to pending (safe) unless we positively know the settle window elapsed —
-        # a date-parse failure (cr_epoch=0) also lands here, never on the clean valve.
-        if ! { [ "$cr_epoch" -gt 0 ] && [ "$age" -ge "$SETTLE" ]; }; then
+        # Settle decision in Python — `datetime` parsing is cross-platform, unlike
+        # `date -d` (GNU coreutils only; BSD/macOS `date` needs `-j -f` and would fail,
+        # leaving the guard permanently pinned on and the valve dead). Emits "elapsed"
+        # iff cr_at parsed AND (now - cr_at) >= SETTLE; "pending" otherwise — a parse
+        # failure lands on "pending" too (default safe = keep waiting).
+        settle_state=$(SETTLE="$SETTLE" CR_AT="$cr_at" python3 -c "
+import os
+from datetime import datetime, timezone
+try:
+    settle = int(os.environ.get('SETTLE', '600'))
+    # Normalize trailing Z → +00:00 so fromisoformat works on Python < 3.11 too.
+    dt = datetime.fromisoformat(os.environ.get('CR_AT', '').replace('Z', '+00:00'))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    age = (datetime.now(timezone.utc) - dt).total_seconds()
+    print('elapsed' if age >= settle else 'pending')
+except Exception:
+    print('pending')
+" 2>/dev/null || echo "pending")
+        if [ "$settle_state" != "elapsed" ]; then
             cr_status="in_progress"
             COPILOT_CHECKRUN_LINE=$(echo "$COPILOT_CHECKRUN_LINE" | sed 's/STATUS=completed/STATUS=in_progress/')
         fi
