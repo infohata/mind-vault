@@ -77,6 +77,10 @@ document.addEventListener('htmx:afterSwap', function (evt) {
         if (!entry) { console.warn('[load-on-nav] no registry entry for', b.key); return; }
         ensureBundle(b.key, b.srcs).then(function () {
             entry.init(document.getElementById('shell-swap-target'));
+        }).catch(function (err) {
+            // An injected script 404'd / threw — log it; without a .catch this is an
+            // unhandled rejection and the load failure is hard to trace.
+            console.warn('[load-on-nav] bundle failed to load:', b.key, err);
         });
     });
 });
