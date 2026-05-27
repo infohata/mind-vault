@@ -20,7 +20,7 @@
 # Usage: ./tools/find_bugbot_comments.sh [PR_NUMBER]
 #        ./tools/find_bugbot_comments.sh   # Uses current branch's PR
 
-set -e
+set -eo pipefail   # pipefail: consistency with find_copilot_comments.sh; makes the field-extract `|| true` guards load-bearing
 
 # Colors for output
 RED='\033[0;31m'
