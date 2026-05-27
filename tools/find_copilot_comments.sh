@@ -310,8 +310,14 @@ if [ -n "$COPILOT_CHECKRUN_LINE" ]; then
     # (COPILOT_REVIEW_SETTLE_SECONDS, default 600) covers the rare case where Copilot
     # posts only a check-run and no review at all — after it elapses the check-run is
     # trusted so the loop doesn't poll to its idle timeout.
+    # CONCLUSION-AGNOSTIC downgrade: copilot always concludes `success` (even with findings),
+    # so the gate is moot for copilot today — but the orchestrator ignores CONCLUSION for
+    # structural clean, so the guard must hold for ANY completed check-run with no head-SHA
+    # review (keeps the contract uniform with bugbot, whose non-success findings runs need it).
+    # `CONCLUSION=success` gates only the CLEAN_SIGNAL synthesis below, never this downgrade.
     SETTLE=${COPILOT_REVIEW_SETTLE_SECONDS:-600}
-    if [ "$cr_status" = "completed" ] && [ "$cr_conclusion" = "success" ] && [ "$HEAD_REVIEW_POSTED" != "true" ]; then
+    COPILOT_DOWNGRADED=
+    if [ "$cr_status" = "completed" ] && [ "$HEAD_REVIEW_POSTED" != "true" ]; then
         # Settle decision in Python — `datetime` parsing is cross-platform, unlike
         # `date -d` (GNU coreutils only; BSD/macOS `date` needs `-j -f` and would fail,
         # leaving the guard permanently pinned on and the valve dead). Emits "elapsed"
@@ -334,6 +340,7 @@ except Exception:
         if [ "$settle_state" != "elapsed" ]; then
             cr_status="in_progress"
             COPILOT_CHECKRUN_LINE=$(echo "$COPILOT_CHECKRUN_LINE" | sed 's/STATUS=completed/STATUS=in_progress/')
+            COPILOT_DOWNGRADED=1
         fi
     fi
 
@@ -348,7 +355,7 @@ except Exception:
             echo "COPILOT_CLEAN_SIGNAL=checkrun-${cr_id} COMMIT=${cr_sha} AT=${cr_at}"
             CLEAN_SIGNAL_LINE="checkrun-${cr_id}"  # mark non-empty for the summary check below
         fi
-    elif [ "$cr_status" = "in_progress" ] && [ "$cr_conclusion" = "success" ]; then
+    elif [ -n "$COPILOT_DOWNGRADED" ]; then
         # Race window: check-run done, review not yet posted for HEAD. Surface the pending
         # state explicitly; the downgraded STATUS above already keeps the loop waiting.
         echo "COPILOT_REVIEW_PENDING=checkrun-${cr_id} COMMIT=${cr_sha} SETTLE=${SETTLE}s"

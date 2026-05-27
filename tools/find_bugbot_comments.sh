@@ -243,13 +243,18 @@ if [ -n "$BUGBOT_CHECKRUN_LINE" ]; then
     # declares a false CLEAN (observed on copilot, PR #148 — 3m42s lag). Cursor's
     # check-suite turns non-success on findings so bugbot's window is narrower, but the
     # orchestrator's structural clean ignores CONCLUSION, so the gap is still exploitable.
-    # Trust a completed+success check-run as DONE only once bugbot has posted a review for
-    # the head SHA; until then downgrade STATUS to in_progress (loop keeps waiting) + emit
-    # BUGBOT_REVIEW_PENDING. Settle valve (BUGBOT_REVIEW_SETTLE_SECONDS, default 600)
-    # covers the rare check-run-only-no-review case. Settle math in Python — `datetime`
-    # is cross-platform, unlike `date -d` (GNU-only; would fail on BSD/macOS).
+    # Trust a completed check-run as DONE only once bugbot has posted a review for the head
+    # SHA; until then downgrade STATUS to in_progress (loop keeps waiting) + emit
+    # BUGBOT_REVIEW_PENDING. CONCLUSION-AGNOSTIC: Cursor uses non-success conclusions when it
+    # finds issues, and the orchestrator ignores CONCLUSION for structural clean — so a
+    # findings check-run that completes BEFORE its comments post would also read
+    # DONE + zero-findings = false CLEAN. Gating the downgrade on `success` would leave that
+    # case open. (`CONCLUSION=success` gates only the CLEAN_SIGNAL synthesis below.) Settle
+    # valve (BUGBOT_REVIEW_SETTLE_SECONDS, default 600) covers check-run-only-no-review.
+    # Settle math in Python — `datetime` cross-platform, unlike `date -d` (GNU-only).
     SETTLE=${BUGBOT_REVIEW_SETTLE_SECONDS:-600}
-    if [ "$cr_status" = "completed" ] && [ "$cr_conclusion" = "success" ] && [ "$HEAD_REVIEW_POSTED" != "true" ]; then
+    BUGBOT_DOWNGRADED=
+    if [ "$cr_status" = "completed" ] && [ "$HEAD_REVIEW_POSTED" != "true" ]; then
         settle_state=$(SETTLE="$SETTLE" CR_AT="$cr_at" python3 -c "
 import os
 from datetime import datetime, timezone
@@ -266,6 +271,7 @@ except Exception:
         if [ "$settle_state" != "elapsed" ]; then
             cr_status="in_progress"
             BUGBOT_CHECKRUN_LINE=$(echo "$BUGBOT_CHECKRUN_LINE" | sed 's/STATUS=completed/STATUS=in_progress/')
+            BUGBOT_DOWNGRADED=1
         fi
     fi
 
@@ -273,14 +279,15 @@ except Exception:
 
     if [ "$cr_status" = "completed" ] && [ "$cr_conclusion" = "success" ]; then
         # Reached only when the review content has landed (HEAD_REVIEW_POSTED=true) or the
-        # settle valve fired. Synthesize BUGBOT_CLEAN_SIGNAL only if /reviews didn't emit
-        # one AND there are zero cursor[bot] inline findings — never paper over findings.
+        # settle valve fired. CLEAN_SIGNAL synthesis stays `success`-gated (a non-success
+        # conclusion means findings → never synthesize clean). Synthesize only if /reviews
+        # didn't emit one AND there are zero cursor[bot] inline findings.
         echo -e "${GREEN}✅ Bugbot check-run reports success for PR head.${NC}"
         if [ -z "$CLEAN_SIGNAL_LINE" ] && [ -z "$BUGBOT_INLINE_PRECHECK" ]; then
             echo "BUGBOT_CLEAN_SIGNAL=checkrun-${cr_id} COMMIT=${cr_sha} AT=${cr_at}"
             CLEAN_SIGNAL_LINE="checkrun-${cr_id}"  # mark non-empty for the summary check below
         fi
-    elif [ "$cr_status" = "in_progress" ] && [ "$cr_conclusion" = "success" ]; then
+    elif [ -n "$BUGBOT_DOWNGRADED" ]; then
         echo "BUGBOT_REVIEW_PENDING=checkrun-${cr_id} COMMIT=${cr_sha} SETTLE=${SETTLE}s"
         echo -e "${YELLOW}⏳ Bugbot check-run completed but no review posted for HEAD yet — treating as RUNNING (review-pending race guard) to avoid a false CLEAN.${NC}"
     fi
