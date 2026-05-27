@@ -10,6 +10,11 @@ decorator, a mis-pasted body, a lost leading comment). Drive the extraction with
 `ast` so each symbol's source is sliced byte-exact from the original file. Pair it with a
 blank-line-only formatter pass so the diff stays a clean move.
 
+> **Python-general, not django-specific.** The split itself is stdlib `ast` + `autopep8` +
+> `pyflakes` — nothing here knows about django. Only the verification step is framework-flavored:
+> swap the `manage.py` import-graph check below for your framework's equivalent, or a plain
+> `python -c "import app.x"` for a non-framework package.
+
 ## The recipe
 
 1. **Parse + bucket by name.** `ast.parse` the source; walk top-level statements
@@ -53,15 +58,31 @@ blank-line-only formatter pass so the diff stays a clean move.
    means a real cross-bucket runtime dependency you missed — promote that symbol to
    `helpers.py` (or accept the cross-import deliberately).
 
-## Sequencing — pairs with `RULE_rename-before-drop`
+## Sequencing — the forced-atomic member
 
-The flat→package move is a rename-before-drop cycle. See
-[`RULE_rename-before-drop-rationale.md`](../../../docs/rules/RULE_rename-before-drop-rationale.md)
-§ *Forced-atomic member* for the wrinkle: the **package replaces the flat module of the same
-dotted name** (`app/x.py` and `app/x/` can't coexist), so that name's consumers are bridged
-transparently by the package `__init__` (no shim possible/needed); only the *other* flat
-modules (`app/x_kb.py`) get throwaway one-commit shims (`from app.x import *`) so every old
-import path resolves at the green gate before the drop commit.
+The flat→package move is a [`RULE_rename-before-drop`](../../../docs/rules/RULE_rename-before-drop-rationale.md)
+cycle, with one wrinkle the rule defers to here: **one member can't keep a drop-later shim.**
+
+A module and a package can't share a dotted name — `app/x.py` and `app/x/__init__.py` are the
+same import path, both can't exist. So when `app/x.py` becomes the package `app/x/`, the name
+`x` is *forced atomic*: it must become the package in the very commit that creates it. There is
+no flat-module shim to keep, because the flat module is gone.
+
+The bridge is the package `__init__` itself, not a shim. `from app import x` and
+`from app.x import Foo` resolve identically whether `x` is a module or a package whose `__init__`
+re-exports `Foo` — so **no consumer of the colliding name needs editing, and there is nothing to
+drop for it.** The re-export bridge is atomic, permanent, and invisible.
+
+The *other* flat modules the package absorbs (`app/x_kb.py`, `app/x_orgs.py` → `app/x/kb.py`,
+`app/x/orgs.py`) ride the normal rename-before-drop bridge: one-commit shims (`from app.x import *`
++ explicit re-export of any cross-module privates) so every old import path resolves at the green
+gate, then dropped in the dedicated drop commit.
+
+So a flat→package split has a **mixed bridge**: the colliding name on the permanent `__init__`
+re-export, the rest on throwaway shims. One temporary exception — a cross-module *private* the
+colliding module exposed to a test (`from app.x import _helper`) needs a temporary private
+re-export in `__init__`; trim it in the same drop commit once the test is repointed to the
+submodule path.
 
 ## Verification checklist
 
