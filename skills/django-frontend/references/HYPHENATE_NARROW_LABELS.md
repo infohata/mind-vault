@@ -36,7 +36,7 @@ Pattern is robust across `.table th`, navigation chrome (`.shell-workspace__labe
 
 ## Adjacent — using a verb form to sidestep noun-length problems
 
-Where adding `hyphens: auto` rescues the *layout*, using a verb form sidesteps the *content*: "Add property" (verb + accusative noun) replaces "New property" (adjective + nominative noun) in inflected languages, dropping the adjective-noun gender-agreement decision tree. See `<django>/I18N_WORKFLOW.md` § Add-X over New-X for the i18n side of the pattern; this reference covers only the CSS-side hyphenation rescue.
+Where adding `hyphens: auto` rescues the *layout*, using a verb form sidesteps the *content*: "Add property" (verb + accusative noun) replaces "New property" (adjective + nominative noun) in inflected languages, dropping the adjective-noun gender-agreement decision tree. See [`../../django/references/I18N_WORKFLOW.md`](../../django/references/I18N_WORKFLOW.md) § *Always-plural button labels — use the verb form to sidestep adjective-noun gender agreement* for the i18n side; this reference covers only the CSS-side hyphenation rescue.
 
 ## Test mechanics
 
@@ -44,5 +44,5 @@ Set `<html lang="lt">` on the dev tenant + open the surface at 320×762. The lab
 
 ## Who relies on this
 
-- Any shell chrome / table / nav surface that renders translated labels in lt/pl/ru/nb/de/et/lv/lt etc. languages.
-- The CSS-side complement to `<django>/I18N_WORKFLOW.md`'s "Add X" verb-form convention.
+- Any shell chrome / table / nav surface that renders translated labels in lt/pl/ru/nb/de/et/lv etc. languages.
+- The CSS-side complement to [`../../django/references/I18N_WORKFLOW.md`](../../django/references/I18N_WORKFLOW.md)'s "Add X" verb-form convention.

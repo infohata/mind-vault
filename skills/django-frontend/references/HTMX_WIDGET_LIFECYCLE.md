@@ -8,6 +8,12 @@ shared substrate under both eagerly-loaded integration glue
 ([`LAZY_LOAD_HEAVY_ASSETS_ON_HTMX_NAV.md`](LAZY_LOAD_HEAVY_ASSETS_ON_HTMX_NAV.md)) — both reference
 this rather than restating it.
 
+**Distinct from** [`LISTENER_REBIND_ON_SWAP.md`](LISTENER_REBIND_ON_SWAP.md): this reference covers
+widget DOM **inside** a swap target (the widget's own elements get replaced, it re-mounts itself);
+that reference covers a listener whose **binding element** gets `outerHTML`-swapped (the listener
+itself dies because the node it was attached to is gone). The two compose — a widget that also owns
+a per-pane scroll/click listener needs both contracts.
+
 ## The contract
 
 ### 1. Re-init on `htmx:afterSwap`

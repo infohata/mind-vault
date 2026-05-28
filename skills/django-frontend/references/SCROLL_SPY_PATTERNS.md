@@ -117,27 +117,7 @@ Properties that are layout-safe:
 - `text-decoration` (underline/strikethrough; visual but layout-neutral)
 - `opacity` (visual; no layout effect)
 
-When semantic emphasis NEEDS more weight than color alone (accessibility, brand voice), use a same-axis compensation:
-
-```scss
-.shell-chip {
-    font-weight: 500;
-}
-.shell-chip--active {
-    font-weight: 600;
-}
-// Reserve width for the heaviest state so layout doesn't flow:
-.shell-chip::before {
-    content: attr(data-label);
-    visibility: hidden;
-    height: 0;
-    overflow: hidden;
-    font-weight: 600;          // pre-claim the heaviest variant
-    display: block;
-}
-```
-
-This is more code than is usually justified. Default: color-only.
+When semantic emphasis NEEDS more weight than color alone (accessibility, brand voice), the escape hatch is a same-axis pre-reservation: render an invisible `::before` pseudo (`visibility: hidden; height: 0`) carrying the chip's label at the heaviest weight variant, so the chip's intrinsic width is pre-claimed and the active-state weight change doesn't re-flow siblings. More code than is usually justified. Default: color-only.
 
 ## Related references
 
