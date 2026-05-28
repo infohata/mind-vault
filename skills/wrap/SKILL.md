@@ -88,20 +88,26 @@ Before anything else, determine which mode is running — pre-merge default, pos
 
 ```bash
 # 0. Batch-teardown invocation? `/wrap --integration sprint-auto-<batch-iso>`
-#    is NOT a --scope value — it's a distinct post-merge batch mode. Short-circuit
-#    to § `--integration` mode (teardown only; no doc steps, no per-IDEA branch).
+#    is NOT a --scope value — it's a distinct post-merge batch mode. This check
+#    SHORT-CIRCUITS: if it matches, jump straight to § `--integration` mode
+#    (teardown only; no doc steps, no per-IDEA branch) and run NONE of steps 1-2.
+#    It must win even in mind-vault, which dogfoods sprint-auto — so the
+#    mind-vault self-mode check below is explicitly gated on MODE being unset.
 case "$*" in *--integration*) MODE=integration ;; esac
+if [ "$MODE" = integration ]; then
+    : # → § `--integration` mode; skip the rest of mode detection
+else
+    # 1. Is this mind-vault itself?
+    git remote get-url origin | grep -q mind-vault && MODE=self
 
-# 1. Is this mind-vault itself?
-git remote get-url origin | grep -q mind-vault && MODE=self
-
-# 2. Otherwise, what's the PR state for the current branch's open PR, or for the
-#    explicit PR number passed as arg?
-gh pr view "${PR_OR_BRANCH}" --json state,headRefName --jq '.state'
-#   OPEN    → pre-merge default: commit Steps 2-6 onto the current feature branch
-#   MERGED  → post-merge fallback: `git checkout -b docs/idea-NNN-wrap origin/main`
-#             before committing
-#   CLOSED  → refuse: the branch was abandoned; no wrap to do
+    # 2. Otherwise, what's the PR state for the current branch's open PR, or for
+    #    the explicit PR number passed as arg?
+    [ -n "$MODE" ] || gh pr view "${PR_OR_BRANCH}" --json state,headRefName --jq '.state'
+    #   OPEN    → pre-merge default: commit Steps 2-6 onto the current feature branch
+    #   MERGED  → post-merge fallback: `git checkout -b docs/idea-NNN-wrap origin/main`
+    #             before committing
+    #   CLOSED  → refuse: the branch was abandoned; no wrap to do
+fi
 ```
 
 If no PR exists yet (branch pushed but PR not opened), treat as pre-merge default and commit onto the current branch — the PR can be opened later and will carry the wrap commits.
