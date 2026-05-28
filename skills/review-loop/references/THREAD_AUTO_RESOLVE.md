@@ -18,7 +18,7 @@ Both rely on the same primitive: the GitHub GraphQL `resolveReviewThread` mutati
 | Reviewers walking the PR | Skim past the noise; risk missing the one real finding hidden in the pile | One real finding stands out |
 | The "merge cleanly" gesture | Carries 30+ stale unresolved conversations into the merged-PR view | Clean merge state matches the cleared review-loop state |
 
-In one downstream sprint, a single PR accumulated 32 stale Copilot threads across ~6 review-loop cycles before the pattern surfaced. A cohort-wide audit found **129 stale threads across 11 PRs** — accumulated over ~1 week of sprint activity once a Copilot engine was added alongside Bugbot. Verifying then bulk-resolving via the recipe in § *Retroactive audit + bulk-resolve* closed the entire debt in two GraphQL invocations (audit, then mutation loop).
+In one downstream sprint, a single PR accumulated 32 stale Copilot threads across ~6 review-loop cycles before the pattern surfaced. A cohort-wide audit found **129 stale threads across 11 PRs** — accumulated over ~1 week of sprint activity once a Copilot engine was added alongside Bugbot. Verifying then bulk-resolving via the recipe in § *Retroactive audit + bulk-resolve* closed the entire debt in two phases — an audit (one inventory query plus an agent code-read to classify each thread), then a mutation loop (one `resolveReviewThread` per thread).
 
 ## The primitive — `resolveReviewThread` mutation
 
@@ -52,7 +52,7 @@ query {
 }
 ```
 
-Thread ID ≠ comment ID. The `id` field on `reviewThreads.nodes[*]` is the thread node ID. Comments inside a thread have their own `id` (the `RC_*` form) which is NOT what the mutation accepts. Confusing the two returns `Field 'resolveReviewThread' argument 'threadId' is of wrong type`.
+Thread ID ≠ comment ID. The `id` field on `reviewThreads.nodes[*]` is the thread node ID (`PRRT_*`). Comments inside a thread have their own `id` (the `PRRC_*` form — `PullRequestReviewComment`) which is NOT what the mutation accepts. Confusing the two returns `Field 'resolveReviewThread' argument 'threadId' is of wrong type`. (Verified on a real thread: thread `PRRT_kwDORBqOk86FLa57` carries comment `PRRC_kwDORBqOk87Fcypm` — both base64-ish but distinct prefixes.)
 
 The mutation requires write access on the repo. From the GitHub CLI, `gh api graphql -f query='mutation { resolveReviewThread(input: { threadId: "..." }) { thread { isResolved } } }'` works with normal user credentials.
 
