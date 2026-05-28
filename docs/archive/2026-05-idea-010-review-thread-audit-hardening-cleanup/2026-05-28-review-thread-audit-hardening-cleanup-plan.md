@@ -23,7 +23,7 @@ Pattern 2 gates bulk-resolve on **zero STILL-REAL**. With a high false-positive 
 - **R1** (IDEA proposal 1) — Insert an adversarial-verify (refute) pass over STILL-REAL verdicts before they gate bulk-resolve or surface as a punch list. Only verdicts surviving refutation count.
 - **R2** (IDEA proposal 1) — Record the observed false-positive rate as motivating provenance.
 - **R3** (dogfooding side-effect) — Add a hazard rule: audit agents must read via `git show <ref>:<path>`, never `git checkout`, in a shared worktree.
-- **R4** (IDEA proposal 2) — Operationalize: re-run the audit on the 16 mind-vault debt PRs *with* the adversarial pass, then bulk-resolve confirmed-safe threads.
+- **R4** (IDEA proposal 2) — Operationalize: re-run the audit on the 17 mind-vault debt PRs *with* the adversarial pass, then bulk-resolve confirmed-safe threads.
 - **R5** (IDEA proposal 3) — Memory: record the cleanup event + the over-flag finding.
 
 ## 4. Scope Boundaries
@@ -66,7 +66,7 @@ Pattern 2 gates bulk-resolve on **zero STILL-REAL**. With a high false-positive 
 5. Self-sweep (RULE_self-sweep trigger 5, doc-consistency): section cross-refs, count claims, terminology.
 
 **Phase B — Operational cleanup (R4) — no source change:**
-6. Re-run the audit on the 16 debt PRs (#118,#120,#124,#131,#133,#134,#135,#136,#137,#140,#141,#144,#145,#146,#148,#149,#150) with the Step 2 + Step 2.5 adversarial pass. Reuse the prior audit output as the first-pass input; run the refuter only over its STILL-REAL set.
+6. Re-run the audit on the 17 debt PRs (#118,#120,#124,#131,#133,#134,#135,#136,#137,#140,#141,#144,#145,#146,#148,#149,#150) with the Step 2 + Step 2.5 adversarial pass. Reuse the prior audit output as the first-pass input; run the refuter only over its STILL-REAL set.
 7. Produce the confirmed-STILL-REAL set (expected: ~0 in docs; the real ones isolated to #120).
 8. **HUMAN-CONFIRM GATE** (`auto_safe: false`): present the confirmed set + resolve plan; on approval, bulk-resolve confirmed-safe threads per-PR. Leave #120 + any genuine opens.
 
