@@ -10,6 +10,29 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.3.14 — IDEA-010: retroactive audit hardening (adversarial-verify STILL-REAL) + mind-vault stale-thread cleanup
+
+Patch release on the v4.3 line. Dogfooding the v4.3.13 `THREAD_AUTO_RESOLVE` retroactive recipe against mind-vault's own ~250-thread / 17-PR Copilot pile exposed that a single-pass Explore-agent audit **systematically over-flags STILL-REAL** — 5 of 5 hand-checked verdicts were false positives (an accurate past-tense CHANGELOG ref read as dead; an `<img>` already in a code span read as live HTML; a contract "contradiction" the next line reconciles; "absence semantics undefined" that two adjacent lines define; a "see below" cross-ref absent from the file). Because the recipe gated bulk-resolve on raw STILL-REAL count, those phantoms would have blocked a safe cleanup or shipped a noisy false punch list. The hardening adds a second, adversarial opinion before any STILL-REAL gates the resolve; the operational half then cleared the whole pile.
+
+### Added
+
+- **`THREAD_AUTO_RESOLVE.md` Step 2.5 — adversarially verify every STILL-REAL.** Each first-pass STILL-REAL is independently re-checked by a refuter agent prompted to REFUTE (default-to-false-positive; flip to CONFIRMED only on verbatim evidence). Only confirmed survivors gate bulk-resolve or reach the punch list. Same high-confidence-before-mutation model the forward (Pattern 1) recipe already relies on, applied to the retroactive half. Re-run on mind-vault's pile collapsed ~27 first-pass STILL-REAL to **4 confirmed** (~85% over-flag caught).
+- **Shared-worktree read hazard note** (`THREAD_AUTO_RESOLVE.md` Step 2): audit/refute agents must read post-merge code via `git show <ref>:<path>`, never `git checkout` — observed an audit agent check out `main` and switch the parent session's branch mid-run.
+
+### Changed
+
+- **Bulk-resolve gate retargeted to *confirmed* STILL-REAL** (Step 3 + "when NOT to fire" #1 + intro Pattern-2 summary) — gating on raw first-pass verdicts is what over-blocks.
+- **README counts corrected**: Skills (15)→(17) — added the missing `review-loop` + `mobile-ux-polish` rows; Agents (9)→(8) — removed the stale `bugbot / copilot` row (those AGENT files were deleted in IDEA-006/v4.3; review is now via `/review-loop` + engine references).
+
+### Fixed
+
+- **`scripts/install-wsl.ps1`** (3 confirmed findings from PR #120): set TLS 1.2 before the kernel-MSI `Invoke-WebRequest` (Win10 + PS 5.1 default rejects Azure blob); consult `$vmMonitor` in the virtualization warning (previously computed but unused — *not* a hard gate, to avoid the Hyper-V-owns-VT-x false negative); trim `-Distro` so a whitespace-only value routes to the picker instead of `wsl --install -d "   "`. PowerShell not runtime-testable here — needs a Win10 smoke test.
+- **`skills/sprint-auto/references/post-pr-sequence.md`** S15 diagram listed "forward-sync results, re-review results" that v3.2 deleted (S11.11/S11.12) — dropped (box-border width preserved).
+
+### Operational
+
+- **Resolved 250 stale Copilot review threads across 17 merged PRs** via the hardened recipe (audit → Step 2.5 refute → bulk-resolve at a human-confirm gate). The cohort now reads 0 unresolved Copilot threads.
+
 ## v4.3.13 — Compound: review-loop thread auto-resolve (forward Phase-3 mutation + retroactive audit-then-bulk-resolve recipe)
 
 Patch release on the v4.3 line. A `/compound` of a single high-leverage pattern surfaced when a downstream sprint cohort accumulated 129 stale Copilot review threads across 11 PRs over ~1 week of activity. GitHub's review-thread `isResolved` state is independent of the underlying code state — when the review-loop applies a fix in Phase 2 and pushes in Phase 3, the inline thread stays unresolved until a human clicks "Resolve conversation". Without this pattern, the noise accumulates fast — and hides the real signal (the few threads that ARE actually live).

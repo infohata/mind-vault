@@ -191,7 +191,7 @@ When the integration phase completes (clean or with flags):
 
 3. **Each mind-vault PR → its own review-loop session (S13 + S14).** Once `/compound` produces a PR on `compound/YYYY-MM-DD-<slug>` in the mind-vault repo, invoke `/review-loop <PR> $SPRINT_AUTO_REVIEW_ENGINE` on the mind-vault PR with the same escalation policy as steps 5a/7a. Cap **5 attempt cycles** for the session (single-pass — mind-vault compound PRs are documentation by nature).
 
-4. **Write `docs/archive/auto-run-<ISO-timestamp>-summary.md` (S15 artefact)** in the primary tree. See [`assets/auto-run-log-template.md`](assets/auto-run-log-template.md). Includes a new **Integration check** section listing the integration phase's outcomes (merge results, test results, review-loop results per engine, forward-sync results, re-review results) and a **Compound section** listing each mind-vault PR and its review outcome.
+4. **Write `docs/archive/auto-run-<ISO-timestamp>-summary.md` (S15 artefact)** in the primary tree. See [`assets/auto-run-log-template.md`](assets/auto-run-log-template.md). Includes a new **Integration check** section listing the integration phase's outcomes (merge results, test results, review-loop results per engine) and a **Compound section** listing each mind-vault PR and its review outcome.
 
 5. **Print the summary block to stdout (S15):**
 
