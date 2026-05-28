@@ -65,13 +65,15 @@ Pattern 2 gates bulk-resolve on **zero STILL-REAL**. With a high false-positive 
 4. Same file `## Provenance`: append the 5/5-false-positive dogfooding observation as motivation.
 5. Self-sweep (RULE_self-sweep trigger 5, doc-consistency): section cross-refs, count claims, terminology.
 
+**Phase A status:** ✅ done (commit `b724768`) — Step 2.5 + gate retarget + worktree hazard + provenance; count 16→17 corrected.
+
 **Phase B — Operational cleanup (R4) — no source change:**
-6. Re-run the audit on the 17 debt PRs (#118,#120,#124,#131,#133,#134,#135,#136,#137,#140,#141,#144,#145,#146,#148,#149,#150) with the Step 2 + Step 2.5 adversarial pass. Reuse the prior audit output as the first-pass input; run the refuter only over its STILL-REAL set.
-7. Produce the confirmed-STILL-REAL set (expected: ~0 in docs; the real ones isolated to #120).
-8. **HUMAN-CONFIRM GATE** (`auto_safe: false`): present the confirmed set + resolve plan; on approval, bulk-resolve confirmed-safe threads per-PR. Leave #120 + any genuine opens.
+6. ✅ Re-ran the audit on the 17 debt PRs with the Step 2.5 adversarial-refute pass (4 refuter agents over the first-pass STILL-REAL set). **Result: of ~27 first-pass STILL-REAL, only 4 confirmed (~85% over-flag) — 1 doc (#118 S15 diagram), 3 code (#120).**
+7. ✅ Confirmed-STILL-REAL set: #120 (whitespace `-Distro`, `$vmMonitor` ungated, no TLS 1.2) + #118 (post-pr-sequence.md S15 diagram). All other STILL-REAL refuted.
+8. ✅ **HUMAN-CONFIRM GATE** — user approved "resolve 15 safe PRs now". **176 threads resolved** across #124,#133,#134,#135,#136,#137,#141,#146,#148,#149,#150,#131,#140,#144,#145; verified 0 unresolved remaining. **#118 (35) + #120 (39) held** — disposition options in § 10.
 
 **Phase C — Memory (R5):**
-9. Write one `feedback`-type memory: single-pass retroactive audit over-flags STILL-REAL → adversarial refute pass required; names the mind-vault cleanup event as provenance. Add MEMORY.md pointer.
+9. ✅ Wrote `feedback_retroactive_audit_overflags_still_real.md` + MEMORY.md pointer.
 
 **Phase D — wrap (separate `/wrap` stage):** frontmatter → complete, index re-sort, devlog, CHANGELOG + patch bump, archive README backref.
 
@@ -81,3 +83,23 @@ Pattern 2 gates bulk-resolve on **zero STILL-REAL**. With a high false-positive 
 - **Phase B:** the refuter re-classifies the prior STILL-REAL set; verify by spot-checking 2–3 of its "false-positive" flips against the actual files (the same way the 5/5 were caught). Confirmed-STILL-REAL list contains only #120 code items.
 - **Phase B resolve:** after mutation, re-run the Step 1 inventory sweep — each cleaned PR returns 0 unresolved bot threads except its intentionally-left opens; `#120` unchanged.
 - **Review:** `/review-loop <PR> bugbot` clears (bugbot-only; Copilot noop).
+
+## 10. Phase B follow-up — held PRs (#118, #120)
+
+After the 176-thread resolve, two PRs remain held. Each has a clean noise-vs-signal split now that Step 2.5 has run. Options (decide per-PR):
+
+### #120 — `scripts/install-wsl.ps1` (39 unresolved; 3 confirmed code bugs)
+
+Confirmed real (refuter, with line evidence): whitespace-only `-Distro` reaches `wsl --install -d "   "` (line ~507); `$vmMonitor`/VT-x computed + displayed but never gates install (line ~183, unlike `$slat`); `Invoke-WebRequest` for the kernel MSI lacks TLS 1.2 enforcement (line ~331). The `'Missing'` switch-case claim was **refuted** (a try/catch already handles it gracefully).
+
+- **B-120-a — Leave fully untouched.** You own the PowerShell fixes + the threads. Matches the IDEA's current non-goal. _(default)_
+- **B-120-b — Resolve the ~36 safe threads, leave the 3 confirmed code threads open** as a clean punch list (recipe-ideal: noise cleared, signal stands out). No code touched.
+- **B-120-c — Fix the 3 bugs in this IDEA** (TLS 1.2 line ~331; `$vmMonitor` gate beside `$slat`; `.Trim()` + `IsNullOrWhiteSpace` guard on `-Distro`), then resolve all #120 threads. **Expands scope into PowerShell code** (currently an explicit non-goal — would need a non-goal amendment).
+
+### #118 — sprint-auto/onboarding docs (35 unresolved; 1 confirmed doc bug + 11 pass-1 UNCERTAIN)
+
+Confirmed real: `skills/sprint-auto/references/post-pr-sequence.md` S15 diagram (line ~159) still lists "forward-sync results, re-review results" that v3.2 deleted (S11.11/S11.12). The 11 UNCERTAIN (>10% → recipe's human-walk threshold) were mostly "cited file deleted/moved, couldn't verify" — likely FIXED-by-deletion but unconfirmed.
+
+- **C-118-a — Leave fully untouched.** _(default)_
+- **C-118-b — Full clear: verify + fix.** Run a refute/verify pass over the 11 UNCERTAIN, fix the 1 confirmed S15 doc bug (in-scope mind-vault doc, small), then resolve #118's now-safe threads (likely all). Most thorough.
+- **C-118-c — Partial: resolve the clear FIXED/WON'T-FIX subset now, leave the 11 UNCERTAIN + the S15 thread open** until walked/fixed.
