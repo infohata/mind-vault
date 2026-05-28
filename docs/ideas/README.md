@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-_(none)_
+- [IDEA-010](IDEA-010-review-thread-audit-hardening-cleanup.md) — Retroactive review-thread audit hardening (adversarial-verify STILL-REAL) + mind-vault stale-thread cleanup
 
 ## 💡 Low Priority (backlog)
 
