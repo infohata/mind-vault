@@ -189,3 +189,140 @@ APP_TRANSLATIONS = {
 ```
 
 The audit's placeholder-parity check is the canary — every map entry whose key contains `{{ }}` is suspect; convert to `%(var)s` form.
+
+## GNU gettext singular/plural hash collision — don't rewrite an existing singular msgid into a plural-only entry
+
+GNU gettext stores singular and plural forms under **different hash keys** in the compiled `.mo`. A `gettext("Scope")` lookup hashes the singular form; an `ngettext("Scope", "Scopes", n)` lookup hashes the plural pair. The two are independent — a singular lookup against a plural-only entry **does not fall back** to the plural's `msgstr[0]`; it falls back to the source string (English).
+
+The failure mode: an existing singular msgid `"Scope"` with msgstr `"Aprėptis"` is consumed by a refactor that introduces `{% blocktrans count counter=N %}Scope{% plural %}Scopes{% endblocktrans %}`. After `makemessages`, the `.po` file has **one** entry for `msgid "Scope"` — the plural one. The dozens of pre-existing singular callers (`{% trans "Scope" %}`, `_("Scope")` in models / forms / table headers) now fall back to English silently.
+
+```
+# Before refactor — singular-only entry, singular callers translate
+msgid "Scope"
+msgstr "Aprėptis"
+
+# After refactor — plural entry merged in via makemessages dedup
+msgid "Scope"
+msgid_plural "Scopes"
+msgstr[0] "Aprėptis"
+msgstr[1] "Aprėptys"
+msgstr[2] "Aprėpčių"
+# (Same msgid key; the singular-only entry no longer exists.)
+
+# Now `gettext("Scope")` ↛ "Aprėptis"; instead returns "Scope" (English).
+```
+
+Symptom: section-card *count-bearing* headers translate correctly (the blocktrans is finding the plural entry), but the same noun appearing as a standalone column header, `verbose_name`, or `<th>{% trans "Scope" %}</th>` renders the source English string only in non-English locales. Visible only in inflected target locales, never in English.
+
+### Fix — drop the blocktrans, use always-plural `{% trans 'Plural' %}` with a count separator
+
+The clean fix is to NOT inflect the noun based on count, and instead present the noun in its plural form unconditionally, with the count carried in a separate element:
+
+```html
+{# Before — blocktrans inflects, collides with singular callers: #}
+<div class="card-header-title">
+    {% blocktrans count counter=N %}Scope{% plural %}Scopes{% endblocktrans %}
+    ({{ N }})
+</div>
+
+{# After — always-plural noun + count separator (e.g. " · 6"): #}
+<div class="card-header-title">
+    {% trans "Scopes" %}<span class="count-separator"> · {{ N }}</span>
+</div>
+```
+
+Modern UI convention (Slack / Linear / GitHub) accepts this — section labels like "1 Scopes" or "1 Properties" read slightly off grammatically but are universally understood, AND the gettext semantics stay clean (one singular-only msgid per noun, one plural-only msgid for any inflected callsite that genuinely needs it under a different msgid).
+
+### Alternative — `msgctxt` disambiguation
+
+The grammatically-correct fix is to keep the blocktrans + add `context "count"` so the plural form lives under a different hash key:
+
+```html
+{% blocktrans count counter=N context "count" %}Scope{% plural %}Scopes{% endblocktrans %}
+```
+
+This produces `msgctxt "count"; msgid "Scope"; msgid_plural "Scopes"` in the `.po` — distinct from the singular-only `msgid "Scope"`. Both can coexist.
+
+The trade-off: the project's translation-map / fill-script pipeline needs `msgctxt` awareness. If the fill script regex-matches on bare `^msgid "X"$` (a common shape), it won't match the `msgctxt`-prefixed entry and the new plural msgstrs go unfilled. Audit the fill tooling before choosing this path.
+
+### Diagnostic recipe
+
+When a string suddenly renders as English in non-English locales after a blocktrans refactor:
+
+1. `grep -rn '^msgid "<X>"$' web/<app>/locale/<locale>/LC_MESSAGES/django.po` — count occurrences.
+2. If 1 hit AND the next line is `msgid_plural "..."`, you've just rediscovered this trap. The singular callers stopped translating.
+3. Check translation extraction warnings — `makemessages` emits "Here is the occurrence without plural / Here is the occurrence with plural" warnings when it dedupes the singular into the plural entry. They are NOT errors; they SHOULD be.
+
+## Always-plural button labels — use the verb form to sidestep adjective-noun gender agreement
+
+`{% trans "New scope" %}` requires the target locale's translation to express *adjective gender agreement* with the noun. In Lithuanian, `scope` (lt `aprėptis`) is feminine, so the adjective is `nauja` (feminine "new"): `Nauja aprėptis`. But `property` (lt `nuosavybė`) is ALSO feminine — `Nauja nuosavybė`. Easy to consistently apply the rule, until somebody chooses a parallel word for "property" (`objektas` — masculine "object"): `Naujas objektas`. Now scope says `Nauja…` and property says `Naujas…` and the inconsistency is the bug.
+
+In Polish, Russian, German, etc. the same problem fires per-locale with different noun-gender conventions.
+
+The escape hatch — use the **verb form** instead of the **adjective + noun**:
+
+```html
+{# Before — adjective + noun, every locale must express gender agreement: #}
+<a class="button">{% trans "New scope" %}</a>            {# lt: Nauja aprėptis | pl: Nowy zakres | … #}
+<a class="button">{% trans "New property" %}</a>         {# lt: Naujas objektas (DISAGREEMENT vs scope) | … #}
+
+{# After — verb + accusative noun, no adjective gender to agree: #}
+<a class="button">{% trans "Add scope" %}</a>            {# lt: Pridėti aprėptį | pl: Dodaj zakres | ru: Добавить область | nb: Legg til omfang #}
+<a class="button">{% trans "Add property" %}</a>         {# lt: Pridėti nuosavybę | pl: Dodaj nieruchomość | ru: Добавить объект | nb: Legg til eiendom #}
+```
+
+Why this works: the verb is invariant (no adjective), and the noun takes its accusative case (which the translator's reflex handles correctly because every Lithuanian / Polish / Russian schoolchild learns "the direct object of a transitive verb takes accusative"). No adjective-noun gender decision tree.
+
+The pattern matches the established **"Add Domain"** convention any well-internationalised CRUD app already uses for one entity — generalise it across every entity-CRUD button (`Add scope`, `Add property`, `Add organization`, `Add article`, `Add event`, `Add FAQ`, etc.).
+
+### When NOT to apply
+
+- **Chat-specific UX vocabulary** ("New session", "New conversation", "New chat") — these aren't "add to a collection"; they're "start fresh". The semantic distinction matters more than gender-agreement uniformity. Keep the existing form; if the locale has a gender bug, fix it locally without overhauling the verb.
+- **Page titles / headings that read like English nouns** — "New project" as a page title is a noun phrase, not a button label. Heading-style usage carries its own conventions; don't rename "New project" the *heading* just because you renamed "Add project" the *button*.
+- **Single-word labels** (`+ New`, `+ Add`) — these are short enough that no inflection happens; the choice is cosmetic.
+
+### Migration discipline
+
+When renaming `"New X"` → `"Add X"` in templates, the translation map keys also rename. **Update FORCE_SYNC_MSGIDS to track the new key** — a stale entry pointing at the renamed-away `"New X"` becomes a silent no-op (the fill script's `all_trans.get("New X")` lookup finds nothing; the force-sync exits without writing). See § *FORCE_SYNC stale msgid after rename* below.
+
+## FORCE_SYNC stale msgid after rename
+
+When a translation map key is renamed (e.g. `"New property"` → `"Add property"`), grep `FORCE_SYNC_MSGIDS` for the old name. A stale entry silently no-ops:
+
+```python
+# Before — entry valid, fill overwrites the .po
+FORCE_SYNC_MSGIDS = {
+    'New property',          # auth.py has 'New property': {...}
+}
+
+# After a rename of the auth.py key from 'New property' → 'Add property'
+# but FORCE_SYNC_MSGIDS NOT updated:
+FORCE_SYNC_MSGIDS = {
+    'New property',          # auth.py NO LONGER has 'New property'; stale.
+}
+# Fill script: all_trans.get('New property') → None → no-op.
+# Future canonical-value edits to lt 'Add property' don't propagate.
+```
+
+**Audit recipe** for any rename that includes a translation map key:
+
+```bash
+# After renaming 'OldKey' → 'NewKey' in tools/translation_maps/<app>.py,
+# grep FORCE_SYNC_MSGIDS (typically in shared.py) for the old key:
+grep -n "'OldKey'" tools/translation_maps/shared.py
+# If hit → replace with 'NewKey'.
+```
+
+Even better — fold the audit into the rename-before-drop sequence (`RULE_rename-before-drop`): the post-rename verification step should include a fill-script telemetry check that the renamed key still has an effective force-sync. The earlier "translate-fill reports force-synced N entries" telemetry trap discussed in [*FORCE_SYNC_MSGIDS — translate-fill silently skips existing msgstr without it*](#force_sync_msgids--translate-fill-silently-skips-existing-msgstr-without-it) § *The telemetry trap* compounds with this: if FORCE_SYNC_MSGIDS has N entries but K of them are stale, the fill reports "N force-synced" while only (N-K) effective writes happened.
+
+### Diagnostic recipe — when a renamed string didn't pick up its canonical translation
+
+1. Confirm the map entry exists under the **new** key in the right `<app>.py`.
+2. Grep `FORCE_SYNC_MSGIDS` (typically `shared.py`) for the **old** key. If found → replace with new key.
+3. Re-run `translate-fill` and verify the affected `.po`'s msgstr changed.
+
+When the rename touched ≥2 keys, audit each.
+
+## Adjacent: the CSS-side rescue for narrow viewports
+
+When labels can't be shortened further (verbose translations of unavoidable concepts), the CSS-side complement is `hyphens: auto` keyed off `<html lang>` — see [`../../django-frontend/references/HYPHENATE_NARROW_LABELS.md`](../../django-frontend/references/HYPHENATE_NARROW_LABELS.md). The two patterns compose: this reference's translation-side conventions for "what string ships at all", that reference's CSS-side conventions for "how it wraps when it doesn't fit".
