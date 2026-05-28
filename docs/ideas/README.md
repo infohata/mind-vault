@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-010](../archive/2026-05-idea-010-review-thread-audit-hardening-cleanup/IDEA-010-review-thread-audit-hardening-cleanup.md) ⏳ — Retroactive review-thread audit hardening (adversarial-verify STILL-REAL) + mind-vault stale-thread cleanup
 
 ## 💡 High Priority (backlog)
 
@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-- [IDEA-010](IDEA-010-review-thread-audit-hardening-cleanup.md) — Retroactive review-thread audit hardening (adversarial-verify STILL-REAL) + mind-vault stale-thread cleanup
+_(none)_
 
 ## 💡 Low Priority (backlog)
 

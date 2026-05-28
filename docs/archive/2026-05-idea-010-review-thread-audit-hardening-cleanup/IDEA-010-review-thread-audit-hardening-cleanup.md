@@ -1,7 +1,7 @@
 ---
 id: 010
 title: Retroactive review-thread audit hardening + mind-vault stale-thread cleanup
-status: idea          # idea | in-progress | complete | superseded
+status: in-progress          # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
