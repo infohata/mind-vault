@@ -84,9 +84,16 @@ Pattern 2 gates bulk-resolve on **zero STILL-REAL**. With a high false-positive 
 - **Phase B resolve:** after mutation, re-run the Step 1 inventory sweep — each cleaned PR returns 0 unresolved bot threads except its intentionally-left opens; `#120` unchanged.
 - **Review:** `/review-loop <PR> bugbot` clears (bugbot-only; Copilot noop).
 
-## 10. Phase B follow-up — held PRs (#118, #120)
+## 10. Phase B follow-up — held PRs (#118, #120) — ✅ RESOLVED
 
-After the 176-thread resolve, two PRs remain held. Each has a clean noise-vs-signal split now that Step 2.5 has run. Options (decide per-PR):
+**Outcome (user chose fix-and-resolve for both):**
+- **#120** (B-120-c) — fixed the 3 confirmed PowerShell bugs (commit `354c485`: TLS 1.2 before kernel-MSI download; `$vmMonitor` consulted in the virtualization warning — *not* a hard gate, to avoid the Hyper-V-owns-VT-x false negative; `-Distro` trimmed). Resolved all 39 threads. IDEA non-goal amended.
+- **#118** (C-118-b) — full refute-discipline re-audit of all 35 threads (1 background agent): 21 FIXED + 7 FIXED-by-deletion + 2 WON'T-FIX + **3 confirmed STILL-REAL**. Fixed all 3 (commit `f7d682d`: README Skills 15→17 + Agents 9→8, sprint-auto S15 diagram). Resolved all 35 threads.
+- **Cohort total: 250 threads resolved across 17 PRs; verified 0 unresolved Copilot threads remain.** PowerShell + doc fixes land on `main` when this IDEA's PR merges.
+
+Original options (for the record):
+
+After the 176-thread resolve, two PRs remained held. Each has a clean noise-vs-signal split now that Step 2.5 has run. Options (decide per-PR):
 
 ### #120 — `scripts/install-wsl.ps1` (39 unresolved; 3 confirmed code bugs)
 

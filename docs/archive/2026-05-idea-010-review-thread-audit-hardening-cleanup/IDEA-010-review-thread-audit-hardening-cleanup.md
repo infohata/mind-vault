@@ -35,7 +35,7 @@ sensitive_paths_cleared_reason: "Files touched are docs-only (skills/review-loop
 - mind-vault carries a live ~250-thread noise pile that hides any genuine signal on its own PRs.
 
 **Non-goals**:
-- Fixing the `#120 install-wsl.ps1` code bugs — those are real and belong to the user's own follow-up, not this docs/ops IDEA.
+- ~~Fixing the `#120 install-wsl.ps1` code bugs — those are real and belong to the user's own follow-up, not this docs/ops IDEA.~~ **Amended 2026-05-28**: user opted in at the Phase-B held-PR gate — the three confirmed `#120` bugs (TLS 1.2, `$vmMonitor` consultation, `-Distro` trim) were fixed in scope (commit `354c485`). PowerShell runtime-testing remains the user's (no Windows here).
 - Touching the teisutis repo (a separate Claude Code session is running IDEA-155 there; do not checkout branches on its worktree). This IDEA is **mind-vault-only**.
 - Re-opening the v4.3.13 thread-auto-resolve PR — it stands as self-reviewed.
 
