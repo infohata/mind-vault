@@ -29,7 +29,7 @@ A single-pass audit is a **finder, not a verifier** — it over-flags STILL-REAL
 
 ## Follow-ups (punted)
 
-- **sprint-auto v3.1→v3.2 doc sweep** — `skills/sprint-auto/assets/auto-run-log-template.md` still carries v3.1 forward-sync / re-review sections (S11.11/S11.12, deleted in v3.2), and `skills/sprint-auto/SKILL.md` lines ~266/298 reference an `S11.12 re-review` budget. Needs an owner-judgment rewrite (some sections may be intentionally v3.1-retained) — out of IDEA-010's scope.
+- ✅ **sprint-auto v3.1→v3.2 doc sweep — ADDRESSED** (the find we expected). A multi-dimensional `sprint-auto` review (6 reviewers + adversarial refute, the IDEA-010 Step-2.5 discipline applied to a skill audit) confirmed 25 findings; the v4.4 sprint-auto doc-migration (`chore/sprint-auto-v32-doc-migration`) reconciled all of them — forward-sync/re-review/draft-PR drift across SKILL.md + references + the log template, plus the real cross-skill gap (added the `/wrap --integration` mode that the docs handed off to but didn't exist). sprint-auto flagged ⚠️ unstable pending a runtime shakedown.
 - **`install-wsl.ps1` Win10 smoke test** — the 3 PowerShell fixes can't be runtime-tested in a Linux/Docker environment.
 
 ## Pointers
