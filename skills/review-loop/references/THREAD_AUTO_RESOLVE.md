@@ -137,16 +137,18 @@ for pr in $(gh pr list --state merged --base <protected-base> --limit 50 --json 
                 }
             }
         }
-    }" --jq '.data.repository.pullRequest.reviewThreads.nodes | map(select(.isResolved == false) | select(.comments.nodes[0].author.login == "<engine-bot-login>")) | length')
+    }" --jq '.data.repository.pullRequest.reviewThreads.nodes | map(select(.isResolved == false) | select((.comments.nodes[0].author.login // "" | sub("\\[bot\\]$"; "")) == "<engine-bot-login>")) | length')
     [ "$count" != "0" ] && echo "PR #$pr: $count"
 done
 ```
 
-`<engine-bot-login>` is engine-specific:
+`<engine-bot-login>` is the engine's **bare** bot slug (no `[bot]` suffix):
 
-- Cursor Bugbot: typically `cursor[bot]` or `bugbot[bot]` (verify on a known thread)
-- GitHub Copilot: `copilot-pull-request-reviewer`
+- Cursor Bugbot: `cursor` (REST representation `cursor[bot]`; verify on a known thread — Cursor has shipped under `bugbot` too)
+- GitHub Copilot: `copilot-pull-request-reviewer` (REST representation `copilot-pull-request-reviewer[bot]`, as named in `references/engine-copilot.md`)
 - Other engines: per `references/engine-<name>.md` § *Bot identity*
+
+**Why bare, and why the `sub("\\[bot\\]$"; "")` in the filter:** the same bot carries two login representations depending on the API surface. GitHub's GraphQL `Bot` actor exposes `login` **without** the `[bot]` suffix (`copilot-pull-request-reviewer`), while the REST comment payload — and `engine-copilot.md` / `engine-bugbot.md`, which document the REST view — carry it **with** the suffix (`copilot-pull-request-reviewer[bot]`). These sweeps run over GraphQL, so the bare form is what `author.login` actually returns today — but rather than depend on that holding across GitHub API changes or actor-type quirks (a bot occasionally surfaces as a `User`, which keeps the suffix), the filter **normalises**: `sub("\\[bot\\]$"; "")` strips a trailing `[bot]` before comparing, so the comparison value is always the bare slug and the recipe matches **both** representations. (`// ""` guards a null author from a deleted account.) Cross-check: if a sweep returns zero on a PR you know has stale bot threads, dump one node's raw `author.login` — `gh api graphql ... --jq '...nodes[0].comments.nodes[0].author.login'` — and confirm the bare slug matches.
 
 ### Step 2 — Audit before bulk-resolve
 
@@ -190,7 +192,7 @@ for pr in <PRs-with-stale-threads>; do
                 }
             }
         }
-    }" --jq '.data.repository.pullRequest.reviewThreads.nodes | map(select(.isResolved == false) | select(.comments.nodes[0].author.login == "<engine-bot-login>")) | .[].id')
+    }" --jq '.data.repository.pullRequest.reviewThreads.nodes | map(select(.isResolved == false) | select((.comments.nodes[0].author.login // "" | sub("\\[bot\\]$"; "")) == "<engine-bot-login>")) | .[].id')
     for tid in $THREAD_IDS; do
         gh api graphql -f query="mutation {
             resolveReviewThread(input: { threadId: \"$tid\" }) {
@@ -238,7 +240,7 @@ Per the engine adapter contract in `references/engine-adapter-contract.md`, each
 ```markdown
 ## Bot identity (for thread auto-resolve)
 
-- **Comment author login**: `copilot-pull-request-reviewer` (or `cursor[bot]`, etc.)
+- **Comment author login (bare slug)**: `copilot-pull-request-reviewer` (or `cursor`, etc.) — record the bare form; the GraphQL `author.login` drops the `[bot]` suffix the REST payload carries, and the sweep filter normalises with `sub("\\[bot\\]$"; "")` so either representation matches
 - **One thread per finding**: yes / no — engines that batch multiple findings per thread need a different mapping
 - **Thread reply support**: yes / no — whether the engine reacts predictably to a posted reply (matters for WON'T-FIX-CONVENTION canned replies)
 ```
