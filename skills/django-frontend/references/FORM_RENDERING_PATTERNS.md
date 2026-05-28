@@ -158,6 +158,7 @@ The bare-field trap can't be caught by `assertEqual(response.status_code, 200)` 
 
 ## Related references
 
+- [`FORMS_INDEX.md`](FORMS_INDEX.md) — cross-skill form discoverability index.
 - [`COTTON.md`](COTTON.md) — cotton primitive authoring (different concern; cotton renders its OWN markup, not Django form fields).
 - [`HTMX_PATTERNS.md`](HTMX_PATTERNS.md) — form `hx-post` + `hx-target` shape; orthogonal to field-class concern.
 - [`SHELL_NOTIFICATIONS.md`](SHELL_NOTIFICATIONS.md) — `notify()` + toast on save; the OTHER half of "form submitted successfully".
