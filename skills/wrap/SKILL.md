@@ -84,9 +84,14 @@ Two things to note in the table:
 
 ### Mode detection (first action each invocation)
 
-Before anything else, determine which mode is running — pre-merge default, post-merge fallback, or self-mode (see below). The decision drives which branch the wrap commits land on:
+Before anything else, determine which mode is running — pre-merge default, post-merge fallback, self-mode, or the sprint-auto-v3.2 batch-teardown `--integration` mode (see below). The decision drives which branch the wrap commits land on:
 
 ```bash
+# 0. Batch-teardown invocation? `/wrap --integration sprint-auto-<batch-iso>`
+#    is NOT a --scope value — it's a distinct post-merge batch mode. Short-circuit
+#    to § `--integration` mode (teardown only; no doc steps, no per-IDEA branch).
+case "$*" in *--integration*) MODE=integration ;; esac
+
 # 1. Is this mind-vault itself?
 git remote get-url origin | grep -q mind-vault && MODE=self
 
@@ -311,7 +316,17 @@ If `VER_SOURCE=none`, skip this step entirely — the project doesn't publish a 
 
 **Fires when** wrap is running post-merge AND the sprint ran in a parallel git worktree with its own docker-compose stack. **Skipped** when running from the primary checkout (`git rev-parse --git-common-dir` equals `.git`), when the PR is still open, when the user signalled keep-the-stack-up (`WRAP_KEEP_STACK=1` / `--keep-stack`), or when the worktree has uncommitted work. In `sprint-auto` mode, teardown remains **deferred** to morning review.
 
-Mechanics — destructive teardown sequence (`docker compose down -v` → `git worktree remove` → `git branch -d`), per-file evaluation when `git worktree remove` refuses (forgotten commits, missing gitignore rules, stale ephemera, container-as-root permission residue), and last-of-batch integration cleanup for sprint-auto v3.1 batches — are in [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md). Read that reference when this step fires.
+Mechanics — destructive teardown sequence (`docker compose down -v` → `git worktree remove` → `git branch -d`), per-file evaluation when `git worktree remove` refuses (forgotten commits, missing gitignore rules, stale ephemera, container-as-root permission residue) — are in [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md). Read that reference when this step fires. For a sprint-auto **v3.2** batch, whole-batch teardown runs via the `--integration` mode below, not the per-IDEA path.
+
+### `--integration <batch-iso>` mode (sprint-auto v3.2 batch teardown)
+
+A distinct post-merge invocation — **not** a `--scope` value — that the human runs once after merging the single `[INTEGRATION]` PR of a sprint-auto v3.2 batch: `/wrap --integration sprint-auto-<batch-iso>`. It is teardown-only; it runs **no** doc steps (per-IDEA docs were finalized at S5 `--scope=idea-only`, and the batch-wide devlog/index/version at the S11.7 batch wrap on the integration branch). Mechanics:
+
+1. **Confirm the integration PR merged** — `gh pr list --search "head:integration/sprint-auto-<batch-iso>" --state merged` returns it. If not merged, refuse (teardown is strictly post-merge).
+2. **Tear down the integration worktree + branch** — `docker compose down -v` in the integration worktree (the batch's only docker stack, port offset +30000), then `git worktree remove`, then `git branch -d integration/sprint-auto-<batch-iso>` and delete the remote branch.
+3. **Tear down each per-IDEA worktree + branch** from the batch manifest — the `auto/<slug>` branches auto-closed as merged ancestors when the integration PR merged, so for each: `git worktree remove` + `git branch -d auto/<slug>`.
+
+This is the v3.2 teardown trigger. It **supersedes** the v3.1 last-of-batch `/wrap NNN` trigger (which fired when the last per-IDEA IDEA was wrapped post-merge) — a model that doesn't fit v3.2, where per-IDEA PRs target the integration branch and auto-close on its merge, so they never receive an individual post-merge `/wrap NNN` to act as the trigger. The destructive-sequence + refusal mechanics in [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md) apply per worktree.
 
 ### Step 6 — Downstream docs scan
 
