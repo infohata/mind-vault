@@ -1,6 +1,6 @@
 # sprint-auto — worktree lifecycle
 
-**v3.1 architecture (current)**: sprint-auto runs **one** docker stack per batch — the integration worktree's, at port offset `+30000`. Per-IDEA worktrees are pure code surfaces (no `.env`, no docker compose). All verification — per-IDEA targeted tests, per-IDEA review fix-cycles, integration union, full suite, integration review, post-propagation re-review — routes to the integration worktree's stack via the `SPRINT_AUTO_INTEGRATION_WORKTREE` env var. See [`integration-stage.md`](integration-stage.md) for the full integration-worktree contract.
+**v3.2 architecture (current)**: sprint-auto runs **one** docker stack per batch — the integration worktree's, at port offset `+30000`. Per-IDEA worktrees are pure code surfaces (no `.env`, no docker compose). All verification — per-IDEA targeted tests, per-IDEA review fix-cycles, integration union, full suite, integration review — routes to the integration worktree's stack via the `SPRINT_AUTO_INTEGRATION_WORKTREE` env var. See [`integration-stage.md`](integration-stage.md) for the full integration-worktree contract.
 
 **v1 architecture (deprecated)**: every per-IDEA worktree had its own docker stack with a per-IDEA port offset (`10000 + (idea_number % 100) * 100`). Hardware-infeasible at scale — the user explicitly redirected v3 plan toward the single-stack model because running N+1 stacks per batch was impossible on the available hardware.
 
@@ -169,16 +169,11 @@ A latent bug in v1: 6+ IDEAs at offsets `+10000, +20000, ..., +60000` push max r
 
 ## Teardown policy
 
-### v3.1
+### v3.2 (current)
 
-**Per-IDEA worktrees**: nothing to tear down (no stack ever existed). Worktree filesystem stays for code-surface inspection. Cleaned up by the human's `/wrap NNN` post-merge teardown:
+After the human merges the single `[INTEGRATION]` PR, one command from the primary tree — `/wrap --integration sprint-auto-<batch-iso>` — tears down the whole batch (see `skills/wrap/SKILL.md` § `--integration` mode).
 
-```bash
-git worktree remove ../<project>-auto-<slug>
-git branch -d auto/<slug>
-```
-
-**Integration worktree**: stops the stack at S11.13 (`docker compose down`, NOT `-v`; volumes preserved for inspection). The human's `/wrap NNN` for the **last-of-batch** IDEA tears down the rest:
+**Integration worktree**: stops the stack at S11.13 (`docker compose down`, NOT `-v`; volumes preserved for inspection until teardown). `/wrap --integration` then removes the rest:
 
 ```bash
 cd $integration_worktree
@@ -188,7 +183,14 @@ git worktree remove $integration_worktree
 git branch -d integration/sprint-auto-<batch-iso>
 ```
 
-See [`integration-stage.md`](integration-stage.md) § "Integration teardown" and `skills/wrap/SKILL.md` § Step 5 last-of-batch detection.
+**Per-IDEA worktrees**: nothing to tear down (no stack ever existed); the same `/wrap --integration` call removes each `auto/<slug>` worktree + branch (the per-IDEA PRs auto-closed as merged ancestors when the [INTEGRATION] PR merged):
+
+```bash
+git worktree remove ../<project>-auto-<slug>
+git branch -d auto/<slug>
+```
+
+See [`integration-stage.md`](integration-stage.md) § "Integration teardown" and `skills/wrap/SKILL.md` § `--integration` mode.
 
 ### v1 (legacy)
 
