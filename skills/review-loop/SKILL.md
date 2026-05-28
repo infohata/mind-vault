@@ -196,5 +196,6 @@ Under sprint-auto v3.1, the "user" the loop hands back to is sprint-auto itself 
 - [`references/engine-copilot.md`](references/engine-copilot.md) — GitHub Copilot adapter.
 - [`references/dual-engine-sync.md`](references/dual-engine-sync.md) — multi-engine synchronisation contract.
 - [`references/common-review-findings.md`](references/common-review-findings.md) — shared codified Tier-1 catalogue (engine-agnostic).
+- [`references/THREAD_AUTO_RESOLVE.md`](references/THREAD_AUTO_RESOLVE.md) — closing review threads in step with the fixes: forward (in-loop, Phase 3) auto-resolve via `resolveReviewThread` GraphQL mutation; retroactive audit + bulk-resolve recipe for PRs accumulated under the prior pattern. Load when wiring engine-adapter thread-ID capture, when a PR carries visible stale-thread debt, or when designing the user-facing "merge cleanly" handoff.
 - `RULE_git-safety` — feature-branch sandbox, never-merge-to-protected discipline.
 - `RULE_self-sweep-before-push` — pyflakes self-sweep between Phase 2 and Phase 3.

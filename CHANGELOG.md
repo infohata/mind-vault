@@ -10,6 +10,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.3.13 — Compound: review-loop thread auto-resolve (forward Phase-3 mutation + retroactive audit-then-bulk-resolve recipe)
+
+Patch release on the v4.3 line. A `/compound` of a single high-leverage pattern surfaced when a downstream sprint cohort accumulated 129 stale Copilot review threads across 11 PRs over ~1 week of activity. GitHub's review-thread `isResolved` state is independent of the underlying code state — when the review-loop applies a fix in Phase 2 and pushes in Phase 3, the inline thread stays unresolved until a human clicks "Resolve conversation". Without this pattern, the noise accumulates fast — and hides the real signal (the few threads that ARE actually live).
+
+### Added
+
+- **`skills/review-loop/references/THREAD_AUTO_RESOLVE.md`** (new) — closes review threads in step with the fixes. Two paired patterns: (1) **Forward (in-loop) auto-resolve** — adapter captures thread node ID at Phase 1 ingest (alongside the existing `comment id` + `review` staleness tags), Phase 3 fires `resolveReviewThread` GraphQL mutations for findings the same-cycle commit closed; (2) **Retroactive audit + bulk-resolve** — inventory unresolved threads via GraphQL sweep, dispatch an Explore-class agent to verify each thread against current code (FIXED / STILL-REAL / WON'T-FIX-CONVENTION / DOC-DRIFT / UNCERTAIN classification), bulk-resolve only on zero-STILL-REAL verdict. Includes the primitive (the `resolveReviewThread(input: {threadId: ...})` mutation + the thread-vs-comment ID-shape trap), per-tier auto-resolve decision matrix, when-NOT-to-fire conditions (partial fix; human reply in thread; engine still `RUNNING`; STILL-REAL count > 0; UNCERTAIN > 10%), adapter contract additions (bot identity + one-thread-per-finding + reply-support flags engine references should declare), and a "don't comment on each PR" anti-pattern note (the comments would recreate the noise the resolve clears). Pointer added to `skills/review-loop/SKILL.md` References.
+
 ## v4.3.12 — Compound: six recurring shell-form-migration offenders (form theming + nav scope discipline + help_text wrapper + HTMX 422 swap + ModelForm `_post_clean` trap + drawer coordinator vs parent x-data)
 
 Patch release on the v4.3 line. A `/compound` of six distinct anti-patterns surfaced during a downstream shell-form migration's M-walk + review-loop cycle. Two are net-new references (form-rendering shape selection + `_post_clean` instance-mutation trap); three extend existing references with adjacent-pattern sections. Together these close the most common silent-fail modes in Django + HTMX shell forms.
