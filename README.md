@@ -48,7 +48,7 @@ mind-vault/
 └── tools/         Utilities (review-loop helpers, emoji support, etc.)
 ```
 
-## Skills (15)
+## Skills (17)
 
 Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each skill has frontmatter `name` + `description` (the probabilistic trigger), stays under ~500 lines, and pushes deep-dive content to `references/`.
 
@@ -60,6 +60,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **idea** | Stage 1 — create or update atomic `IDEA-NNN-<slug>.md` files in `docs/ideas/`; maintains the per-priority index. Shape from teisutis IDEA-112. |
 | **plan** | Stage 2 — turn an IDEA file or rough description into a durable plan; interactive brainstorm bootstrap on thin input; `AGENT_architect` as reviewer. Aliased `/brainstorm`. |
 | **work** | Stage 3 — thin orchestrator that reads a plan, enforces `RULE_git-safety` + the parallel-worktree-docker discipline (loaded from `skills/sprint-auto/references/`), dispatches to implementation personas. |
+| **review-loop** | Stage 4 — bounded-autonomy review-fix-rerun loop against pluggable engines (Cursor Bugbot, GitHub Copilot, or any subset); triages findings into Tier 1/2/3, batches per-cycle fixes into one commit, retriggers each engine until structurally clean (DONE + zero active findings). Engine-agnostic core; per-engine specifics in `references/engine-<name>.md`. |
 | **wrap** | Stage 4.5 — documentation sweep, pre-merge by default. Flips IDEA frontmatter to `complete`, re-sorts the ideas index, appends a devlog/CHANGELOG entry, scans project docs for stale references. Three-value `--scope`: `docs` (default) finalizes docs and stops short of merge; `--scope=full` also atomic-merges non-protected targets (then post-merge worktree teardown); `--scope=idea-only` is the sprint-auto subset. Sits between `/review-loop` and `/compound`. |
 | **compound** | Stage 5 — **the novel piece.** Routes a post-incident learning through a hybrid Shape-C probe to one of six destinations (project-local, mind-vault skill / rule / agent pass / command, or auto-memory). |
 | **ingest-backlog** | Brownfield-takeover helper (one-time). Atomises a monolithic `IDEAS.md` / `BACKLOG.md` / `ROADMAP.md` into per-idea files matching the sprint-workflow schema. Default dry-run. |
@@ -75,6 +76,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **surgical-tdd** | Targeted test execution for large Python monoliths (Django runner + pytest nodeids + `--lf` / `-k` / `pytest-xdist` levers). |
 | **artefact-retrieval** | Sweep IDE workspaces (Cursor / Antigravity / Claude Code) for plans and analyses; import into `docs/artefacts/`. |
 | **dependabot-triage** | Multi-ecosystem Dependabot PR triage — content-based dup detection across pip workspaces, risk-tier batching with per-dep commits (preserves `git bisect` post-squash-merge), live-staging smoke for SDK bumps. |
+| **mobile-ux-polish** | Mobile + tablet touch-interaction patterns — swipe gestures, scroll-snap panes, swipe drawers, sticky-on-scroll navbars, iOS Safari quirks (drag-vs-tap discriminator, scroll-snap settle debounce). Pairs with `django-frontend`. |
 
 ### Meta
 
@@ -82,7 +84,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | --- | --- |
 | **skill-writer** | Authoring + refactoring `.md` skills and rules — frontmatter schema, TRIGGER/SKIP, length budget, DO/DON'T matrix, cross-project portability, emitted-template rules. |
 
-## Agents (9 subagent personas)
+## Agents (8 subagent personas)
 
 `AGENT_*.md` files consumed by Cursor's and Claude Code's subagent systems, inlined by OpenCode. Each persona has Prime Directives, an N-pass workflow, and a structured verdict format.
 
@@ -90,8 +92,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | --- | --- | --- |
 | **architect** | Structural + abstraction + coupling review; author mode for cross-cutting refactors | Stage 2 reviewer (plan), Stage 3 author (cross-cutting) |
 | **backend / frontend / devops / test-engineer** | Implementation personas by domain | Stage 3 dispatch targets from `/work` |
-| **bugbot / copilot** | Pre-commit rigorous code review (6-pass workflow); engine-specific personas with identical pattern catalogue | Stage 4 reviewer (invoked via `/review-loop <PR> <engine>`) |
-| **curator** | Pre-commit sister to the review bots + **sprint-end promotion sweep** mode | Stage 4 reviewer + cross-sprint retrospective |
+| **curator** | Pre-commit review + **sprint-end promotion sweep** mode (the review-bot personas were collapsed into `/review-loop` + engine references in v4.3) | Stage 4 reviewer + cross-sprint retrospective |
 | **documentation** | Docs-only authorship and review | Standalone |
 | **researcher** | Ad-hoc investigation / literature review | Standalone |
 

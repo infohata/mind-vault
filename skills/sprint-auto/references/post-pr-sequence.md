@@ -156,7 +156,7 @@ After all per-IDEA loops complete:
 │ S15 batch summary + HITL handoff                                             │
 │      → docs/archive/auto-run-<ISO-timestamp>-summary.md (primary tree)       │
 │        includes Integration check section (merge results, test results,      │
-│        review results, forward-sync results, re-review results)              │
+│        review results)                                                       │
 │      → stdout summary block                                                  │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
