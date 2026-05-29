@@ -198,6 +198,23 @@ These are recurring issues that Copilot correctly catches. Check for them proact
 
     Full discipline catalogued in [`rules/RULE_self-sweep-before-push.md`](../rules/RULE_self-sweep-before-push.md) § "Contract-Change Sweep".
 
+20. **Loose assertion that matches multiple branches' telemetry** (test-assertion robustness, language-agnostic): a test labelled `'… when X happens'` exercises branch X, but the assertion uses a substring/regex/`contains` that ALSO matches branch Y's telemetry. The test passes — and stays green if a later refactor drops branch Y's log/error/event entirely. The test claims to pin X; it actually pins "anything that shares a substring with X". This is the standard test-quality regression Copilot's static review catches reliably across languages.
+
+    Canonical shape (PHP/Pest, but the pattern is language-agnostic): controller has two `Log::warning(...)` lines — `'Empty PDF blob'` and `'Undecodable PDF blob'`. Test for the empty-blob branch asserts `stripos($message, 'PDF') !== false`. Both messages contain "PDF", so the assertion passes when the body actually triggers the undecodable branch (or when a future edit drops the Empty warning). PR #17 br-internal-panel.
+
+    Drill-side guidance while reviewing any test that asserts on telemetry shared across a branch family:
+
+    - **Grep for siblings of the under-test telemetry**: if the test asserts on `'XYZ failed'`, grep the source for *all* `'… failed'` strings; any sibling within the assertion's match window is a hole.
+    - **Pin on equality, not containment.** Replace substring/`contains`/`stripos`/`assertContains` with exact-match (`=== 'Undecodable PDF blob'`, `assertEqual(record.msg, 'specific failure')`, `expect(err.message).toBe('exact text')`). If the production code can't commit to an exact string (interpolated runtime data), pin on a stable prefix or a regex anchored at the start.
+    - **Test name and test body must agree on the branch.** When the title says "empty blob" but the body seeds an undecodable payload, the title is the lie — rename the test before tightening the assertion. The renamed test should be greppable for the actual branch under test.
+    - **Sibling-coverage check.** If the file has N branches but only one test, the rest are uncovered. The fix is usually a second test, not extending the first one to "cover both".
+
+    Cross-language shape catalogue:
+
+    - **Python**: `assert 'failed' in caplog.text` → `assert ('exact.logger', logging.WARNING, 'Specific failure') in caplog.record_tuples`.
+    - **JS/Jest**: `expect(err.message).toMatch(/error/i)` → `expect(err.message).toBe('Specific error string')`.
+    - **PHP/Pest**: `stripos($msg, 'PDF') !== false` → `$message === 'Undecodable PDF blob'`.
+
 ### PASS 3: The Re-Trigger Loop
 
 - **Skip PASS 3 *and* the wait-and-wake state if zero fixes were applied in PASS 2** (all findings Tier 3, or all edits reverted on test failure). Hand back to the user immediately with all unfixed findings surfaced as Tier 3 escalations. Rationale: no fixes → no push → Copilot has nothing new to review; polling would only rediscover the same unfixable findings and waste the active-work budget. Never commit empty, never re-trigger Copilot on unchanged code.
