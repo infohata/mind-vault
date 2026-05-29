@@ -398,6 +398,8 @@ for article in articles:
 Article.objects.filter(status="draft").update(status="published")
 ```
 
+**Caveat — bulk ops bypass the model layer.** `.update()` / `bulk_create` / `bulk_update` issue SQL directly: they skip `save()`, `pre_save`/`post_save` signals, and `auto_now`/`auto_now_add`. A `.update(status=…)` leaves `updated_at` frozen — set it explicitly (`.update(status=…, updated_at=timezone.now())`). See [`references/BULK_ORM_BYPASSES_MODEL_LAYER.md`](references/BULK_ORM_BYPASSES_MODEL_LAYER.md) for the full skip-list, the manual-side-effect options, and the reviewer grep.
+
 **When NOT to optimise:** small result sets (\<10 rows), related objects not accessed in the code path, measured impact negligible. Premature `select_related` over-fetches columns and can make things worse.
 
 **Assert query count in tests:**
@@ -581,7 +583,7 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [Forms — cross-skill index](../django-frontend/references/FORMS_INDEX.md) — entry point for form work across django + django-frontend (rendering / status+swap / validation / formsets / uploads / FK validation); bridges to the template-side refs without a grep.
 - [Form-invalid status](references/FORM_INVALID_STATUS.md) — `form_invalid` returns 200 by default; HTMX-aware views need 422 (via `HTMXFormStatusMixin`) OR `HX-Trigger`-gated modal close. Paired client `htmx:beforeSwap` listener required to let HTMX swap 422 bodies.
 - [ModelForm `_post_clean` trap](references/MODELFORM_POST_CLEAN_TRAP.md) — `is_valid()` writes `cleaned_data` INTO `self.instance` via `construct_instance`, so `instance.field` reads after that return the POST value. Defeats change-detection; `form.changed_data` doesn't substitute. Fix: snapshot before bind.
-- [`QuerySet.update()` bypasses `auto_now`](references/QUERYSET_UPDATE_BYPASSES_AUTO_NOW.md) — `.update()` / `bulk_update()` / `F()` never call `save()`, so an `auto_now` `updated_at` goes stale with no error; set `updated_at=timezone.now()` explicitly when a downstream reader (recent-activity feed, "changed in N days" filter, cache key, `Last-Modified`) depends on it.
+- [Bulk ORM bypasses the model layer](references/BULK_ORM_BYPASSES_MODEL_LAYER.md) — `.update()` / `bulk_create` / `bulk_update` skip `save()`, `pre_save`/`post_save` signals, and `auto_now`/`auto_now_add`; the classic bug is a `.update(status=…)` leaving `updated_at` frozen (fix: set it explicitly). Skip-list, manual-side-effect options, reviewer grep for `auto_now`/`@receiver`/`def save(` siblings.
 - [Tenant-scoped FK validation](references/TENANT_SCOPED_FK_VALIDATION.md) — validate-and-prune helpers walking shared-schema `org_id`-carrying models must explicitly `.filter(org_id=…)`; schema routing covers only tenant-schema models.
 - [Permission-gate probe](references/PERMISSION_GATE_PROBE.md) — when re-implementing a view's authorization elsewhere (fragment / 2nd endpoint / command), replicate the *effective* gate (`permission_classes` AND `get_queryset` AND `dispatch`/`get_object`), not the coarse declared class — copying the class alone silently widens the gate; the inverse (legacy gate authorizes on historical authorship → fix, don't copy) + re-gate-the-legacy-endpoint + UI-bypass test + the dual (server-gated but the affordance still leaks — thread the permission flag to the template or drop the dead "for symmetry" param)
 - [Django Documentation](https://docs.djangoproject.com/)

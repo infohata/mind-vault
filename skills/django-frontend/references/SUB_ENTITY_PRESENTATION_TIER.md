@@ -22,8 +22,8 @@ for the same email). The point is the dashboard stays a fixed-height summary reg
 history accrues; the full truth lives one click away on the sub-surface.
 
 > The teaser's "recently-changed" window keys on a timestamp — so a bulk status transition done via
-> `QuerySet.update()` must set that timestamp explicitly, or recently-changed rows silently fall out
-> of the window. See [`../../django/references/QUERYSET_UPDATE_BYPASSES_AUTO_NOW.md`](../../django/references/QUERYSET_UPDATE_BYPASSES_AUTO_NOW.md).
+> `QuerySet.update()` must set that timestamp explicitly (bulk ops skip `auto_now`), or recently-changed
+> rows silently fall out of the window. See [`../../django/references/BULK_ORM_BYPASSES_MODEL_LAYER.md`](../../django/references/BULK_ORM_BYPASSES_MODEL_LAYER.md).
 
 ## Sub-surface conventions
 
