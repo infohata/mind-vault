@@ -492,7 +492,7 @@ bodyEl.addEventListener('htmx:beforeSwap', (evt) => {
 The 3-gate composition matters:
 
 1. **Bind on `htmx:beforeSwap`, not `htmx:afterRequest`**: `afterRequest` fires after the form is detached from the DOM during the swap → the event source disappears → listeners that try to walk back to the form get null.
-2. **`xhr.status` 2xx is necessary but not sufficient**: Django's default `form_invalid()` returns status 200 + form-with-errors. Without override, status-only gating closes the modal on validation failure. See [`../../django/references/DJANGO_FORM_INVALID_STATUS.md`](../../django/references/DJANGO_FORM_INVALID_STATUS.md) for the override pattern that makes status-only gating safe.
+2. **`xhr.status` 2xx is necessary but not sufficient**: Django's default `form_invalid()` returns status 200 + form-with-errors. Without override, status-only gating closes the modal on validation failure. See [`../../django/references/FORM_INVALID_STATUS.md`](../../django/references/FORM_INVALID_STATUS.md) for the override pattern that makes status-only gating safe.
 3. **Response `HX-Trigger` header contains the canonical success signal**: the server emits `entityChanged` only on form_valid; absent on form_invalid. The header check is the actual distinguisher.
 
 ## Emit the change-signal only on an ACTUAL mutation (producer-side gate)
