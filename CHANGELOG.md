@@ -10,6 +10,20 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.4.4 — Compound: bulk-ORM bypasses the model layer + in-place-replace scroll preservation
+
+Patch release. `/compound` of two cohesive learnings from an invitation-management shell-migration build on a downstream project. Deduped hard against the corpus — the third candidate from that build (re-implementing a view's authorization at a new call site; the demoted-author `author==request.user` loophole; the UI-bypass 403 test) was found **already covered** by `PERMISSION_GATE_PROBE.md` (its "inverse case — sometimes the legacy gate is wrong" section + checklist item 4), so nothing was written for it. Routed load-on-demand — one new reference plus targeted extends to three existing files (one reference + two SKILL.md pointer/caveat updates), no SKILL.md-body mechanics or always-on `rules/` bloat.
+
+### Added
+
+- **`skills/django/references/BULK_ORM_BYPASSES_MODEL_LAYER.md`** — `QuerySet.update()` / `bulk_create` / `bulk_update` issue SQL directly and skip the model layer: no `save()`, no `pre_save`/`post_save` signals (reindex, cache-bust, audit, counters), no `auto_now`/`auto_now_add`. The classic silent bug is a `.update(status=…)` leaving `updated_at` frozen — fix by setting it explicitly (`.update(status=…, updated_at=timezone.now())`); `bulk_update` needs the `auto_now` field assigned per-instance AND listed in `fields=`. Covers the three honest options when a skipped signal is load-bearing (fire it manually / fall back to a `save()` loop for small sets / `post_save.send` yourself), the reviewer/self-sweep grep (`auto_now`, `def save(`, `@receiver(post_save`) for any diff introducing a bulk op, and when bypassing is exactly right (no `auto_now` sibling / no receiver / no `save()` override).
+
+### Changed
+
+- **`skills/django-frontend/references/HTMX_SCROLL_PRESERVATION.md`** — added the sibling scenario the doc previously punted on: **scroll preservation across an in-place *replace* refresh** (a list/section re-rendered via `outerHTML`/`innerHTML` after a delete-a-row or refresh-on-event), where the browser resets `scrollTop` to 0 because the scrolled-to children no longer exist. Simpler than the prepend marker-math — capture `scrollTop` before, restore it after — with three robustness notes: `requestAnimationFrame` before restoring (the new subtree's `scrollHeight` hasn't settled, so a synchronous assign gets clamped to the momentarily-short height); resolve the inner `overflow-y:auto` scroll container, not `window` (shell/drawer layouts scroll an inner pane); one universal `document.body` listener gated on a container marker (a "universal beneficiary", not a per-surface copy). Plus the gate: preserve only on same-logical-content minor-delta refreshes, not filter-driven re-queries that legitimately reset the view.
+- **`skills/django/SKILL.md`** — bulk-update example gained a one-paragraph caveat + reference pointer; new References-list entry for `BULK_ORM_BYPASSES_MODEL_LAYER.md`.
+- **`skills/django-frontend/SKILL.md`** — References-list description for `HTMX_SCROLL_PRESERVATION.md` refreshed to name both scenarios (prepend primitive + in-place-replace refresh).
+
 ## v4.4.3 — Compound: mobile edge-affordance rails (JS/UX/architecture half) + wrap-before-review discoverability cue
 
 Patch release. `/compound` of the JS/UX/architecture learnings from the same mobile edge-affordance build whose SCSS slice shipped in v4.4.2, plus one workflow-positioning fix. Deduped hard against the existing corpus (the SCSS mechanics already live in `SCSS_RESPONSIVE_PATTERNS.md` — everything cross-refs it, nothing restates it); routed load-on-demand — one new reference, four targeted extends, no always-on `rules/` bloat.

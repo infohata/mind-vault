@@ -398,6 +398,8 @@ for article in articles:
 Article.objects.filter(status="draft").update(status="published")
 ```
 
+**Caveat — bulk ops bypass the model layer.** `.update()` / `bulk_create` / `bulk_update` issue SQL directly: they skip `save()`, `pre_save`/`post_save` signals, and `auto_now`/`auto_now_add`. A `.update(status=…)` leaves `updated_at` frozen — set it explicitly (`.update(status=…, updated_at=timezone.now())`). See [`references/BULK_ORM_BYPASSES_MODEL_LAYER.md`](references/BULK_ORM_BYPASSES_MODEL_LAYER.md) for the full skip-list, the manual-side-effect options, and the reviewer grep.
+
 **When NOT to optimise:** small result sets (\<10 rows), related objects not accessed in the code path, measured impact negligible. Premature `select_related` over-fetches columns and can make things worse.
 
 **Assert query count in tests:**
@@ -566,6 +568,7 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation (django-tenants); incl. cross-schema cascade teardown for tests that create a real tenant (drop-schema + raw-SQL deletes, not ORM cascade)
 - [Idempotent seed / management commands](references/IDEMPOTENT_SEED_COMMANDS.md) — top-up idempotency trio (attach M2M/FK not only on `created`; correct privileged-user flags on existing rows; globally-unique-conflict no-abort) + DEBUG prod-guard on privileged-user seeds
 - [Splitting a flat module into a package (AST extraction)](references/MODULE_SPLIT_AST_EXTRACTION.md) — byte-exact `ast`-driven flat-module → package split (bucket-by-prefix, leading-comment + PEP-224 attr-docstring capture, coverage assertion, blank-line-only `autopep8`, `pyflakes` import trim); Python-general recipe that owns the `RULE_rename-before-drop` forced-atomic-member sequencing (the rule points here)
+- [Bulk ORM bypasses the model layer](references/BULK_ORM_BYPASSES_MODEL_LAYER.md) — `.update()` / `bulk_create` / `bulk_update` skip `save()`, `pre_save`/`post_save` signals, and `auto_now`/`auto_now_add`; the classic bug is a `.update(status=…)` leaving `updated_at` frozen (fix: set it explicitly). Skip-list, manual-side-effect options, reviewer grep for `auto_now`/`@receiver`/`def save(` siblings.
 - [Async WebSocket](references/ASYNC_WEBSOCKET.md) — Channels consumers and routing
 - [Celery Background Tasks](references/CELERY.md) — async job processing
 - [Logging Patterns](references/LOGGING.md) — structured logging and audit trails
