@@ -233,6 +233,7 @@ Default to option 1. Add an explicit list of tables that need truncation; `cur.e
 - ❌ **Pre-baking session cookies WITHOUT `schema_context` on session save** — the session row lands in `public.django_session` instead of `<tenant>.django_session`; SessionMiddleware looks in the wrong schema.
 - ❌ **Cookie `domain` mismatch** with the `Host` header — the browser silently drops the cookie. Symptom: every authed test redirects to login.
 - ❌ **Relying on incidental rows in a long-lived dev tenant** for a corpus shape the test needs — passes locally, fails on a fresh-volume/CI/`--reset` tenant. Guarantee the shape in the seed + lock it in a fast unit invariant. See § Seed determinism.
+- ❌ **Hardcoding a host in a URL assertion** — `to_have_url('http://localhost/orgs/5/invitations/')`. Assert a **relative path** (`to_have_url('/orgs/5/invitations/')`); Playwright resolves it against the context's `base_url`. The hardcode is doubly wrong here: the configured `base_url` differs from the dev box (the docker test runner reaches the app over an internal hostname, not `localhost`), **and** in multi-tenant tests the host *is* the tenant identity (the `Host` header from § Option A) — a literal host in the assertion silently asserts the wrong tenant or never matches. Relative paths are tenant-agnostic and base-URL-agnostic; they're the only form that survives both. (`grep` for `to_have_url.*http` should return zero hits.)
 
 ## Related references
 
