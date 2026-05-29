@@ -60,6 +60,30 @@ When re-implementing, that's the moment to **fix** the gate to the correct curre
    a direct (UI-bypassing) request must be rejected. Write a UI-bypass test: a non-admin / wrong-role
    user POSTs straight to the endpoint and gets 403 + no state change.
 
+## The dual — server-gated but the affordance still leaks
+
+Step 4 says hiding the affordance isn't *sufficient*. The dual failure is just as common: the endpoint
+**is** correctly gated server-side, but the UI affordance (the "Invite", "Cancel", "Manage →" link /
+button) renders for **everyone**, so non-admins see actions they can't perform. Not an authorization
+hole — clicking 403s — but a confusing leak, and exactly what an affordance-presence test
+(`assert no "Invite" button for a non-admin viewer`) is meant to catch.
+
+The reliable smell: **a permission flag passed into a render-fn / context-builder "for signature
+symmetry with the cohort" but never threaded to the template.** A `can_admin` parameter the function
+accepts while a docstring says it's "kept for symmetry, unused for display" is a dead parameter *and*
+a guarantee the affordance is ungated — the template can't hide what it was never told. Two fixes, do
+both:
+
+- **Thread the flag to the template context** and gate the affordance: `{% if can_admin %}…{% endif %}`
+  (or the cotton primitive's `can_admin` prop) — gate at the same `user_can_admin_<x>` selector the
+  endpoint uses, so affordance-gate == server-gate.
+- **Or drop the parameter** if the surface genuinely shows the affordance to all viewers by design.
+  A passed-but-unused permission param is never the right resting state — it reads as "gated" while
+  doing nothing, and a self-sweep / review bot flags it anyway (`RULE_self-sweep-before-push`).
+
+The complete picture: gate the **endpoint** (step 4, the security boundary) **and** gate the
+**affordance** (this section, the UX boundary), both off the one selector.
+
 ## When NOT to over-probe
 
 If the view's only gate genuinely *is* the permission class — no `get_queryset` narrowing, no

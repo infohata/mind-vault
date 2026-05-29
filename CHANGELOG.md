@@ -10,6 +10,21 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.4.4 — Compound: invitation-shell-migration leftovers (`.update()`/`auto_now` · affordance-gate dual · sub-entity presentation tier · e2e relative-URL)
+
+Patch release. `/compound` of four leftover learnings from an unbounded-sub-entity shell migration on a downstream project. Deduped against the corpus and routed load-on-demand — two new references, two targeted extends, no SKILL.md body or always-on `rules/` bloat.
+
+### Added
+
+- **`skills/django/references/QUERYSET_UPDATE_BYPASSES_AUTO_NOW.md`** — `QuerySet.update()` / `bulk_update()` / `F()` never call `Model.save()`, so an `auto_now` field (`updated_at`) is **not** refreshed — silently, no error. Bites only when a downstream reader depends on the timestamp (recent-activity feed, "changed in last N days" filter, cache key, `Last-Modified`/`ETag`, audit sort). Fix: set `updated_at=timezone.now()` explicitly in the same `.update()` call; manager-override centralises it but hides the cost — prefer the explicit call-site form.
+- **`skills/django-frontend/references/SUB_ENTITY_PRESENTATION_TIER.md`** — the dashboard-sub-entity presentation decision in a shell migration, driven by one property (bounded vs unbounded): **bounded** → inline preview-drawer drilldown, no standalone surface; **unbounded/historical** → a bounded teaser (an *actionable* slice — actionable-state-always + recently-changed-within-a-window + omit decayed-noise + per-identity priority, **not** `queryset[:N]`) plus a dedicated filterable centre sub-surface at an additive URL. Sub-surface conventions: additive (bookmark-survival-safe) URL, keep `active_surface` on the parent, reuse the mutation service verbatim, one uniform permission selector across teaser/surface/row-actions.
+
+### Changed
+
+- **`skills/django/references/PERMISSION_GATE_PROBE.md`** — added "The dual — server-gated but the affordance still leaks": the complement to checklist #4. The endpoint is correctly gated but the UI affordance renders for everyone (non-admins see actions that 403 on click). The reliable smell is a permission flag (`can_admin`) passed into a render-fn "for signature symmetry" but never threaded to the template — a dead param *and* a guarantee the affordance is ungated. Fix: thread it to the template context (gate at the same selector as the endpoint) **or** drop the param; gate the endpoint (security boundary) AND the affordance (UX boundary) off the one selector.
+- **`skills/django-frontend/references/MULTI_TENANT_PLAYWRIGHT.md`** — added an anti-pattern: never hardcode a host in a `to_have_url` assertion. Assert a relative path (Playwright resolves it against the context `base_url`); a literal host is doubly wrong in multi-tenant tests where the configured `base_url` differs from the dev box AND the `Host` header *is* the tenant identity — relative paths are the only base-URL- and tenant-agnostic form. Examples stay generic.
+- **`skills/django/SKILL.md`**, **`skills/django-frontend/SKILL.md`** — References-list pointers for the two new references + the affordance-dual note on the permission-gate-probe entry.
+
 ## v4.4.3 — Compound: mobile edge-affordance rails (JS/UX/architecture half) + wrap-before-review discoverability cue
 
 Patch release. `/compound` of the JS/UX/architecture learnings from the same mobile edge-affordance build whose SCSS slice shipped in v4.4.2, plus one workflow-positioning fix. Deduped hard against the existing corpus (the SCSS mechanics already live in `SCSS_RESPONSIVE_PATTERNS.md` — everything cross-refs it, nothing restates it); routed load-on-demand — one new reference, four targeted extends, no always-on `rules/` bloat.
