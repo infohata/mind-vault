@@ -215,6 +215,35 @@ These are recurring issues that Copilot correctly catches. Check for them proact
     - **JS/Jest**: `expect(err.message).toMatch(/error/i)` → `expect(err.message).toBe('Specific error string')`.
     - **PHP/Pest**: `stripos($msg, 'PDF') !== false` → `$message === 'Undecodable PDF blob'`.
 
+    **Addendum — pin the PATH under test, not just the result.** A subtler variant of the same trap: a new code branch is OR'd onto existing branches that share the same observable outcome. A passing test that just checks "the right row was returned" can't distinguish "the new branch did the work" from "an old branch did the work AND the new branch is dead code." Seed data must make the existing branches INCAPABLE of matching the test input — only then does the test prove the new branch fires.
+
+    Canonical shape (PHP/Pest, but applies to any test of a query path): a new `searchRelations()` branch matches `WHERE (series = ? AND Id = ?)` when the term is `'TSER390'`. The existing branch matches `client.company_name LIKE '%TSER390%'`. Seed: client `name = 'TSER390-only Co'` + invoice `series='TSER', Id=390`. Test: `?search=TSER390` → asserts the invoice is in the result. This passes today AND would pass if the new branch were deleted (because the client-name match alone returns the right row). The seed leaks the search token into the fall-through path. Fix: seed `name = 'Aviation Holdings'` (no substring overlap with `'TSER390'`). Now the only path that can match is the recognition branch; deleting it makes the test correctly fail. PR #20 br-internal-panel.
+
+    Drill-side guidance for code that ORs a new branch onto an existing search/match path:
+
+    - **Identify the fall-through OR-branches** (existing per-column LIKEs, existing relation hooks, existing fuzzy matchers) and the test input. If any fall-through branch's predicate evaluates true on the test input + seed, the test isn't isolating the new branch.
+    - **Choose seed values that the fall-through branches CANNOT match on the test input.** For substring-LIKE fall-throughs, ensure no seeded text field contains the test token. For relation-table searches, ensure related rows' columns don't carry the token. For type-coercion fall-throughs (`'390'` matches numeric `Id` column), ensure the existing column values can't collide.
+    - **Mental delete-the-new-branch check.** Before pushing, ask: "if I delete the recognition / new-branch / new-mapping lines, does the test still pass?" If yes, the test isn't pinning the new path. Either tighten the seed or add a sibling test that exercises the new branch in isolation (mock the fall-throughs out, or use a test-double that disables them).
+
+21. **PCRE `$` matches before a trailing newline by default — use `\z` for absolute end-of-string** (regex anchors, language-aware): `preg_match('/^([A-Za-z]+)([0-9]+)$/', $term)` accepts `"TSER390\n"` because PCRE's `$` (without the `D` modifier) matches *before* a final `\n`. Direct callers of a helper documented as "exact-token only" silently get false positives when input carries trailing whitespace. Upstream `trim()` typically papers over this on the production call path, but a unit test or a refactor that drops the trim exposes the leak. PR #20 br-internal-panel cycle 3.
+
+    Same trap exists in Perl, Ruby (PCRE-compatible), and a few JS engines under non-multiline mode. Languages where `$` is strict end-of-string by default (Python `re`, Go `regexp`) don't fire this — but cross-language code-review still flags it because the helper's *contract* documentation usually claims strict-end behaviour.
+
+    Drill-side checks while reviewing any regex helper with a `^...$` anchor pair:
+
+    - **Grep for the helper's call sites** and identify any that don't pre-`trim()` the input. Each one is a candidate trailing-whitespace bug surface.
+    - **Replace `$` with `\z`** in the helper (PCRE / Perl / Ruby). Or add the `D` modifier: `'/^...$/D'`. Either makes the anchor strict against a final newline. `\z` is the more portable choice (works in PCRE, Perl, Ruby identically).
+    - **Test regression: feed `"<canonical-token>\n"`, `"<canonical-token>\r\n"`, `"<canonical-token>\t"`** to the helper and assert rejection. The unit test pins the strict contract independent of any upstream trim().
+
+22. **Regex-then-cast normalises silently — reject leading zeros in canonical numeric tokens** (boundary case, language-agnostic): a regex `([0-9]+)` captures a digit string, code casts it to int via `(int) $digits` / `parseInt(digits)` / `int(digits)`. The cast accepts `'000390'` and returns `390`. If the helper's contract is "exact-pattern, not edit-distance" — e.g. an invoice-reference recogniser, a UUID-like-token matcher, or a normalised-form check — the silent leading-zero acceptance violates the contract: `'TSER000390'` is a different token from `'TSER390'` but the helper treats them as identical. The downstream query returns the wrong-but-plausible row, the user gets the "right" result for the "wrong" reason, and the recognition layer is doing edit-distance work it claimed not to. PR #20 br-internal-panel cycle 5.
+
+    Drill-side checks while reviewing any helper that parses `<letters><digits>` / `<prefix>-<number>` / `<id>-<seq>` style tokens:
+
+    - **Grep for `([0-9]+)` followed by an int cast** (`(int)`, `parseInt`, `int(`, `Integer.parseInt`, `strconv.Atoi`) and check whether the helper's contract is strict (exact-token) or lenient (edit-distance ok).
+    - **For strict contracts, tighten the digit group to `(0|[1-9][0-9]*)`** — admits the literal `'0'`, rejects all other leading-zero strings.
+    - **Test regression matrix**: `'TSER000390'`, `'TSER0390'`, `'TSER01'` → reject. `'a0'`, `'TSER1'`, `'TSER2147483647'` → admit. Pins the strict contract; the unit test catches drift if a future refactor relaxes back to `([0-9]+)`.
+    - **For lenient contracts** (normalisation IS intended): document it explicitly. The helper's docstring should say "leading zeros are stripped" so a downstream reviewer doesn't re-flag this as a bug. Otherwise the next reviewer rediscovers the gap.
+
 ### PASS 3: The Re-Trigger Loop
 
 - **Skip PASS 3 *and* the wait-and-wake state if zero fixes were applied in PASS 2** (all findings Tier 3, or all edits reverted on test failure). Hand back to the user immediately with all unfixed findings surfaced as Tier 3 escalations. Rationale: no fixes → no push → Copilot has nothing new to review; polling would only rediscover the same unfixable findings and waste the active-work budget. Never commit empty, never re-trigger Copilot on unchanged code.
