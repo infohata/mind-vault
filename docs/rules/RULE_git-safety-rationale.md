@@ -89,3 +89,20 @@ Forward-sync (merging `main` *into* a feature branch) is **allowed** — the fea
 - ✅ `git rebase origin/main` on a feature branch.
 
 The forbidden operation is writing to a protected branch, not the `git merge` command itself. Before any merge/rebase ask: *which branch's tip is about to move?* If the answer is a protected branch, abort.
+
+## Stacked-PR merge order — absorption vs sibling-collapse
+
+When handing back **more than one open PR** for the human to merge, the merge-order guidance depends on the PRs' base branches — and getting it wrong sends the human merging in an order that does something they don't expect. **Run `gh pr view <N> --json baseRefName,headRefName` on every PR in the set before saying which to merge first.** Two distinct shapes:
+
+**Siblings — all PRs target the protected branch (`base = main`).** They're independent. The human merges them in any order; GitHub auto-closes any PR whose commits became ancestors of `main` via an earlier merge ("collapse"). This is the shape the older "just merge the latest, the superseded ones auto-close" intuition assumes — and it's correct *for siblings*.
+
+**Stacked — a child PR's base is another PR's branch (`base = feature/parent`, not `main`).** The child branch already contains all the parent's commits plus its own, so the child is a **superset** of the parent. Here the merge order is not a free choice:
+
+- Merging the **child into the parent first** folds the child's commits into the parent branch — **absorption**. The child PR closes (its diff is now in the parent), and the parent becomes the superset carrying *both* changes.
+- Then the parent (now a superset) merges to `main` as **one shipping moment** — everything ships together.
+
+The failure mode: describing stacked PRs as if they were siblings — *"merge the parent first, then the child"* — is backwards. Merge the parent to `main` first and the child still has an open PR whose base branch just disappeared; the human is left confused about why nothing "collapsed into one." The correct handback names the absorption explicitly:
+
+> #156's base is #155's branch, so #156 folds **into** #155 (absorption). Merge #156 into #155 first, then merge #155 (now the superset) to `main` — one shipping moment.
+
+Worked precedent: a compound chain produced #155 ← #156 (child stacked on parent). The first handback said "merge #155 then #156" (sibling framing); the human merged the child first, saw the parent not auto-close, and was confused. The parent had in fact absorbed the child and was MERGEABLE/CLEAN as a superset — safe to merge to `main` alone — but the imprecise framing cost a round of confusion. Sprint-auto's per-IDEA PRs and multi-step `/compound` chains both routinely produce stacked PRs, so verify `baseRefName` before every multi-PR handback.

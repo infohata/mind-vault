@@ -12,13 +12,14 @@ _(none)_
 
 ## v4.4.1 — shell + multi-tenant compound (schema-context · context-key · OOB-filter · own-key persistence)
 
-Patch release. `/compound` of four learnings from a settings-hub-with-filters shell migration on a downstream multi-tenant project. All routed to skill references (load-on-demand) — no SKILL.md body or `rules/` bloat.
+Patch release. `/compound` of four learnings from a settings-hub-with-filters shell migration on a downstream multi-tenant project, plus one git-workflow learning folded in from a session self-evaluation. All routed to references (load-on-demand) — no SKILL.md body or always-on `rules/` bloat.
 
 ### Added
 
 - **`skills/django/references/MULTI_TENANT.md`** — "A `public-schema` wrapper NULLS the ambient tenant" section: a render/response fn that calls `get_current_tenant()` *inside* a `with_public_schema()` / `schema_context("public")` block reads `None`, so a tenant-keyed `get_object_or_404` raises a spurious **404** that masks the intended status (e.g. a form re-render that should be 422). Enclose only the shared-model work; render after the block closes. Sibling to the existing "pass explicit tenant over ambient connection state" section (this is the inverse — the wrapper actively nulls the tenant).
 - **`skills/django-frontend/references/APP_SHELL_LAYOUT.md`** — two sections: (1) **"Shell-global context keys are reserved"** — a surface fragment view reusing a shell-global key (`nav_items` for `<c-nav-bar :items>`) clobbers the global component prop → `{% url '' %}` / `NoReverseMatch` crash; namespace per-surface keys (`<surface>_nav_items`). (2) **"Settings-hub nav WITH per-section filters"** — when a settings-hub workspace carries per-section filters, keep section nav a bare `hx-get` → `.shell-center` + OOB-swap *only* the filter region; a full shell-fragment re-render re-mounts and re-animates the drawer on every click.
 - **`skills/django-frontend/references/SESSION_FILTER_PERSISTENCE.md`** — **"A surface persisting its OWN key is not cross-entity bleed"**: own-`<surface>_filters_<org>` persistence is correct (per-entity pattern); the anti-pattern is *reading* another family's `cross_filters_<org>`. The gate is "read only the keys you own", not "no session persistence" — a clarification for reviewers who flag any session-persisted filter as a bleed.
+- **`docs/rules/RULE_git-safety-rationale.md`** — "Stacked-PR merge order — absorption vs sibling-collapse" section: when handing back multiple open PRs, check `baseRefName` first. Siblings (`base = main`) merge in any order, auto-collapse. A *stacked* child (`base = parent's branch`) folds **into** the parent (absorption) → parent becomes the superset → merge parent to `main` as one shipping moment. Don't frame stacked PRs as siblings ("parent first, then child") — that's backwards and leaves the human confused when nothing collapses.
 
 ## v4.4 — sprint-auto v3.2 doc-migration + `/wrap --integration` mode (sprint-auto flagged UNSTABLE)
 
