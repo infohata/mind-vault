@@ -10,6 +10,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.4.2 — Compound: SCSS responsive patterns (`@extend`-across-`@media` · responsive custom-property token · additive-padding collapse)
+
+Patch release. `/compound` of three cohesive SCSS/CSS-architecture learnings from a mobile edge-affordance build on a downstream project (a mobile control mirroring a desktop drawer edge-control). All routed to one load-on-demand reference — no SKILL.md body or always-on `rules/` bloat.
+
+### Added
+
+- **`skills/django-frontend/references/SCSS_RESPONSIVE_PATTERNS.md`** — three patterns for "shared styling that differs at a breakpoint": (1) **`@extend` cannot cross a `@media` boundary** — `@extend %placeholder` from inside a media query errors ("You may not @extend selectors across media queries"); use a `@mixin` + `@include` instead, because `@extend` groups selectors onto one block and cross-media scopes can't be grouped. Plus the **compiler-path-masking trap**: a permissive dev build (`make static` / libsass) can silently tolerate it while a stricter e2e/CI dart-sass recompile hard-errors — verify on the strict compiler before push. (2) **Cascading CSS custom property** on the root with a `@media` override as the single source for a footprint consumed by ≥2 components (drawer padding + lip width + pane gutter), beating scattered per-component media queries. (3) **Additive-padding collapse** — nested padded containers stack their horizontal padding and crush content on a narrow pane; designate one gutter owner (the outermost edge-defining element) and zero every nested layer's horizontal padding at the constrained breakpoint.
+- One pointer added to `skills/django-frontend/SKILL.md` References list (after the SCSS vendor-import entry).
+
 ## v4.4.1 — shell + multi-tenant compound (schema-context · context-key · OOB-filter · own-key persistence)
 
 Patch release. `/compound` of four learnings from a settings-hub-with-filters shell migration on a downstream multi-tenant project, plus one git-workflow learning folded in from a session self-evaluation. All routed to references (load-on-demand) — no SKILL.md body or always-on `rules/` bloat.
