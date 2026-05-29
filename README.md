@@ -15,6 +15,8 @@ Cross-host configuration library for AI coding agents — skills, commands, suba
 > **Single source of truth.** You edit in `mind-vault/`; one setup script per host drops symlinks into each tool's native config directory. No copy-paste drift between Cursor, Claude Code, OpenCode, VS Code Copilot, or Antigravity.
 >
 > **v4 highlights.** The Stage 4 review surface is now engine-agnostic — opt into Cursor Bugbot, GitHub Copilot, both concurrently, or neither (curator-only fallback). Canonical entry: `/review-loop <PR> bugbot`, `/review-loop <PR> copilot`, or `/review-loop <PR> bugbot,copilot`.
+>
+> **⚠️ `sprint-auto` is currently UNSTABLE (as of v4.4).** The overnight orchestrator hasn't been exercised end-to-end since the v3.2 integration-as-merge-gate redesign, dual-engine review, the eval-gate path, and the two-pass `/wrap` all landed around it. Its docs were just reconciled (v4.4 sprint-auto doc-migration); the *runtime* path still needs a low-stakes shakedown batch before you trust it for unattended overnight runs. The single-IDEA flow (`/idea → /plan → /work → /review-loop → /wrap`) is unaffected and stable.
 
 ## Sprint workflow — the compound loop
 
@@ -48,7 +50,7 @@ mind-vault/
 └── tools/         Utilities (review-loop helpers, emoji support, etc.)
 ```
 
-## Skills (15)
+## Skills (17)
 
 Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each skill has frontmatter `name` + `description` (the probabilistic trigger), stays under ~500 lines, and pushes deep-dive content to `references/`.
 
@@ -60,10 +62,11 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **idea** | Stage 1 — create or update atomic `IDEA-NNN-<slug>.md` files in `docs/ideas/`; maintains the per-priority index. Shape from teisutis IDEA-112. |
 | **plan** | Stage 2 — turn an IDEA file or rough description into a durable plan; interactive brainstorm bootstrap on thin input; `AGENT_architect` as reviewer. Aliased `/brainstorm`. |
 | **work** | Stage 3 — thin orchestrator that reads a plan, enforces `RULE_git-safety` + the parallel-worktree-docker discipline (loaded from `skills/sprint-auto/references/`), dispatches to implementation personas. |
+| **review-loop** | Stage 4 — bounded-autonomy review-fix-rerun loop against pluggable engines (Cursor Bugbot, GitHub Copilot, or any subset); triages findings into Tier 1/2/3, batches per-cycle fixes into one commit, retriggers each engine until structurally clean (DONE + zero active findings). Engine-agnostic core; per-engine specifics in `references/engine-<name>.md`. |
 | **wrap** | Stage 4.5 — documentation sweep, pre-merge by default. Flips IDEA frontmatter to `complete`, re-sorts the ideas index, appends a devlog/CHANGELOG entry, scans project docs for stale references. Three-value `--scope`: `docs` (default) finalizes docs and stops short of merge; `--scope=full` also atomic-merges non-protected targets (then post-merge worktree teardown); `--scope=idea-only` is the sprint-auto subset. Sits between `/review-loop` and `/compound`. |
 | **compound** | Stage 5 — **the novel piece.** Routes a post-incident learning through a hybrid Shape-C probe to one of six destinations (project-local, mind-vault skill / rule / agent pass / command, or auto-memory). |
 | **ingest-backlog** | Brownfield-takeover helper (one-time). Atomises a monolithic `IDEAS.md` / `BACKLOG.md` / `ROADMAP.md` into per-idea files matching the sprint-workflow schema. Default dry-run. |
-| **sprint-auto** | Overnight unattended wrapper around the **full sprint workflow** (stages 2–5). Per IDEA: `/plan → /work → /review-loop (deliverables) → /wrap (pre-merge) → /review-loop (docs) → teardown` in per-IDEA git worktrees with independent docker-compose stacks; `/review-loop` invocation expands to `bugbot`, `copilot`, or `bugbot,copilot` per project config (`SPRINT_AUTO_REVIEW_ENGINE`). Per-pass escalation caps 20/5/5 (deliverables/docs/mind-vault compound), rollback-able fresh commits. Batch end: `/compound` per candidate + `/review-loop` on each mind-vault PR produced. Belt-and-suspenders gates (`auto_safe: true` frontmatter + explicit arg allowlist); stops at the HITL merge boundary per `RULE_git-safety`. |
+| **sprint-auto** ⚠️ _unstable_ | Overnight unattended wrapper around the **full sprint workflow** (stages 2–5). Per IDEA: `/plan → /work → /review-loop (deliverables) → /wrap --scope=idea-only → /review-loop (docs)` in per-IDEA git worktrees (pure code surfaces — **one** shared integration docker stack at port offset `+30000`, not per-IDEA stacks); `/review-loop` expands to `bugbot`, `copilot`, or `bugbot,copilot` per `SPRINT_AUTO_REVIEW_ENGINE`. **v3.2 integration-as-merge-gate**: per-IDEA PRs target a non-draft `[INTEGRATION]` PR (the single merge gate, left OPEN for the human); batch teardown via `/wrap --integration <batch-iso>`. Per-pass escalation caps 20/5/10/10/20/5. Belt-and-suspenders gates (`auto_safe: true` OR `auto_safe_with_eval_gate: true` + explicit arg allowlist); stops at the HITL merge boundary per `RULE_git-safety`. **Not battle-tested since v3.2 + dual-engine + eval-gate + two-pass-wrap landed — shake down on a low-stakes batch first (see stability note above).** |
 
 ### Cross-project engineering
 
@@ -75,6 +78,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **surgical-tdd** | Targeted test execution for large Python monoliths (Django runner + pytest nodeids + `--lf` / `-k` / `pytest-xdist` levers). |
 | **artefact-retrieval** | Sweep IDE workspaces (Cursor / Antigravity / Claude Code) for plans and analyses; import into `docs/artefacts/`. |
 | **dependabot-triage** | Multi-ecosystem Dependabot PR triage — content-based dup detection across pip workspaces, risk-tier batching with per-dep commits (preserves `git bisect` post-squash-merge), live-staging smoke for SDK bumps. |
+| **mobile-ux-polish** | Mobile + tablet touch-interaction patterns — swipe gestures, scroll-snap panes, swipe drawers, sticky-on-scroll navbars, iOS Safari quirks (drag-vs-tap discriminator, scroll-snap settle debounce). Pairs with `django-frontend`. |
 
 ### Meta
 
@@ -82,7 +86,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | --- | --- |
 | **skill-writer** | Authoring + refactoring `.md` skills and rules — frontmatter schema, TRIGGER/SKIP, length budget, DO/DON'T matrix, cross-project portability, emitted-template rules. |
 
-## Agents (9 subagent personas)
+## Agents (8 subagent personas)
 
 `AGENT_*.md` files consumed by Cursor's and Claude Code's subagent systems, inlined by OpenCode. Each persona has Prime Directives, an N-pass workflow, and a structured verdict format.
 
@@ -90,8 +94,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | --- | --- | --- |
 | **architect** | Structural + abstraction + coupling review; author mode for cross-cutting refactors | Stage 2 reviewer (plan), Stage 3 author (cross-cutting) |
 | **backend / frontend / devops / test-engineer** | Implementation personas by domain | Stage 3 dispatch targets from `/work` |
-| **bugbot / copilot** | Pre-commit rigorous code review (6-pass workflow); engine-specific personas with identical pattern catalogue | Stage 4 reviewer (invoked via `/review-loop <PR> <engine>`) |
-| **curator** | Pre-commit sister to the review bots + **sprint-end promotion sweep** mode | Stage 4 reviewer + cross-sprint retrospective |
+| **curator** | Pre-commit review + **sprint-end promotion sweep** mode (the review-bot personas were collapsed into `/review-loop` + engine references in v4.3) | Stage 4 reviewer + cross-sprint retrospective |
 | **documentation** | Docs-only authorship and review | Standalone |
 | **researcher** | Ad-hoc investigation / literature review | Standalone |
 

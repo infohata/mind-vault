@@ -5,7 +5,7 @@ GitHub review threads (inline `pull_request_review_comments`) carry an independe
 This reference defines two patterns:
 
 1. **Forward (in-loop) auto-resolve** — the loop resolves threads as it commits the fix. Prevents accumulation going forward.
-2. **Retroactive audit + bulk-resolve** — for PRs that accumulated debt before this pattern landed: a focused Explore-agent audit classifies each thread, and on a clean verdict (zero STILL-REAL) the orchestrator bulk-resolves via GraphQL mutation.
+2. **Retroactive audit + bulk-resolve** — for PRs that accumulated debt before this pattern landed: a focused Explore-agent audit classifies each thread, an adversarial refute pass confirms any STILL-REAL verdicts, and on a clean verdict (zero **confirmed** STILL-REAL) the orchestrator bulk-resolves via GraphQL mutation.
 
 Both rely on the same primitive: the GitHub GraphQL `resolveReviewThread` mutation.
 
@@ -174,9 +174,21 @@ The audit prompt should also brief the agent on **project conventions the bot is
 
 A 30-thread audit completes in 3-5 minutes; the agent reads enough code to give a verdict per thread.
 
+**Shared-worktree hazard — read with `git show`, never `git checkout`.** Audit and refute agents run in the orchestrator's worktree. To inspect post-merge code they MUST read via `git show <ref>:<path>` (e.g. `git show main:skills/foo.md`) — **never** `git checkout <ref>`, which switches the *shared* worktree's branch out from under the orchestrator mid-run. (Observed during this recipe's own dogfooding: an audit agent told "verify against main" ran `git checkout main` and stranded the parent session on the wrong branch.) If an agent genuinely needs a checked-out tree, give it its own `git worktree`; the default is `git show`.
+
+### Step 2.5 — Adversarially verify every STILL-REAL verdict
+
+The Step 2 audit is a single pass, and a single pass **over-flags STILL-REAL** — it reads a finding's claim, half-confirms it against the code, and returns STILL-REAL on anything it can't immediately dismiss. Because Step 3 gates on STILL-REAL count, an over-flag either **blocks a safe cleanup** or emits a **false punch list** that re-creates the noise the recipe exists to clear (see § *Provenance* for the observed rate). So no STILL-REAL verdict reaches the gate unrefuted.
+
+For **each** STILL-REAL from Step 2, dispatch a second, independent agent whose sole job is to **REFUTE** it:
+
+> *Claim: `<finding body + cited PATH>`. Open the file at PATH (via `git show <ref>:<PATH>` per the hazard note above; line drift is normal — find by symbol/context). **Your default verdict is FALSE-POSITIVE.** Flip to CONFIRMED only if the specific broken thing the claim describes is present **verbatim** in the current file. If the file already contains reconciling/defining text — the next line clarifies it, the value is already guarded, the cited string doesn't exist — it's FALSE-POSITIVE. Return `CONFIRMED | FALSE-POSITIVE` + the one line of evidence.*
+
+The refuter's bias is the **opposite** of the auditor's: absence of verbatim evidence of breakage flips the verdict. Only verdicts surviving as **CONFIRMED** count as STILL-REAL for the Step 3 gate and the punch list; everything refuted re-files as FIXED. If Step 2 returned zero STILL-REAL, skip this step. Run the refuters concurrently (one per STILL-REAL — a handful of agents, ~a minute of wall-clock). This is the same high-confidence-before-mutation model Pattern 1 relies on, applied to the retroactive half.
+
 ### Step 3 — Bulk-resolve on a clean verdict
 
-If the audit returns **zero STILL-REAL** verdicts, bulk-resolve every audited thread:
+If Step 2.5 leaves **zero confirmed STILL-REAL** verdicts, bulk-resolve every audited thread:
 
 ```bash
 for pr in <PRs-with-stale-threads>; do
@@ -203,7 +215,7 @@ for pr in <PRs-with-stale-threads>; do
 done
 ```
 
-If the audit returns **any STILL-REAL**: do NOT bulk-resolve. Surface the STILL-REAL list to the user as a punch list. Resolution gates on actually fixing those.
+If Step 2.5 confirms **any STILL-REAL**: do NOT bulk-resolve. Surface the confirmed list to the user as a punch list. Resolution gates on actually fixing those. (Refuted verdicts are not on the punch list — that is the point of Step 2.5.)
 
 The mutations are individually authenticated against the user's GitHub token. No special permissions beyond write access on the repo. The full sweep + audit + resolve cycle for 100+ threads takes under a minute of wall-clock.
 
@@ -228,7 +240,7 @@ That's enough provenance. The PR thread pages then read clean.
 
 ### When retroactive audit should NOT auto-resolve
 
-1. **STILL-REAL count > 0.** Stop and surface the punch list.
+1. **Confirmed-STILL-REAL count > 0** (survived the Step 2.5 refute pass). Stop and surface the punch list. A first-pass STILL-REAL that the refuter flips to false-positive does **not** count here — gating on raw first-pass verdicts is what over-blocks.
 2. **UNCERTAIN count > ~10% of total.** The audit isn't confident enough; route to a human walk before bulk-resolving the others.
 3. **Cross-engine ambiguity.** The same finding flagged by two engines, one resolved + one not, indicates one engine's signal is healthier than the other. Audit per-engine separately.
 4. **PR is still in active review.** Only fire on PRs that are MERGED or have completed their review-loop cycle. Open PRs may still receive fresh findings the audit's snapshot won't catch.
@@ -256,3 +268,5 @@ This reference makes thread-resolution part of Phase 3 + provides a one-shot ret
 ## Provenance
 
 Pattern surfaced in a downstream sprint where 11 PRs accumulated 129 stale Copilot threads over ~1 week of review-loop activity. A focused Explore-agent audit verified 26 FIXED + 2 DOC-DRIFT-also-FIXED + 4 WON'T-FIX-CONVENTION across the largest PR's 32 threads (0 STILL-REAL); the bulk-resolve cleared all 129 with zero failures. The Forward (in-loop) pattern was the obvious "and never again" follow-on.
+
+**Step 2.5 (adversarial verify) was added after dogfooding the retroactive recipe against mind-vault's own ~250-thread pile (17 merged PRs).** The single-pass Step 2 audit returned a scatter of STILL-REAL verdicts across several PRs — and on hand-verification, **5 of 5 spot-checked STILL-REAL were false positives**: a CHANGELOG line read as a dead reference when it was accurate past-tense history; an `<img>` flagged as live HTML when it was already inside a code span; a contract "contradiction" the very next line reconciles; "absence semantics undefined" that two adjacent lines fully define; and a "see below / spacing" cross-reference that did not exist in the file at all. Because Step 3 gated on raw STILL-REAL count, those phantoms would have blocked the entire safe cleanup (or shipped a noisy false punch list). A second agent prompted to *refute* — defaulting to false-positive absent verbatim evidence — collapses that error class. The lesson generalises: **a lone audit pass is a finder, not a verifier; the retroactive half needs the same adversarial confidence the forward half gets for free.**

@@ -15,7 +15,7 @@ The sprint-workflow step that closes the loop from code-shipped back to docs-coh
 
 **The no-arg default (`--scope=docs`) finalizes docs and stops short of merge.** A bare `/wrap NNN` runs the doc-finalization steps and structurally cannot reach Step 8 (atomic merge) — the safe default, and exactly what the wrap-before-review pass-1 wants: finalize docs, then let `/review-loop` review them at shipped state. Merge is a separate, explicit opt-in (next paragraph). This replaces the older "bare wrap auto-merges, remember to stop before Step 8" footgun.
 
-**Concludes atomically only under `--scope=full`.** When invoked as `/wrap --scope=full NNN` and the PR's base branch is non-protected per [`RULE_git-safety`](../../rules/RULE_git-safety.md) (i.e. anything that isn't `main` / `production` / `deployment`), the wrap's final step (Step 8) squash-merges via `gh pr merge --squash --delete-branch` after a review re-clearance pass. This is the post-review pass-2: re-run `/wrap --scope=full NNN` after `/review-loop` clears — the doc-finalization steps are idempotent guards (already done in pass-1), so it just re-audits and merges. It mirrors what sprint-auto does at the multi-IDEA scale (S11.10 integration PR → S11.12 docs-review → integration merge = ONE shipping moment). Protected targets always require a human merge — Step 8 detects and skips, handing back the PR URL — so `--scope=full` against `main` simply finalizes docs and hands off.
+**Concludes atomically only under `--scope=full`.** When invoked as `/wrap --scope=full NNN` and the PR's base branch is non-protected per [`RULE_git-safety`](../../rules/RULE_git-safety.md) (i.e. anything that isn't `main` / `production` / `deployment`), the wrap's final step (Step 8) squash-merges via `gh pr merge --squash --delete-branch` after a review re-clearance pass. This is the post-review pass-2: re-run `/wrap --scope=full NNN` after `/review-loop` clears — the doc-finalization steps are idempotent guards (already done in pass-1), so it just re-audits and merges. It mirrors what sprint-auto does at the multi-IDEA scale (S11.10 integration-PR review → integration merge = ONE shipping moment). Protected targets always require a human merge — Step 8 detects and skips, handing back the PR URL — so `--scope=full` against `main` simply finalizes docs and hands off.
 
 **Post-merge is the fallback.** If a PR landed without a wrap pass (human merged directly, wrap was forgotten, a hotfix went in on the fly), invoking `/wrap NNN` after the fact creates a small `docs/idea-NNN-wrap` branch with the same outputs and opens a cleanup PR. The skill auto-detects PR state (`gh pr view <N> --json state`) and branches accordingly.
 
@@ -84,19 +84,30 @@ Two things to note in the table:
 
 ### Mode detection (first action each invocation)
 
-Before anything else, determine which mode is running — pre-merge default, post-merge fallback, or self-mode (see below). The decision drives which branch the wrap commits land on:
+Before anything else, determine which mode is running — pre-merge default, post-merge fallback, self-mode, or the sprint-auto-v3.2 batch-teardown `--integration` mode (see below). The decision drives which branch the wrap commits land on:
 
 ```bash
-# 1. Is this mind-vault itself?
-git remote get-url origin | grep -q mind-vault && MODE=self
+# 0. Batch-teardown invocation? `/wrap --integration sprint-auto-<batch-iso>`
+#    is NOT a --scope value — it's a distinct post-merge batch mode. This check
+#    SHORT-CIRCUITS: if it matches, jump straight to § `--integration` mode
+#    (teardown only; no doc steps, no per-IDEA branch) and run NONE of steps 1-2.
+#    It must win even in mind-vault, which dogfoods sprint-auto — so the
+#    mind-vault self-mode check below is explicitly gated on MODE being unset.
+case "$*" in *--integration*) MODE=integration ;; esac
+if [ "$MODE" = integration ]; then
+    : # → § `--integration` mode; skip the rest of mode detection
+else
+    # 1. Is this mind-vault itself?
+    git remote get-url origin | grep -q mind-vault && MODE=self
 
-# 2. Otherwise, what's the PR state for the current branch's open PR, or for the
-#    explicit PR number passed as arg?
-gh pr view "${PR_OR_BRANCH}" --json state,headRefName --jq '.state'
-#   OPEN    → pre-merge default: commit Steps 2-6 onto the current feature branch
-#   MERGED  → post-merge fallback: `git checkout -b docs/idea-NNN-wrap origin/main`
-#             before committing
-#   CLOSED  → refuse: the branch was abandoned; no wrap to do
+    # 2. Otherwise, what's the PR state for the current branch's open PR, or for
+    #    the explicit PR number passed as arg?
+    [ -n "$MODE" ] || gh pr view "${PR_OR_BRANCH}" --json state,headRefName --jq '.state'
+    #   OPEN    → pre-merge default: commit Steps 2-6 onto the current feature branch
+    #   MERGED  → post-merge fallback: `git checkout -b docs/idea-NNN-wrap origin/main`
+    #             before committing
+    #   CLOSED  → refuse: the branch was abandoned; no wrap to do
+fi
 ```
 
 If no PR exists yet (branch pushed but PR not opened), treat as pre-merge default and commit onto the current branch — the PR can be opened later and will carry the wrap commits.
@@ -311,7 +322,17 @@ If `VER_SOURCE=none`, skip this step entirely — the project doesn't publish a 
 
 **Fires when** wrap is running post-merge AND the sprint ran in a parallel git worktree with its own docker-compose stack. **Skipped** when running from the primary checkout (`git rev-parse --git-common-dir` equals `.git`), when the PR is still open, when the user signalled keep-the-stack-up (`WRAP_KEEP_STACK=1` / `--keep-stack`), or when the worktree has uncommitted work. In `sprint-auto` mode, teardown remains **deferred** to morning review.
 
-Mechanics — destructive teardown sequence (`docker compose down -v` → `git worktree remove` → `git branch -d`), per-file evaluation when `git worktree remove` refuses (forgotten commits, missing gitignore rules, stale ephemera, container-as-root permission residue), and last-of-batch integration cleanup for sprint-auto v3.1 batches — are in [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md). Read that reference when this step fires.
+Mechanics — destructive teardown sequence (`docker compose down -v` → `git worktree remove` → `git branch -d`), per-file evaluation when `git worktree remove` refuses (forgotten commits, missing gitignore rules, stale ephemera, container-as-root permission residue) — are in [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md). Read that reference when this step fires. For a sprint-auto **v3.2** batch, whole-batch teardown runs via the `--integration` mode below, not the per-IDEA path.
+
+### `--integration <batch-iso>` mode (sprint-auto v3.2 batch teardown)
+
+A distinct post-merge invocation — **not** a `--scope` value — that the human runs once after merging the single `[INTEGRATION]` PR of a sprint-auto v3.2 batch: `/wrap --integration sprint-auto-<batch-iso>`. It is teardown-only; it runs **no** doc steps (per-IDEA docs were finalized at S5 `--scope=idea-only`, and the batch-wide devlog/index/version at the S11.7 batch wrap on the integration branch). Mechanics:
+
+1. **Confirm the integration PR merged** — `gh pr list --search "head:integration/sprint-auto-<batch-iso>" --state merged` returns it. If not merged, refuse (teardown is strictly post-merge).
+2. **Tear down the integration worktree + branch** — `docker compose down -v` in the integration worktree (the batch's only docker stack, port offset +30000), then `git worktree remove`, then `git branch -d integration/sprint-auto-<batch-iso>` and delete the remote branch.
+3. **Tear down each per-IDEA worktree + branch** from the batch manifest — the `auto/<slug>` branches auto-closed as merged ancestors when the integration PR merged, so for each: `git worktree remove` + `git branch -d auto/<slug>`.
+
+This is the v3.2 teardown trigger. It **supersedes** the v3.1 last-of-batch `/wrap NNN` trigger (which fired when the last per-IDEA IDEA was wrapped post-merge) — a model that doesn't fit v3.2, where per-IDEA PRs target the integration branch and auto-close on its merge, so they never receive an individual post-merge `/wrap NNN` to act as the trigger. The destructive-sequence + refusal mechanics in [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md) apply per worktree.
 
 ### Step 6 — Downstream docs scan
 

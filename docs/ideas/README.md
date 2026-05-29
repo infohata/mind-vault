@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-- [IDEA-010](IDEA-010-review-thread-audit-hardening-cleanup.md) — Retroactive review-thread audit hardening (adversarial-verify STILL-REAL) + mind-vault stale-thread cleanup
+_(none)_
 
 ## 💡 Low Priority (backlog)
 
@@ -25,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-010: Retroactive review-thread audit hardening + mind-vault stale-thread cleanup ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-05-28 · **See**: [Archive](../archive/2026-05-idea-010-review-thread-audit-hardening-cleanup/IDEA-010-review-thread-audit-hardening-cleanup.md), [PR #155](https://github.com/infohata/mind-vault/pull/155).
+Hardened the v4.3.13 `THREAD_AUTO_RESOLVE` retroactive recipe with a **Step 2.5 adversarial-verify** pass (independent refuter, default-to-false-positive) after dogfooding it on mind-vault's own ~250-thread / 17-PR Copilot pile exposed that a single-pass audit over-flags STILL-REAL (5/5 spot-checks were false positives; the Step 2.5 run then collapsed ~27 first-pass STILL-REAL to **4 confirmed** — ~85% over-flag caught). Also added the `git show`-not-`git checkout` shared-worktree read hazard. Operationalized: **resolved 250 stale threads across 17 PRs**, fixing the 4 genuine findings in-branch (#120 `install-wsl.ps1` ×3 — TLS 1.2, `$vmMonitor` consult, `-Distro` trim; #118 docs ×3 — README skills/agents counts, sprint-auto S15 diagram). Extends the v4.3.13 `/compound`.
 
 ### IDEA-008: Separate wrap's doc-finalization phase from its merge phase ✅ COMPLETE
 

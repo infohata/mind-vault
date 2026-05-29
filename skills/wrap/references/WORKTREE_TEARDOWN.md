@@ -61,9 +61,13 @@ Only after every untracked/modified path has been explicitly classified and hand
 
 In `sprint-auto` mode, teardown remains **deferred**: per the sprint-auto skill, worktrees stay up for morning review. The `/wrap` reminder block in the sprint-auto batch summary now includes teardown as a post-review action per IDEA, same list as the frontmatter flip.
 
-## Last-of-batch integration cleanup (v3.1 sprint-auto post-merge)
+## Batch integration cleanup
 
-When `/wrap NNN` runs post-merge and the IDEA was part of a sprint-auto v3.1 batch, additionally tear down the **integration worktree + branch** if this is the last-of-batch IDEA. Detection:
+**v3.2 (current) — `/wrap --integration <batch-iso>`.** For a sprint-auto v3.2 batch the human runs one explicit `/wrap --integration sprint-auto-<batch-iso>` after merging the single `[INTEGRATION]` PR; that mode (see [`../SKILL.md`](../SKILL.md) § `--integration` mode) tears down the integration worktree + branch + every per-IDEA `auto/<slug>` worktree/branch in one shot. The destructive-sequence + refusal mechanics above apply per worktree. The v3.1 last-of-batch auto-detection below does **not** fire under v3.2 (per-IDEA PRs target integration and auto-close on its merge, so they never receive an individual post-merge `/wrap NNN` to trigger it).
+
+### v3.1 fallback — last-of-batch detection via per-IDEA `/wrap NNN`
+
+When `/wrap NNN` runs post-merge and the IDEA was part of a sprint-auto **v3.1** batch (per-IDEA PRs targeted the parent and were merged individually), additionally tear down the **integration worktree + branch** if this is the last-of-batch IDEA. Detection:
 
 ```bash
 # 1. Was this IDEA part of a sprint-auto batch? Check the per-IDEA archive
