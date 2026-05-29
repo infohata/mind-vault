@@ -11,6 +11,8 @@ Drive a review-fix-rerun cycle on the given PR using one or more review engines.
 
 This skill is invoked via `commands/review-loop.md` — the single review entry point. Pass `ENGINES` as `bugbot`, `copilot`, or `bugbot,copilot` (any subset); single-engine runs are just a one-element list.
 
+**Before you trigger engines — wrap docs first if this is a doc-heavy / IDEA PR.** If the PR carries substantial docs (IDEA file, plan, index, devlog, guides), run a bare `/wrap` (the `--scope=docs` default) FIRST, then trigger engines — so the reviewer sees docs at their merged shape and doc-consistency findings land in this cycle instead of as post-review drift. The bare `/wrap` default **structurally cannot reach merge**, so it is safe to run before review. Mechanics + the two-pass model: [`skills/wrap/references/WRAP_BEFORE_REVIEW.md`](../wrap/references/WRAP_BEFORE_REVIEW.md). (Code-only PRs: skip — go straight to the loop.)
+
 ## Hard bounds (enforced by the loop)
 
 - `max_commits_per_session = 20`
@@ -197,5 +199,6 @@ Under sprint-auto v3.1, the "user" the loop hands back to is sprint-auto itself 
 - [`references/dual-engine-sync.md`](references/dual-engine-sync.md) — multi-engine synchronisation contract.
 - [`references/common-review-findings.md`](references/common-review-findings.md) — shared codified Tier-1 catalogue (engine-agnostic).
 - [`references/THREAD_AUTO_RESOLVE.md`](references/THREAD_AUTO_RESOLVE.md) — closing review threads in step with the fixes: forward (in-loop, Phase 3) auto-resolve via `resolveReviewThread` GraphQL mutation; retroactive audit + bulk-resolve recipe for PRs accumulated under the prior pattern. Load when wiring engine-adapter thread-ID capture, when a PR carries visible stale-thread debt, or when designing the user-facing "merge cleanly" handoff.
+- [`skills/wrap/references/WRAP_BEFORE_REVIEW.md`](../wrap/references/WRAP_BEFORE_REVIEW.md) — for doc-heavy / IDEA PRs, run `/wrap` (`--scope=docs` default) BEFORE entering this loop so the engines review finalized docs; merge stays a separate post-review-clear `--scope=full` pass. Read at trigger-time for the pre-flight wrap decision.
 - `RULE_git-safety` — feature-branch sandbox, never-merge-to-protected discipline.
 - `RULE_self-sweep-before-push` — pyflakes self-sweep between Phase 2 and Phase 3.

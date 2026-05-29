@@ -165,3 +165,39 @@ Rarely — but not never. Some shell layouts use the parent-scope variable to dr
 ### Generalizable to other coordinator-backed surfaces
 
 The same anti-pattern surfaces with any `Alpine.store` coordinator that has sibling parent-scope variables. The discipline is: **the coordinator store is the single source of truth for the resource it coordinates**. Parent-scope variables that happen to share a name are layout / debug / cosmetic signals at best, and should never be mutated as if they were the resource's state.
+
+## When NOT to promote to a store — the inbound-command CustomEvent bridge
+
+A store is the right tool when state must be *shared* across components. But sometimes an element
+*outside* a component's `x-data` subtree needs to invoke a method **scoped to that component** — not
+share state, just trigger one action. Example: a fixed edge rail (rendered outside the snap container,
+so it can't be a descendant of its `x-data`) needs to call the snap component's `goToPane(name)`.
+
+You could promote `goToPane` to a store to reach it — but that **leaks a component-internal method
+into global scope** for a one-way trigger. Prefer a **symmetric event bridge** instead, which keeps
+the method scoped:
+
+- **Outbound (state):** the component already emits a state event on `document` when its state changes
+  (`paneChanged`). Subscribers self-route from it.
+- **Inbound (command):** the component's `init()` adds a `document` listener for a command event and
+  routes it to its own scoped method:
+
+```js
+// inside the snap component's init():
+document.addEventListener('shell:reveal-pane', (e) => {
+    const name = e?.detail?.name;
+    if (name) this.goToPane(name);          // scoped method stays private
+});
+
+// the out-of-tree rail just dispatches the command:
+document.dispatchEvent(new CustomEvent('shell:reveal-pane', { detail: { name: 'workspace' } }));
+```
+
+Command-in / state-out is a clean, symmetric pair. Reach for the bridge (not a store) when the need is
+**trigger a scoped action from outside the tree**, and for a store when the need is **share state
+across components**. Dispatch/listener mechanics (bind on `document` not `body`, events bubble, the
+listener survives `outerHTML` swaps, `detail` unwrapping) are not repeated here — see
+[`SHELL_NOTIFICATIONS.md`](SHELL_NOTIFICATIONS.md) and [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md)
+gotchas 2 & 11. A consumer of this pattern in a mobile scroll-snap shell:
+[`mobile-ux-polish/references/EDGE_AFFORDANCE_RAILS.md`](../../mobile-ux-polish/references/EDGE_AFFORDANCE_RAILS.md)
+§2.

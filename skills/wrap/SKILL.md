@@ -30,6 +30,7 @@ The sprint-workflow step that closes the loop from code-shipped back to docs-coh
 **TRIGGER when:**
 
 - A feature branch has review-loop-cleared deliverables and is ready for its docs pass (pre-merge default).
+- **A doc-heavy / IDEA PR is about to enter `/review-loop`** — run me (bare `/wrap`, `--scope=docs` default) BEFORE review, not only before merge, so the engines review docs at shipped state. The default scope cannot reach merge; merge is the separate `--scope=full` pass after review clears. This is the manual-path mirror of what sprint-auto already sequences (next bullet). Mechanics: [`references/WRAP_BEFORE_REVIEW.md`](references/WRAP_BEFORE_REVIEW.md).
 - Sprint-auto completes its S3+S4 deliverables-review pass and is about to enter its S6+S7 docs-review pass — wrap runs between them.
 - A PR merged without a wrap (post-merge fallback) and the ideas index / devlog / frontmatter are stale on main.
 - Phrasings the user might use: "mark the IDEA complete and update docs", "close out this sprint's paper trail", "devlog + index sort", "finalize the docs side of the merge", "sort the docs before merging".

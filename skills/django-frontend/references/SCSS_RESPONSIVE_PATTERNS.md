@@ -2,6 +2,8 @@
 
 Three patterns for the recurring problem "a visual treatment must be shared between a desktop control and a mobile control, but the dimension or rule differs at a breakpoint." All surfaced together while building a mobile edge-affordance that mirrored a desktop drawer edge-control. Sibling to `CSS_DISPLAY_CONTENTS_SELECTOR_TRAPS.md` (CSS layout traps) and `SCSS_VENDOR_IMPORT.md` (SCSS import order).
 
+This is the **SCSS slice** of a mobile edge-affordance rail. The placement doctrine (reserved gutter, permanent-vs-gated sides) is in [`APP_SHELL_LAYOUT.md`](APP_SHELL_LAYOUT.md) § *Edge-affordance lips*; the JS/UX/architecture half (decouple from the snap engine, iOS fixed-ancestor trap, z-index ladder, adjacent-pane reveal model, ship-static-defer-animation) is in [`mobile-ux-polish/references/EDGE_AFFORDANCE_RAILS.md`](../../mobile-ux-polish/references/EDGE_AFFORDANCE_RAILS.md).
+
 ## 1. `@extend` cannot cross a `@media` boundary — use a `@mixin`
 
 When two selectors should share a block of declarations AND at least one of them lives inside a `@media` query, **you cannot `@extend` a placeholder** — use a `@mixin` and `@include` it in both places.

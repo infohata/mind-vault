@@ -457,6 +457,32 @@ The active-discriminator is mirrored from reactive state via a single binding �
 
 Trade: more listeners pinned simultaneously (one per candidate source), but each is cheap and the discriminator short-circuit makes the inactive ones zero-cost. Net win is robustness — no class of "the change event didn't fire because of an upstream early-return" bug.
 
+### Consumer with no native event of its own — observe the attribute (`MutationObserver`)
+
+The discriminator-read above hangs off the consumer's *own* per-source event (the `scroll` handler).
+But some consumers have **no native event to read inside** — e.g. a separate factory whose only job is
+to react to the active-pane changing. The tempting shape (seed from state at `init()` **+** subscribe
+to the `paneChanged` CustomEvent) has a **cold-load ordering race**: a late-initialising consumer can
+*miss* the snap event that fires around its own `init()` — the event was dispatched before it
+subscribed — so it stays stuck on the stale default (e.g. `'center'`), shows the wrong UI, and never
+self-corrects. An event-mirror is **not** a source of truth, because events can fire before a
+late-initialising subscriber subscribes; the `data-*` attribute owned by the authority **is**.
+
+**Fix**: mirror the authority's attribute directly via a `MutationObserver` — no event subscription,
+no init-seed race:
+
+```js
+const snap = document.querySelector('.shell-pane-snap');
+this.activePane = snap.getAttribute('data-active-pane') || 'center';   // seed
+new MutationObserver(() => {
+    const v = snap.getAttribute('data-active-pane');
+    if (v) this.activePane = v;
+}).observe(snap, { attributes: true, attributeFilter: ['data-active-pane'] });
+```
+
+The observer catches cold-load snaps, swipes, and programmatic moves uniformly — it reads the SSOT
+attribute whenever it changes, regardless of when the consumer mounted relative to the change.
+
 ## 9. Alpine `x-init` / `x-effect` expressions must stay expression-only — `try/catch` and IIFEs both fail
 
 `x-init` and `x-effect` attribute bodies are evaluated by Alpine via a `Function('with($data) { return <expr> }')`-style wrapper. The wrapping forces a few syntactic constraints that aren't documented:

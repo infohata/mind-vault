@@ -10,6 +10,25 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.4.3 — Compound: mobile edge-affordance rails (JS/UX/architecture half) + wrap-before-review discoverability cue
+
+Patch release. `/compound` of the JS/UX/architecture learnings from the same mobile edge-affordance build whose SCSS slice shipped in v4.4.2, plus one workflow-positioning fix. Deduped hard against the existing corpus (the SCSS mechanics already live in `SCSS_RESPONSIVE_PATTERNS.md` — everything cross-refs it, nothing restates it); routed load-on-demand — one new reference, four targeted extends, no always-on `rules/` bloat.
+
+### Added
+
+- **`skills/mobile-ux-polish/references/EDGE_AFFORDANCE_RAILS.md`** (the skill's first reference file) — adding an edge-affordance rail to a tuned scroll-snap shell, three facets: **(1) decouple the chrome from the snap engine** — render it `position: fixed` OUTSIDE the snap container instead of mutating snap geometry (`scroll-padding` / negative-margin / `clip-path`) which would risk the tuned settle logic; the no-`stopPropagation` corollary; the **iOS Safari fixed-in-transformed-ancestor trap** (place after `</main>` where no transform/filter ancestor exists); concrete z-index ladder discipline. **(2) the adjacent-pane reveal model** — each rail reveals only the pane adjacent to the active pane in that direction (centre → up to two reveal rails; a side pane → one "back to centre" rail); content-gated neighbour (`previewSurface.depth > 0`); re-fire the reveal on replace-while-open. **(3) ship the static affordance, defer the animated one** — the build-vs-defer heuristic + the pulse-chevron cost ledger (first-visible state machine + `localStorage` seen-flag that throws in Safari private mode + mark-seen semantics).
+
+### Changed
+
+- **`skills/django-frontend/references/ALPINE_HTMX_GOTCHAS.md`** (gotcha 8) — added a subsection on the **`MutationObserver`-mirror** variant: when a late-initialising consumer has no native event of its own to read the active-discriminator inside, the (init-seed + `paneChanged`-event) shape races on cold load (the event fires before the consumer subscribes, so it stays stuck on the stale default); mirror the authority's `data-*` attribute via `MutationObserver` instead — an event-mirror is not an SSOT, the attribute is.
+- **`skills/django-frontend/references/ALPINE_STORE_COORDINATORS.md`** — added "When NOT to promote to a store — the inbound-command CustomEvent bridge": triggering a component-**scoped** method from an element outside its `x-data` subtree via a symmetric command-in (`init()` document listener → `this.scopedMethod`) / state-out (existing emit) pair, vs leaking the method to global store scope.
+- **`skills/django-frontend/references/APP_SHELL_LAYOUT.md`** ("Where elements live") — added the **edge-affordance-lip reserved-gutter** placement doctrine: a fixed edge affordance occupies a reserved gutter (never overlays edge-to-edge content); permanent gutter on the always-present side, gated gutter on the conditional side (reflow masked by the open-animation).
+- **`skills/django-frontend/references/SCSS_RESPONSIVE_PATTERNS.md`** — added the bidirectional backref to its placement-doctrine (`APP_SHELL_LAYOUT`) and JS/UX (`EDGE_AFFORDANCE_RAILS`) counterparts, closing the cross-ref loop on the v4.4.2 file.
+- **`skills/mobile-ux-polish/SKILL.md`** — new References section pointing at `EDGE_AFFORDANCE_RAILS.md` + a new Anti-patterns line (static-over-stateful-animated affordance).
+- **`skills/review-loop/SKILL.md`** — **wrap-before-review discoverability cue**: a pre-flight note in the entry preamble + a References bullet telling the agent to run `/wrap` (`--scope=docs` default, which structurally cannot reach merge) on a doc-heavy / IDEA PR BEFORE triggering engines. The capability already existed (`skills/wrap/references/WRAP_BEFORE_REVIEW.md`) and sprint-auto already sequenced it for the automated path — the gap was purely that nothing cued the **manual** `idea → plan → work → /review-loop` path. No mechanics restated; both insertions point at the canonical reference.
+- **`skills/wrap/SKILL.md`** — reciprocal "When to use" trigger bullet for the pre-review manual path (run me before review, not only before merge).
+- **`skills/django-frontend/SKILL.md`** — References-list descriptions refreshed for the three extended references.
+
 ## v4.4.2 — Compound: SCSS responsive patterns (`@extend`-across-`@media` · responsive custom-property token · additive-padding collapse)
 
 Patch release. `/compound` of three cohesive SCSS/CSS-architecture learnings from a mobile edge-affordance build on a downstream project (a mobile control mirroring a desktop drawer edge-control). All routed to one load-on-demand reference — no SKILL.md body or always-on `rules/` bloat.

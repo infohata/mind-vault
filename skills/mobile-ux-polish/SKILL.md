@@ -200,6 +200,7 @@ Failure mode this addresses: clicking the preview's close-X dismisses the drawer
 - ❌ "Mobile UX is just CSS" — patterns above are 70% JS, 30% CSS. Touch-event semantics + scroll-snap timing + reactive bindings dominate.
 - ❌ Wall-clock timeouts for state cleanup (clear `isDragging` after 500ms). Mobile momentum + animation-duration combinatorics outrun any reasonable wall-clock estimate; flag-based deferred-clear scales correctly.
 - ❌ Reaching for `--force` or `!important` to escape a bug class. Most patterns above are about right-shaped abstractions, not stronger overrides.
+- ❌ Adding a stateful animated affordance (pulse / bounce) when a persistent **static** one conveys the same signal. The animation often introduces the feature's only race-prone JS (first-visible state machine + `localStorage` seen-flag that throws in Safari private mode + mark-seen semantics). Ship static; defer the animation as an eval-gated fast-follow → [`references/EDGE_AFFORDANCE_RAILS.md`](references/EDGE_AFFORDANCE_RAILS.md) §3.
 - ❌ Skipping the [manual-eval issues tracker](../wrap/references/MANUAL_EVAL_TRACKER.md) artefact "because it's just for this cycle" — once back-and-forth gets confused, you've already lost the cycle to ambiguity. Introduce the tracker at first regression, not at the fifth.
 
 ## When NOT to use these patterns
@@ -207,6 +208,10 @@ Failure mode this addresses: clicking the preview's close-X dismisses the drawer
 - Pure desktop UI with no touch / scroll-snap / sticky concerns — the touch-event and momentum patterns are noise there.
 - Native-app surfaces (React Native, SwiftUI, Jetpack Compose) — these have their own gesture systems; the patterns here are browser-specific (CSS scroll-snap, DOM touchmove events).
 - Static-site or SSR-only flows with no client interactivity — none of the patterns apply.
+
+## References
+
+- [`references/EDGE_AFFORDANCE_RAILS.md`](references/EDGE_AFFORDANCE_RAILS.md) — adding an edge-affordance rail (lip / pane handle / reveal slider) to a tuned scroll-snap shell: decouple the chrome from the snap engine (fixed-outside-the-container, no snap-geometry mutation, iOS fixed-in-transformed-ancestor trap, z-index ladder), the adjacent-pane reveal model (which rail reveals which pane, content-gated, re-fire on replace-while-open), and the ship-static-defer-the-animation build heuristic. Consumes patterns 1–5 (it relies on the snap/gesture infra, doesn't re-derive it).
 
 ## Related material elsewhere
 

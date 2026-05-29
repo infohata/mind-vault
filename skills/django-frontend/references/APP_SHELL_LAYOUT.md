@@ -60,6 +60,17 @@ html.shell-html {
 - **Sticky-within-pane** (drawer headers, table-row sticky headers, future "save bar" patterns): `position: sticky; top: 0` against the pane's scroll container — automatic once the pane has its own `overflow-y`.
 - **Bottom-anchored elements** (chat composer, save bar): pane internals use a flex-column where the scroll-region is `flex: 1 1 auto; overflow-y: auto; min-height: 0` and the bottom anchor is `flex: 0 0 auto`. The composer never scrolls with the messages.
 - **Scroll-anchor surfaces** (cursor-mode load-more, virtual-list patterns): the `[data-scroll-anchor]` element MUST be a real scroll container — declared `overflow-y: auto` AND content overflows. Under this layout that's automatic for any anchor child of `.shell-center` / `.shell-drawer__body`. Math is unchanged from window-scroll setups.
+- **Edge-affordance lips** (edge rails, pane handles, reveal sliders on a scroll-snap shell): a fixed
+  edge affordance must occupy a **reserved gutter**, never overlay edge-to-edge content (or it hijacks
+  edge taps on the content beneath it). Reserve **permanently** on the always-present side (e.g. the
+  centre pane's left, since the workspace pane always exists), and **gate** the conditional side (e.g.
+  the right, only when the preview pane has content — the appearance-time reflow is masked by that
+  pane's open-animation). Drive both insets off one `--shell-edge-gutter` token shared by the lip width
+  and drawer padding. CSS mechanics: [`SCSS_RESPONSIVE_PATTERNS.md`](SCSS_RESPONSIVE_PATTERNS.md) §2
+  (cascading custom property) + §3 (additive-padding collapse). The JS/architecture half — decoupling
+  the rail from the snap engine, the iOS fixed-in-transformed-ancestor trap, the z-index ladder, and
+  the adjacent-pane reveal model — lives in
+  [`mobile-ux-polish/references/EDGE_AFFORDANCE_RAILS.md`](../../mobile-ux-polish/references/EDGE_AFFORDANCE_RAILS.md).
 
 ## Shared scroll-container helper
 
