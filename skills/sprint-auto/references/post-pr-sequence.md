@@ -132,7 +132,7 @@ After all per-IDEA loops complete:
 │        - [INTEGRATION] PR LEFT OPEN as the merge gate — the human merges    │
 │          it; per-IDEA PRs auto-close as merged ancestors                    │
 │        - worktree filesystem stays; branch lingers locally                   │
-│        - human's /wrap NNN for last-of-batch IDEA does final cleanup         │
+│        - human's /wrap --integration <batch-iso> does final cleanup          │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -169,11 +169,10 @@ After all per-IDEA loops complete:
 | S7 | docs (project PR) | **5** attempts | Stylistic/reference-drift; converges fast or not at all |
 | S11.8 | union tests (integration) | **10** attempts | Cross-cutting failures have shorter tails than per-IDEA |
 | S11.9 | full suite (integration) | **10** attempts | Same |
-| S11.10 | review (integration via [INTEGRATION] draft PR) | **20** attempts | Elephants — N-times-larger review surface; deliverables-class |
-| S11.12 | re-review per-PR PR after forward-sync | **5** attempts | Small surface — wrap + resolutions only on already-clean PR |
+| S11.10 | review (integration via non-draft [INTEGRATION] PR) | **20** attempts | Elephants — N-times-larger review surface; deliverables-class |
 | S14 | mind-vault compound PR | **5** attempts | Documentation by nature; same logic as docs pass |
 
-Each cap is **independent**. A single IDEA may use up to **30 attempts** (20 deliverables + 5 docs + 5 re-review). The integration phase adds **40 fixed** attempts (10 union + 10 full + 20 review) — the re-review 5 attempts are per-IDEA (S11.12) and already counted in the per-IDEA 30. So a batch of N IDEAs plus M compound PRs has theoretical maximum `N × 30 + 40 + M × 5` attempts; real runs consume a small fraction.
+Each cap is **independent**. A single IDEA may use up to **25 attempts** (20 deliverables + 5 docs). The integration phase adds **40 fixed** attempts (10 union + 10 full + 20 review). So a batch of N IDEAs plus M compound PRs has theoretical maximum `N × 25 + 40 + M × 5` attempts; real runs consume a small fraction. (v3.2 deleted the per-IDEA re-review pass S11.12 and its 5-attempt cap — per-IDEA branch tips don't change after S6, so re-running adds zero signal.)
 
 See [`escalation-policy.md`](escalation-policy.md) for the rollback discipline and ship-non-clean contract that surrounds these caps.
 
@@ -207,12 +206,10 @@ Concretely:
 |---|---|---|
 | S(-1) bootstrap fails | ABORT BATCH | No per-IDEA work proceeds; record `integration_outcome: bootstrap_failed` in S15 summary |
 | S11.5 reset fails | jump to S15 | Skip integration phase entirely; per-PR PRs ship with their per-IDEA review states intact (no integration validation) |
-| S11.6 per-merge resolution fails | continue with next branch | Failed branch's per-PR PR doesn't get S11.11 forward-sync; merges to main on its own merits with cosmetic conflicts intact. Log `merge_results: [{slug, outcome: failed, reason}]` |
+| S11.6 per-merge resolution fails | continue with next branch | Failed branch's commits aren't reflected on the integration branch; its per-IDEA PR still ships (reviewed at its IDEA-isolated diff against integration). Log `merge_results: [{slug, outcome: failed, reason}]` |
 | S11.8/S11.9 cap exceeded | continue to next state | Ship integration-non-clean (flagged); reviewer decides at PR-merge time |
-| S11.10 review cap exceeded | continue to S11.11 | Same — integration ships flagged |
-| S11.11 forward-sync per-branch fails | log, skip that branch's S11.12 | Per-PR PR doesn't get the integration's resolutions — same failure mode as S11.6 fail for that branch |
-| S11.12 cap exceeded per branch | log, continue (each PR independent) | Per-PR PR ships with re-review-non-clean state |
-| S11.13 teardown fails | log; the human's /wrap catches leftover state | Worktree state stays; branch stays; human cleans up |
+| S11.10 review cap exceeded | continue to S11.13 | Integration ships flagged; the non-draft [INTEGRATION] PR is left OPEN for the human to merge or hold |
+| S11.13 teardown fails | log; the human's `/wrap --integration` catches leftover state | Worktree state stays; branch stays; human cleans up |
 
 ## Per-state contract
 
@@ -440,7 +437,7 @@ Cap **5**. Update mind-vault PR body with review summary at end.
 
 ### S15 — batch summary + HITL handoff
 
-Writes `docs/archive/auto-run-<ISO-timestamp>-summary.md`. Includes the **Integration check** section listing S11.6/S11.7/S11.8/S11.9/S11.10/S11.11/S11.12 outcomes. See [`../assets/auto-run-log-template.md`](../assets/auto-run-log-template.md).
+Writes `docs/archive/auto-run-<ISO-timestamp>-summary.md`. Includes the **Integration check** section listing S11.6/S11.7/S11.8/S11.9/S11.10 outcomes. See [`../assets/auto-run-log-template.md`](../assets/auto-run-log-template.md).
 
 ## State transitions that abort the entire batch
 

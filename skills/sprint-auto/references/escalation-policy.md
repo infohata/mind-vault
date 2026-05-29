@@ -47,15 +47,20 @@ git commit -m "fix(scope): attempt N+1 — <different approach> (review #M)"
 
 `--force-with-lease` is technically safer than `--force` but is still not appropriate during review escalation because it erases the attempt from the reviewer's view. Use `git revert`.
 
-## Attempt caps per pass — 20 / 5 / 5, each independent
+## Attempt caps per pass — 20 / 5 / 10 / 10 / 20 / 5, each independent
 
-Three distinct review passes happen under sprint-auto, each with its own independent escalation budget:
+Six escalation budgets run under sprint-auto — two per-IDEA passes, three integration-phase passes (batch-level, once per batch), and the mind-vault compound pass — each with its own independent budget:
 
 | Pass | Where | Cap | Counted against |
 |---|---|---|---|
-| Deliverables | Per IDEA, after `/work` (state S3+S4 in the state machine) | **20** attempts | `deliverables_escalation_attempts` in the per-IDEA log |
+| Deliverables | Per IDEA, after `/work` (state S3+S4) | **20** attempts | `deliverables_escalation_attempts` in the per-IDEA log |
 | Docs | Per IDEA, after `/wrap-docs` (state S6+S7) | **5** attempts | `docs_escalation_attempts` in the per-IDEA log |
+| Integration union tests | Batch, state S11.8 | **10** attempts | integration log |
+| Integration full suite | Batch, state S11.9 | **10** attempts | integration log |
+| Integration review | Batch, state S11.10 (non-draft [INTEGRATION] PR) | **20** attempts | integration log |
 | Mind-vault compound | Per compound PR at batch end (state S13+S14) | **5** attempts | attempt table in the mind-vault compound PR's summary block |
+
+(v3.2 deleted the v3.1 per-PR re-review pass S11.12 and its 5-attempt cap — per-IDEA branch tips don't change after S6, so re-running added zero signal.)
 
 Each cap counts **escalation attempts** (sprint-auto re-entries to resolve T2/T3 findings) for that pass — distinct from `/review-loop`'s own internal session bounds (`max_commits_per_session` etc.). With one multi-engine session per pass, the cap is a single shared budget, *not* multiplied by engine count.
 

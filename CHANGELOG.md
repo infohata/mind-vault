@@ -10,6 +10,26 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.4 — sprint-auto v3.2 doc-migration + `/wrap --integration` mode (sprint-auto flagged UNSTABLE)
+
+Minor release. A multi-dimensional review of the `sprint-auto` skill (6 reviewers → per-finding adversarial refutation, ~39% over-flag pruned — the IDEA-010 Step-2.5 discipline applied to a skill audit) found the v3.2 logic core sound but the **documentation surface riddled with un-migrated v3.1 drift**: stale references to mechanisms v3.2 deleted (forward-sync S11.11, per-PR re-review S11.12) or inverted (draft + auto-closed `[INTEGRATION]` PR → non-draft + open merge gate; last-of-batch `/wrap NNN` teardown → `/wrap --integration`). One finding was a real cross-skill contract break: the `/wrap --integration` teardown mode the docs handed off to **did not exist**. This release completes the migration and adds the missing mode. The follow-up was anticipated — IDEA-010's archive README flagged it.
+
+### Added
+
+- **`/wrap --integration <batch-iso>` batch-teardown mode** (`skills/wrap/SKILL.md` + `references/WORKTREE_TEARDOWN.md`) — a distinct post-merge invocation (not a `--scope` value) that, after the human merges the single `[INTEGRATION]` PR, tears down the integration worktree + branch + every per-IDEA `auto/<slug>` worktree/branch in one shot. Closes the dangling reference sprint-auto + `integration-stage.md` both pointed at. The v3.1 last-of-batch `/wrap NNN` auto-detection is demoted to a clearly-labelled fallback (it doesn't fit v3.2, where per-IDEA PRs auto-close on integration merge).
+
+### Changed
+
+- **sprint-auto v3.1→v3.2 doc migration completed** across `SKILL.md`, `references/post-pr-sequence.md`, `references/escalation-policy.md`, `references/worktree-lifecycle.md`, `references/integration-conflict-resolutions.md`, and `assets/auto-run-log-template.md`: `[INTEGRATION]` PR is non-draft + the open merge gate (never auto-closed); forward-sync (S11.11) + per-PR re-review (S11.12) references removed from all current-facing tables/diagrams/templates; the "pick ONE PR / forward-sync" morning-merge model replaced with "merge the `[INTEGRATION]` PR; per-IDEA PRs auto-close as ancestors".
+- **Escalation caps canonicalised to `20/5/10/10/20/5`** (deliverables/docs/union/full/integration/compound) — dropped the deleted `5 re-review` cap; `escalation-policy.md` is now the single 6-cap authority; per-IDEA max corrected 30→25.
+- **`IDEA_integration_branch.md`** gained a top-of-file SUPERSEDED-by-v3.2 banner (retained as the v3.1 design record).
+- **`skills/plan/references/batching-for-sprint-auto.md`** eligibility corrected: explicit-arg-only (no scan mode), `auto_safe: true` OR `auto_safe_with_eval_gate: true`, `sensitive_paths_cleared` as a conditional override (not a blanket key).
+- **README**: `sprint-auto` row de-staled (one shared integration stack, caps `20/5/10/10/20/5`, v3.2 merge-gate) and flagged **⚠️ unstable**, with a top-level stability callout.
+
+### Note
+
+- **`sprint-auto` is flagged UNSTABLE.** Docs are now v3.2-coherent, but the runtime path hasn't been exercised end-to-end since v3.2 + dual-engine review + eval-gate + two-pass `/wrap` landed. Shake down on a low-stakes batch before trusting it unattended. The single-IDEA flow is unaffected.
+
 ## v4.3.14 — IDEA-010: retroactive audit hardening (adversarial-verify STILL-REAL) + mind-vault stale-thread cleanup
 
 Patch release on the v4.3 line. Dogfooding the v4.3.13 `THREAD_AUTO_RESOLVE` retroactive recipe against mind-vault's own ~250-thread / 17-PR Copilot pile exposed that a single-pass Explore-agent audit **systematically over-flags STILL-REAL** — 5 of 5 hand-checked verdicts were false positives (an accurate past-tense CHANGELOG ref read as dead; an `<img>` already in a code span read as live HTML; a contract "contradiction" the next line reconciles; "absence semantics undefined" that two adjacent lines define; a "see below" cross-ref absent from the file). Because the recipe gated bulk-resolve on raw STILL-REAL count, those phantoms would have blocked a safe cleanup or shipped a noisy false punch list. The hardening adds a second, adversarial opinion before any STILL-REAL gates the resolve; the operational half then cleared the whole pile.

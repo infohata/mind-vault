@@ -1,6 +1,8 @@
 # sprint-auto: integration branch for cross-PR conflict detection
 
-**Status**: planned (v3.1, ready to implement)
+> **⚠️ SUPERSEDED IN PART by v3.2 (integration-as-merge-gate).** This is the v3.1 **design record**, retained for provenance. The v3.1 mechanics described below — **forward-sync (S11.11)**, **per-PR re-review (S11.12)**, the **`--draft` / auto-closed `[INTEGRATION]` PR**, and **last-of-batch `/wrap NNN` teardown** — were all deleted or inverted in v3.2: the `[INTEGRATION]` PR is now **non-draft and the merge gate** (left OPEN for the human; per-IDEA PRs target the integration branch and auto-close as ancestors), and batch teardown runs via **`/wrap --integration <batch-iso>`**. For current behavior see [`references/integration-stage.md`](references/integration-stage.md), [`references/post-pr-sequence.md`](references/post-pr-sequence.md) (diagrams = v3.2), and `SKILL.md`. The **first-batch monitoring signals** below still apply.
+
+**Status**: planned (v3.1, ready to implement) — **superseded by v3.2; see banner above**
 **Surfaced**: 2026-04-27 (during a sprint-auto batch — two PRs staged together produced a 12-file conflict that no per-PR check caught)
 **Last revised**: 2026-04-27 v3.1 — all open design questions resolved through user redirects in this session. Implementation gated only on a green-light to open `feature/sprint-auto-integration-stage`.
 
