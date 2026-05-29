@@ -174,6 +174,7 @@ The plan's philosophy stays the same at every scope; the depth scales.
 - [references/thin-input-bootstrap.md](references/thin-input-bootstrap.md) — the interactive brainstorm front-end for thin inputs
 - [references/architect-handoff.md](references/architect-handoff.md) — how to invoke AGENT_architect as a reviewer and integrate findings
 - [references/batching-for-sprint-auto.md](references/batching-for-sprint-auto.md) — opt-in mode for grouping multiple `/plan` outputs onto one feature branch + PR to feed an overnight `/sprint-auto` run
+- [references/PROD_DATA_SNIFF_BEFORE_DESIGN_LOCK.md](references/PROD_DATA_SNIFF_BEFORE_DESIGN_LOCK.md) — when a plan's design hinges on a data-shape assumption verified only in dev, require a prod-data sniff before commit OR document a dev-as-proxy override with rationale
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — the location-by-status contract driving step 6's `idea` → `in-progress` move
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
 - [skills/idea/SKILL.md](../idea/SKILL.md) — previous stage; produces the IDEA file this skill consumes
