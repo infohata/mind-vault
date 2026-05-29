@@ -95,6 +95,40 @@ The `scrollHeight > clientHeight` check matters: an ancestor declared `overflow-
 - **Window-scroll readers go quiescent on shell pages**. Any module reading `window.scrollY` (e.g. mobile nav-hide-on-scroll-down feature, popover positioning that adds `window.scrollY` to absolute coordinates) sees `0` forever because the document doesn't scroll. Annotate in-source and route the trigger to the active pane's scroll or a gesture in a follow-up. Legacy non-shell pages keep working.
 - **Modal scroll-position snapshots become no-ops**. The classic `scrollY = window.scrollY; modal.show(); ...; window.scrollTo(0, scrollY)` pattern saves 0, restores 0 — benign but worth annotating for debuggability.
 
+## Shell-global context keys are reserved — namespace per-surface context
+
+The shell base renders global chrome from a fixed set of context keys — a nav component like `<c-nav-bar :items="nav_items" />`, a workspace title, the current user, etc. A **surface fragment view** that builds its own context dict and reuses one of those global key names (e.g. its own `nav_items` for an in-surface section nav) **clobbers the shell-global value**. The global component then receives the surface's shape; the mismatch surfaces as a hard template crash — classically `{% url '' %}` / `NoReverseMatch` when the component iterates items that lack the expected `url` / `name` fields.
+
+❌ TRAP — surface view reuses a shell-global key:
+```python
+def surface_shell_context(request, ...):
+    return {"nav_items": [...], ...}   # clobbers <c-nav-bar :items="nav_items"> → {% url '' %} crash
+```
+
+✅ FIX — namespace every per-surface context key:
+```python
+    return {"surface_nav_items": [...], ...}   # shell-global nav_items stays intact
+```
+
+**Rule**: treat the shell base template's context keys as a reserved namespace; per-surface views prefix their own (`<surface>_nav_items`, `<surface>_filters`, …). The collision is invisible until the global component iterates the wrong shape, so grep the base/shell templates for `:prop="<key>"` and `{{ <key> }}` before naming a surface context key.
+
+## Settings-hub nav WITH per-section filters: bare `hx-get` + OOB filter swap, not a full fragment re-render
+
+A settings-hub surface (vertical section nav in the workspace, active section in the centre) switches sections with a bare `hx-get` → `.shell-center` (centre-only swap; workspace stays mounted). When the workspace **also carries per-section filters** (a different filter set per section — status on one, date-range on another), there's a temptation to switch the nav to a **full shell-fragment re-render** (workspace + centre) so the correct filter set appears on navigation.
+
+Don't. A full re-render **re-mounts the workspace drawer**, replaying its entry animation on every section click — visibly janky. Instead:
+
+- Keep section nav as a bare `hx-get` → `.shell-center` (centre-only).
+- Have the fragment response **OOB-swap only the filter region** (`hx-swap-oob` on a `#…-filters` container) so per-section filters update in place while the drawer, nav, and any context/org switcher stay mounted and un-animated.
+
+```html
+<!-- fragment response: centre body + an OOB filter-region redraw -->
+<div id="surface-section-body"> … </div>
+<div id="surface-filters" hx-swap-oob="true"> … per-section filters … </div>
+```
+
+**Rule**: re-render the smallest region that changed. A workspace holding *static* nav can ride a full fragment swap; a workspace holding *stateful* chrome (filters, a context switcher, scroll position) must keep that chrome mounted and OOB-swap only what changes. An animation replay on navigation is the tell that you swapped too much.
+
 ## Test contract
 
 Render-and-assert smokes the class hooks; manual eval / browser-driver tests verify behavior:

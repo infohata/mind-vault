@@ -248,6 +248,36 @@ def _load_attachments_by_ids(self, org_id: int, ids: List[int]) -> List[Dict]:
 
 **When ambient is the right call**: at the boundary where the request first arrives — middleware, view, consumer's `connect()`. By the time you're three function calls deep, the boundary already resolved the value; pass it.
 
+### A `public-schema` wrapper NULLS the ambient tenant — don't enclose tenant-reading render code in it
+
+`with schema_context("public")` (or a `with_public_schema()` helper) sets `connection.tenant = None` for its duration — that is its job, since public/shared models live outside any tenant. The trap is the inverse of the ambient-read fragility above: here the wrapper *actively nulls* the tenant. If a **render / response-building function that calls `get_current_tenant()`** runs *inside* that block, the ambient read returns `None`, and any `get_object_or_404`-style lookup keyed on the current tenant raises a spurious **404** — masking the real outcome.
+
+The symptom is maddening: a form POST that should re-render with **422** bound errors returns **404** instead, because the tenant-keyed 404 fires before the intended status is ever set.
+
+❌ TRAP — the invalid-form re-render runs inside the public-schema block:
+```python
+def _post_select(request, ...):
+    with with_public_schema():               # connection.tenant = None for this block
+        form = SelectForm(request.POST)
+        if not form.is_valid():
+            # render_section() calls get_current_tenant() → None → get_object_or_404 → Http404
+            return render_section(request, status=422)   # actually returns 404
+```
+
+✅ FIX — only the shared-model work stays in the block; tenant-reading render runs outside:
+```python
+def _post_select(request, ...):
+    with with_public_schema():               # shared-model reads/writes ONLY
+        form = SelectForm(request.POST)
+        valid = form.is_valid()
+        if valid:
+            form.save()
+    if not valid:
+        return render_section(request, status=422)   # ambient tenant restored → correct status
+```
+
+**Rule**: a `with_public_schema()` / `schema_context("public")` block wraps **only the shared-schema reads/writes**, never the response/render path that resolves the current tenant. If you must read public data and render tenant-aware output, split the block so the render happens after it closes.
+
 ## DRF serializer context for request-less callers
 
 DRF serializers commonly read `self.context['request']` to build URLs that depend on the request domain — `SerializerMethodField` for presigned S3 / MinIO URLs, `FileField.to_representation` calling `request.build_absolute_uri(file.url)`, custom hyperlink fields. **When a non-HTTP caller invokes the same serializer (WebSocket consumer, Celery task, AI tool executor, management command), `request` is missing — and the URL silently falls back to an internal Docker hostname.**

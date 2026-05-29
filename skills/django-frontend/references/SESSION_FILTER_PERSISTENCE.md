@@ -39,6 +39,15 @@ The user's mental model differs by filter type:
 - **Tags** are scope-FK-bound — `Tag` rows reference a `Scope` FK, so an article's tag IDs only mean something within that scope. Crossing entity boundaries OR scope boundaries invalidates them.
 - **Text search** (`q`) is a transient input. Carrying "give me everything matching 'Q4'" from articles to events is rarely the user's intent.
 
+## A surface persisting its OWN key is not cross-entity bleed
+
+The anti-bleed rule is sometimes misread as "this surface must not session-persist filters at all" — usually after a review finding flags one surface reading *another* surface's cross-entity bucket. That conflates two different things:
+
+- **Correct** — a surface owns and persists its own `<namespace>_<surface>_filters_<org_id>` bucket (the per-entity pattern above). Its filters survive its own reloads and touch no sibling. A brand-new surface adding its own bucket is *following* the pattern, not violating it.
+- **The actual anti-pattern** — a surface *reads* a cross-entity bucket it doesn't own (`cross_filters_<org_id>` populated by a different entity family), so an unrelated surface's scope/category leaks in.
+
+The gate isn't "no session persistence"; it's **"read only the keys you own."** A surface with its own date-range/status filter legitimately persists them in `<surface>_filters_<org_id>`; it just never reaches into another family's `cross_filters_<org_id>`. When a reviewer flags "this surface persists filters", check *which key* it reads — own-key persistence passes; foreign-key reads fail.
+
 ## Server-side mechanics
 
 ```python
