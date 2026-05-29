@@ -171,6 +171,19 @@ When a translation isn't updating:
 
 **Fix recipe**: grep ALL maps for the msgid — anchor on the quoted key, not a fixed indent, since maps nest (`APP_TRANSLATIONS = { 'lt': { … } }`) and msgid lines sit deeper than any one column: `grep -rn "'<msgid>':" tools/translation_maps/*.py` (or `grep -rnF "'<msgid>':"` if the msgid has regex metachars). Set the same value in **every** app map that has it (or that its `.po` extracts to), add the msgid to `FORCE_SYNC_MSGIDS` once (it's global), then `translate-fill`. Verify each affected `.po` shows the new msgstr. A one-map edit is the trap — the per-app resolution means consistency is only as good as the *least*-updated catalog.
 
+#### For genuinely-shared strings, the SHARED map beats N-way duplication
+
+The fill resolves `all_trans = SHARED + <that-app>.py` for *every* catalog — so an entry in the **SHARED** map fills **all** apps' `.po` files, while a per-app entry fills only that app's. The multi-catalog fix above ("set the value in every app map") is the right move for strings that *happen* to collide; but for a string that is **genuinely cross-cutting** — emitted from more than one app's templates, or from a shared shell/nav surface — put the entry in `SHARED` once instead of duplicating it into N per-app maps. One source of truth, every catalog filled, no least-updated-catalog drift.
+
+The trap that forces this: a per-app map (e.g. `ui.py`) is **only** loaded for its own app's catalog. A label rendered from a *different* app's template (e.g. a nav label whose `{% translate %}` lives in the core/shared app's knowledge-menu partial) extracts to that other app's `.po` — which the per-app map never fills, so the msgstr stays empty and the label renders as the English fallback in every locale. Moving the entry to `SHARED` is the fix; leaving it in the wrong per-app map is the silent-blank-label bug.
+
+#### `msgctxt` is invisible to a msgid-keyed fill
+
+Translation maps key on the **msgid string alone**; the fill's regex matches `msgid "X"` and ignores any preceding `msgctxt "…"` line. Two consequences:
+
+- **One map entry fills both the contextless and the context-qualified occurrences** of the same msgid. `_("Files")` (no context) and `{% translate "Files" context "navigation" %}` (→ `msgctxt "navigation"` in the `.po`) are *distinct* catalog entries, but a single `'Files'` map entry fills both — you don't (and can't) key the map by context.
+- **A string emitted ONLY with a context** (`pgettext` / `{% trans … context %}`) still needs its plain-msgid entry in a map that reaches that string's catalog. If that context-only string lives in a shared/core template, the SHARED-map rule above applies — a per-app map won't reach it. (Symptom mirrors the blank-label bug: the `msgctxt`-qualified entry sits empty because the only map carrying the msgid was an app map that doesn't fill that catalog.)
+
 ## Don't translate developer notes — they leak into `.po` and ship to users
 
 A `{% trans "TODO: refactor this in Phase 2" %}` block extracts into `.po`, translation maps add msgstr entries, the result ships to end users as page copy. The fix is at the template layer (`{% comment %}` instead of `{% trans %}`) — see [`../../django-frontend/references/TEMPLATE_COMMENT_SYNTAX.md`](../../django-frontend/references/TEMPLATE_COMMENT_SYNTAX.md) § *Don't translate developer notes* for the canonical template-side recipe + audit grep.

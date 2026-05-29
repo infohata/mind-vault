@@ -10,6 +10,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.4.5 — Compound: refresh-signal discipline + shared-map / msgctxt i18n routing
+
+Patch release. `/compound` of five review-loop learnings from a file-manager shell-migration build on a downstream project. Two targeted extends to already-referenced docs — no new files, no SKILL.md-body or `rules/` additions.
+
+### Changed
+
+- **`skills/django-frontend/references/HTMX_PATTERNS.md`** — three sections on the `entityChanged`/refresh-signal lifecycle, sitting next to the existing consumer-side modal-scoping gate: (1) **producer-side gate** — a shared mutation-response helper must emit the change-signal only when state actually changed, never on validation-failure / no-op / zero-affected paths (else every refresh-walker + in-place section refresh fires spuriously during an error state; gate on the `success` value; test that the no-op path omits the trigger header); (2) **bridge a foreign success event into the canonical signal** — re-dispatch `entityChanged` so a new affordance inherits the existing walker's URL/scroll/rebind rather than a bespoke fetch+swap, plus the caveat that bit (a consumer resolving its target via `document.querySelector('.shared-class')` reads the WRONG node once a second instance of that class appears — scope the lookup to the owning container; adding a second instance of a widget class is a contract change → grep the class's query sites); (3) **defer destructive UI-state clears to the async success event** — clearing a selection store synchronously with `requestSubmit()` loses it on a failed request; move the clear to `htmx:afterRequest` gated on `detail.successful`, scoped to the submitting form.
+- **`skills/django/references/I18N_WORKFLOW.md`** — two additions to the map-ownership section: (1) **SHARED map beats N-way duplication for genuinely-shared strings** — `all_trans = SHARED + <that-app>.py` means a SHARED entry fills every catalog; a label rendered from a *different* app's template (e.g. a nav label whose `{% translate %}` lives in the core/shared knowledge-menu partial) extracts to a catalog the per-app map never fills → silent English-fallback in every locale until moved to SHARED; (2) **`msgctxt` is invisible to a msgid-keyed fill** — maps key on the msgid string alone, so one entry fills both the contextless and the `context`-qualified occurrences, AND a context-only string still needs its plain-msgid entry in a map that reaches its catalog.
+
 ## v4.4.4 — Compound: invitation-shell-migration leftovers (bulk-ORM model-layer bypass · in-place-replace scroll preservation · sub-entity presentation tier · affordance-gate dual · e2e relative-URL)
 
 Patch release. `/compound` of five leftover learnings from an unbounded-sub-entity shell-migration build on a downstream project. (Consolidates two earlier-overlapping compound passes that both targeted v4.4.4 — the bulk-ORM/`auto_now` learning was deduped to a single, fuller reference.) Routed load-on-demand — three new references, three targeted extends, no SKILL.md-body mechanics or always-on `rules/` bloat.
