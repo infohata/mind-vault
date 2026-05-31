@@ -10,7 +10,7 @@ _(none)_
 
 ## 💡 High Priority (backlog)
 
-_(none)_
+- [IDEA-011](IDEA-011-agent-profiles-subagent-schema.md) — Agent Profiles → Recognized Subagent Schema
 
 ## 💡 Medium Priority (backlog)
 
