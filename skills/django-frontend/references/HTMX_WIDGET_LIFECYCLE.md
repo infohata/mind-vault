@@ -43,6 +43,16 @@ Before a region is replaced, `handle.destroy()` every tracked element about to b
 you leak event listeners and DOM-detached widget cores forever. This is why mounts are tracked in a
 `Map<HTMLElement, Handle>` (§2): the map is both the idempotency guard and the teardown roster.
 
+**Also reset swap-surviving persisted UI state in teardown.** A toggle whose open/closed state is
+persisted (e.g. an `x-data` seeded from `sessionStorage.getItem('fooOpen')`) survives a cold reload
+correctly — but across an *in-shell fragment swap* the freshly-rendered DOM mounts in its default
+(collapsed) state while the new component re-reads the persisted `true`, so its reactive `:class` and
+the rendered DOM disagree for a beat. The visible symptom is a **two-click toggle**: the first click
+only re-syncs state to the DOM (no visual change), the second finally toggles. Reset the persisted
+key in the teardown that runs on `htmx:beforeSwap` (`sessionStorage.setItem('fooOpen', 'false')`) so
+the swapped-in component mounts with state and DOM in agreement. Cold-load persistence is untouched —
+teardown never runs on a cold load, only on a swap.
+
 ### 4. Container-scoped init — honor the `root` arg
 
 Each widget type exposes its own `init<Widget>In(root)` (e.g. `initEditorIn`, `initDiagramIn` — the
@@ -130,6 +140,29 @@ You usually don't control the body-replacer, so the binder rule above (listen on
 on `document`, read `elt || target`) is correct under either dispatch shape *and* under real swaps.
 Idempotency (§2) matters doubly — a synthetic settle can fire alongside or twice with other settle
 events; the mounted-set guard turns the extra calls into no-ops.
+
+### 7. Don't (re-)init from a plain `HX-Trigger` custom event — it fires PRE-swap
+
+A surface that re-renders via an `outerHTML` swap of a region often *also* emits a custom `HX-Trigger`
+event the server sets on the fragment response (e.g. `surfaceChanged`, consumed elsewhere to update an
+active-nav store). It is tempting to re-boot the swapped region's widget from that custom event —
+**don't.** Plain `HX-Trigger` events are dispatched by HTMX **before** the swap; only
+`HX-Trigger-After-Swap` / `HX-Trigger-After-Settle` fire post-swap. A (re-)init driven by the plain
+trigger runs against the **old, not-yet-replaced DOM**: `document.getElementById(...)` returns the
+outgoing node, the binder reads stale per-instance config (data-attrs, inline JSON), and then the real
+swap brings in the new DOM with nothing left to boot it.
+
+Symptom: after a same-region navigation the swapped-in surface is half-dead — a connection/state
+indicator stuck at its initial value, an input gated on a never-set flag staying disabled — while a
+*sibling* widget that re-inits on `htmx:afterSwap` works fine. That asymmetry is the tell: the
+afterSwap-wired widget is the control group proving the swap itself is healthy.
+
+Fix: re-init on `htmx:afterSwap` scoped to the swap-target id (§1), **not** on the pre-swap custom
+trigger; pair it with the `htmx:beforeSwap` teardown (§3). The custom `HX-Trigger` stays useful for
+*non-DOM* side effects that genuinely want to fire pre-swap (updating a separate store that drives an
+active-surface highlight) — just never for re-mounting the swapped region itself. The ordering is the
+same trap [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 2 documents for reading `HX-Trigger`
+payloads; here it bites the *timing* of the re-init, not the payload shape.
 
 ## Who relies on this
 
