@@ -160,9 +160,9 @@ afterSwap-wired widget is the control group proving the swap itself is healthy.
 Fix: re-init on `htmx:afterSwap` scoped to the swap-target id (§1), **not** on the pre-swap custom
 trigger; pair it with the `htmx:beforeSwap` teardown (§3). The custom `HX-Trigger` stays useful for
 *non-DOM* side effects that genuinely want to fire pre-swap (updating a separate store that drives an
-active-surface highlight) — just never for re-mounting the swapped region itself. The ordering is the
-same trap [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 2 documents for reading `HX-Trigger`
-payloads; here it bites the *timing* of the re-init, not the payload shape.
+active-surface highlight) — just never for re-mounting the swapped region itself. This is a sibling of
+the trap [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 2 documents for reading `HX-Trigger`
+payloads — same `HX-Trigger` root, but here it bites the *timing* of the re-init, not the payload shape.
 
 ## Who relies on this
 
