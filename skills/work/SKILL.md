@@ -1,6 +1,6 @@
 ---
 name: work
-description: Execute a plan produced by /plan — reads the plan at docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md, enforces RULE_parallel-worktree-docker and RULE_git-safety, dispatches to AGENT_backend/frontend/devops/test-engineer, checks off plan items as commits land. Third stage of the mind-vault sprint workflow.
+description: Execute a plan produced by /plan — reads the plan at docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md, enforces RULE_parallel-worktree-docker and RULE_git-safety, dispatches to the backend/frontend/devops/test-engineer personas, checks off plan items as commits land. Third stage of the mind-vault sprint workflow.
 ---
 
 # work

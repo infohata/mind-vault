@@ -27,7 +27,7 @@ The default matrix lives in `SKILL.md`. This file documents the edges, overrides
 
 Some plan items span multiple personas. Resolve by the **primary artifact touched**, not by the item's stated intent.
 
-| Plan item example | Primary artifact | Persona |
+| Plan item example | Primary artifact | Subagent type |
 | --- | --- | --- |
 | "Add admin widget for billing summary" | Template + Alpine view logic | `mv-frontend` |
 | "Add `billing_summary` API endpoint the widget consumes" | DRF viewset | `mv-backend` |

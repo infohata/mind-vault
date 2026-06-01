@@ -97,7 +97,7 @@ This plan re-authors all eight profiles to the recognized CC schema and adds a c
   | test-engineer | `mv-test-engineer` | red | `Read, Grep, Glob, Bash, Write, Edit, TodoWrite` | authors tests + runs suites |
   | curator | `mv-curator` | red | `Read, Grep, Glob, Bash, TodoWrite` | **reviewer — no Write/Edit** (mirrors feature-dev reviewer read-only) |
   | researcher | `mv-researcher` | magenta | `Read, Grep, Glob, WebFetch, WebSearch, Write, TodoWrite` | **gains web tools** (fixes capability gap); Write to map findings into vault; no Bash/Edit |
-  | documentation | `mv-documentation` | blue | `Read, Grep, Glob, Write, Edit, TodoWrite` | writer — no Bash |
+  | documentation | `mv-documentation` | blue | `Read, Grep, Glob, Bash, Write, Edit, TodoWrite` | writer; Bash for git-history interrogation (Prime Directive 4) — _amended in review: Bash restored, originally dropped_ |
 
   Confirm exact CC tool-name spellings against an in-repo example before writing (`WebFetch`, `WebSearch`, `TodoWrite`, `Glob`, `Grep`). Human eyeballs this table at review → flips `sensitive_paths_cleared`.
 - **`description` upgrade with `<example>` blocks.** Each persona gets a `description:` (multiline `|`) opening with "Use this agent when…" + 2–3 `<example>` blocks in the agent-creator format. Pull trigger scenarios from the existing skill dispatch tables (e.g. backend's are the work/SKILL.md "Models, views, signals, DRF…" rows).
