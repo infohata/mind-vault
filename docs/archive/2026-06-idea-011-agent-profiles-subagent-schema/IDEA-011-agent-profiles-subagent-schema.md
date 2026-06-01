@@ -1,7 +1,7 @@
 ---
 id: 011
 title: Agent Profiles → Recognized Subagent Schema
-status: idea          # idea | in-progress | complete | superseded
+status: in-progress   # idea | in-progress | complete | superseded
 priority: high   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null

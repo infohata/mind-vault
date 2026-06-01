@@ -6,11 +6,11 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-011](../archive/2026-06-idea-011-agent-profiles-subagent-schema/IDEA-011-agent-profiles-subagent-schema.md) — Agent Profiles → Recognized Subagent Schema
 
 ## 💡 High Priority (backlog)
 
-- [IDEA-011](IDEA-011-agent-profiles-subagent-schema.md) — Agent Profiles → Recognized Subagent Schema
+_(none)_
 
 ## 💡 Medium Priority (backlog)
 
