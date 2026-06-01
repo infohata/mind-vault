@@ -16,7 +16,7 @@ Plan drafts the design; architect reviews it. Two distinct passes, two distinct 
 
 ## Invocation protocol
 
-Use the Agent tool to spawn a subagent with `subagent_type: architect` (if available in the host) or invoke the persona inline from `agents/AGENT_architect.md`.
+Use the Agent tool to spawn a subagent with `subagent_type: mv-architect` (if available in the host) or invoke the persona inline from `agents/AGENT_architect.md`.
 
 Prompt shape:
 
