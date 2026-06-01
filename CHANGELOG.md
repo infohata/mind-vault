@@ -2,7 +2,7 @@
 
 All notable changes to mind-vault — skills, rules, agents, commands, tools.
 
-Mind-vault is a rolling config library. Entries are grouped by month, reverse-chronological within each month, and each entry references the PR whose merge introduced it — on the bullet for rolling month-grouped entries, or on the version-section's intro paragraph for a single-PR version section (where every bullet shares one PR, repeating the marker per bullet is noise). From v4 onward, major architectural milestones get an explicit version header (v4.0.1 introduced multi-engine review and was the first open-source release); month groupings continue to roll forward inside each version. Older than the first entry: the `git log` is authoritative.
+Mind-vault is a rolling config library. Entries are grouped by month, reverse-chronological within each month, and each entry carries a provenance marker — a date and/or the PR link — on the bullet for rolling month-grouped entries, or on the version-section's intro paragraph for a single-PR version section (where every bullet shares one PR, repeating the marker per bullet is noise). From v4 onward, major architectural milestones get an explicit version header (v4.0.1 introduced multi-engine review and was the first open-source release); month groupings continue to roll forward inside each version. Older than the first entry: the `git log` is authoritative.
 
 Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**, **Changed**, **Fixed**, **Removed**, **Deprecated**, **Security**.
 
