@@ -88,7 +88,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 
 ## Agents (8 subagent personas)
 
-`AGENT_*.md` files consumed by Cursor's and Claude Code's subagent systems, inlined by OpenCode. Each persona has Prime Directives, an N-pass workflow, and a structured verdict format.
+`AGENT_*.md` files registered as recognized Claude Code subagents (dispatchable as `mv-<persona>`) and consumed unchanged by Cursor 2.4+ (`.cursor/agents/` symlink). Each persona has Prime Directives, an N-pass workflow, and a structured verdict format. Cross-harness portability — Cursor = straight copy, OpenCode + Antigravity = fork recipes — is documented in [`docs/guides/AGENT_PORTABILITY.md`](docs/guides/AGENT_PORTABILITY.md).
 
 | Persona | Covers | Stage |
 | --- | --- | --- |

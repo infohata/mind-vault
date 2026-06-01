@@ -1,14 +1,14 @@
 ---
 id: 011
 title: Agent Profiles → Recognized Subagent Schema
-status: in-progress   # idea | in-progress | complete | superseded
+status: complete      # idea | in-progress | complete | superseded
 priority: high   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
 depends_on: []       # list of IDEA ids required before starting, or []
 related: [002]             # list of IDEA ids that share context, or []
 created: 2026-05-31
-completed: null
+completed: 2026-06-01
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
@@ -20,7 +20,7 @@ sensitive_paths_cleared_reason: "The `tools:` frontmatter IS a capability-grant 
 
 # IDEA-011: Agent Profiles → Recognized Subagent Schema
 
-**Status**: 💡 Idea
+**Status**: ✅ Complete (2026-06-01) · Residual post-merge check: fresh-session `subagent_type` dispatch probe (R1)
 **Priority**: High
 
 **Problem** (or opportunity): The eight `agents/AGENT_*.md` profiles use an **OpenCode-style frontmatter** (`mode: subagent`, `temperature:`, `tools:` as a `{write: true}` map, an `allowed_tools:` list, and **no `name:` field**). Claude Code's subagent system — and every plugin marketplace agent (superpowers, claude-plugins-official `feature-dev`/`code-modernization`, etc.) — keys subagents off a different schema: a required `name:`, a rich trigger-oriented `description:`, a **comma-separated `tools:` string**, and optional `model:`/`color:`. `agents/` *is* symlinked into `~/.claude/agents/`, so CC scans these files — but the wrong frontmatter shape means they register **degraded or not at all** as dispatchable `subagent_type`s. The result: when `/work`, `/plan`, `/compound`, `/ideate`, and `/sprint-auto` say "dispatch to `AGENT_backend`" (~13 references across skills), the orchestrator can't actually call `Agent(subagent_type: …)` — it falls back to hand-reading the persona file and crafting an ad-hoc Task prompt, losing the model-pinning, tool-scoping, and auto-dispatch the recognized schema provides.

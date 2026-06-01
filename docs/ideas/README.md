@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-- [IDEA-011](../archive/2026-06-idea-011-agent-profiles-subagent-schema/IDEA-011-agent-profiles-subagent-schema.md) — Agent Profiles → Recognized Subagent Schema
+_(none)_
 
 ## 💡 High Priority (backlog)
 
@@ -25,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-011: Agent Profiles → Recognized Subagent Schema ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-06-01 · **See**: [Archive](../archive/2026-06-idea-011-agent-profiles-subagent-schema/IDEA-011-agent-profiles-subagent-schema.md), [PR #163](https://github.com/infohata/mind-vault/pull/163).
+Re-authored all eight `agents/AGENT_*.md` profiles from OpenCode-style frontmatter to the recognized Claude Code subagent schema — namespaced `name: mv-<persona>`, rich `description:` with `<example>` trigger blocks, comma-string `tools:`, `model: inherit`, `color:` — so they register as real dispatchable `subagent_type`s instead of degrading silently. Filenames kept (`RULE_rename-before-drop` doesn't bind — CC dispatches on `name:`, not filename); dispatch sites (`work/SKILL.md`, `persona-dispatch.md` canonical map, `architect-handoff.md`) now name the `mv-*` ids. Per-role tool audit: `mv-curator` read-only, `mv-researcher` gains web tools, `mv-documentation` drops Bash. Added [`docs/guides/AGENT_PORTABILITY.md`](../guides/AGENT_PORTABILITY.md) cross-harness methodology — Cursor = straight copy (`model: inherit`), OpenCode + Antigravity = fork recipes. Residual post-merge check: fresh-session dispatch probe (R1).
 
 ### IDEA-010: Retroactive review-thread audit hardening + mind-vault stale-thread cleanup ✅ COMPLETE
 
