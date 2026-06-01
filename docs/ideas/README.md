@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-009](../archive/2026-06-idea-009-extract-python-general-from-django/IDEA-009-extract-python-general-from-django.md) — Extract Python-general patterns from the django skill into a python skill
 
 ## 💡 High Priority (backlog)
 
@@ -20,7 +20,7 @@ _(none)_
 
 ## 💡 Low Priority (backlog)
 
-- [IDEA-009](IDEA-009-extract-python-general-from-django.md) — Extract Python-general patterns from the django skill into a python skill
+_(none)_
 
 ## 🗃 Superseded / Rejected (archive)
 

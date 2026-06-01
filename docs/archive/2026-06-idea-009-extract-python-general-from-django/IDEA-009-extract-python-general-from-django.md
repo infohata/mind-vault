@@ -1,7 +1,7 @@
 ---
 id: 009
 title: Extract Python-general patterns from the django skill into a python skill
-status: idea          # idea | in-progress | complete | superseded
+status: in-progress   # idea | in-progress | complete | superseded
 priority: low   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
