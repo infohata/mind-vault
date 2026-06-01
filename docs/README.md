@@ -14,6 +14,7 @@ All guides live under [`guides/`](guides/). Start with ONBOARDING and follow lin
 - **[guides/WORKTREE_PRACTICES.md](guides/WORKTREE_PRACTICES.md)** — parallel `git worktree` workflow, port-offset discipline, `.env` isolation exception, sprint-auto's integration-worktree pattern.
 - **[guides/MEMORY_MANAGEMENT.md](guides/MEMORY_MANAGEMENT.md)** — auto-memory vs `CLAUDE.md` vs project doc vs skill, rot detection, periodic pruning, verify-before-acting discipline.
 - **[guides/CURSOR_SETUP.md](guides/CURSOR_SETUP.md)** — Cursor 2.4+ integration notes (symlink caveat, per-skill workaround).
+- **[guides/AGENT_PORTABILITY.md](guides/AGENT_PORTABILITY.md)** — cross-harness agent-profile compatibility: the CC-canonical schema, what travels unchanged to Cursor, and fork recipes for OpenCode + Antigravity.
 
 ## Working directories
 
