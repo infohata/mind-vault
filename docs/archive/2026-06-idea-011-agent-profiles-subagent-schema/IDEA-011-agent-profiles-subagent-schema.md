@@ -43,3 +43,11 @@ sensitive_paths_cleared_reason: "The `tools:` frontmatter IS a capability-grant 
 - Not adding new personas — roster stays the existing eight.
 
 **Related**: IDEA-002 (skill debloat) shares the "mind-vault config must be recognized + lean by the consuming agent" hygiene theme — same motivation, different surface (skills there, agents here).
+
+---
+
+**Plan-time decisions (2026-06-01)** — the user added a cross-harness compatibility requirement, which shifted two of this IDEA's proposals:
+
+- **Model pinning → all `model: inherit`.** The proposal suggested deliberate per-persona pinning (architect/curator → opus). The plan instead pins **every** persona to `inherit`, because any non-inherit value breaks single-file Cursor compatibility for that persona. This also dissolves the `auto_safe_reason`'s "per-persona model assignment" judgement load.
+- **Filenames kept as `AGENT_*.md`; dispatch ids namespaced `mv-<persona>`.** CC dispatches on the frontmatter `name:`, not the filename — so no rename, `RULE_rename-before-drop` does not bind, and the `~/.claude/agents/` + `.cursor/agents/` symlinks plus every `agents/AGENT_*.md` link stay valid.
+- **Compatibility deliverable = methodology doc, not a generator** (honours the existing non-goal). See [`docs/guides/AGENT_PORTABILITY.md`](../../guides/AGENT_PORTABILITY.md): Cursor = straight copy (already symlinked), OpenCode + Antigravity = fork recipes.

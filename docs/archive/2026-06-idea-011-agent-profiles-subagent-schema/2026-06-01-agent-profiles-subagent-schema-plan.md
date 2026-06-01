@@ -3,9 +3,11 @@ stage: plan
 slug: agent-profiles-subagent-schema
 created: 2026-06-01
 source: ./IDEA-011-agent-profiles-subagent-schema.md
-status: ready
+status: shipped
 project: mind-vault
 ---
+
+> **Execution (2026-06-01):** ✅ step 1 audit · ✅ step 2 re-author 8 profiles (`02f31cb`) · ✅ step 3 dispatch sites (`8ec4eb4`) · ✅ step 4 portability doc + CURSOR_SETUP/README (`17a04cd`) · ✅ step 5 divergence recorded. Fresh-session dispatch probe (R1) is the one post-merge manual check — `mv-*` ids register only in a session started after these files land.
 
 # IDEA-011: Agent Profiles → Recognized Subagent Schema
 
