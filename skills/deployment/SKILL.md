@@ -466,6 +466,7 @@ The deploy shape is identical for Django, Rails, Express, FastAPI, Phoenix — o
 - [references/MONITORING.md](references/MONITORING.md) — production observability
 - [references/DJANGO_DEPLOYMENT.md](references/DJANGO_DEPLOYMENT.md) — Django-specific patterns
 - [references/HARDENING.md](references/HARDENING.md) — server hardening before first deploy
+- [references/LOCAL_DOCKER_DEV_GOTCHAS.md](references/LOCAL_DOCKER_DEV_GOTCHAS.md) — local dev-stack traps: `.dev` HSTS → `.test`, single-file bind-mount stale-inode, `docker-credential-*` PATH, dev-proxy `default_server` prod-backend footgun
 - [django skill](../django/SKILL.md) — backend patterns that interact with deploy (migrations, collectstatic, ASGI)
 - [RULE_git-safety](../../rules/RULE_git-safety.md) — rollback is a human-operated procedure
 - [Docker Compose docs](https://docs.docker.com/compose/)
