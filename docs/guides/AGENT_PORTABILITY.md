@@ -14,7 +14,7 @@ description: |                                      # rich, trigger-oriented, wi
   <example> ... </example>
 model: inherit                                      # inherit | sonnet | opus | haiku
 color: blue                                         # optional, cosmetic
-tools: Read, Grep, Glob, Bash, Write, Edit, TodoWrite  # comma-string OR JSON array; omit = all
+tools: Read, Grep, Glob, Bash, Write, Edit, TodoWrite  # comma-string OR YAML list; omit = all
 ---
 
 <persona body / prime directives>

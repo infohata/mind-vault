@@ -12,7 +12,7 @@ _(none)_
 
 ## v4.5 — Agent profiles → recognized Claude Code subagent schema + cross-harness portability
 
-Minor release. First non-compound IDEA of the v4.4 line: the eight `agents/AGENT_*.md` personas were carrying **OpenCode-style** frontmatter (`mode`/`temperature`/`tools`-map/`allowed_tools`, no `name:`) and so registered **degraded or not at all** as dispatchable Claude Code `subagent_type`s — silently weakening the dispatch substrate that five of the six sprint-workflow skills route through. IDEA-011 re-authors them to the recognized schema and adds a cross-harness portability methodology. (2026-06-01, [#163](https://github.com/infohata/mind-vault/pull/163))
+Minor release — the first IDEA-driven (non-compound) release since the v4.4 patch line began. The eight `agents/AGENT_*.md` personas were carrying **OpenCode-style** frontmatter (`mode`/`temperature`/`tools`-map/`allowed_tools`, no `name:`) and so registered **degraded or not at all** as dispatchable Claude Code `subagent_type`s — silently weakening the dispatch substrate that five of the six sprint-workflow skills route through. IDEA-011 re-authors them to the recognized schema and adds a cross-harness portability methodology. (2026-06-01, [#163](https://github.com/infohata/mind-vault/pull/163))
 
 ### Changed
 
