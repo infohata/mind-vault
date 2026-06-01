@@ -177,6 +177,7 @@ Edit `docs/ideas/README.md`:
 **Idempotency guard (run first).** This step re-runs on every pass of the two-pass flow (pass-1 `docs`, pass-2 `--scope=full`), so guard against double-insert: `grep -q "^### IDEA-NNN:" docs/ideas/README.md` — if the heading already sits under `## ✅ References — Implemented`, this step already ran; skip the insert (but still remove any lingering `## 🚧 In Progress` entry). Without the guard, pass-2 inserts a duplicate Implemented entry.
 
 - Remove the entry from `## 🚧 In Progress`. If that section becomes empty, leave `_(none)_` as its body.
+- **Remove the originating breadcrumb from the old priority tier too.** When `/plan` moved the idea into In Progress it often left a stub in its former priority section — `_(IDEA-NNN moved to In Progress above — /plan …)_` or similar. Grep `grep -n "IDEA-NNN" docs/ideas/README.md` and delete that breadcrumb; if removing it empties a tier subsection, drop the now-empty subsection header too. Skipping this is silent rot: the markers accumulate and falsely read as active backlog (a sprint can amass a dozen stale "moved to In Progress" stubs before anyone notices). Zero-cost to clear at wrap time.
 - Insert a new entry at the top of `## ✅ References — Implemented` with this shape:
 
   ```markdown

@@ -10,6 +10,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.5.1 — Compound: discard-guard data-shape check, drop-vs-ensure lifecycle, wrap breadcrumb cleanup
+
+Patch release — `/compound` of three learnings from a search-index dimension-migration session (a destructive index-drop + a resilient read path). No IDEA; provenance is the date + PR. (2026-06-01, [#165](https://github.com/infohata/mind-vault/pull/165))
+
+### Changed
+
+- **`RULE_self-sweep-before-push` trigger 3 (defensive-code sweep) extended** — a guard that *skips/discards* rows is itself a data-shape claim. Added the facet: validate a discard/skip guard against the producer's REAL data, not a mock (mocks encode your assumption and pass; so does an architecture review reading the same assumption). A wrong guard silently drops *every* row — worse than the bug it prevents. Grep the producer's write site; if a sibling reader already decodes the shape, copy it; if the data is composite/encoded, decode — don't reject.
+- **`skills/wrap` Step 3 (re-sort the ideas index) extended** — on completion, also remove the originating `_(IDEA-NNN moved to In Progress …)_` breadcrumb left in the old priority tier (and drop the tier subsection header if it empties). Skipping it is silent rot — stale "moved to In Progress" stubs accumulate and falsely read as active backlog.
+
+### Added
+
+- **`skills/django/references/RESOURCE_LIFECYCLE_DROP_VS_ENSURE.md`** (load-on-demand) — a destructive op (drop/clear/purge an index, cache, table, bucket, scratch dir) silently un-does itself unless you audit EVERY re-creation path: lazy ensure-on-use, first-use create, deploy/bootstrap ensure. Re-point them at the new target or guard them; prove with a post-drop *read*, not "delete was called". Pointer added to `skills/django/SKILL.md` References.
+
 ## v4.5 — Agent profiles → recognized Claude Code subagent schema + cross-harness portability
 
 Minor release — the first IDEA-driven (non-compound) release since the v4.4 patch line began. The eight `agents/AGENT_*.md` personas were carrying **OpenCode-style** frontmatter (`mode`/`temperature`/`tools`-map/`allowed_tools`, no `name:`) and so registered **degraded or not at all** as dispatchable Claude Code `subagent_type`s — silently weakening the dispatch substrate that five of the six sprint-workflow skills route through. IDEA-011 re-authors them to the recognized schema and adds a cross-harness portability methodology. (2026-06-01, [#163](https://github.com/infohata/mind-vault/pull/163))
