@@ -24,7 +24,9 @@ This engine drives `anthropics/claude-code-action@v1` running the **`code-review
   - Inline findings on `/pulls/<N>/comments`.
   - A top-level summary comment on `/issues/<N>/comments`.
   - The only RUNNING/DONE surface is the **GitHub Actions job** of the `claude-code-review` workflow run (`/actions/workflows/claude-code-review.yml/runs`).
-- **Conservative BOTH-AND identity filter** (A8). claude's comment author login is unconfirmed until the first review-bearing PR, so `find_claude_comments.sh` marks a comment as claude's only when it matches BOTH (a) an author login in the `CLAUDE_LOGINS` tuple AND (b) the `code-review` plugin's comment-body signature (`CLAUDE_BODY_SIGNATURES`). Never either alone — a too-loose login (e.g. the shared `github-actions[bot]`) cannot by itself claim a human's comment, and a failed BOTH-AND test resolves to "not a claude comment" → no clean detected → keep polling (safe), never a false CLEAN.
+- **Identity — CONFIRMED `github-actions[bot]`** (calibrated PR #167, 2026-06-02). The action posts inline comments via the workflow `GITHUB_TOKEN`, so the author login is the shared `github-actions[bot]`, not a `claude[bot]` app. Filter split (refines A8 after the dogfood):
+  - **Inline review comments → login-only.** Inline review comments are review output by construction, and nothing else posts them as `github-actions[bot]` on this repo — so login-membership alone is the discriminator. This is the *safe* direction: it errs toward over-counting (→ keep polling), never toward filtering a real finding out (→ which would be a false CLEAN via the zero-inline arm). Requiring a body-signature on inline comments would invert that safety.
+  - **Summary issue comment → BOTH-AND** (login AND body signature). Here a false *positive* is the danger (a stray `github-actions[bot]` "no issues" comment faking a clean), so the body signature stays required. (The action posts no summary today — see § Review-state + clean detection — so this arm is currently dead backup.)
 
 ## § Tool invocations
 
@@ -75,7 +77,9 @@ Keyed on **comment ids** (synthesized anchor), not a review id. `CLAUDE_LATEST_R
 
 **The settle valve releases on comment PRESENCE, not Actions conclusion (A3 — load-bearing).** This is the divergence from copilot's `CONCLUSION=success` settle gate. claude's Actions job flips to `completed` *before* its summary/inline comments post — a poll in that gap sees DONE + zero findings → false CLEAN.
 
-So a `completed` Actions run whose head-SHA summary/inline comments have NOT posted is downgraded to `STATUS=in_progress` (RUNNING) + a `CLAUDE_REVIEW_PENDING` marker. The valve (`CLAUDE_REVIEW_SETTLE_SECONDS`, default 600) keys on the **settle window alone** — never the conclusion.
+So a `completed` Actions run whose head-SHA summary/inline comments have NOT posted is downgraded to `STATUS=in_progress` (RUNNING) + a `CLAUDE_REVIEW_PENDING` marker. The valve (`CLAUDE_REVIEW_SETTLE_SECONDS`, default **180**) keys on the **settle window alone** — never the conclusion.
+
+**Settle window is 180s, not copilot's 600 (calibrated PR #167).** claude-code-action posts its buffered inline comments *synchronously within the job* — the `post-buffered-inline-comments` step runs **before** the run reports `completed`, so comments (if any) already exist at completed-time. The window only needs to cover GitHub API read-consistency after that in-job post, not copilot's minutes-long async-review lag.
 
 ✅ **DO** release the valve on comment presence, or — on the genuine no-comment-at-all case (#1087) after the window elapses — resolve CLEAN via the **zero-inline arm**.
 
@@ -102,10 +106,16 @@ claude exposes its review-state as `CLAUDE_CHECKRUN ... STATUS=<status>` **synth
 
 **Clean for claude**: Actions job DONE AND (summary-comment body contains "no issues found" OR zero active head-SHA inline findings matching `CLAUDE_LATEST_REVIEW`). The review-pending guard (§ Race-condition caveats) holds the loop in RUNNING until a head-SHA comment posts, so the DONE-before-comments gap cannot fire a false CLEAN. The orchestrator retriggers only from the zero-activity bootstrap (push-triggered otherwise) and never while RUNNING, so no inter-retrigger interval exists.
 
-## § first-run calibration — empirical unknowns to lock on the first review-bearing PR
+## § first-run calibration — status after the PR #167 dogfood (2026-06-02)
 
-These match the `# CALIBRATE` markers in `find_claude_comments.sh`. Until confirmed, the adapter ships conservative defaults that fail toward "keep polling", never a false CLEAN.
+Calibrated against claude-code-action run `26834423838` (model `claude-sonnet-4-6`), a **clean** run (logged "No buffered inline comments").
 
-- **Q1 — comment author login + shared review id.** The exact `user.login` the action posts under is unconfirmed (candidates: `github-actions[bot]`, `claude[bot]`, `claude-code-action[bot]`). Whether inline comments share a single `pull_request_review_id` is also unconfirmed. Confirm with `gh api repos/.../pulls/<N>/comments --jq '.[].user.login'` on the first review-bearing PR, then lock `CLAUDE_LOGINS` + the body signature in the script's `# CALIBRATE` block. The comment-id anchor is safe either way.
-- **Q2 — `@claude review once` semantics via the action path.** Whether the fallback comment triggers a `code-review` run *through the action* (vs the managed service the docs describe) is TBD. If it does NOT, swap the body for the explicit plugin invocation (`@claude /code-review:code-review <owner>/<repo>/pull/<N>`) — the commented fallback in `claude_retrigger.sh`.
-- **Q3 — `actions: read` reachability.** Confirm the user's `gh` auth can read `repos/.../actions/workflows/claude-code-review.yml/runs` for the head SHA. If blocked, the adapter degrades to summary-comment-only state (loses the RUNNING signal) rather than hard-failing.
+**✅ CONFIRMED:**
+- **Q1 (identity)** — author login is **`github-actions[bot]`** (posts via the workflow `GITHUB_TOKEN`). Locked in `CLAUDE_LOGINS`. Inline detection is login-only; summary stays BOTH-AND (see § Identity).
+- **Q3 (`actions: read`)** — the local `gh` auth reads `actions/workflows/claude-code-review.yml/runs` fine; `CLAUDE_CHECKRUN` synthesizes correctly. No workflow change needed.
+- **Posting model** — the action posts ONLY buffered inline comments (synchronously, in-job); there is **no summary comment**. Clean = **zero head-SHA inline comments** (the A6 zero-inline arm). The summary-substring arm is dead backup. Settle window cut to 180s (in-job synchronous posting).
+
+**⏳ STILL PENDING a findings-bearing review (this run was clean, posted nothing):**
+- **Q1 (shared review id)** — whether inline findings share a `pull_request_review_id` is still unobserved. The anchor keys on comment id either way, so safe; confirm when claude first posts a finding (step 10 tri-engine on a rougher diff, or a deliberate probe-PR).
+- **`CLAUDE_BODY_SIGNATURES` wording** — only matters for the (currently-dead) summary arm now that inline is login-only; lock it if/when a summary comment ever appears.
+- **Q2 (`@claude review once` via the action path)** — not exercised: the action auto-ran on push, so the fallback retrigger was never needed. Confirm the fallback works if a future PR's auto-run fails to fire; else use the commented `@claude /code-review:code-review …` fallback in `claude_retrigger.sh`.
