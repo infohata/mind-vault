@@ -133,5 +133,5 @@ To add a third engine (e.g. CodeRabbit, a hypothetical new vendor):
 
 - ❌ Adapter writes directly to the orchestrator's scratch file. The orchestrator owns scratch; adapters expose stdout shape only.
 - ❌ Engine-specific decision-tree branches in the orchestrator. If an engine needs special-case handling, lift it into the adapter contract (e.g. service-error retry-budget) or hand back to the user.
-- ❌ Cross-engine knowledge in an adapter (e.g. bugbot's adapter referencing copilot's check-run name). Each adapter is self-contained; cross-engine coordination lives in `dual-engine-sync.md` and the orchestrator.
+- ❌ Cross-engine knowledge in an adapter (e.g. bugbot's adapter referencing copilot's check-run name). Each adapter is self-contained; cross-engine coordination lives in `multi-engine-sync.md` and the orchestrator.
 - ❌ Skipping the `review <rid>` token in `find_comments.sh` output. The orchestrator's staleness filter depends on it.

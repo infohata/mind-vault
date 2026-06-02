@@ -1,4 +1,4 @@
-# Dual-engine (and N-engine) synchronisation contract
+# Multi-engine synchronisation contract
 
 When `|ENGINES| > 1` in the review-loop invocation, the orchestrator at [`SKILL.md`](../SKILL.md) MUST sync each cycle to avoid double-pushes that invalidate each engine's pending review. Each cycle waits for the slowest engine to reach `DONE` (check-run `completed`) for `last_push_sha`, then batches findings from all engines into ONE fix commit + pushes once + retriggers all engines once each.
 

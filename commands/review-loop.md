@@ -21,7 +21,7 @@ Drive a review-fix-rerun cycle on the given PR using one or more review engines 
 /review-loop 129 bugbot,copilot  # PR #129, both engines (dual-engine sync mode)
 ```
 
-When `|ENGINES| > 1`, the loop runs in **multi-engine sync mode** — each cycle waits for the slowest engine's verdict before batching fixes and retriggering all engines. See [`skills/review-loop/references/dual-engine-sync.md`](../skills/review-loop/references/dual-engine-sync.md) for the synchronisation contract, trade-off escape hatches, and asymmetric-clearance hand-back semantics.
+When `|ENGINES| > 1`, the loop runs in **multi-engine sync mode** — each cycle waits for the slowest engine's verdict before batching fixes and retriggering all engines. See [`skills/review-loop/references/multi-engine-sync.md`](../skills/review-loop/references/multi-engine-sync.md) for the synchronisation contract, trade-off escape hatches, and asymmetric-clearance hand-back semantics.
 
 ## Behaviour
 
