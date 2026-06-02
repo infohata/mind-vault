@@ -93,7 +93,7 @@ Per the /wrap skill, flip IDEA-007 frontmatter `status: in-progress → complete
 - `! grep -l "Optional extensions" skills/*/SKILL.md` returns success (zero offenders).
 - `wc -l skills/{deployment,django,django-frontend}/SKILL.md` shows a net trim of ~40-60 lines summed across the three files.
 - Visual diff on each file: bottom `## References` section now contains every entry the top block listed, no duplicates, no orphaned link-text.
-- Dual-engine review-loop on the resulting PR: bugbot + copilot both CLEAN on HEAD. No new findings expected — markdown-only edits with mechanical pattern.
+- Multi-engine review-loop on the resulting PR: bugbot + copilot both CLEAN on HEAD. No new findings expected — markdown-only edits with mechanical pattern.
 
 ## Risks
 

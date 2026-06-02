@@ -74,7 +74,7 @@ The user always decides; the loop never auto-merges and never escalates an asymm
 
 ## Why this contract exists in one file
 
-The dual-engine sync rule previously lived in BOTH per-engine command wrappers, in near-duplicate form. Refactoring it into one canonical reference (this file) was the motivating example for IDEA-005's existence — every cycle of PR #129 that touched the sync rule had to be mirrored across two files. The orchestrator now reads this file once, regardless of which engine entry-point invoked it.
+The multi-engine sync rule previously lived in BOTH per-engine command wrappers, in near-duplicate form. Refactoring it into one canonical reference (this file) was the motivating example for IDEA-005's existence — every cycle of PR #129 that touched the sync rule had to be mirrored across two files. The orchestrator now reads this file once, regardless of which engine entry-point invoked it.
 
 ## Adding the Nth engine
 

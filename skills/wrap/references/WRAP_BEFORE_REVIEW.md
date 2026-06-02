@@ -1,6 +1,6 @@
 # Wrap before review — finalize docs to shipped state *before* the review-loop runs
 
-**When this fires**: a doc-heavy PR (substantial IDEA-file / plan / index / devlog / guide changes alongside code) headed for `/review-loop` (single- or dual-engine). The default chain is `work → review-loop → wrap`; for doc-heavy PRs, **run doc-finalization first**, splitting wrap into two passes: `work → wrap pass 1 (/wrap, scope=docs default) → review-loop → wrap pass 2 (/wrap --scope=full) | human merge`. Pass 1 is a bare `/wrap NNN` — the `docs` default finalizes docs and **structurally cannot reach Step 8 (merge)**, so there is nothing to "remember to stop." Pass 2 is `/wrap --scope=full NNN`, the explicit merge opt-in that runs Step 8 on non-protected targets — or, on protected targets, Step 8 auto-skips and the human merges. See *The two-pass model* below.
+**When this fires**: a doc-heavy PR (substantial IDEA-file / plan / index / devlog / guide changes alongside code) headed for `/review-loop` (single- or multi-engine). The default chain is `work → review-loop → wrap`; for doc-heavy PRs, **run doc-finalization first**, splitting wrap into two passes: `work → wrap pass 1 (/wrap, scope=docs default) → review-loop → wrap pass 2 (/wrap --scope=full) | human merge`. Pass 1 is a bare `/wrap NNN` — the `docs` default finalizes docs and **structurally cannot reach Step 8 (merge)**, so there is nothing to "remember to stop." Pass 2 is `/wrap --scope=full NNN`, the explicit merge opt-in that runs Step 8 on non-protected targets — or, on protected targets, Step 8 auto-skips and the human merges. See *The two-pass model* below.
 
 ## Why
 
@@ -32,7 +32,7 @@ So wrap Step 2 gains a grep-and-sync sub-step: after editing frontmatter, grep t
 
 Most review commits are noise (lint nits, translation-map entries, decorators) that don't change the devlog narrative — leave them. If a cycle lands a *material* user-facing change (a real bug fix altering behaviour the devlog describes), re-touch the bullet at merge. The bar: "would a devlog reader be misled?" — usually no.
 
-## Evidence (one dual-engine run)
+## Evidence (one multi-engine run)
 
 A doc-heavy migration PR was wrapped-then-reviewed. Cycle 1: 4 findings, **all code, zero docs** — the wrapped docs reviewed clean, validating front-loading. A later cycle: exactly 1 doc finding — the frontmatter↔body status-line mismatch the wrap's own flip introduced (sub-step #1 didn't yet exist). That finding is the whole basis for making the body-prose sync mandatory: front-loading kills the *external* doc-drift class, but the wrap must not *introduce* an internal-inconsistency finding while finalizing.
 

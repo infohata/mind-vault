@@ -10,7 +10,7 @@ related: [006]
 created: 2026-05-20
 completed: 2026-05-20
 auto_safe: false
-auto_safe_reason: "Touches the two skill files most-invoked under sprint-auto's review-engine selector. Refactor sequencing (rename-before-drop applies — engine adapters land first, dual-engine sync block extracts to references/, then commands/bugbot-loop.md + copilot-loop.md become thin wrappers, then a sprint passes before removing the old single-engine code paths). /plan must resolve the adapter shape + dual-engine state-machine before this is auto-safe."
+auto_safe_reason: "Touches the two skill files most-invoked under sprint-auto's review-engine selector. Refactor sequencing (rename-before-drop applies — engine adapters land first, multi-engine sync block extracts to references/, then commands/bugbot-loop.md + copilot-loop.md become thin wrappers, then a sprint passes before removing the old single-engine code paths). /plan must resolve the adapter shape + multi-engine state-machine before this is auto-safe."
 sensitive_paths_cleared: true
 sensitive_paths_cleared_reason: "Pure skill-architecture refactor in commands/ + skills/. No auth, schema, secrets, or runtime config involved."
 ---
@@ -31,7 +31,7 @@ Every bugbot-loop-cycle of PR #129 demonstrated the cost:
 - **Cycle 2**: Phase 3 step-3 restructure + Phase 4 pending-retrigger branch + scratch field — 6 edits across 2 files for 3 logical changes.
 - **Self-referential meta-loop**: bugbot's first review introduced a spacing rule which (when added) created a structural gap that bugbot's second review caught. With a shared core, the structural gap would have been a single edit, not a mirrored-pair edit.
 
-The dual-engine sync rule itself currently lives in BOTH files in near-duplicate form — and the design constraint that motivated this IDEA is that **dual-engine concurrent execution must be a first-class supported mode**, not just a co-incidence of two separately-invoked loops.
+The multi-engine sync rule itself currently lives in BOTH files in near-duplicate form — and the design constraint that motivated this IDEA is that **multi-engine concurrent execution must be a first-class supported mode**, not just a co-incidence of two separately-invoked loops.
 
 ## Two abstraction shapes considered
 
@@ -39,11 +39,11 @@ The dual-engine sync rule itself currently lives in BOTH files in near-duplicate
 
 ```text
 skills/review-loop/
-  SKILL.md                     — Phase 0/1/3/4 skeleton, dual-engine orchestrator
+  SKILL.md                     — Phase 0/1/3/4 skeleton, multi-engine orchestrator
   references/
     engine-bugbot.md           — fetcher, retrigger, clean-signal, failure modes
     engine-copilot.md          — ditto
-    dual-engine-sync.md        — promoted from the currently-duplicated block
+    multi-engine-sync.md        — promoted from the currently-duplicated block
 commands/
   bugbot-loop.md               — thin wrapper: ENGINES=bugbot → /review-loop
   copilot-loop.md              — thin wrapper: ENGINES=copilot → /review-loop
@@ -52,7 +52,7 @@ commands/
 
 **Why preferred**:
 
-- Dual-engine sync becomes a single orchestrator function iterating over an enabled-engines array. Adding a third engine later is one more adapter, not a third copy of the sync rule.
+- Multi-engine sync becomes a single orchestrator function iterating over an enabled-engines array. Adding a third engine later is one more adapter, not a third copy of the sync rule.
 - Sprint-auto's `SPRINT_AUTO_REVIEW_ENGINE` selector (`bugbot` / `copilot` / `both` / `none`) is already the public API for this — the shared skill makes the implementation match the interface.
 - Trade-off escape hatches (bugbot stalled >15min, copilot 2× service-error, etc.) become per-adapter timeout/error policies feeding one shared decision loop.
 - Tier-1 codified patterns (currently bugbot-specific in `AGENT_bugbot.md` §1-8) can grow a copilot-specific sibling without touching the orchestrator.
@@ -79,15 +79,15 @@ commands/copilot-loop.md         — ditto
 **Why rejected as primary**:
 
 - Skills still diverge over time — every cycle of PR #129 would have required editing both files anyway, because the **same prose** lives in two files.
-- Does not support dual-engine concurrent execution as a first-class mode — that's still implemented as "run two loops, coordinate via ad-hoc sync block in each."
+- Does not support multi-engine concurrent execution as a first-class mode — that's still implemented as "run two loops, coordinate via ad-hoc sync block in each."
 
-**Status**: kept as a fallback if Option 1's design constraints (adapter boundary, dual-engine state machine) prove unresolvable in /plan.
+**Status**: kept as a fallback if Option 1's design constraints (adapter boundary, multi-engine state machine) prove unresolvable in /plan.
 
 ## Acceptance criteria
 
 - One canonical skeleton for Phase 0/1/3/4 — no near-duplicate prose between bugbot and copilot entry points.
 - Engine adapter contract documented in `references/engine-adapter-contract.md` — what an adapter must implement (fetch, retrigger, parse_clean, failure_modes) for the shared core to drive it.
-- Dual-engine mode invokable directly via `/review-loop` with engine list, not just as a side effect of running both wrappers.
+- Multi-engine mode invokable directly via `/review-loop` with engine list, not just as a side effect of running both wrappers.
 - Sprint-auto's `SPRINT_AUTO_REVIEW_ENGINE=both` continues to work without changes to sprint-auto itself.
 - Mind-vault CHANGELOG entry attributes the refactor to PR #129's duplication-cost evidence.
 

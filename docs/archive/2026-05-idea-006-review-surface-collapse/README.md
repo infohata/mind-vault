@@ -21,7 +21,7 @@ Collapsed the review surface to a single entry point. Deleted four files:
 
 ## Sequencing (rename-before-drop)
 
-Two PRs, prepare-then-drop. PR-1 migrated content + rewired ~25 reference sites (all four files still present → no breakage); PR-2 deleted them + cut the `## v4.3` CHANGELOG header. Both PRs' dual-engine review loops ran clean (PR-1 surfaced 2 budget-semantics consistency findings from Bugbot, both fixed; PR-2 surfaced 1 Copilot Info finding on historical changelog prose, fixed).
+Two PRs, prepare-then-drop. PR-1 migrated content + rewired ~25 reference sites (all four files still present → no breakage); PR-2 deleted them + cut the `## v4.3` CHANGELOG header. Both PRs' multi-engine review loops ran clean (PR-1 surfaced 2 budget-semantics consistency findings from Bugbot, both fixed; PR-2 surfaced 1 Copilot Info finding on historical changelog prose, fixed).
 
 ## Cross-IDEA amendments (RULE_cross-idea-amendments)
 

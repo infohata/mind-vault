@@ -10,7 +10,7 @@ All guides live under [`guides/`](guides/). Start with ONBOARDING and follow lin
 - **[guides/SPRINT_WORKFLOW.md](guides/SPRINT_WORKFLOW.md)** — the five-stage compound loop in detail: frontmatter schemas, routing tables, right-sizing, stage handoffs.
 - **[guides/SKILL_SPECIFICATION.md](guides/SKILL_SPECIFICATION.md)** — Anthropic Agent Skills reference (frontmatter, naming regex, directory layout, validation rules). Pair with [skill-writer](../skills/skill-writer/SKILL.md) for mind-vault's authoring enforcement.
 - **[guides/SKILL_AUTHORING_WALKTHROUGH.md](guides/SKILL_AUTHORING_WALKTHROUGH.md)** — process companion to SKILL_SPECIFICATION: when to make a skill vs rule vs command vs agent, the 500-line body budget, anti-patterns, `/compound` route.
-- **[guides/GIT_WORKFLOW.md](guides/GIT_WORKFLOW.md)** — branch-per-IDEA discipline, dual-engine review, integration branches, force-push hygiene, the HITL merge gate.
+- **[guides/GIT_WORKFLOW.md](guides/GIT_WORKFLOW.md)** — branch-per-IDEA discipline, multi-engine review, integration branches, force-push hygiene, the HITL merge gate.
 - **[guides/WORKTREE_PRACTICES.md](guides/WORKTREE_PRACTICES.md)** — parallel `git worktree` workflow, port-offset discipline, `.env` isolation exception, sprint-auto's integration-worktree pattern.
 - **[guides/MEMORY_MANAGEMENT.md](guides/MEMORY_MANAGEMENT.md)** — auto-memory vs `CLAUDE.md` vs project doc vs skill, rot detection, periodic pruning, verify-before-acting discipline.
 - **[guides/CURSOR_SETUP.md](guides/CURSOR_SETUP.md)** — Cursor 2.4+ integration notes (symlink caveat, per-skill workaround).
