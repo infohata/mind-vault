@@ -18,6 +18,11 @@ Adapters fall into two trigger/state shapes. The orchestrator's phase logic is i
 
 The auto-trigger / comment-anchored category exists because `anthropics/claude-code-action@v1` running the `code-review` plugin violates all three check-run-category assumptions (no named check-run, findings are comments not a stateful review, auto-runs on push). The contract accommodates it without orchestrator changes — see the comment-presence settle note in § Review-state gate and the synthesized-anchor case in § Scratch-file state ownership.
 
+**Two cross-cutting hazards every auto-trigger engine inherits** (learned from `claude`'s bring-up — fold into any future auto-trigger adapter):
+
+- **DRAFT PRs may run-but-post-nothing.** A push-triggered engine fires on draft-PR pushes and concludes `success`, but the vendor may post no review on a draft (claude does exactly this) — which reads as a silent / false-clean vector, *not* clean. Mitigate at **both** layers: (1) the orchestration cadence — `/work` opens PRs draft to suppress per-WIP-commit billing on the push-triggered engine, and `/review-loop` un-drafts (`gh pr ready`) pre-flight before Phase 1; (2) the adapter — a `find_*` draft probe emitting `<ENGINE>_DRAFT_NOOP=true` + early-exit as a belt-and-suspenders so a skipped un-draft surfaces "no verdict until ready," never SILENT/HUNG/clean. Check-run/request-driven engines (bugbot, copilot) are on-demand and unaffected by draft state.
+- **Per-commit billing.** Because a fix push auto-runs the engine, a non-draft PR bills a review on *every* push. The draft-until-review cadence above is the lever that collapses that to one review per finalized change (critical under sprint-auto, which pushes many commits across many IDEAs unattended).
+
 ## Tool surface — required scripts
 
 Every adapter MUST provide these scripts (project-local, `tools/<engine>_*.sh`). The orchestrator invokes them by name; the contract is the script's stdout shape.
@@ -78,6 +83,8 @@ Every `engine-<name>.md` MUST include the following sections, in this order:
 ### § Identity
 
 Engine name, vendor, what the user sees in the GitHub UI (e.g. "cursor[bot]" for bugbot, "Copilot" for copilot). The orchestrator filters PR comments/reviews by `user.login` matching this identity.
+
+> ⚠️ **Calibrate identity (and any posting behavior) off a run that ACTUALLY PRODUCED the signal — never a no-op / clean / empty run.** A run that posted nothing tells you nothing about the author login, comment shape, or `review_id` grouping; "confirming" identity from it is guessing. (Field lesson: `claude`'s first dogfood "confirmed" `github-actions[bot]` off a clean run that posted no review content — the real review identity, `claude[bot]`, was visible only once a *findings-bearing* run actually posted. The over-broad login tuple kept detection working, but the doc was wrong for days.) Lock identity/shape on the first run that posts real findings; until then, ship a conservative over-broad filter that fails toward "keep polling," never a false clean.
 
 ### § Tool invocations
 
