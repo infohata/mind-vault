@@ -3,8 +3,9 @@ stage: plan
 slug: claude-code-review-engine
 created: 2026-06-02
 source: ./IDEA-012-claude-code-review-engine.md
-status: ready
+status: shipped
 project: mind-vault
+pr: 167
 ---
 
 # Integrate Claude Code Review as a third review-loop engine
