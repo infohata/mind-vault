@@ -13,6 +13,8 @@ This skill is invoked via `commands/review-loop.md` — the single review entry 
 
 **Before you trigger engines — wrap docs first if this is a doc-heavy / IDEA PR.** If the PR carries substantial docs (IDEA file, plan, index, devlog, guides), run a bare `/wrap` (the `--scope=docs` default) FIRST, then trigger engines — so the reviewer sees docs at their merged shape and doc-consistency findings land in this cycle instead of as post-review drift. The bare `/wrap` default **structurally cannot reach merge**, so it is safe to run before review. Mechanics + the two-pass model: [`skills/wrap/references/WRAP_BEFORE_REVIEW.md`](../wrap/references/WRAP_BEFORE_REVIEW.md). (Code-only PRs: skip — go straight to the loop.)
 
+**Pre-flight — un-draft the PR.** `/work` opens PRs as **draft** so the push-triggered Claude engine doesn't bill a review on every WIP commit (see [`references/engine-claude.md`](references/engine-claude.md) § Push-triggered model). The review stage is where that flips: if `claude` is in `ENGINES` and `gh pr view <PR> --json isDraft -q .isDraft` is `true`, mark it ready (`gh pr ready <PR>`) **before** Phase 1 — a draft PR makes claude no-op (the run fires but posts nothing → reads SILENT), so its verdict is unavailable until ready. Bugbot/Copilot are unaffected by draft state. Skip the un-draft only if the user explicitly wants the PR to stay draft.
+
 ## Hard bounds (enforced by the loop)
 
 - `max_commits_per_session = 20`
