@@ -24,24 +24,25 @@
 #   The Actions CONCLUSION is GREEN whether claude found 0 or 5 issues — it is a
 #   RUNNING/DONE signal only, NEVER a verdict.
 #
-# A6 — CLEAN = SUBSTRING **OR** ZERO-INLINE. clean iff the claude summary comment
-#   body contains the case-insensitive substring "no issues found" OR there are
-#   zero claude-authored inline comments on the head SHA (after settle). Substring
-#   (not the full sentence) per the copilot two-phrasing lesson
-#   (find_copilot_comments.sh:182-189 — copilot already burned two wordings). The
-#   zero-inline OR-arm covers action issue #1087 (empty result, no summary comment)
-#   and any future clean-string drift.
+# A6 / LAYER-2 — CLEAN REQUIRES A POSITIVE POSTED SIGNAL, never zero-inline alone.
+#   A claude run can report `success` having posted NOTHING (action issue #1087 — the
+#   buffered-comment result-capture grabs a TodoWrite response instead of the review),
+#   which is indistinguishable from a genuinely-clean run by run status. So "completed
+#   + zero inline" is a FALSE-CLEAN vector, NOT a clean signal. clean iff claude POSTED
+#   a clean summary (case-insensitive substring "no issues found"; substring not full
+#   sentence per the copilot two-phrasing lesson, find_copilot_comments.sh:182-189)
+#   AND zero inline findings. The fixed workflow (assets/claude-code-review.yml —
+#   classify_inline_comments:false + claude_args + a prompt forcing a posted summary
+#   even when clean) is what makes a genuinely-clean run POST that summary.
 #
-# A3 — SETTLE VALVE RELEASES ON COMMENT PRESENCE, NOT CONCLUSION (load-bearing).
-#   copilot trusts a review-less `completed` check-run only when CONCLUSION=success.
-#   That rule is POISON for claude: claude's Actions conclusion is success EVEN WITH
-#   findings, so a conclusion gate would ALWAYS release and ship lagged findings as
-#   a false CLEAN. Here: a `completed` Actions run whose head-SHA summary/inline
-#   comments have NOT posted is downgraded to STATUS=in_progress (RUNNING) and emits
-#   CLAUDE_REVIEW_PENDING. The CLAUDE_REVIEW_SETTLE_SECONDS (default 180) valve, when
-#   it elapses on the genuine no-comment-at-all case (#1087), resolves to CLEAN via
-#   the ZERO-INLINE arm — it must NEVER bypass a findings-pending state via conclusion.
-#   Settle age computed in Python `datetime` (cross-platform), never `date -d`.
+# A3 / LAYER-2 — RACE + SILENT GUARD (load-bearing). A `completed` run with NO readable
+#   verdict (no posted findings AND no clean summary) is held as STATUS=in_progress
+#   (RUNNING) so the orchestrator's "DONE + zero findings = CLEAN" can't fire on it.
+#   CONCLUSION is never consulted (claude concludes `success` regardless of findings).
+#   The settle window (CLAUDE_REVIEW_SETTLE_SECONDS, default 180) only picks the marker:
+#   within → CLAUDE_REVIEW_PENDING (comments may still land); elapsed → CLAUDE_REVIEW_SILENT
+#   (didn't → NOT clean: #1087 / read-only perms / un-fixed workflow; re-trigger or verify,
+#   never auto-clean). Settle age in Python `datetime` (cross-platform), never `date -d`.
 #
 # A8 — CONSERVATIVE BOTH-AND IDENTITY FILTER. claude's comment author login is
 #   UNCONFIRMED until the dogfood — the filter requires BOTH (a) the comment author
@@ -63,6 +64,8 @@
 #   - CLAUDE_CLEAN_SIGNAL=... (legacy / non-authoritative — orchestrator derives clean structurally)
 #   - inline finding blocks each carrying the mandatory `(comment id <cid>, review <rid>)` token
 #   - CLAUDE_NOT_INSTALLED=true (reachability) / CLAUDE_REVIEW_PENDING=... (race guard)
+#   - CLAUDE_REVIEW_SILENT=... (run `success` but posted nothing after settle — NOT
+#     clean; #1087 / read-only perms / un-fixed workflow. Loop hands back as uncertain.)
 #   Exit 0 on success.
 #
 # Usage: ./tools/find_claude_comments.sh [PR_NUMBER]
@@ -190,13 +193,15 @@ WORKFLOW_RUNS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/actions/workflows/$CLAUDE_W
 #   NOT a `claude[bot]` app identity. (Extra app-style logins kept as harmless
 #   future-proofing in case the action switches to an app token.)
 #
-# POSTING MODEL — CONFIRMED the action posts ONLY *buffered inline review comments*
-#   (one post-step). There is NO top-level summary comment in the action+plugin
-#   flow (that's a managed-App behavior). So:
-#     • CLEAN signal = ZERO claude inline comments on the head SHA (the A6
-#       zero-inline arm is THE clean signal here; the summary-substring arm is
-#       dead backup that this action never exercises).
-#     • This run logged "No buffered inline comments" → genuinely CLEAN.
+# POSTING MODEL — the BARE (read-only / un-fixed) action posts only buffered inline
+#   comments and NO summary, AND can drop even those (#1087). The PR-#167 dogfood run
+#   logged "No buffered inline comments" and was READ as clean via the old zero-inline
+#   arm — but that was only safe because the run genuinely had nothing AND we later
+#   learned (LAYER 2) it could equally have been a silent #1087 drop. ⚠️ SUPERSEDED:
+#   the zero-inline arm is NO LONGER a clean signal (see the A6/LAYER-2 header). The
+#   FIXED workflow (assets/) forces a posted clean summary, so:
+#     • CLEAN = a POSTED clean summary ("no issues found") + zero inline.
+#     • success + nothing posted after settle = CLAUDE_REVIEW_SILENT (NOT clean).
 #
 # INLINE FILTER — CALIBRATION REFINES A8. A8 prescribed BOTH-AND (login AND body
 #   signature) to stop a loose login from over-claiming. But for INLINE review
@@ -216,8 +221,10 @@ WORKFLOW_RUNS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/actions/workflows/$CLAUDE_W
 #   — so summary clean-detection still requires the body signature. (Here the
 #   false-positive direction is the dangerous one, so BOTH-AND is correct.)
 #
-# CLEAN SUBSTRING (A6) — unverified in the wild (no summary ever posted); retained
-#   as harmless backup for the summary arm. The zero-inline arm is authoritative.
+# CLEAN SUBSTRING (A6) — now THE clean signal (LAYER 2): with the fixed workflow a
+#   genuinely-clean run posts a summary containing it. Exact wording unverified in the
+#   wild yet (PR #167 ran the un-fixed workflow → posted nothing); confirm on teisutis
+#   IDEA-214. Until then a clean run that doesn't match the substring → SILENT (safe).
 #
 # STILL UNCALIBRATED (no finding observed yet — this run was clean):
 #   • CLAUDE_BODY_SIGNATURES exact wording (only matters for the summary arm now).
@@ -366,15 +373,29 @@ print(f'CLAUDE_INLINE_ANCHOR={cid} AT={at} REVIEW={rid}')
 INLINE_ANCHOR_ID=$(echo "$INLINE_ANCHOR_LINE" | grep -oE 'CLAUDE_INLINE_ANCHOR=[^ ]+' | cut -d= -f2 || true)
 INLINE_ANCHOR_AT=$(echo "$INLINE_ANCHOR_LINE" | grep -oE 'AT=[^ ]+' | cut -d= -f2 || true)
 
-# A head-SHA claude comment (summary OR inline) has posted iff either is present.
-# This is the A3 race-guard gate: comment PRESENCE, not Actions conclusion.
-COMMENT_POSTED=false
-if [ -n "$SUMMARY_ID" ] || [ "$HEAD_INLINE_COUNT" -gt 0 ] 2>/dev/null; then
-    COMMENT_POSTED=true
+# Is there a READABLE VERDICT for the head SHA? (LAYER 2 — action issue #1087.)
+# A claude run can report `success` having posted NOTHING: the plugin buffers inline
+# comments for a post-session step whose result-capture can grab a TodoWrite response
+# instead of the review → empty → no comment, run still `success`. That "success +
+# silent" state is INDISTINGUISHABLE from a genuinely-clean run by run status alone,
+# so we must NOT infer clean from "completed + zero inline" — that is the false-CLEAN
+# vector. A verdict is readable ONLY when claude POSTED something definitive:
+#   - inline findings (HEAD_INLINE_COUNT > 0)        → not clean; triage them
+#   - a clean summary comment (SUMMARY_CLEAN==true)  → clean (the fixed workflow's
+#                                                       prompt forces a posted "no
+#                                                       issues found" summary even
+#                                                       when clean — see assets/)
+# Anything else — nothing posted, or a summary that isn't a recognized clean signal,
+# with zero inline — is SILENT/uncertain: surfaced, NEVER auto-cleaned. (With the
+# fixed workflow a genuinely-clean run POSTS a clean summary, so SILENT means
+# #1087-drop / read-only perms / un-fixed workflow, not "clean".)
+VERDICT_READABLE=false
+if [ "$HEAD_INLINE_COUNT" -gt 0 ] 2>/dev/null || [ "$SUMMARY_CLEAN" = "true" ]; then
+    VERDICT_READABLE=true
 fi
 
 # ------------------------------------------------------------------------------
-# Review-state gate + review-pending race guard (A3) — the load-bearing divergence
+# Review-state gate + race guard (A3) + LAYER-2 silent guard — load-bearing
 # ------------------------------------------------------------------------------
 if [ -n "$CLAUDE_CHECKRUN_LINE" ]; then
     cr_status=$(echo "$CLAUDE_CHECKRUN_LINE" | grep -oE 'STATUS=[^ ]+' | cut -d= -f2 || true)
@@ -382,32 +403,28 @@ if [ -n "$CLAUDE_CHECKRUN_LINE" ]; then
     cr_sha=$(echo "$CLAUDE_CHECKRUN_LINE" | grep -oE 'COMMIT=[^ ]+' | cut -d= -f2 || true)
     cr_at=$(echo "$CLAUDE_CHECKRUN_LINE" | grep -oE 'AT=[^ ]+' | cut -d= -f2 || true)
 
-    # ── Review-pending race guard (A3 — releases on COMMENT PRESENCE) ───────────
-    # The Actions job flips to `completed` BEFORE claude's summary/inline comments
-    # post (and #1087: sometimes no comment ever posts). A poll in that gap sees
-    # DONE + zero findings → false CLEAN. So a `completed` run whose head-SHA
-    # comments have NOT posted is downgraded to in_progress (RUNNING) — the loop
-    # keeps waiting.
-    #
-    # CRITICAL vs copilot: copilot's valve releases a review-less `completed` run
-    # ONLY on CONCLUSION=success. claude's Actions CONCLUSION is success EVEN WITH
-    # findings — a conclusion gate would ALWAYS release and ship lagged findings as
-    # a false CLEAN. So the valve here keys on the SETTLE WINDOW alone (not the
-    # conclusion). When it elapses on the genuine no-comment-at-all case (#1087) it
-    # releases to DONE, and the clean verdict is reached via the ZERO-INLINE arm
-    # (HEAD_INLINE_COUNT==0 + no summary). It NEVER bypasses a findings-pending
-    # state, because if comments HAD posted, COMMENT_POSTED=true and we never enter
-    # the downgrade branch at all.
+    # ── Race guard (A3) + LAYER-2 silent guard ──────────────────────────────────
+    # A `completed` run with NO readable verdict is held as RUNNING (downgraded) so
+    # the orchestrator's generic "DONE + zero findings = CLEAN" cannot fire on a run
+    # that merely hasn't posted yet (race) OR never will (#1087 drop). The settle
+    # window distinguishes the two:
+    #   - within window  → CLAUDE_REVIEW_PENDING  (comments may still be landing)
+    #   - window elapsed → CLAUDE_REVIEW_SILENT    (nothing came → NOT clean: #1087 /
+    #                       read-only perms / un-fixed workflow). Stays RUNNING so the
+    #                       loop never reads CLEAN; the loop hands SILENT back as
+    #                       uncertain (re-trigger / verify perms), not as clean — see
+    #                       engine-claude.md § Failure modes.
+    # CONCLUSION is never consulted (claude concludes `success` regardless of findings).
     #
     # Default 180s (calibrated PR #167, NOT copilot's 600). claude-code-action posts
-    # its buffered inline comments *synchronously within the job* (the
-    # post-buffered-inline-comments step runs BEFORE the run reports `completed`),
-    # so comments — if any — already exist at completed-time; the settle only needs
-    # to cover GitHub API read-consistency after that in-job post, not copilot's
-    # minutes-long async-review lag. 180s is a generous margin for that.
+    # its inline comments *synchronously within the job* (the post step runs BEFORE
+    # the run reports `completed`), so comments — if any — already exist at
+    # completed-time; the window only covers GitHub API read-consistency after that
+    # in-job post, not copilot's minutes-long async-review lag. Settle age computed in
+    # Python `datetime` (cross-platform), never `date -d`.
     SETTLE=${CLAUDE_REVIEW_SETTLE_SECONDS:-180}
-    CLAUDE_DOWNGRADED=
-    if [ "$cr_status" = "completed" ] && [ "$COMMENT_POSTED" != "true" ]; then
+    CLAUDE_PENDING= ; CLAUDE_SILENT=
+    if [ "$cr_status" = "completed" ] && [ "$VERDICT_READABLE" != "true" ]; then
         # Settle decision in Python `datetime` (cross-platform; never `date -d`).
         # Emits "elapsed" iff cr_at parsed AND (now - cr_at) >= SETTLE; "pending"
         # otherwise — a parse failure lands on "pending" (default safe = keep waiting).
@@ -425,34 +442,36 @@ try:
 except Exception:
     print('pending')
 " 2>/dev/null || echo "pending")
-        # NOTE (A3): NO conclusion gate here. The valve releases purely on the
-        # settle window. The only way past this branch with comments-present is
-        # COMMENT_POSTED=true (checked above), so an elapsed valve can only release
-        # the genuine #1087 no-comment case → clean via zero-inline.
-        if [ "$settle_state" != "elapsed" ]; then
-            cr_status="in_progress"
-            CLAUDE_CHECKRUN_LINE=$(echo "$CLAUDE_CHECKRUN_LINE" | sed 's/STATUS=completed/STATUS=in_progress/')
-            CLAUDE_DOWNGRADED=1
-        fi
+        # NO conclusion gate (claude concludes `success` regardless of findings).
+        # ALWAYS hold as RUNNING — a run with no readable verdict must never reach
+        # DONE, else the orchestrator's "DONE + zero findings = CLEAN" false-cleans
+        # an unposted / #1087-dropped run. The settle window only chooses the marker:
+        # within → PENDING (comments may still land); elapsed → SILENT (didn't come →
+        # NOT clean; needs re-trigger / perms-verify, never auto-clean).
+        cr_status="in_progress"
+        CLAUDE_CHECKRUN_LINE=$(echo "$CLAUDE_CHECKRUN_LINE" | sed 's/STATUS=completed/STATUS=in_progress/')
+        if [ "$settle_state" = "elapsed" ]; then CLAUDE_SILENT=1; else CLAUDE_PENDING=1; fi
     fi
 
     echo "$CLAUDE_CHECKRUN_LINE"
 
     if [ "$cr_status" = "completed" ]; then
-        echo -e "${GREEN}✅ Claude Actions run completed for PR head (RUNNING/DONE signal only — conclusion is never a verdict).${NC}"
-        # Structural clean (A6): summary substring OR zero head-SHA inline comments.
-        # The orchestrator derives clean structurally; the legacy CLAUDE_CLEAN_SIGNAL
-        # below is corroboration only.
-        if [ "$SUMMARY_CLEAN" = "true" ] || [ "$HEAD_INLINE_COUNT" -eq 0 ] 2>/dev/null; then
-            anchor_id="$SUMMARY_ID"
-            anchor_at="$SUMMARY_AT"
-            [ -z "$anchor_id" ] && anchor_id="$INLINE_ANCHOR_ID" && anchor_at="$INLINE_ANCHOR_AT"
-            [ -z "$anchor_id" ] && anchor_id="checkrun-${cr_id}" && anchor_at="$cr_at"
-            echo "CLAUDE_CLEAN_SIGNAL=${anchor_id} COMMIT=${cr_sha} AT=${anchor_at}"
+        # Reached ONLY with a readable verdict (inline findings, or a clean summary) —
+        # the no-verdict cases were held as RUNNING above (PENDING/SILENT).
+        echo -e "${GREEN}✅ Claude Actions run completed with a posted verdict for PR head.${NC}"
+        if [ "$HEAD_INLINE_COUNT" -gt 0 ] 2>/dev/null; then
+            : # findings present — rendered below; emit NO clean signal
+        elif [ "$SUMMARY_CLEAN" = "true" ]; then
+            # Posted clean summary ("no issues found") + zero inline → clean.
+            # (LAYER 2: clean now requires a POSITIVE posted signal — never zero-inline alone.)
+            echo "CLAUDE_CLEAN_SIGNAL=${SUMMARY_ID:-checkrun-${cr_id}} COMMIT=${cr_sha} AT=${SUMMARY_AT:-$cr_at}"
         fi
-    elif [ -n "$CLAUDE_DOWNGRADED" ]; then
+    elif [ -n "$CLAUDE_SILENT" ]; then
+        echo "CLAUDE_REVIEW_SILENT=run-${cr_id} COMMIT=${cr_sha} SETTLE=${SETTLE}s"
+        echo -e "${RED}⚠️  Claude Actions run completed but posted NO findings and NO clean summary after ${SETTLE}s — SILENT/uncertain, NOT clean (likely anthropics/claude-code-action#1087 buffer-drop, read-only perms, or an un-fixed workflow). Re-trigger or verify the workflow has the reliability fixes + pull-requests:write. See engine-claude.md § Failure modes.${NC}"
+    elif [ -n "$CLAUDE_PENDING" ]; then
         echo "CLAUDE_REVIEW_PENDING=run-${cr_id} COMMIT=${cr_sha} SETTLE=${SETTLE}s"
-        echo -e "${YELLOW}⏳ Claude Actions run completed but no head-SHA summary/inline comment posted yet — treating as RUNNING (review-pending race guard, A3) to avoid a false CLEAN.${NC}"
+        echo -e "${YELLOW}⏳ Claude Actions run completed but no head-SHA verdict posted yet (within ${SETTLE}s settle) — treating as RUNNING (race guard) to avoid a false CLEAN.${NC}"
     fi
     echo ""
 fi
@@ -470,9 +489,11 @@ LATEST_CLEAN="$SUMMARY_CLEAN"
 if [ -z "$LATEST_ANCHOR_ID" ]; then
     LATEST_ANCHOR_ID="$INLINE_ANCHOR_ID"
     LATEST_ANCHOR_AT="$INLINE_ANCHOR_AT"
-    # No summary → clean derives from the zero-inline arm structurally; report
-    # CLEAN=false here when inline findings exist, true when none (legacy hint only).
-    if [ "$HEAD_INLINE_COUNT" -eq 0 ] 2>/dev/null; then LATEST_CLEAN=true; else LATEST_CLEAN=false; fi
+    # No summary comment → no positive clean signal. LAYER 2: zero-inline is NOT
+    # clean (could be a #1087 silent drop), so the legacy CLEAN= hint is false here
+    # absent a posted clean summary. (The orchestrator ignores CLEAN= anyway — clean
+    # is structural; this just stops the hint from lying.)
+    LATEST_CLEAN=false
 fi
 if [ -n "$LATEST_ANCHOR_ID" ]; then
     echo "CLAUDE_LATEST_REVIEW=${LATEST_ANCHOR_ID} COMMIT=${PR_HEAD_SHA} AT=${LATEST_ANCHOR_AT} CLEAN=${LATEST_CLEAN:-false}"

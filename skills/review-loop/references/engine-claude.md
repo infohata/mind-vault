@@ -53,21 +53,23 @@ claude is a **push-triggered** engine. The `claude-code-review.yml` action auto-
 
 **Review-state is synthesized from the Actions job, not a check-run.** `find_claude_comments.sh` filters `claude-code-review.yml` runs to the head SHA, picks the latest by `run_started_at`, and maps `queued`/`in_progress` → **RUNNING**, `completed` → **DONE**. The Actions `CONCLUSION` is **green whether claude found 0 or 5 issues** — it is a RUNNING/DONE signal only, NEVER a verdict.
 
-**Clean is structural and belt-and-suspenders (A6):**
+**Clean requires a POSITIVE posted signal — never zero-inline alone (A6 / LAYER 2).**
 
 ```text
-clean  ⟺  the claude summary-comment body contains the case-insensitive
-          substring "no issues found"
-       OR zero claude-authored inline comments on the head SHA (after settle)
+clean    ⟺  claude POSTED a clean summary (body contains case-insensitive
+            substring "no issues found")  AND  zero inline findings
+findings ⟺  inline comments posted on the head SHA
+SILENT   ⟸  run `success` (DONE) but NOTHING posted after settle
+            → NOT clean (held RUNNING; see § Failure modes)
 ```
 
-The substring (not the full sentence) follows the copilot lesson — copilot burned two phrasings (`find_copilot_comments.sh:182-189`). The zero-inline OR-arm covers action issue #1087 (empty result with no summary comment) and any future clean-string drift.
+**Why not "zero inline = clean" (the original A6 belt-and-suspenders, reversed by verified research).** A claude run can report `success` having posted **nothing** — action issue [#1087](https://github.com/anthropics/claude-code-action/issues/1087): the plugin buffers inline comments for a post-session step whose result-capture grabs a `TodoWrite` response instead of the review → empty → no comment. "success + silent" is **indistinguishable from genuinely-clean** ([#1054](https://github.com/anthropics/claude-code-action/issues/1054)) by run status, so zero-inline is a **false-CLEAN vector**, not a clean signal. Clean now demands a posted clean summary; the **fixed workflow** ([`../assets/claude-code-review.yml`](../assets/claude-code-review.yml) — `classify_inline_comments:false` + `claude_args` post-during-run + a prompt that forces a posted summary *even when clean*) is what makes a genuinely-clean run actually post that summary. The substring (not the full sentence) follows the copilot lesson (`find_copilot_comments.sh:182-189`).
 
-The legacy `CLAUDE_CLEAN_SIGNAL` line is corroboration only; the orchestrator derives clean structurally and counts active findings explicitly.
+The legacy `CLAUDE_CLEAN_SIGNAL` line is corroboration only; the orchestrator derives clean structurally (DONE + zero active findings) — which is correct ONLY because the adapter holds a no-verdict run RUNNING (so DONE is reached only with a posted clean summary or posted findings).
 
-✅ **DO** read clean off the summary-comment body substring OR the zero-inline count.
+✅ **DO** read clean off a POSTED clean summary + zero inline findings.
 
-❌ **DON'T** read clean off the Actions `CONCLUSION`. `CONCLUSION=success` means "the workflow ran", not "no findings" — a conclusion gate would always pass and ship findings as a false CLEAN.
+❌ **DON'T** read clean off zero-inline alone, nor off the Actions `CONCLUSION`. Both pass on a #1087 silent drop → false CLEAN.
 
 ## § Staleness rule
 
@@ -77,13 +79,16 @@ Keyed on **comment ids** (synthesized anchor), not a review id. `CLAUDE_LATEST_R
 
 **The settle valve releases on comment PRESENCE, not Actions conclusion (A3 — load-bearing).** This is the divergence from copilot's `CONCLUSION=success` settle gate. claude's Actions job flips to `completed` *before* its summary/inline comments post — a poll in that gap sees DONE + zero findings → false CLEAN.
 
-So a `completed` Actions run whose head-SHA summary/inline comments have NOT posted is downgraded to `STATUS=in_progress` (RUNNING) + a `CLAUDE_REVIEW_PENDING` marker. The valve (`CLAUDE_REVIEW_SETTLE_SECONDS`, default **180**) keys on the **settle window alone** — never the conclusion.
+So a `completed` Actions run with **no readable verdict** (no posted findings AND no clean summary) is held at `STATUS=in_progress` (RUNNING) so the orchestrator's "DONE + zero findings = CLEAN" can't fire on it. The settle window (`CLAUDE_REVIEW_SETTLE_SECONDS`, default **180**) only picks the marker — it never releases a no-verdict run to DONE:
 
-**Settle window is 180s, not copilot's 600 (calibrated PR #167).** claude-code-action posts its buffered inline comments *synchronously within the job* — the `post-buffered-inline-comments` step runs **before** the run reports `completed`, so comments (if any) already exist at completed-time. The window only needs to cover GitHub API read-consistency after that in-job post, not copilot's minutes-long async-review lag.
+- **within window** → `CLAUDE_REVIEW_PENDING` (comments may still be landing — race).
+- **window elapsed** → `CLAUDE_REVIEW_SILENT` (nothing came → **NOT clean**: #1087 drop / read-only perms / un-fixed workflow). Stays RUNNING; the loop hands it back as uncertain (re-trigger / verify perms), never auto-clean.
 
-✅ **DO** release the valve on comment presence, or — on the genuine no-comment-at-all case (#1087) after the window elapses — resolve CLEAN via the **zero-inline arm**.
+**Settle window is 180s, not copilot's 600 (calibrated PR #167).** claude-code-action posts its inline comments *synchronously within the job* — the post step runs **before** the run reports `completed`, so comments (if any) already exist at completed-time. The window only covers GitHub API read-consistency after that in-job post, not copilot's minutes-long async-review lag.
 
-❌ **DON'T** copy copilot's `CONCLUSION=success` settle gate here. claude concludes `success` even WITH findings, so a conclusion gate would always release and ship lagged findings as a false CLEAN. The valve can only ever release the genuine #1087 no-comment case (when comments HAD posted, `COMMENT_POSTED=true` and the downgrade branch is never entered).
+✅ **DO** treat `CLAUDE_REVIEW_SILENT` as uncertain/needs-retrigger — never clean.
+
+❌ **DON'T** copy copilot's `CONCLUSION=success` settle gate, and DON'T release a no-verdict run to DONE on settle-elapse (the original "zero-inline arm" — that's the #1087 false-CLEAN). claude concludes `success` even WITH findings, so conclusion is never consulted.
 
 Settle age is computed in Python `datetime` (cross-platform), never `date -d`.
 
@@ -94,6 +99,9 @@ Settle age is computed in Python `datetime` (cross-platform), never `date -d`.
 | claude action not installed | `CLAUDE_NOT_INSTALLED=true` (no `claude-code-review.yml` workflow on the repo) | Self-exclude from the **default** set (bare `/review-loop`); on an **explicit** `claude` run, degrade **loudly** — hand back with "run `/install-github-app`", never HUNG, never silent. |
 | claude stalled | Actions job `STATUS=in_progress` (RUNNING) past observed latency on `last_push_sha` | Proceed with other engines' findings if any; do NOT explicitly retrigger (push-triggered — the next fix push re-runs it). Surface in hand-back if it doesn't recover within the idle-poll budget. |
 | Actions job unreadable | `actions: read` blocked for the user's `gh` auth — `WORKFLOW_RUNS` empty, no `CLAUDE_CHECKRUN` (Q3) | Degrade to summary-comment-only state (lose the RUNNING signal) with a logged warning. Do NOT hard-fail the loop. |
+| **Silent run (success + nothing posted)** | `CLAUDE_REVIEW_SILENT=...` — run `completed`/`success` but NO findings and NO clean summary after settle (held RUNNING) | **NOT clean.** Hand back as uncertain: re-trigger once, and verify the workflow has the reliability fixes + `pull-requests: write` (LAYER 1/2). Most likely the #1087 buffer-drop, a read-only-perms posting block, or an un-fixed/old workflow — never read as a clean pass. Don't wait for the full idle-timeout; the SILENT marker is the terminal signal. |
+
+**Robust-mode alternative (record-only).** #1087 is an *open* upstream bug — the workflow fixes *mitigate* (post-during-run) but don't *guarantee* (the model can still end on a `TodoWrite` before posting). For guaranteed reliability, Anthropic's **managed Code Review GitHub App** (`@claude review`, Team/Enterprise) writes findings to **check-run annotations** independent of the comment buffer — but it's paid (~$15–25/review), research-preview, and unavailable under Zero Data Retention. If a project hits persistent SILENT despite the fixes, the managed App is the escalation path (a different adapter — it *does* post a named check-run, unlike this action path). Tracked in IDEA-012.
 | Review-pending race | Actions job `completed` but no head-SHA summary/inline comment yet | Downgraded to RUNNING + `CLAUDE_REVIEW_PENDING` (§ Race-condition caveats). Keep waiting; never a premature CLEAN. |
 
 ## § Common patterns (codified Tier 1)

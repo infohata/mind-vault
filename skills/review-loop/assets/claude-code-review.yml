@@ -1,14 +1,26 @@
 # Canonical Claude auto-review workflow for the review-loop claude engine.
 #
 # Commit THIS (not /install-github-app's default) to the repo's DEFAULT BRANCH.
-# Two deltas from the /install-github-app template, both load-bearing:
-#   1. permissions: pull-requests + issues are `write` (the default ships `read`,
-#      which silently blocks the action from POSTING findings → false CLEAN).
-#   2. a fork-PR guard (`if:`) so fork PRs — which can't see CLAUDE_CODE_OAUTH_TOKEN —
-#      don't fail / burn runner minutes.
-# The action validates this file byte-for-byte against the default-branch copy
-# (anti-tampering), so the perms must already be `write` ON the default branch —
-# a feature-branch edit cannot take effect. See engine-claude-onboarding.md.
+# Deltas from the /install-github-app template, all load-bearing — two failure
+# layers the bare template hits (see engine-claude-onboarding.md for the full writeup):
+#
+#   LAYER 1 (auth/setup): permissions: pull-requests + issues are `write` (the
+#     default ships `read`, which silently blocks the action from POSTING findings
+#     → a findings-bearing run posts nothing → FALSE CLEAN). The action validates
+#     this file byte-for-byte against the default-branch copy (anti-tampering), so
+#     the perms must already be `write` ON the default branch — a feature-branch
+#     edit 401s ("Workflow validation failed"). Plus a fork-PR guard (`if:`) so
+#     fork PRs — which can't see CLAUDE_CODE_OAUTH_TOKEN — don't fail / burn minutes.
+#
+#   LAYER 2 (the action posts NOTHING despite success — known open bug #1087): the
+#     plugin buffers inline comments for a post-session step whose result-capture
+#     can grab a TodoWrite response instead of the review → empty → no comment, run
+#     still `success`. The four `with:` keys below mitigate it: pin the version
+#     (floating @v1 has pass→fail drift #1266), post inline comments immediately
+#     instead of buffering (#1061/#1087), use a sticky comment, and — via claude_args
+#     + the prompt's final-action instruction — publish DURING the run (gh pr comment)
+#     so the broken post-session capture is bypassed. NOT a guaranteed fix (#1087 is
+#     open); the managed Code Review App is the robust-mode alternative (see IDEA-012).
 name: Claude Code Review
 
 on:
@@ -23,9 +35,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write   # REQUIRED to post inline review comments (default `read` → false CLEAN)
-      issues: write          # REQUIRED to post a summary comment if the plugin emits one
-      id-token: write
+      pull-requests: write   # REQUIRED to post inline review comments + the gh-pr-comment workaround (default `read` → false CLEAN)
+      issues: write          # REQUIRED to post the summary comment
+      id-token: write        # mandatory for the OIDC → App-token exchange
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,9 +46,28 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
-        uses: anthropics/claude-code-action@v1
+        # Pinned (was floating @v1) to avoid tag-drift pass→fail regressions (#1266).
+        uses: anthropics/claude-code-action@v1.0.133
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
+          # Post inline comments immediately rather than buffering for a
+          # post-session step that can come back empty (#1061 / #1087).
+          classify_inline_comments: 'false'
+          # One updating comment per PR instead of a fresh comment per push.
+          use_sticky_comment: 'true'
+          # Publish directly (gh pr comment / inline-comment MCP) DURING the run,
+          # bypassing the post-session result capture that drops output (#1087).
+          # gh pr comment posts via GITHUB_TOKEN → needs pull-requests: write (above).
+          claude_args: |
+            --allowedTools "Bash(gh:*),mcp__github_inline_comment__create_inline_comment"
+          prompt: |
+            /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
+
+            After completing the review you MUST publish the full review summary as a
+            pull-request comment (via `gh pr comment`, or the sticky comment) as your
+            FINAL action — even when the verdict is "no issues found" (the loop needs a
+            POSTED clean signal, not silence). Do not end the session on a TodoWrite or
+            planning step — the last tool call must be the one that posts the review, or
+            the result is lost (anthropics/claude-code-action#1087).
