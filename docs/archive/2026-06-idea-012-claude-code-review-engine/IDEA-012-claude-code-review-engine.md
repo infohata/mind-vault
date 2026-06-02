@@ -1,7 +1,7 @@
 ---
 id: 012
 title: Integrate Claude Code Review as a third review-loop engine
-status: idea          # idea | in-progress | complete | superseded
+status: in-progress          # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
@@ -20,7 +20,7 @@ sensitive_paths_cleared_reason: "Touches CI surface (.github/workflows/claude-co
 
 # IDEA-012: Integrate Claude Code Review as a third review-loop engine
 
-**Status**: 💡 Idea
+**Status**: 🚧 In Progress (planned 2026-06-02 — see [plan](./2026-06-02-claude-code-review-engine-plan.md))
 **Priority**: Medium
 
 **Problem** (or opportunity): `/review-loop` drives a bounded-autonomy review-fix-rerun loop against pluggable engines. Two ship today — Cursor Bugbot and GitHub Copilot, both per-review-billed external vendors. We just installed `anthropics/claude-code-action@v1` via `/install-github-app` (`.github/workflows/claude-code-review.yml` auto-runs the `code-review` plugin on every PR; `claude.yml` is `@claude`-mention interactive). Those reviews already happen — but the loop can't *drive or triage* them. Making `claude` a first-class engine delivers three things no existing engine offers: **(1) in-house dogfooding** — Anthropic's own action running our own `code-review` plugin against our own `CLAUDE.md` rules, so bugs surface on us first before teisutis; **(2) subscription/OAuth billing** (`CLAUDE_CODE_OAUTH_TOKEN`) instead of a per-review SKU — cheaper marginal cost at PR volume; **(3) `CLAUDE.md`-convention-aware findings** the generic vendors structurally can't produce.

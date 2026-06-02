@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-012](../archive/2026-06-idea-012-claude-code-review-engine/IDEA-012-claude-code-review-engine.md) — Integrate Claude Code Review as a third review-loop engine
 
 ## 💡 High Priority (backlog)
 
@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-- [IDEA-012](IDEA-012-claude-code-review-engine.md) — Integrate Claude Code Review as a third review-loop engine
+_(none)_
 
 ## 💡 Low Priority (backlog)
 
