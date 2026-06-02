@@ -63,7 +63,8 @@
 #     (anchor = summary-comment id, or newest head-SHA inline comment id if no summary)
 #   - CLAUDE_CLEAN_SIGNAL=... (legacy / non-authoritative — orchestrator derives clean structurally)
 #   - inline finding blocks each carrying the mandatory `(comment id <cid>, review <rid>)` token
-#   - CLAUDE_NOT_INSTALLED=true (reachability) / CLAUDE_REVIEW_PENDING=... (race guard)
+#   - CLAUDE_NOT_INSTALLED=true (reachability) / CLAUDE_DRAFT_NOOP=true (draft PR — no
+#     review posted; un-draft for a verdict) / CLAUDE_REVIEW_PENDING=... (race guard)
 #   - CLAUDE_REVIEW_SILENT=... (run `success` but posted nothing after settle — NOT
 #     clean; #1087 / read-only perms / un-fixed workflow. Loop hands back as uncertain.)
 #   Exit 0 on success.
@@ -161,6 +162,23 @@ if [ "$ACTION_INSTALLED" != "true" ]; then
     echo -e "${YELLOW}⚠️  claude-code-review action not installed on $REPO_OWNER/$REPO_NAME (no $CLAUDE_WORKFLOW_FILE workflow).${NC}"
     echo "   Install with: /install-github-app (then set CLAUDE_CODE_OAUTH_TOKEN secret)."
     echo "   The /review-loop default set self-excludes claude here; an explicit 'claude' degrades loudly."
+    exit 0
+fi
+
+# ── Draft-PR no-op guard (LAYER 0) ──────────────────────────────────────────
+# On a DRAFT PR the action's run fires + concludes `success` but claude POSTS
+# NOTHING (no summary, no inline) — confirmed A/B 2026-06-03: the same tree read
+# SILENT while draft and posted a full review the instant it was marked ready. So a
+# draft PR would otherwise read SILENT / false-clean-vector — NOT a code verdict, just
+# the draft no-op. /review-loop's pre-flight un-drafts the PR before Phase 1 (see
+# SKILL.md § Pre-flight); this is the belt-and-suspenders net for a skipped/failed
+# un-draft: emit CLAUDE_DRAFT_NOOP + exit 0 so the loop reports "no claude verdict until
+# ready" (un-draft the PR), never SILENT/HUNG/clean.
+PR_IS_DRAFT=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER" -q '.draft' 2>/dev/null || echo "")
+if [ "$PR_IS_DRAFT" = "true" ]; then
+    echo "CLAUDE_DRAFT_NOOP=true"
+    echo -e "${YELLOW}⚠️  PR #$PR_NUMBER is a DRAFT — claude's action runs but posts NO review on drafts (no summary, no inline). This is the draft no-op, NOT a clean or SILENT verdict.${NC}"
+    echo "   Mark ready-for-review ('gh pr ready $PR_NUMBER') to get a real claude review; /review-loop's pre-flight normally does this automatically before Phase 1."
     exit 0
 fi
 
