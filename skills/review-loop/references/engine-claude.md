@@ -123,7 +123,16 @@ claude exposes its review-state as `CLAUDE_CHECKRUN ... STATUS=<status>` **synth
 
 **Clean for claude**: Actions job DONE AND (summary-comment body contains "no issues found" OR zero active head-SHA inline findings matching `CLAUDE_LATEST_REVIEW`). The review-pending guard (§ Race-condition caveats) holds the loop in RUNNING until a head-SHA comment posts, so the DONE-before-comments gap cannot fire a false CLEAN. The orchestrator retriggers only from the zero-activity bootstrap (push-triggered otherwise) and never while RUNNING, so no inter-retrigger interval exists.
 
-## § first-run calibration — status after the PR #167 dogfood (2026-06-02)
+## § calibration update — findings-bearing + clean runs (downstream non-draft, 2026-06-03)
+
+Two runs on the SAME commit, non-draft, settled the open questions:
+
+- **Findings-bearing run → POSTS a full review.** ~9-minute run; posted inline findings + a top-level **"Code review" summary** ("N issues found … No bugs detected") under **`claude[bot]`**. So claude **does** post findings reliably on a ready-for-review PR — the long-pending findings-path question is answered YES.
+- **Clean run → SILENT (still).** After the findings were fixed, the re-review on the clean tree finished in **~1 minute** and posted **nothing** — no inline, no summary — well past settle → `CLAUDE_REVIEW_SILENT`. **The LAYER-2 forced-summary prompt does NOT fire on a clean run**: the action short-circuits ("nothing to flag") and exits without posting the "no issues found" summary it was instructed to post. So the mitigation works for *findings* but not for *clean*.
+
+**Net engine capability (action + `code-review` plugin):** posts **findings** reliably; never posts a **positive clean verdict** — a clean PR reads SILENT (correctly held non-clean by the detection, so SAFE, but never a green "claude says clean"). Consequence for the loop: claude contributes findings; it cannot be the source of a CLEAN signal. **For a reliable clean verdict, the managed Claude Code Review App** (named check-run, verdict independent of the comment buffer) **remains the robust-mode answer** — IDEA-012 stays open on this.
+
+## § first-run calibration — status after the PR #167 dogfood (2026-06-02, SUPERSEDED by the block above on identity + posting)
 
 Calibrated against claude-code-action run `26834423838` (model `claude-sonnet-4-6`), a **clean** run (logged "No buffered inline comments").
 
