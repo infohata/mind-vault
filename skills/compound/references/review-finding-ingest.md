@@ -1,10 +1,10 @@
 # Review-finding ingest
 
-Parsing rules for review-loop output (`/review-loop`, carrying Cursor Bugbot and/or GitHub Copilot) when supplied as the `/compound` input source. Load on demand when step 1 selects a review-loop output file as input. The parsing rules are engine-agnostic — the file shape and finding fields are the same regardless of which bot's findings the loop ingested.
+Parsing rules for review-loop output (`/review-loop`, carrying Cursor Bugbot, GitHub Copilot, and/or Claude Code Review) when supplied as the `/compound` input source. Load on demand when step 1 selects a review-loop output file as input. The parsing rules are engine-agnostic — the file shape and finding fields are the same regardless of which bot's findings the loop ingested.
 
 ## Source file shape
 
-The review loop writes its run artifact to a project-local location (typical: `<project>/.bugbot-loop/<run-id>/findings.md` or `<project>/.copilot-loop/<run-id>/findings.md` — projects may vary). Check `skills/review-loop/references/engine-{bugbot,copilot}.md` for the exact convention.
+The review loop writes its run artifact to a project-local location (typical: `<project>/.bugbot-loop/<run-id>/findings.md`, `<project>/.copilot-loop/<run-id>/findings.md`, or `<project>/.claude-loop/<run-id>/findings.md` — projects may vary). Check `skills/review-loop/references/engine-{bugbot,copilot,claude}.md` for the exact convention.
 
 Typical findings file structure:
 
@@ -76,7 +76,7 @@ For each compound-worthy finding (or group):
 
 1. **Narrative probe** as normal — most review findings route to mind-vault agent passes or skill updates because the reviewer persona caught them. That's the pattern's natural home.
 2. **Taxonomy quiz** fallback as normal.
-3. **Cite the finding** in the destination file's provenance section: "Captured from `<engine>`-loop run `<run-id>` on PR #<n>." (engine = `bugbot` or `copilot`).
+3. **Cite the finding** in the destination file's provenance section: "Captured from `<engine>`-loop run `<run-id>` on PR #<n>." (engine = `bugbot`, `copilot`, or `claude`).
 
 ## Ingest mode invocation
 
@@ -87,7 +87,7 @@ The skill can be invoked specifically for review-finding ingest:
 /compound from PR #123 review
 ```
 
-Aliases: `--bugbot-file` and `--copilot-file` are accepted shorthands that pre-tag the engine in the provenance citation; otherwise the engine is inferred from the source path (`.bugbot-loop/` vs `.copilot-loop/`).
+Aliases: `--bugbot-file`, `--copilot-file`, and `--claude-file` are accepted shorthands that pre-tag the engine in the provenance citation; otherwise the engine is inferred from the source path (`.bugbot-loop/` → `bugbot`, `.copilot-loop/` → `copilot`, `.claude-loop/` → `claude`).
 
 In ingest mode:
 

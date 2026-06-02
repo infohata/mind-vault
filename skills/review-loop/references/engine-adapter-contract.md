@@ -7,6 +7,17 @@ Every review engine that plugs into `skills/review-loop/SKILL.md` must satisfy t
 
 The orchestrator (`SKILL.md`) only calls into the tool surface. The reference surface is consumed by the agent (Claude) reading the adapter doc when triaging findings or interpreting unusual signals.
 
+## Adapter categories
+
+Adapters fall into two trigger/state shapes. The orchestrator's phase logic is identical for both — the difference is entirely inside the `find_*` / `*_retrigger` scripts and documented in the engine's reference surface.
+
+| Category | Trigger model | Review-state source | Clean source | Staleness anchor | Instances |
+|---|---|---|---|---|---|
+| **Check-run / request-driven** | Idle until explicitly retriggered (`*_retrigger.sh` fires post-push + on the zero-activity bootstrap) | A **named check-run** on the head SHA; `STATUS` → RUNNING/DONE | DONE + zero active findings; `CONCLUSION=success` is a meaningful "ran" signal that gates the settle valve | `pull_request_review_id` | `bugbot`, `copilot` |
+| **Auto-trigger / comment-anchored** | **Push-triggered** — a CI/Actions hook auto-runs on every push, so a fix push IS the retrigger; the `*_retrigger.sh` is a **fallback** for the no-auto-run bootstrap only | A **CI/Actions job** status (NO named check-run); `STATUS` synthesized → RUNNING/DONE; its conclusion is green regardless of findings, never a verdict | A **summary-comment body** substring OR zero head-SHA inline comments; the settle valve releases on comment **presence**, never the job conclusion | A **synthesized comment id** (summary-comment id, or newest head-SHA inline comment id) | `claude` (first instance — [`engine-claude.md`](engine-claude.md)) |
+
+The auto-trigger / comment-anchored category exists because `anthropics/claude-code-action@v1` running the `code-review` plugin violates all three check-run-category assumptions (no named check-run, findings are comments not a stateful review, auto-runs on push). The contract accommodates it without orchestrator changes — see the comment-presence settle note in § Review-state gate and the synthesized-anchor case in § Scratch-file state ownership.
+
 ## Tool surface — required scripts
 
 Every adapter MUST provide these scripts (project-local, `tools/<engine>_*.sh`). The orchestrator invokes them by name; the contract is the script's stdout shape.
@@ -40,7 +51,7 @@ Followed by an empty line, then optionally:
 
 **Required semantics:**
 
-- `<ENGINE>` literal is uppercase engine name (`BUGBOT`, `COPILOT`).
+- `<ENGINE>` literal is uppercase engine name (e.g. `BUGBOT`, `COPILOT`, `CLAUDE`).
 - `<ENGINE>_LATEST_REVIEW` is **mandatory** when any review exists for the PR — the orchestrator's staleness rule depends on it. It may carry a trailing legacy `CLEAN=<bool>` token; the orchestrator ignores it (clean is structural), and parsers must tolerate extra trailing fields.
 - `<ENGINE>_CHECKRUN` is the **review-state gate**, emitted whenever the engine has a check-run on the head SHA. Its **absence means the engine has no check-run for this SHA yet** — either `NOT_TRIGGERED` (no retrigger fired) or `TRIGGERED` (retrigger fired, check-run not yet created); Phase 4 distinguishes them by whether a trigger fired this SHA, so absence alone must not prompt a re-trigger. When present, `STATUS` maps to `RUNNING` (`queued`/`in_progress`) vs `DONE` (`completed`); `CONCLUSION` is a run outcome, never a clean verdict. A `completed` check-run must not be surfaced as DONE until a review for the head SHA has posted — with one exception, the **success-only settle valve** (a `success` review-less check-run is trusted after the window; a non-success one never is). See § Review-state gate's review-pending guard for the full rule.
 - `<ENGINE>_CLEAN_SIGNAL` is **legacy and non-authoritative**: the orchestrator derives clean structurally (engine `DONE` + zero active findings matching `LATEST_REVIEW`), never from this line. A script MAY still emit it; the orchestrator ignores it for the verdict.
@@ -108,6 +119,8 @@ The adapter MUST expose its engine's check-run on the PR head as `<ENGINE>_CHECK
 
 **Review-pending guard — a `completed` check-run is NOT a verdict until a review for the head SHA has posted.** Engines flip their check-run to `completed` *before* the review / inline-comment objects land (observed: copilot, 3m42s lag, PR #148). A poll in that gap sees DONE + zero findings, and the orchestrator's structural clean (DONE + zero active findings) fires a **false CLEAN**, shipping the about-to-post findings unreviewed — `CONCLUSION` doesn't help, whatever its value: it reports the *run's* outcome, not whether the inline review / comment objects have landed (and it varies by engine — Copilot concludes `success` even with findings, Bugbot concludes non-success on findings). So an adapter MUST NOT report DONE off **any** `completed` check-run — *regardless of `CONCLUSION`* — until a review for the head SHA has posted (a `LATEST_REVIEW` whose `COMMIT` == head SHA). The downgrade is conclusion-agnostic on purpose: an engine that concludes **non-success on findings** (e.g. Bugbot) would otherwise slip a findings check-run that completes before its comments post straight through to DONE + zero-findings = false CLEAN. `CONCLUSION=success` gates **only** the `CLEAN_SIGNAL` synthesis (non-success ⇒ findings ⇒ never synthesize clean), never the DONE-suppression. Until that review posts, downgrade the emitted `STATUS` to `in_progress` (the orchestrator keeps waiting) and MAY emit an informational `<ENGINE>_REVIEW_PENDING=...` marker. A settle valve (`<ENGINE>_REVIEW_SETTLE_SECONDS`, default 600) trusts a review-less check-run as DONE after the window elapses **only when its conclusion is `success`** (the rare clean-check-run-only case, so it doesn't poll to the idle timeout). A **non-success** review-less check-run is **never** trusted — it signaled findings, but the review/comments never arrived, so trusting it would report findings as clean; keep it non-DONE (held → idle-timeout HUNG → human investigates the missing review). Both shipped adapters implement this (`find_copilot_comments.sh`, `find_bugbot_comments.sh`); any new engine whose `find_*` synthesizes clean from a check-run MUST too. Compute the settle age in Python `datetime` (cross-platform), never `date -d` (GNU-only; fails on BSD/macOS and pins the guard permanently on).
 
+**Comment-anchored engines gate DONE on comment PRESENCE, not conclusion.** An auto-trigger / comment-anchored engine (see § Adapter categories) has no native check-run *and* no conclusion that ever signals findings — its synthesized RUNNING/DONE comes from a CI/Actions job whose conclusion is green regardless of what it found. For such an engine the settle valve **must** release on comment presence (or, on a genuine empty-result no-comment case, the zero-inline clean arm) and **never** on the job conclusion — a conclusion gate would always release and ship lagged findings as a false CLEAN. The success-only settle valve above applies to **check-run** engines (copilot, bugbot) where a `success` conclusion is a meaningful "ran clean" signal; it does NOT transfer to comment-anchored engines. `claude` is the first instance — see [`engine-claude.md`](engine-claude.md) § Race-condition caveats for the load-bearing divergence.
+
 ## Scratch-file state ownership
 
 The orchestrator owns the per-engine state slots in the loop's scratch file under `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (placeholder `<project-slug>` standardised across all review-loop docs). Adapters do NOT write directly to scratch; the orchestrator updates state based on adapter outputs.
@@ -116,16 +129,19 @@ Per-engine state slots:
 
 - `<engine>_review_state` — `NOT_TRIGGERED` | `TRIGGERED` | `RUNNING` | `DONE` for the current head SHA (from the engine's check-run `STATUS`)
 - `last_seen_<engine>_review` — `<id> @ <sha>` (LATEST_REVIEW last acted on; staleness anchor)
-- `last_seen_<engine>_signal_id` — most recent processed inline finding id (engine-defined: comment id for comment-based engines, unset until first review for reviewer-assignment engines)
+- `last_seen_<engine>_signal_id` — most recent processed inline finding id (engine-defined: comment id for comment-based engines; unset until first review for reviewer-assignment engines; for **comment-anchored** engines whose `LATEST_REVIEW` anchor is a *synthesized summary-comment id* — see § Adapter categories — it's that summary-comment id, falling back to the newest head-SHA inline comment id when no summary exists)
 
 ## Adding a new engine
 
-To add a third engine (e.g. CodeRabbit, a hypothetical new vendor):
+To add a new engine (e.g. CodeRabbit, a hypothetical new vendor):
 
-1. Author `skills/review-loop/references/engine-<name>.md` following the section template above.
-2. Implement `tools/find_<engine>_comments.sh` and `tools/<engine>_retrigger.sh` per the tool-surface contract.
-3. Add `<name>` to the recognised engine list in `commands/review-loop.md` § Engine selection (the user-visible enum).
-4. Optionally add `commands/<name>-loop.md` as a thin single-engine wrapper.
+1. Decide the adapter **category** (§ Adapter categories) — check-run/request-driven or auto-trigger/comment-anchored. The category dictates where review-state and clean come from and whether the retrigger is primary or fallback.
+2. Author `skills/review-loop/references/engine-<name>.md` following the section template above.
+3. Implement `tools/find_<engine>_comments.sh` and `tools/<engine>_retrigger.sh` per the tool-surface contract.
+4. Add `<name>` to the recognised engine list in `commands/review-loop.md` § Engine selection and the `ENGINES` enum in `review-loop/SKILL.md` (the user-visible surfaces).
+5. **If the engine should join the *default* engine set**, gate it on a **reachability probe** in `find_<engine>_comments.sh` (e.g. claude probes for its `claude-code-review.yml` workflow). Where the engine is not provisioned on the target repo, emit a `<ENGINE>_NOT_INSTALLED=true` marker + exit 0 so the orchestrator's default resolution self-excludes it (degrade loudly on an explicit invocation, never HUNG). An engine with no per-repo provisioning step (bugbot, copilot) needs no probe.
+6. Wire the **sync-doc touchpoints** in [`multi-engine-sync.md`](multi-engine-sync.md): add the engine's stall/error rows to the trade-off escape-hatch table, its `<engine>_review_state` / `last_seen_<engine>_*` scratch slots, its slot in the alphabetical retrigger order (noting any push-triggered/fallback-only retrigger so Phase 3 skips it), and extend the asymmetric-clearance hand-back template to cover the new engine count.
+7. Optionally add `commands/<name>-loop.md` as a thin single-engine wrapper.
 
 `SKILL.md` itself processes engines from the `ENGINES` argument generically and does not enumerate them by name in code — adding a new engine does not require structural changes to the orchestrator's phase logic. The "no changes required" applies to the orchestrator's algorithmic surface; the user-facing engine list lives in `commands/review-loop.md` so it can document what the user can pass.
 

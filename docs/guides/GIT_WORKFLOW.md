@@ -39,15 +39,18 @@ What the agent *will* respect on feature branches:
 - ❌ Never `--no-verify` or `--no-gpg-sign` (hook bypass).
 - ❌ Never delete a branch the agent doesn't recognise — it may be someone else's WIP.
 
-## Independent review — Bugbot, Copilot, or both
+## Independent review — Bugbot, Copilot, Claude, or any subset
 
-mind-vault supports two external review engines and one local fallback:
+mind-vault supports three external review engines and one local fallback:
 
 | Engine | Trigger | Wait | Cost |
 | --- | --- | --- | --- |
 | **Cursor Bugbot** | `tools/bugbot_retrigger.sh <PR>` posts a `bugbot run` comment | 1–10 min | Cursor subscription |
 | **GitHub Copilot** | `tools/copilot_retrigger.sh <PR>` (wraps the canonical `gh pr edit --remove-reviewer @copilot ; sleep 1 ; gh pr edit --add-reviewer @copilot` sequence — `;` not `&&` so the add step still fires even if `@copilot` wasn't currently requested) | 2–15 min | GitHub Actions minutes (from Jun 2026) |
+| **Claude Code Review** | **Push-triggered** — `claude-code-action@v1` + `code-review` plugin auto-runs on every push, so a fix push IS the retrigger; `tools/claude_retrigger.sh <PR>` (posts `@claude review once`) is a bootstrap **fallback** only | minutes (GitHub Actions job) | Claude subscription / OAuth (no per-review SKU) |
 | **AGENT_curator** | Local Claude pass before push | Seconds | Free; weakest gate |
+
+> ⚠️ **Claude here = the `claude-code-action` + `code-review` plugin, NOT Anthropic's managed Code Review GitHub App.** It posts inline + summary comments off a GitHub Actions job — there is no named check-run or severity JSON. See [`skills/review-loop/references/engine-claude.md`](../../skills/review-loop/references/engine-claude.md).
 
 ### Single-engine flow
 
@@ -58,19 +61,19 @@ mind-vault supports two external review engines and one local fallback:
 
 Each loop polls the engine's GitHub API surface, classifies findings into tiers (auto-fix / approve-then-fix / escalate), batches fixes per review-cycle into ONE commit, retriggers, repeats until CLEAN or a hard bound trips.
 
-### Dual-engine flow
+### Multi-engine flow
 
-Use `/review-loop <PR> bugbot,copilot` (the canonical multi-engine entry) — the loop **syncs each cycle**: wait for the slower engine, batch findings from BOTH into one fix commit, push once, retrigger BOTH. Prevents the failure mode where two independent single-engine sessions' pushes invalidate each other's pending reviews — always drive both engines through the one `/review-loop <PR> bugbot,copilot` session.
+Use a comma-separated engine list e.g. `/review-loop <PR> bugbot,copilot,claude` (the canonical multi-engine entry) — the loop **syncs each cycle**: wait for the slowest engine, batch findings from ALL engines into one fix commit, push once, retrigger each. Prevents the failure mode where independent single-engine sessions' pushes invalidate each other's pending reviews — always drive all engines through the one `/review-loop` session. (claude needs no explicit retrigger — the cycle's push re-runs its action automatically; the loop skips claude in the retrigger step.)
 
-Escape hatches when one engine stalls or service-errors are codified in each loop's SKILL.md — see the dual-engine sync rule blocks.
+Escape hatches when one engine stalls or service-errors are codified in [`skills/review-loop/references/multi-engine-sync.md`](../../skills/review-loop/references/multi-engine-sync.md) — see the trade-off escape-hatch table.
 
-**When to dual-engine**: high-stakes PRs (auth, payments, migrations), or any PR where one engine alone has historically missed things in your repo. The two engines have complementary blind spots.
+**When to multi-engine**: high-stakes PRs (auth, payments, migrations), or any PR where one engine alone has historically missed things in your repo. The engines have complementary blind spots.
 
 ## Force-push discipline
 
 - ✅ `git push --force-with-lease` after a rebase on a feature branch the agent owns. The `--force-with-lease` form protects a collaborator's newer commits — plain `--force` overwrites them silently.
 - ❌ Never force-push to a protected branch.
-- ❌ Never force-push to a branch with an *open PR* without telling the human first — it invalidates pending review threads (Bugbot/Copilot have to re-scan from scratch).
+- ❌ Never force-push to a branch with an *open PR* without telling the human first — it invalidates pending review threads (Bugbot / Copilot / Claude have to re-scan from scratch).
 
 If a review-loop is mid-cycle and you need to rebase to resolve a conflict, push the rebase, then post a comment on the PR saying "rebased — pending reviews will need to re-fire" so any human reviewer isn't confused by missing inline threads.
 
@@ -170,13 +173,13 @@ The container-stop step is non-obvious but important: checking out a stale branc
 | Accidentally on `main` with staged changes | Forgot to branch | `git stash && git checkout -b feat/<slug> origin/main && git stash pop` |
 | Pushed to `main` directly | Rule violation | **STOP**. Tell the human. Don't push more. They decide whether to `git reset --hard origin/<good-sha>` and re-push, or cherry-pick to a feature branch. |
 | Force-pushed without `--lease` and lost a collaborator's commit | Hard rule violated | Recoverable via `git reflog` on the collaborator's machine; treat as an incident, file a `/compound` so it doesn't repeat. |
-| Review bot stuck "in_progress" >15 min | Engine hung (see escape-hatch table in each `*-loop` SKILL) | Proceed with the other engine if dual-engine; otherwise hand back to user. |
+| Review bot stuck "in_progress" >15 min | Engine hung (see the escape-hatch table in [`multi-engine-sync.md`](../../skills/review-loop/references/multi-engine-sync.md)) | Proceed with the other engine(s) under multi-engine mode; otherwise hand back to user. |
 | Integration branch builds locally but per-IDEA PRs disagree | Compatibility patch needed | Add a commit *on the integration branch* (NOT inside a per-IDEA PR) — that's exactly what compat commits are for. |
 
 ## See also
 
 - [`rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — the always-on hard rules.
 - [`rules/RULE_rename-before-drop.md`](../../rules/RULE_rename-before-drop.md) — multi-commit rename sequencing.
-- [`skills/review-loop/SKILL.md`](../../skills/review-loop/SKILL.md) — shared Phase 0/1/2/3/4 orchestrator; [`commands/review-loop.md`](../../commands/review-loop.md) is the command entry. Engine specifics live in `skills/review-loop/references/engine-{bugbot,copilot}.md`.
+- [`skills/review-loop/SKILL.md`](../../skills/review-loop/SKILL.md) — shared Phase 0/1/2/3/4 orchestrator; [`commands/review-loop.md`](../../commands/review-loop.md) is the command entry. Engine specifics live in `skills/review-loop/references/engine-{bugbot,copilot,claude}.md`.
 - [`skills/sprint-auto/SKILL.md`](../../skills/sprint-auto/SKILL.md) — integration-branch pattern in full.
 - [WORKTREE_PRACTICES.md](WORKTREE_PRACTICES.md) — parallel-worktree counterpart.

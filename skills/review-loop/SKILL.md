@@ -1,22 +1,22 @@
 ---
 name: review-loop
-description: Drive a bounded-autonomy review-fix-rerun loop against one or more pluggable review engines (Cursor Bugbot, GitHub Copilot, future N-engines) on a PR. Triages findings into Tier 1 / 2 / 3, batches per-cycle fixes into single commits, retriggers engines after each push, tracks each engine through a review-state machine (NOT_TRIGGERED → TRIGGERED → RUNNING → DONE) read from its check-run status, treats an engine as clean only when DONE with zero active findings, and hands back to the user with a structured report. Engine-agnostic core; per-engine specifics live in references/engine-<name>.md per the adapter contract.
+description: Drive a bounded-autonomy review-fix-rerun loop against one or more pluggable review engines (Cursor Bugbot, GitHub Copilot, Claude Code Review, future N-engines) on a PR. Triages findings into Tier 1 / 2 / 3, batches per-cycle fixes into single commits, retriggers engines after each push, tracks each engine through a review-state machine (NOT_TRIGGERED → TRIGGERED → RUNNING → DONE) read from its check-run status, treats an engine as clean only when DONE with zero active findings, and hands back to the user with a structured report. Engine-agnostic core; per-engine specifics live in references/engine-<name>.md per the adapter contract.
 ---
 
 Drive a review-fix-rerun cycle on the given PR using one or more review engines. The orchestrator is engine-agnostic — all engine-specific work routes through adapters described in `references/engine-adapter-contract.md`.
 
 **Inputs**:
 - `PR_NUMBER` (optional; defaults to PR for current branch).
-- `ENGINES` (one or more of: `bugbot`, `copilot`; defaults to all engines whose adapter is present + retrigger tool is reachable).
+- `ENGINES` (one or more of: `bugbot`, `copilot`, `claude`; defaults to `bugbot,copilot,claude` — all engines whose adapter is present + retrigger tool is reachable. **Reachability caveat (A2):** `claude` is in the default set only on repos where its action workflow (`claude-code-review.yml`) is installed; where absent, `find_claude_comments.sh` emits `CLAUDE_NOT_INSTALLED=true` and claude **self-excludes from the default** so a bare `/review-loop` doesn't block to HUNG on an un-provisioned engine. An explicit `/review-loop <PR> claude` still attempts it and degrades **loudly** — see [`references/engine-claude.md`](references/engine-claude.md) § Tool invocations.)
 
-This skill is invoked via `commands/review-loop.md` — the single review entry point. Pass `ENGINES` as `bugbot`, `copilot`, or `bugbot,copilot` (any subset); single-engine runs are just a one-element list.
+This skill is invoked via `commands/review-loop.md` — the single review entry point. Pass `ENGINES` as `bugbot`, `copilot`, `claude`, or any subset (e.g. `bugbot,copilot,claude`); single-engine runs are just a one-element list.
 
 **Before you trigger engines — wrap docs first if this is a doc-heavy / IDEA PR.** If the PR carries substantial docs (IDEA file, plan, index, devlog, guides), run a bare `/wrap` (the `--scope=docs` default) FIRST, then trigger engines — so the reviewer sees docs at their merged shape and doc-consistency findings land in this cycle instead of as post-review drift. The bare `/wrap` default **structurally cannot reach merge**, so it is safe to run before review. Mechanics + the two-pass model: [`skills/wrap/references/WRAP_BEFORE_REVIEW.md`](../wrap/references/WRAP_BEFORE_REVIEW.md). (Code-only PRs: skip — go straight to the loop.)
 
 ## Hard bounds (enforced by the loop)
 
 - `max_commits_per_session = 20`
-- `max_active_work_minutes = 240` (excludes ScheduleWakeup sleep time; 240 covers large dual-engine surface-migration PRs whose fix-cycle count legitimately accumulates past 180)
+- `max_active_work_minutes = 240` (excludes ScheduleWakeup sleep time; 240 covers large multi-engine surface-migration PRs whose fix-cycle count legitimately accumulates past 180)
 - `max_idle_polls = 20` (consecutive wakes with no new finding AND no new push, across all engines). **New-push detection**: Phase 4 compares the scratch file's `last_push_sha` against `git rev-parse HEAD` on each wake; if they differ (e.g. an out-of-band push by another process or the user), reset `idle_polls=0`, update scratch `last_push_sha`, and re-enter Phase 1 to fetch fresh state for the new SHA. Without this check the counter accumulates forever past a push the loop didn't initiate.
 - Targeted tests only inside the loop; broader regression deferred to hand-back
 - Feature branch only — never main (per `RULE_git-safety`)
@@ -113,7 +113,7 @@ Persist to `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (eng
 - `idle_polls` (int, /20)
 - `engines` (comma-separated list of active engines for this session)
 - `last_push_sha`
-- `no_progress_map` — **always namespaced per engine** (uniform across single-engine and multi-engine modes): `{ bugbot: {<category>: <count>} }` for a bugbot-only run, `{ copilot: {<category>: <count>} }` for copilot-only, `{ bugbot: {...}, copilot: {...} }` for dual-engine. Flat (un-namespaced) maps from pre-shared-core sessions must be migrated to the per-engine shape on first wake — otherwise Phase 4's no-progress guard reads the wrong slot and never trips.
+- `no_progress_map` — **always namespaced per engine** (uniform across single-engine and multi-engine modes): `{ bugbot: {<category>: <count>} }` for a bugbot-only run, `{ copilot: {<category>: <count>} }` for copilot-only, `{ bugbot: {...}, copilot: {...}, claude: {...} }` for a multi-engine run. Flat (un-namespaced) maps from pre-shared-core sessions must be migrated to the per-engine shape on first wake — otherwise Phase 4's no-progress guard reads the wrong slot and never trips.
 
 Per-engine state slots (replicate the pattern for each engine in `engines`):
 
@@ -196,6 +196,7 @@ Under sprint-auto v3.1, the "user" the loop hands back to is sprint-auto itself 
 - [`references/engine-adapter-contract.md`](references/engine-adapter-contract.md) — what an engine adapter must implement.
 - [`references/engine-bugbot.md`](references/engine-bugbot.md) — Cursor Bugbot adapter.
 - [`references/engine-copilot.md`](references/engine-copilot.md) — GitHub Copilot adapter.
+- [`references/engine-claude.md`](references/engine-claude.md) — Claude Code Review adapter (action + `code-review` plugin; push-triggered, comment-anchored — NOT the managed App).
 - [`references/multi-engine-sync.md`](references/multi-engine-sync.md) — multi-engine synchronisation contract.
 - [`references/common-review-findings.md`](references/common-review-findings.md) — shared codified Tier-1 catalogue (engine-agnostic).
 - [`references/THREAD_AUTO_RESOLVE.md`](references/THREAD_AUTO_RESOLVE.md) — closing review threads in step with the fixes: forward (in-loop, Phase 3) auto-resolve via `resolveReviewThread` GraphQL mutation; retroactive audit + bulk-resolve recipe for PRs accumulated under the prior pattern. Load when wiring engine-adapter thread-ID capture, when a PR carries visible stale-thread debt, or when designing the user-facing "merge cleanly" handoff.
