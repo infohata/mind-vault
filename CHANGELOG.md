@@ -10,6 +10,22 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.6 — Claude Code Review as a third review-loop engine
+
+Minor release (IDEA-012). Adds `claude` — `anthropics/claude-code-action@v1` running the `code-review` plugin (installed via `/install-github-app`, PR #166) — as a first-class `/review-loop` engine alongside Cursor Bugbot and GitHub Copilot, and generalizes the sync contract 2→N. It is the first **auto-trigger / comment-anchored** adapter: unlike the managed *Claude Code Review* App, the action + plugin posts **no named check-run** (review-state synthesizes from the GitHub **Actions job** of the `claude-code-review` workflow) and **no stateful review** (findings are buffered inline comments; clean = zero head-SHA inline comments). Architect-reviewed (🟡 REQUIRES ABSTRACTION → all 8 findings resolved). Clean path validated via a `claude`-solo dogfood on this PR (calibrated identity `github-actions[bot]`, A3 settle valve releases on comment-presence not conclusion, settle 180s); findings-path validation deferred to teisutis IDEA-214 (doc-heavy mind-vault PRs don't draw claude findings). (2026-06-02, [#167](https://github.com/infohata/mind-vault/pull/167))
+
+### Added
+
+- **`tools/find_claude_comments.sh` + `tools/claude_retrigger.sh`** — the claude adapter. `find_*` synthesizes `CLAUDE_CHECKRUN` from the Actions run (latest by `run_started_at`), parses buffered inline comments (login-only `github-actions[bot]` filter — the safe direction for inline; a too-strict body-signature would filter a real finding out → false CLEAN), detects clean via the zero-inline arm, holds a `completed` run as RUNNING until a head-SHA comment posts or the 180s settle elapses (A3 — claude's Actions conclusion is green even with findings, so the valve keys on comment-presence, never conclusion), and probes reachability (`CLAUDE_NOT_INSTALLED` → self-exclude from the default set). `claude_retrigger.sh` is a bootstrap-fallback only — claude is **push-triggered** (the `synchronize` auto-run is the retrigger; Phase 3 skips it).
+- **`skills/review-loop/references/engine-claude.md`** — adapter reference, leads with the action-vs-managed-App trap, documents the push-triggered/comment-anchored model + `/install-github-app` onboarding hint + a first-run-calibration log (identity + `actions:read` confirmed on PR #167; shared-`pull_request_review_id` + body-signature pending teisutis).
+
+### Changed
+
+- **`claude` joins the default engine set** (`bugbot,copilot,claude`), reachability-gated — it self-excludes on repos where the action workflow isn't installed, so a bare `/review-loop` doesn't block to HUNG; an explicit `claude` degrades loudly. `commands/review-loop.md` + `skills/review-loop/SKILL.md` enums updated; stale `max_active_work_minutes` (180→240) + the obsolete ≥5-min retrigger-spacing line corrected.
+- **`dual-engine-sync.md` → `multi-engine-sync.md`** (per `RULE_rename-before-drop`), plus `dual-engine` → `multi-engine` renamed **project-wide** (term + path) across live docs, CHANGELOG, and archive — only the IDEA-012 plan's rename-action descriptions keep the old name as the rename source. Added claude's escape-hatch rows, scratch slots, push-triggered retrigger no-op, and a 3-engine asymmetric-clearance template.
+- **`engine-adapter-contract.md`** — new "auto-trigger / comment-anchored" adapter category (claude its first instance); widened the `<ENGINE>` enumeration + `last_seen_<engine>_signal_id` taxonomy (synthesized summary-comment-id anchor).
+- **`skills/sprint-auto/SKILL.md`** — `SPRINT_AUTO_REVIEW_ENGINE` validation accepts any non-empty CSV subset of `{bugbot,copilot,claude}` (+ `none`). **`skills/compound/references/review-finding-ingest.md`** — `.claude-loop/` run-artifact path + engine inference + `--claude-file` alias. README + `docs/guides/{GIT_WORKFLOW,SPRINT_WORKFLOW,ONBOARDING}.md` add Claude as the third engine.
+
 ## v4.5.1 — Compound: discard-guard data-shape check, drop-vs-ensure lifecycle, wrap breadcrumb cleanup
 
 Patch release — `/compound` of three learnings from a search-index dimension-migration session (a destructive index-drop + a resilient read path). No IDEA; provenance is the date + PR. (2026-06-01, [#165](https://github.com/infohata/mind-vault/pull/165))

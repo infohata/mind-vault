@@ -1,14 +1,14 @@
 ---
 id: 012
 title: Integrate Claude Code Review as a third review-loop engine
-status: in-progress          # idea | in-progress | complete | superseded
+status: complete          # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
 depends_on: [5]       # list of IDEA ids required before starting, or []
 related: [5, 6]             # list of IDEA ids that share context, or []
 created: 2026-06-02
-completed: null
+completed: 2026-06-02
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
@@ -20,8 +20,10 @@ sensitive_paths_cleared_reason: "Touches CI surface (.github/workflows/claude-co
 
 # IDEA-012: Integrate Claude Code Review as a third review-loop engine
 
-**Status**: 🚧 In Progress (planned 2026-06-02 — see [plan](./2026-06-02-claude-code-review-engine-plan.md))
+**Status**: ✅ Complete (2026-06-02 — PR #167; see [plan](./2026-06-02-claude-code-review-engine-plan.md))
 **Priority**: Medium
+
+> ⚠️ **Residual validation (post-merge, non-blocking).** The adapter + integration (R1–R9) shipped and the **clean path** is validated end-to-end via the step-9 claude-solo dogfood on PR #167 (state-from-Actions-job, A3 race guard, zero-inline clean, calibrated identity `github-actions[bot]`). What's NOT yet exercised — claude's **findings path** (inline-comment shape, shared-`pull_request_review_id`, fix-cycle) — because mind-vault's doc-heavy PRs don't draw claude findings. **Plan deviation:** the original step-10 (tri-engine on IDEA-009) is **dropped** — IDEA-009 is doc-heavy and won't draw findings either. Findings-path + the 2→N multi-engine sync now validate together on **teisutis IDEA-214** (a complex code deliverable, 3-engine run — expected to surface real findings). Any calibration fix that surfaces there lands as a follow-up commit; the login-only inline filter already captures findings uncalibrated, so this is confirmation, not a code dependency.
 
 **Problem** (or opportunity): `/review-loop` drives a bounded-autonomy review-fix-rerun loop against pluggable engines. Two ship today — Cursor Bugbot and GitHub Copilot, both per-review-billed external vendors. We just installed `anthropics/claude-code-action@v1` via `/install-github-app` (`.github/workflows/claude-code-review.yml` auto-runs the `code-review` plugin on every PR; `claude.yml` is `@claude`-mention interactive). Those reviews already happen — but the loop can't *drive or triage* them. Making `claude` a first-class engine delivers three things no existing engine offers: **(1) in-house dogfooding** — Anthropic's own action running our own `code-review` plugin against our own `CLAUDE.md` rules, so bugs surface on us first before teisutis; **(2) subscription/OAuth billing** (`CLAUDE_CODE_OAUTH_TOKEN`) instead of a per-review SKU — cheaper marginal cost at PR volume; **(3) `CLAUDE.md`-convention-aware findings** the generic vendors structurally can't produce.
 

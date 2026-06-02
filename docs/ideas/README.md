@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-- [IDEA-012](../archive/2026-06-idea-012-claude-code-review-engine/IDEA-012-claude-code-review-engine.md) — Integrate Claude Code Review as a third review-loop engine
+_(none)_
 
 ## 💡 High Priority (backlog)
 
@@ -25,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-012: Integrate Claude Code Review as a third review-loop engine ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-06-02 · **See**: [Archive](../archive/2026-06-idea-012-claude-code-review-engine/IDEA-012-claude-code-review-engine.md), [PR #167](https://github.com/infohata/mind-vault/pull/167).
+Added `claude` (anthropics/claude-code-action@v1 + `code-review` plugin) as the first **auto-trigger / comment-anchored** review-loop engine — new `tools/find_claude_comments.sh` + `tools/claude_retrigger.sh`, `references/engine-claude.md`, the `dual-engine-sync.md → multi-engine-sync.md` rename (+ `dual-engine`→`multi-engine` project-wide), and `claude` in the default engine set (reachability-gated). State synthesizes from the GitHub **Actions job** (no named check-run); clean = zero head-SHA inline comments; A3 settle valve releases on comment-presence not conclusion. Architect-reviewed (🟡→resolved, 8 findings). Clean path validated via a claude-solo dogfood on this PR (calibrated identity `github-actions[bot]`, settle 180s); ⚠️ findings-path validation deferred to **teisutis IDEA-214** (doc-heavy mind-vault PRs don't draw claude findings). Extends [IDEA-005](../archive/2026-05-idea-005-review-loop-shared-core/IDEA-005-review-loop-shared-core.md)'s engine-adapter architecture.
 
 ### IDEA-011: Agent Profiles → Recognized Subagent Schema ✅ COMPLETE
 
