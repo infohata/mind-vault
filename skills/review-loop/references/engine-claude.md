@@ -24,9 +24,10 @@ This engine drives `anthropics/claude-code-action@v1` running the **`code-review
   - Inline findings on `/pulls/<N>/comments`.
   - A top-level summary comment on `/issues/<N>/comments`.
   - The only RUNNING/DONE surface is the **GitHub Actions job** of the `claude-code-review` workflow run (`/actions/workflows/claude-code-review.yml/runs`).
-- **Identity — CONFIRMED `github-actions[bot]`** (calibrated PR #167, 2026-06-02). The action posts inline comments via the workflow `GITHUB_TOKEN`, so the author login is the shared `github-actions[bot]`, not a `claude[bot]` app. Filter split (refines A8 after the dogfood):
-  - **Inline review comments → login-only.** Inline review comments are review output by construction, and nothing else posts them as `github-actions[bot]` on this repo — so login-membership alone is the discriminator. This is the *safe* direction: it errs toward over-counting (→ keep polling), never toward filtering a real finding out (→ which would be a false CLEAN via the zero-inline arm). Requiring a body-signature on inline comments would invert that safety.
-  - **Summary issue comment → BOTH-AND** (login AND body signature). Here a false *positive* is the danger (a stray `github-actions[bot]` "no issues" comment faking a clean), so the body signature stays required. (The action posts no summary today — see § Review-state + clean detection — so this arm is currently dead backup.)
+- **Identity — CONFIRMED `claude[bot]`** for posted reviews (findings-bearing run, downstream non-draft PR, 2026-06-03). When the action actually POSTS a review — inline findings **and** a top-level **"Code review" summary comment** — the author login is **`claude[bot]`**.
+  - ⚠️ **The PR #167 dogfood "confirmed `github-actions[bot]`" was WRONG** — it calibrated on a CLEAN run that posted *no claude content*, mistaking the workflow's PR-size-check / `github-actions[bot]` comment for claude's review. Never calibrate identity off a run that posted nothing. `find_claude_comments.sh`'s `CLAUDE_LOGINS` includes `claude[bot]` (plus `github-actions[bot]` / `claude-code-action[bot]` as harmless over-coverage), so detection was robust either way — but the doc was wrong.
+  - **Inline review comments → login-only** (login ∈ `CLAUDE_LOGINS`). Review output by construction; the safe direction (over-count → keep polling, never a false clean).
+  - **Summary issue comment → BOTH-AND** (login AND body signature). A findings-bearing run **does** post a "Code review" summary (e.g. "N issues found … No bugs detected" / "No bugs or security issues found"), so this arm is **live, not dead backup** — and the body signature stops a stray bot "no issues" comment faking a clean.
 
 ## § Tool invocations
 
@@ -48,6 +49,14 @@ claude is a **push-triggered** engine. The `claude-code-review.yml` action auto-
 ❌ **DON'T** fire `claude_retrigger.sh` after a Phase-3 fix push. The push already triggered the action; an explicit `@claude review once` on the same head SHA double-runs it and creates a "which run is authoritative" race. The retrigger script exists for ONE case only: the zero-activity bootstrap where `find_claude_comments.sh` finds **no Actions run at all** for the head SHA (the auto-run never fired — fresh PR, just-installed workflow).
 
 **Dedup.** `find_claude_comments.sh` always selects the **latest Actions run by `run_started_at`** + the newest summary comment for the head SHA, so any auto-run / fallback overlap collapses to one authoritative signal.
+
+### ⚠️ DRAFT PRs get NO posted review — the action runs but posts nothing
+
+**On a draft PR, the Actions run fires (`synchronize` fires on draft pushes) and concludes `success`, but claude POSTS NOTHING** — no inline findings, no summary. So a draft PR reads as **SILENT / false-clean-vector**, *not* clean. Confirmed by an A/B on one commit (downstream, 2026-06-03): the same tree read SILENT while draft and posted a full review (summary + 2 inline findings) the instant the PR was marked **ready for review**. This — not `#1087` — was the actual cause of every "ran but posted nothing" result during the engine's bring-up; the `#1087` post-session-capture bug is a *separate*, rarer failure.
+
+✅ **DO** ensure the PR is **ready-for-review (not draft)** before trusting a claude verdict; the workflow already lists `ready_for_review` in its trigger types, so un-drafting auto-fires a real review.
+
+❌ **DON'T** read a draft PR's `CLAUDE_REVIEW_SILENT` as a finding about the code — it's the draft no-op. The orchestrator should treat a draft PR's claude state as "no verdict available until ready" rather than HUNG or clean.
 
 ## § Review-state + clean detection
 
@@ -119,7 +128,7 @@ claude exposes its review-state as `CLAUDE_CHECKRUN ... STATUS=<status>` **synth
 Calibrated against claude-code-action run `26834423838` (model `claude-sonnet-4-6`), a **clean** run (logged "No buffered inline comments").
 
 **✅ CONFIRMED:**
-- **Q1 (identity)** — author login is **`github-actions[bot]`** (posts via the workflow `GITHUB_TOKEN`). Locked in `CLAUDE_LOGINS`. Inline detection is login-only; summary stays BOTH-AND (see § Identity).
+- **Q1 (identity)** — ⚠️ SUPERSEDED. The dogfood concluded `github-actions[bot]`, but that run posted no claude content; a later findings-bearing run (non-draft) proved the posting identity is **`claude[bot]`**. `CLAUDE_LOGINS` covers both, so detection held. See § Identity for the correction. Inline detection is login-only; summary stays BOTH-AND.
 - **Q3 (`actions: read`)** — the local `gh` auth reads `actions/workflows/claude-code-review.yml/runs` fine; `CLAUDE_CHECKRUN` synthesizes correctly. No workflow change needed.
 - **Posting model** — the action posts ONLY buffered inline comments (synchronously, in-job); there is **no summary comment**. Clean = **zero head-SHA inline comments** (the A6 zero-inline arm). The summary-substring arm is dead backup. Settle window cut to 180s (in-job synchronous posting).
 

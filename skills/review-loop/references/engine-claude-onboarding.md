@@ -26,7 +26,10 @@ below, which is the single most surprising part.
    per RULE_git-safety), not a feature-branch change.
 
 After merge: `find_claude_comments.sh <open-PR>` should stop emitting
-`CLAUDE_NOT_INSTALLED=true`, and a push to any PR auto-runs the review **with posting rights**.
+`CLAUDE_NOT_INSTALLED=true`, and a push to any **ready-for-review** PR auto-runs the review
+**with posting rights**. ⚠️ **Draft PRs get no posted review** — the run fires and concludes
+`success` but posts nothing (reads SILENT); mark the PR ready-for-review before trusting a
+verdict. See [`engine-claude.md`](engine-claude.md) § Push-triggered model.
 
 ## Why read-only is a trap, not a safe default
 
