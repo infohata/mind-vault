@@ -1,0 +1,58 @@
+# Canonical @claude interactive-assistant workflow for the review-loop claude engine.
+#
+# Commit THIS (not /install-github-app's default) to the repo's DEFAULT BRANCH.
+# Delta from the /install-github-app template: an AUTHOR-ASSOCIATION GATE on the
+# trigger. The default fires on ANY comment containing the literal "@claude",
+# which has two problems:
+#   1. Security — any user who can comment could invoke a workflow that holds the
+#      OAuth secret + write perms.
+#   2. False triggers — a REVIEW BOT (Copilot, etc.) reviewing these very workflow
+#      files quotes "@claude" in its comment ("this runs when anyone comments
+#      @claude"), tripping the trigger; GitHub then gates the bot-triggered run as
+#      action_required and spams the maintainer with "approve to run" prompts.
+# Gating each event on a trusted author_association (OWNER/MEMBER/COLLABORATOR)
+# fixes BOTH: bots and outside users don't carry a trusted association.
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read # Required for Claude to read CI results on PRs
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Optional: lets Claude read CI results on PRs
+          additional_permissions: |
+            actions: read

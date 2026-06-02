@@ -38,7 +38,7 @@
 #   findings, so a conclusion gate would ALWAYS release and ship lagged findings as
 #   a false CLEAN. Here: a `completed` Actions run whose head-SHA summary/inline
 #   comments have NOT posted is downgraded to STATUS=in_progress (RUNNING) and emits
-#   CLAUDE_REVIEW_PENDING. The CLAUDE_REVIEW_SETTLE_SECONDS (default 600) valve, when
+#   CLAUDE_REVIEW_PENDING. The CLAUDE_REVIEW_SETTLE_SECONDS (default 180) valve, when
 #   it elapses on the genuine no-comment-at-all case (#1087), resolves to CLEAN via
 #   the ZERO-INLINE arm — it must NEVER bypass a findings-pending state via conclusion.
 #   Settle age computed in Python `datetime` (cross-platform), never `date -d`.
@@ -415,7 +415,7 @@ if [ -n "$CLAUDE_CHECKRUN_LINE" ]; then
 import os
 from datetime import datetime, timezone
 try:
-    settle = int(os.environ.get('SETTLE', '600'))
+    settle = int(os.environ.get('SETTLE', '180'))  # match bash default (calibrated PR #167); was '600' (copilot's window) — a refactor that ran this snippet standalone would silently use the wrong window
     # Normalize trailing Z → +00:00 so fromisoformat works on Python < 3.11 too.
     dt = datetime.fromisoformat(os.environ.get('CR_AT', '').replace('Z', '+00:00'))
     if dt.tzinfo is None:

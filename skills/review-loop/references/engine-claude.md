@@ -19,7 +19,7 @@ This engine drives `anthropics/claude-code-action@v1` running the **`code-review
 ## § Identity
 
 - Vendor: Anthropic — `anthropics/claude-code-action@v1` running the `code-review` plugin.
-- Install path: `/install-github-app` drops `.github/workflows/claude-code-review.yml` (auto-review on every push) + `.github/workflows/claude.yml` (`@claude`-mention interactive agent) and wires the `CLAUDE_CODE_OAUTH_TOKEN` secret. Any project can onboard with that one command.
+- Install path: **do NOT rely on `/install-github-app`'s default template — it ships `pull-requests: read` / `issues: read`, which silently blocks the action from POSTING findings** (a findings-bearing run posts nothing → `find_claude_comments.sh` reads a FALSE CLEAN via the zero-inline arm). Onboard by committing **our own write-perm templates** ([`../assets/claude-code-review.yml`](../assets/claude-code-review.yml) + [`../assets/claude.yml`](../assets/claude.yml)) to the **default branch**, porting `find_claude_comments.sh` + `claude_retrigger.sh` into `tools/`, and wiring `CLAUDE_CODE_OAUTH_TOKEN`. Full procedure + the anti-tampering bootstrap catch-22 (why the perms change can only take effect from the default branch): [`engine-claude-onboarding.md`](engine-claude-onboarding.md). The drop-the-two-workflows part of `/install-github-app` is fine as a starting point — but immediately replace the perms + add the guards.
 - GitHub UI surface — **comment-anchored, no named check-run**:
   - Inline findings on `/pulls/<N>/comments`.
   - A top-level summary comment on `/issues/<N>/comments`.
@@ -115,7 +115,11 @@ Calibrated against claude-code-action run `26834423838` (model `claude-sonnet-4-
 - **Q3 (`actions: read`)** — the local `gh` auth reads `actions/workflows/claude-code-review.yml/runs` fine; `CLAUDE_CHECKRUN` synthesizes correctly. No workflow change needed.
 - **Posting model** — the action posts ONLY buffered inline comments (synchronously, in-job); there is **no summary comment**. Clean = **zero head-SHA inline comments** (the A6 zero-inline arm). The summary-substring arm is dead backup. Settle window cut to 180s (in-job synchronous posting).
 
-**⏳ STILL PENDING a findings-bearing review (this run was clean, posted nothing):**
-- **Q1 (shared review id)** — whether inline findings share a `pull_request_review_id` is still unobserved. The anchor keys on comment id either way, so safe; confirm when claude first posts a finding — the validation target is **teisutis IDEA-214** (a complex code deliverable, 3-engine run, expected to surface real findings). mind-vault's doc-heavy PRs don't draw claude findings, so they can't calibrate this.
+**⚠️ The PR #167 calibration run's "clean" was MISLEADING (corrected after the downstream validation).** That run executed with a `pull-requests: read` workflow — read-only **cannot post review comments**. It happened to be clean (nothing to flag), so the missing post capability didn't show. **Read-only does not mean "claude reviews fine and posts nothing"; it means a findings-bearing run would have found issues and SILENTLY FAILED TO POST them → a false CLEAN.** The fix is `pull-requests: write` + `issues: write` (see § Identity + onboarding reference). Never calibrate "clean" off a read-only run.
+
+**✅ Findings-bearing validation (downstream, write perms):** a complex code PR ran the 3-engine loop with the write-perm workflow. Claude validated past the action's anti-tampering guard, ran with posting rights, and returned a genuine clean on the (already-fixed) diff — confirming the run no longer ERRORs under write perms. (A run that ERRORs vs one that genuinely-cleans is the distinction read-only obscured.)
+
+**⏳ STILL PENDING a findings-bearing review that actually posts:**
+- **Q1 (shared review id)** — whether inline findings share a `pull_request_review_id` is still unobserved (no run has posted a finding yet). The anchor keys on comment id either way, so safe; confirm when claude first posts.
 - **`CLAUDE_BODY_SIGNATURES` wording** — only matters for the (currently-dead) summary arm now that inline is login-only; lock it if/when a summary comment ever appears.
 - **Q2 (`@claude review once` via the action path)** — not exercised: the action auto-ran on push, so the fallback retrigger was never needed. Confirm the fallback works if a future PR's auto-run fails to fire; else use the commented `@claude /code-review:code-review …` fallback in `claude_retrigger.sh`.

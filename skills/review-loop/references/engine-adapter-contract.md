@@ -38,6 +38,7 @@ Followed by zero or more inline-finding blocks. The exact display format is impl
 
 - `Severity: <LOW|MEDIUM|HIGH|CRITICAL|INFO>`
 - `(comment id <cid>, review <rid>)` — **mandatory** identifier-pair
+- `thread <PRRT_…>` — **recommended**: the review-thread node id for the finding's thread. Lets Phase 3's forward auto-resolve ([`THREAD_AUTO_RESOLVE.md`](THREAD_AUTO_RESOLVE.md) Pattern 1) call `resolveReviewThread` without a second `reviewThreads` round-trip. When absent the orchestrator falls back to the inline GraphQL query mapping `comment id → thread id`. Comment-anchored engines that synthesize a comment id should surface the enclosing thread id here.
 - `File: <path>` (line number optional — see line-number-drift caveat in the orchestrator)
 - `Title: <short title>` (free-text; may be a placeholder for engines without titles)
 - `Description: <body>` (free-text)

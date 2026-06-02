@@ -1,0 +1,42 @@
+# Canonical Claude auto-review workflow for the review-loop claude engine.
+#
+# Commit THIS (not /install-github-app's default) to the repo's DEFAULT BRANCH.
+# Two deltas from the /install-github-app template, both load-bearing:
+#   1. permissions: pull-requests + issues are `write` (the default ships `read`,
+#      which silently blocks the action from POSTING findings → false CLEAN).
+#   2. a fork-PR guard (`if:`) so fork PRs — which can't see CLAUDE_CODE_OAUTH_TOKEN —
+#      don't fail / burn runner minutes.
+# The action validates this file byte-for-byte against the default-branch copy
+# (anti-tampering), so the perms must already be `write` ON the default branch —
+# a feature-branch edit cannot take effect. See engine-claude-onboarding.md.
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+jobs:
+  claude-review:
+    # Fork-PR guard: secrets are unavailable to forks, so the job would fail/no-op
+    # and consume runner minutes. Only run for same-repo PR branches.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write   # REQUIRED to post inline review comments (default `read` → false CLEAN)
+      issues: write          # REQUIRED to post a summary comment if the plugin emits one
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
+          plugins: 'code-review@claude-code-plugins'
+          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
