@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-_(none)_
+- [IDEA-012](IDEA-012-claude-code-review-engine.md) — Integrate Claude Code Review as a third review-loop engine
 
 ## 💡 Low Priority (backlog)
 
