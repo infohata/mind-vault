@@ -1,6 +1,6 @@
 # Destructive cleanup must close every re-creation path
 
-When you **drop / delete / clear** a resource that the application also **lazily ensures** or **bootstraps**, the drop silently un-does itself unless you audit *every* path that can recreate it. A "remove the stale thing" command that runs green and then finds the stale thing back on the next request is the signature of this bug.
+When you **drop / delete / clear** a resource that the application also **lazily ensures** or **bootstraps**, the drop silently undoes itself unless you audit *every* path that can recreate it. A "remove the stale thing" command that runs green and then finds the stale thing back on the next request is the signature of this bug.
 
 ## The shape
 

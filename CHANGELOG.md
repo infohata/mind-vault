@@ -17,11 +17,11 @@ Patch release — `/compound` of three learnings from a search-index dimension-m
 ### Changed
 
 - **`RULE_self-sweep-before-push` trigger 3 (defensive-code sweep) extended** — a guard that *skips/discards* rows is itself a data-shape claim. Added the facet: validate a discard/skip guard against the producer's REAL data, not a mock (mocks encode your assumption and pass; so does an architecture review reading the same assumption). A wrong guard silently drops *every* row — worse than the bug it prevents. Grep the producer's write site; if a sibling reader already decodes the shape, copy it; if the data is composite/encoded, decode — don't reject.
-- **`skills/wrap` Step 3 (re-sort the ideas index) extended** — on completion, also remove the originating `_(IDEA-NNN moved to In Progress …)_` breadcrumb left in the old priority tier (and drop the tier subsection header if it empties). Skipping it is silent rot — stale "moved to In Progress" stubs accumulate and falsely read as active backlog.
+- **`skills/wrap` Step 3 (re-sort the ideas index) extended** — on completion, also remove the originating `_(IDEA-NNN moved to In Progress …)_` breadcrumb left in the old priority tier (resetting the tier to `_(none)_` if it empties — the index keeps the full tier skeleton, never drops a header). Skipping it is silent rot — stale "moved to In Progress" stubs accumulate and falsely read as active backlog.
 
 ### Added
 
-- **`skills/django/references/RESOURCE_LIFECYCLE_DROP_VS_ENSURE.md`** (load-on-demand) — a destructive op (drop/clear/purge an index, cache, table, bucket, scratch dir) silently un-does itself unless you audit EVERY re-creation path: lazy ensure-on-use, first-use create, deploy/bootstrap ensure. Re-point them at the new target or guard them; prove with a post-drop *read*, not "delete was called". Pointer added to `skills/django/SKILL.md` References.
+- **`skills/django/references/RESOURCE_LIFECYCLE_DROP_VS_ENSURE.md`** (load-on-demand) — a destructive op (drop/clear/purge an index, cache, table, bucket, scratch dir) silently undoes itself unless you audit EVERY re-creation path: lazy ensure-on-use, first-use create, deploy/bootstrap ensure. Re-point them at the new target or guard them; prove with a post-drop *read*, not "delete was called". Pointer added to `skills/django/SKILL.md` References.
 
 ## v4.5 — Agent profiles → recognized Claude Code subagent schema + cross-harness portability
 
