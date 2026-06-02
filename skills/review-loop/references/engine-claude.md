@@ -58,6 +58,8 @@ claude is a **push-triggered** engine. The `claude-code-review.yml` action auto-
 
 ❌ **DON'T** read a draft PR's `CLAUDE_REVIEW_SILENT` as a finding about the code — it's the draft no-op. The orchestrator should treat a draft PR's claude state as "no verdict available until ready" rather than HUNG or clean.
 
+**✅ Use the draft no-op as a deliberate lever — the recommended sprint cadence.** claude is the only **push-triggered** engine (bugbot/copilot are on-demand inside the review-loop), so a non-draft PR auto-runs — and bills — a claude review on **every** `/work` commit push. Keep the PR in **draft during `/work`** to suppress that, iterate freely, and **flip to ready-for-review after `/wrap`** — that single un-draft fires one intentional claude review on the finalized state, which the `/review-loop` then drives alongside bugbot/copilot. Net: one billed review per cohesive change instead of one per WIP push, and no SILENT-on-WIP noise. (If you *want* a mid-`/work` claude pass, momentarily mark ready or trigger bugbot/copilot, which don't need the un-draft.)
+
 ## § Review-state + clean detection
 
 **Review-state is synthesized from the Actions job, not a check-run.** `find_claude_comments.sh` filters `claude-code-review.yml` runs to the head SHA, picks the latest by `run_started_at`, and maps `queued`/`in_progress` → **RUNNING**, `completed` → **DONE**. The Actions `CONCLUSION` is **green whether claude found 0 or 5 issues** — it is a RUNNING/DONE signal only, NEVER a verdict.
