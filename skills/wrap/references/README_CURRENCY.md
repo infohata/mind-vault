@@ -20,10 +20,11 @@ Step 6b runs **after** Step 6's per-identifier loop, gated three ways:
    remote), fall back to **calendar staleness**: fire if the marker is absent or
    its date is older than 30 days. Never crash the wrap on a missing `gh` token.
 
-Staleness count (server-side date filter). Set `--limit` above any plausible `N`
-so the count isn't silently capped by `gh pr list`'s 30-row default page size
-(the gate only needs `count >= N`, but an overridden large `N` must still be
-reachable):
+Staleness count (server-side date filter). The gate only needs to know whether
+`count >= N`, so cap the query at `N` itself (`--limit "$N"`): if the page comes
+back full (`length == N`), at least `N` PRs merged since the marker → stale. This
+sidesteps `gh pr list`'s 30-row default page size entirely — no large-cap
+guessing, correct for any overridden `N`:
 
 ```bash
 MARKER_DATE=$(grep -oE 'wrap:readme-currency-audited [0-9]{4}-[0-9]{2}-[0-9]{2}' README.md | awk '{print $2}')
@@ -32,9 +33,9 @@ if [ -z "$MARKER_DATE" ]; then
     FIRE=1                                   # no marker → stale
 elif [ "$MARKER_DATE" \> "$(date +%F)" ]; then
     FIRE=1                                   # future-dated / clock-skewed → stale
-elif COUNT=$(gh pr list --state merged --base "$BASE" --limit 500 \
+elif COUNT=$(gh pr list --state merged --base "$BASE" --limit "${N:-5}" \
         --search "merged:>$MARKER_DATE" --json number --jq 'length' 2>/dev/null); then
-    [ "$COUNT" -ge "${N:-5}" ] && FIRE=1     # PR-count signal (--limit 500 ≫ any plausible N)
+    [ "$COUNT" -ge "${N:-5}" ] && FIRE=1     # cap query at N: length==N ⇔ ≥N merged (no paging guesswork)
 elif command -v python3 >/dev/null 2>&1; then
     # gh unavailable → calendar fallback (zero network). Age in days via Python
     # datetime (cross-platform), never `date -d` (GNU-only; fails on BSD/macOS).
@@ -78,7 +79,7 @@ probe cleanly) and maps its findings onto Step 6's existing dispositions —
 
 | # | Probe | How | Disposition |
 | --- | --- | --- | --- |
-| 1 | **Version framing** | README version banner / "vN highlights" vs Step 4b's detected `VER_SOURCE` (top `## vMAJOR.MINOR` of CHANGELOG). | Stale string → **patch now**. No version framing in README → skip. |
+| 1 | **Version framing** | README version banner / "vN highlights" vs Step 4b's detected `VER_SOURCE`. Derive `MAJOR.MINOR` from the topmost CHANGELOG header by stripping any `.PATCH` (headers are `## vMAJOR.MINOR[.PATCH]`, e.g. `v4.6.1` → compare as `v4.6`). | Stale string → **patch now**. No version framing in README → skip. |
 | 2 | **Counts** | Each "Skills (NN)" / "Agents (NN)" / table-row count vs its filesystem source (`ls skills/*/SKILL.md \| wc -l`, etc.). | Off-by-any → **patch now**. Source not auto-detectable → see fail-loud rule below. |
 | 3 | **Feature/capability tables** | Each shipped unit (skill, command, engine) has a table row; grep the table for every `ls`-discovered name. | Missing row for a shipped unit → **patch now** (one row). Whole new table needed → **follow-up**. |
 | 4 | **Stale ⚠️ / status flags** | For each ⚠️ / "UNSTABLE" / "experimental" flag, verify its cause still holds (grep CHANGELOG / devlog for a resolving entry). | Cause demonstrably resolved → **patch now** (remove). Cause unverifiable → **leave it** (a flag is a claim; don't drop it without evidence — RULE_self-sweep #3). |
