@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-013](IDEA-013-wrap-readme-currency-backfill.md) — Amend /wrap docs pass to audit + backfill the project's main README
 
 ## 💡 High Priority (backlog)
 
@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-- [IDEA-013](IDEA-013-wrap-readme-currency-backfill.md) — Amend /wrap docs pass to audit + backfill the project's main README
+_(none)_
 
 ## 💡 Low Priority (backlog)
 

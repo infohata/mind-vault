@@ -25,7 +25,7 @@ A **cross-host configuration library** for AI coding agents. Skills, subagent pe
 - **Agents** (`agents/`) — subagent personas (`AGENT_architect`, `AGENT_backend`, `AGENT_curator`, …) with prime directives, multi-pass workflows, structured verdict formats.
 - **Commands** (`commands/`) — slash commands invoked as `/<name>` from any host that supports them.
 - **Rules** (`rules/`) — always-on guardrails auto-loaded every session (e.g. `RULE_git-safety` blocks pushes to `main`).
-- **Sprint workflow** — a compounding 5-stage loop (`/ideate → /idea → /plan → /work → /review-loop → /wrap → /compound`, where `/review-loop` carries the configured engine(s) — `bugbot`, `copilot`, `claude`, or any subset per project config) that makes the *next* sprint start with a higher floor via the final `/compound` stage. See [SPRINT_WORKFLOW.md](SPRINT_WORKFLOW.md).
+- **Sprint workflow** — a compounding 5-stage loop (`/ideate → /idea → /plan → /work → /review-loop (deliverables) → /wrap → /review-loop (docs) → /compound`, where `/review-loop` carries the configured engine(s) — `bugbot`, `copilot`, `claude`, or any subset per project config) that makes the *next* sprint start with a higher floor via the final `/compound` stage. See [SPRINT_WORKFLOW.md](SPRINT_WORKFLOW.md).
 
 **The workflow principle** — every sprint should make the next sprint cheaper. `/compound` is the lever: any recurring fix-up becomes a new skill / rule / agent improvement.
 

@@ -2,7 +2,7 @@
 
 > ## 👋 New here? Start with [`docs/guides/ONBOARDING.md`](docs/guides/ONBOARDING.md).
 >
-> Thirty-minute walkthrough from blank machine to first sprint — IDE install, Claude Code CLI + plugins, mind-vault symlinks, productive defaults, your first `/idea → /plan → /work → /review-loop → /wrap → /compound` cycle.
+> Thirty-minute walkthrough from blank machine to first sprint — IDE install, Claude Code CLI + plugins, mind-vault symlinks, productive defaults, your first `/idea → /plan → /work → /review-loop (deliverables) → /wrap → /review-loop (docs) → /compound` cycle.
 >
 > Everything below is **reference material** for engineers already past onboarding.
 
@@ -16,7 +16,7 @@ Cross-host configuration library for AI coding agents — skills, commands, suba
 >
 > **v4 highlights.** The Stage 4 review surface is now engine-agnostic — opt into Cursor Bugbot, GitHub Copilot, Claude Code Review (the `claude-code-action@v1` + `code-review` plugin), any concurrent subset, or none (curator-only fallback). Canonical entry: `/review-loop <PR> bugbot`, `/review-loop <PR> copilot`, `/review-loop <PR> claude`, or any combination e.g. `/review-loop <PR> bugbot,copilot,claude`.
 >
-> **⚠️ `sprint-auto` is currently UNSTABLE (as of v4.4).** The overnight orchestrator hasn't been exercised end-to-end since the v3.2 integration-as-merge-gate redesign, multi-engine review, the eval-gate path, and the two-pass `/wrap` all landed around it. Its docs were just reconciled (v4.4 sprint-auto doc-migration); the *runtime* path still needs a low-stakes shakedown batch before you trust it for unattended overnight runs. The single-IDEA flow (`/idea → /plan → /work → /review-loop → /wrap`) is unaffected and stable.
+> **⚠️ `sprint-auto` is currently UNSTABLE (as of v4.4).** The overnight orchestrator hasn't been exercised end-to-end since the v3.2 integration-as-merge-gate redesign, multi-engine review, the eval-gate path, and the two-pass `/wrap` all landed around it. Its docs were just reconciled (v4.4 sprint-auto doc-migration); the *runtime* path still needs a low-stakes shakedown batch before you trust it for unattended overnight runs. The single-IDEA flow (`/idea → /plan → /work → /review-loop (deliverables) → /wrap → /review-loop (docs)`) is unaffected and stable.
 
 ## Sprint workflow — the compound loop
 
@@ -27,13 +27,15 @@ flowchart LR
     I0(["/ideate — optional discovery"]) -.-> I1
     I1(["/idea — capture"]) --> P
     P(["/plan · /brainstorm — what + how"]) --> W
-    W(["/work — execute"]) --> R
-    R(["/review-loop <engine>\n+ curator · architect"]) --> C
+    W(["/work — execute"]) --> RD
+    RD(["/review-loop — deliverables\n+ curator · architect"]) --> WR
+    WR(["/wrap — finalize docs\n(pre-merge)"]) --> RR
+    RR(["/review-loop — docs"]) --> C
     C(["/compound — router"]) -.promotes.-> V[("mind-vault\nskills · rules · agents\ncommands · memory")]
     C -.next sprint.-> I1
 ```
 
-**Design note on the review stage.** Stages 1–2–3–5 each have a dedicated skill (`/idea`, `/plan`, `/work`, `/compound`). Stage 4 (review) is engine-selectable via the unified `/review-loop` skill: pass `bugbot`, `copilot`, `claude`, or any subset (e.g. `bugbot,copilot,claude`) as the engine argument. All engines share the same Phase 1–4 orchestrator backed by the `AGENT_curator` / `AGENT_architect` personas; engine-specific details (clean-signal parsing, retrigger semantics, Tier 1 catalogue) live in per-engine adapter references under `skills/review-loop/references/`. `claude` is push-triggered and comment-anchored rather than check-run-driven — see `references/engine-claude.md`.
+**Design note on the review/wrap finish.** The finishing sequence is **two review passes around the doc wrap**: `/review-loop` on the deliverables (code) → `/wrap` finalizes docs to shipped state → `/review-loop` on the docs. Wrap runs *before* the docs review (never after) so engines see docs at their merged shape — see [`skills/wrap/references/WRAP_BEFORE_REVIEW.md`](skills/wrap/references/WRAP_BEFORE_REVIEW.md). Code-only PRs collapse the second pass. Stages 1–2–3–5 each have a dedicated skill (`/idea`, `/plan`, `/work`, `/compound`); Stage 4 (review) is engine-selectable via the unified `/review-loop` skill: pass `bugbot`, `copilot`, `claude`, or any subset (e.g. `bugbot,copilot,claude`) as the engine argument. All engines share the same Phase 1–4 orchestrator backed by the `AGENT_curator` / `AGENT_architect` personas; engine-specific details (clean-signal parsing, retrigger semantics, Tier 1 catalogue) live in per-engine adapter references under `skills/review-loop/references/`. `claude` is push-triggered and comment-anchored rather than check-run-driven — see `references/engine-claude.md`.
 
 See [docs/guides/SPRINT_WORKFLOW.md](docs/guides/SPRINT_WORKFLOW.md) for the full explainer — authoritative frontmatter schemas, compound-routing table, right-sizing guidance, and the handoff contract between stages.
 
@@ -63,7 +65,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **plan** | Stage 2 — turn an IDEA file or rough description into a durable plan; interactive brainstorm bootstrap on thin input; `AGENT_architect` as reviewer. Aliased `/brainstorm`. |
 | **work** | Stage 3 — thin orchestrator that reads a plan, enforces `RULE_git-safety` + the parallel-worktree-docker discipline (loaded from `skills/sprint-auto/references/`), dispatches to implementation personas. |
 | **review-loop** | Stage 4 — bounded-autonomy review-fix-rerun loop against pluggable engines (Cursor Bugbot, GitHub Copilot, Claude Code Review, or any subset); triages findings into Tier 1/2/3, batches per-cycle fixes into one commit, retriggers each engine until structurally clean (DONE + zero active findings). Engine-agnostic core; per-engine specifics in `references/engine-<name>.md`. |
-| **wrap** | Stage 4.5 — documentation sweep, pre-merge by default. Flips IDEA frontmatter to `complete`, re-sorts the ideas index, appends a devlog/CHANGELOG entry, scans project docs for stale references. Three-value `--scope`: `docs` (default) finalizes docs and stops short of merge; `--scope=full` also atomic-merges non-protected targets (then post-merge worktree teardown); `--scope=idea-only` is the sprint-auto subset. Sits between `/review-loop` and `/compound`. |
+| **wrap** | Stage 4.5 — documentation sweep, pre-merge by default. Flips IDEA frontmatter to `complete`, re-sorts the ideas index, appends a devlog/CHANGELOG entry, scans project docs for stale references. Three-value `--scope`: `docs` (default) finalizes docs and stops short of merge; `--scope=full` also atomic-merges non-protected targets (then post-merge worktree teardown); `--scope=idea-only` is the sprint-auto subset. Runs between the deliverables review and the docs review (wrap-before-review), then `/compound` follows. |
 | **compound** | Stage 5 — **the novel piece.** Routes a post-incident learning through a hybrid Shape-C probe to one of six destinations (project-local, mind-vault skill / rule / agent pass / command, or auto-memory). |
 | **ingest-backlog** | Brownfield-takeover helper (one-time). Atomises a monolithic `IDEAS.md` / `BACKLOG.md` / `ROADMAP.md` into per-idea files matching the sprint-workflow schema. Default dry-run. |
 | **sprint-auto** ⚠️ _unstable_ | Overnight unattended wrapper around the **full sprint workflow** (stages 2–5). Per IDEA: `/plan → /work → /review-loop (deliverables) → /wrap --scope=idea-only → /review-loop (docs)` in per-IDEA git worktrees (pure code surfaces — **one** shared integration docker stack at port offset `+30000`, not per-IDEA stacks); `/review-loop` expands to `bugbot`, `copilot`, `claude`, or any subset per `SPRINT_AUTO_REVIEW_ENGINE`. **v3.2 integration-as-merge-gate**: per-IDEA PRs target a non-draft `[INTEGRATION]` PR (the single merge gate, left OPEN for the human); batch teardown via `/wrap --integration <batch-iso>`. Per-pass escalation caps 20/5/10/10/20/5. Belt-and-suspenders gates (`auto_safe: true` OR `auto_safe_with_eval_gate: true` + explicit arg allowlist); stops at the HITL merge boundary per `RULE_git-safety`. **Not battle-tested since v3.2 + multi-engine + eval-gate + two-pass-wrap landed — shake down on a low-stakes batch first (see stability note above).** |
