@@ -10,6 +10,24 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.6.2 — compound: claude-engine summary-body findings (C1) + taxonomy-shell review patterns
+
+Patch release (compound of a downstream KB-taxonomy-shell-migration PR's review loop). Headline is the **C1 claude-engine fix**: the adapter only parsed inline comments + a clean-substring, so claude's `## Code review` summary-BODY findings (CLAUDE.md convention violations, cross-file security notes it can't line-anchor) were **invisible to the loop** — calibrated and fixed against 13 real `claude[bot]` summary bodies on one PR. The other five are reference additions/corrections surfaced by the same loop. (2026-06-03)
+
+### Fixed
+
+- **`tools/find_claude_comments.sh` — surface findings-bearing summary BODIES (C1).** Confirmed-on-real-data calibration: summary login is `claude[bot]`; heading is literally `## Code review` (old `code-review` signature missed the space → whole summary unrecognized); clean is **whole-review** (positive phrase AND no structural finding marker — `privilege`/`escalation`/`security` keywords false-positive on clean prose that names the concepts it checked, so markers are structural: `missing|violation|❌|#### |### [0-9]`); skip-no-op bodies (draft / already-reviewed) filtered by the heading-then-`Skipped` shape. A non-clean summary now emits a finding block carrying `(comment id <cid>, review summary)` and counts toward `VERDICT_READABLE`. Verified end-to-end against the live downstream PR (2 NOOP / 10 FINDINGS / 1 CLEAN classification, zero false-cleans). Documented in `skills/review-loop/references/engine-claude.md` § calibration update — findings live in the SUMMARY BODY.
+
+### Added
+
+- **`skills/django-frontend/references/SCRIPT_TAG_JSON_ESCAPING.md`** (C4) — server-rendered JSON in a `<script>` block is stored-XSS (`mark_safe(json.dumps(...))` doesn't escape `<`/`>`/`&`); fix via one shared `escape_seed_json`/`json_script` helper; sweep ALL sibling views, not just the flagged one.
+- **`skills/django/references/PERMISSION_GATE_PROBE.md` § Gate the GET render path** (C3) — a shell edit-form fragment's GET render is a third gate beyond endpoint-POST + affordance-hide: a deep-linked non-editor gets an editable form then a 403-on-save unless the render path mirrors the POST gate.
+
+### Changed
+
+- **`skills/django-frontend/references/PREVIEW_DRAWER_URL_STACK.md` § Template hrefs use `{% url %}`** (C2/C6) — corrects the mis-stated "shell hrefs must be literal" lesson: Django-template fragment hrefs use `{% url 'app:entity_form_fragment' pk %}`; only the JS-consumed `URL_PATTERN_BY_TYPE` map stays literal (no `reverse()` browser-side). The original bug was a wrong route name, not the tag; `{% url %}` and the literal render byte-identical (so the convention is **not** test-verifiable — the guide is the authority).
+- **`skills/review-loop/references/LARGE_PR_INDEPENDENT_REVIEW.md`** (C5) — second observed-evidence paragraph: a 3-engine loop's per-engine clean is not the gate's clean (wait-for-slowest + adapter-surfaces-the-finding-shape, then still do the independent pass); ties to the C1 adapter-blindspot.
+
 ## v4.6.1 — /wrap Step 6b: whole-README currency audit + two-pass workflow doc reconciliation
 
 Patch release (IDEA-013). Closes the gap where `/wrap`'s Step 6 only greps the README for the *current* IDEA's changed identifiers, so the README-as-a-whole drifts across many IDEAs (version framing, counts, feature tables, stale ⚠️ flags) with no single wrap responsible for its currency — the README equivalent of the CHANGELOG/devlog backfill-gap rule Step 4 already had. Architect-reviewed (🟡 REQUIRES ABSTRACTION → all 6 must-fixes folded). First dogfood landed in-branch; this wrap's own re-audit then caught a stale `commands/` count (7→6) the first dogfood missed — the feature catching drift on the same file that introduced it. (2026-06-03, [#168](https://github.com/infohata/mind-vault/pull/168))

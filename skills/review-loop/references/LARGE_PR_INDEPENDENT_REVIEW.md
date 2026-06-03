@@ -48,6 +48,20 @@ infrastructure. None were style nits; all three were worth fixing before merge. 
 of two subagent reviews is far smaller than the cost of shipping a real bug a shallow pass waved
 through on a big diff.
 
+A second large-PR data point (a ~25-commit / ~7k-line shell-migration PR) sharpens the lesson from
+"one bot" to "the whole automated gate": across a 3-engine loop (bugbot + copilot + claude), the engines
+plus the user's hands-on smoke surfaced ~13 real issues — a stored-XSS replicated across **9** views, a
+privilege-escalation via scope-change on edit, a permission denial returning 200 instead of 403, three
+GET-render permission gaps, a TOCTOU create race, i18n extraction misses — none of which any single
+engine's first clean pass caught. Two compounding traps showed up: (1) one fast engine reading CLEAN
+while siblings still had findings — **a single engine's clean is not the gate's clean** (wait for the
+slowest, batch all engines; see [`multi-engine-sync.md`](multi-engine-sync.md)); and (2) an engine whose
+findings were **adapter-invisible** — claude posted convention findings in its summary-comment body that
+the adapter didn't parse, so the loop read CLEAN while claude had flagged ~30 real items (the C1 fix in
+[`engine-claude.md`](engine-claude.md) § calibration update — findings live in the SUMMARY BODY). The takeaway: on a large PR, treat
+*every* engine's clean as provisional until (a) all engines agree on the same SHA AND (b) you've
+confirmed the adapter actually surfaces that engine's finding shape — then still do the independent pass.
+
 ## Relationship to the loop
 
 This is a **hand-back-time escalation**, not a replacement for the engine loop. Run the normal

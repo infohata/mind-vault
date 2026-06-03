@@ -84,6 +84,39 @@ both:
 The complete picture: gate the **endpoint** (step 4, the security boundary) **and** gate the
 **affordance** (this section, the UX boundary), both off the one selector.
 
+## Gate the GET render path too, not just the POST action
+
+A shell/preview surface that renders an **edit form fragment** on `GET` (e.g. `?open=<entity>-edit.<pk>`
+or `…/ui/form/<pk>/`) has a *third* gate the affordance-hide misses. Hiding the "Edit" button stops
+the button-click path, but the GET render endpoint is still **directly reachable** — a non-editor
+deep-links the preview-seed URL, bookmarks it, or hand-types it, and the server happily renders an
+editable form (or, for create, an uncompletable stub). They fill it in, hit save, and only THEN eat a
+403 from the POST gate. Editable-looking form → 403-on-submit is a worse UX than an honest empty-state,
+and on a create-stub it wastes the user's input.
+
+The smell: a `render_<entity>_form(request, identifier)` whose POST handler checks
+`user_can_edit_<entity>` but whose **GET render path checks nothing** — it builds the form for anyone
+who can reach the URL. Gate the render at the SAME selector the POST uses:
+
+```python
+def render_<entity>_form(request, identifier):
+    # 'new' → create-perm; <pk> → edit-perm. Mirror the POST handler's gate.
+    if identifier == 'new':
+        if not user_can_create_<entity>(request.user, org, scope):
+            return render_empty_state(request)            # not an editable form
+    else:
+        obj = get_object_or_404(<Entity>, pk=identifier, org=org)
+        if not user_can_edit_<entity>(request.user, obj):
+            return render_empty_state(request)
+    ...  # build + render the form only past the gate
+```
+
+Three gates, one selector: **endpoint POST** (security), **GET render** (don't serve an editable form
+to someone who can't save it), **affordance** (don't show the button). A deep-link / preview-seed URL
+bypasses the affordance, so the GET-render gate is not redundant with hiding the button — it's the
+boundary for every path that doesn't start at the button. (Surfaced on a taxonomy shell migration: the
+edit-form fragment GET rendered for readers who'd be 403'd on save; three such GET-gate gaps in one PR.)
+
 ## When NOT to over-probe
 
 If the view's only gate genuinely *is* the permission class — no `get_queryset` narrowing, no
