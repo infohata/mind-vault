@@ -3,9 +3,16 @@ stage: plan
 slug: wrap-readme-currency-backfill
 created: 2026-06-03
 source: ./IDEA-013-wrap-readme-currency-backfill.md
-status: ready
+status: shipped
 project: mind-vault
 ---
+
+> **Progress (2026-06-03):** Execution items 1–4 → `90209c7`
+> (feat: Step 6b + reference + WRAP_BEFORE_REVIEW/recap sync). Items 5–7 →
+> `504ea0f` (dogfood: README v4.0.4→v4.6 banner + marker + hint block).
+> Headline-ordering precursor → `86f798e`. Verification V1–V6 ✅ (marker read
+> `2026-06-03`; same-day count 0 ⇒ idempotency guard confirmed; dogfood diff
+> mechanical-only; Skills 17 = filesystem). PR opened as draft.
 
 # Plan: Amend /wrap with a staleness-gated whole-README currency audit
 
