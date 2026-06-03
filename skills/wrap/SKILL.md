@@ -73,6 +73,7 @@ Per-scope step-set (the canonical table — each value names a coherent step sub
 | 4b Version-bump | conditional | conditional | **SKIP** — sprint-level, deferred to batch wrap |
 | 5 Worktree teardown | mode-gated (post-merge only) | mode-gated (post-merge only) | mode-gated (post-merge only) |
 | 6 Downstream-docs scan | RUN | RUN | RUN |
+| 6b README currency audit | conditional (staleness-gated) | conditional (staleness-gated) | **SKIP** — cohort audit deferred to sprint-auto S11.7 batch wrap |
 | 7 Eval-gate emission | conditional (pre-merge + frontmatter) | conditional | conditional |
 | 8 Atomic merge | **SKIP** (sole structural exclusion) | conditional (non-protected + pre-merge) | **SKIP** — integration PR is the merge gate |
 
@@ -370,7 +371,7 @@ Commit the documentation edits on the same branch that carries the IDEA-completi
 
 Step 6 patches what *this* IDEA touched; nothing makes any single wrap responsible for the **whole** README, so it drifts across many IDEAs (version framing, counts, feature tables, stale ⚠️ flags). Step 6b is the devlog backfill-gap rule (Step 4 §2) applied to the README — it fires on a staleness threshold and patches mechanical drift in-wrap.
 
-**Gated three ways** (skip silently if any fails): **scope** — eligible under `docs` / `full`, **skipped under `idea-only`** (sprint-auto's batch wrap is the cohort's audit point); **staleness** — count merged base-branch PRs since the last *whole-README audit* (a `<!-- wrap:readme-currency-audited YYYY-MM-DD -->` marker, **not** the file mtime, so Step-6 partial touches don't reset it), fire iff `count >= N` (default 5); **degraded env** — if `gh` is unavailable, fall back to calendar staleness (marker absent or >30 days old). A marker dated today ⇒ count 0 ⇒ skip (idempotency guard for the `docs`→`full` two-pass re-run). Future-dated/skewed marker ⇒ treat as stale.
+**Gated three ways** (the scope + staleness gates skip silently when they fail; the degraded-env gate *falls back* rather than skips): **scope** — eligible under `docs` / `full`, **skipped under `idea-only`** (sprint-auto's batch wrap is the cohort's audit point); **staleness** — count merged base-branch PRs since the last *whole-README audit* (a `<!-- wrap:readme-currency-audited YYYY-MM-DD -->` marker, **not** the file mtime, so Step-6 partial touches don't reset it), fire iff `count >= N` (default 5); **degraded env** — if `gh` is unavailable, fall back to calendar staleness (marker absent or >30 days old) rather than skipping the audit. A marker dated today ⇒ count 0 ⇒ skip (idempotency guard for the `docs`→`full` two-pass re-run). Future-dated/skewed marker ⇒ treat as stale.
 
 When it fires: run the project-agnostic probes (version framing vs Step-4b `VER_SOURCE`, counts vs filesystem globs, feature-table completeness, stale-flag verification, command surface), map each finding onto Step 6's patch-now-mechanical vs flag-follow-up dispositions, and **refresh the marker on the same branch as the patches**. Full probe checklist, marker mechanics, the fail-loud rule for non-mind-vault count shapes, the optional per-project hint block, and the sprint-auto asymmetry are in [`references/README_CURRENCY.md`](references/README_CURRENCY.md). Read that reference when this step fires.
 

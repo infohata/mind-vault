@@ -20,7 +20,10 @@ Step 6b runs **after** Step 6's per-identifier loop, gated three ways:
    remote), fall back to **calendar staleness**: fire if the marker is absent or
    its date is older than 30 days. Never crash the wrap on a missing `gh` token.
 
-Staleness count (server-side date filter — no `--limit` cap to reason about):
+Staleness count (server-side date filter). Set `--limit` above any plausible `N`
+so the count isn't silently capped by `gh pr list`'s 30-row default page size
+(the gate only needs `count >= N`, but an overridden large `N` must still be
+reachable):
 
 ```bash
 MARKER_DATE=$(grep -oE 'wrap:readme-currency-audited [0-9]{4}-[0-9]{2}-[0-9]{2}' README.md | awk '{print $2}')
@@ -29,14 +32,16 @@ if [ -z "$MARKER_DATE" ]; then
     FIRE=1                                   # no marker → stale
 elif [ "$MARKER_DATE" \> "$(date +%F)" ]; then
     FIRE=1                                   # future-dated / clock-skewed → stale
-elif COUNT=$(gh pr list --state merged --base "$BASE" \
+elif COUNT=$(gh pr list --state merged --base "$BASE" --limit 500 \
         --search "merged:>$MARKER_DATE" --json number --jq 'length' 2>/dev/null); then
-    [ "$COUNT" -ge "${N:-5}" ] && FIRE=1     # PR-count signal
-else
+    [ "$COUNT" -ge "${N:-5}" ] && FIRE=1     # PR-count signal (--limit 500 ≫ any plausible N)
+elif command -v python3 >/dev/null 2>&1; then
     # gh unavailable → calendar fallback (zero network). Age in days via Python
     # datetime (cross-platform), never `date -d` (GNU-only; fails on BSD/macOS).
     AGE_DAYS=$(python3 -c "import datetime,sys; print((datetime.date.today()-datetime.date.fromisoformat(sys.argv[1])).days)" "$MARKER_DATE")
     [ "$AGE_DAYS" -ge 30 ] && FIRE=1
+else
+    FIRE=1   # no gh AND no python3 → can't measure staleness, default to audit (never crash)
 fi
 ```
 
