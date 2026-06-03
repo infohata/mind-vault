@@ -71,6 +71,19 @@ branch) avoids this entire dance for new projects** — write is the baseline fr
 one. The catch-22 only bites when *retrofitting* a project already running the
 read-only default (raise the perms via one default-branch PR, then forward-sync open branches).
 
+**Not perms-specific — ANY edit to these two files triggers it.** The validation is
+byte-identity, so a `actions/checkout` version bump, a comment tweak, or whitespace
+fails identically. The **most common post-onboarding trigger is a dependabot
+workflow-action bump** (`actions/checkout v4 → v6` etc.): the same three rules apply —
+(1) it can only land on the **default branch** (a feature-branch PR carrying it 401s,
+including any consolidated deps PR — so split the workflow bump out and send it to the
+default branch on its own); (2) that default-branch PR's own Claude check **red-✗es by
+design** — merge through; (3) once merged, **every active feature branch red-✗es until
+it forward-syncs** (anti-tampering needs PR-head workflow == default branch), so a
+single default-branch workflow bump has a fan-out cost across all open branches. Because
+v4 is functionally fine, weigh whether a cosmetic action-version bump is worth the
+dance — or batch it with the next forward-sync wave.
+
 ## Repo-level setting (usually already correct)
 
 `gh api repos/:owner/:repo/actions/permissions/workflow` →

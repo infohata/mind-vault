@@ -10,6 +10,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.6.4 — compound: claude-workflow anti-tampering generalization + stale-local-adapter fallback
+
+Patch release (compound of a downstream dependabot + claude-engine arc). Two review-loop operational learnings, both extending existing references (no new files):
+
+### Changed
+
+- **`skills/review-loop/references/engine-claude-onboarding.md` § anti-tampering bootstrap catch-22** — generalized from perms-only to **any edit** of the two claude workflow files. The byte-identity validation fires on an `actions/checkout` bump, a comment, or whitespace just as it does on a perms change; the **most common post-onboarding trigger is a dependabot workflow-action bump**. Spelled out the three consequences as a reusable rule: it can only land on the default branch (a feature-branch / consolidated-deps PR carrying it 401s → split it out), that PR's own Claude check red-✗es by design (merge through), and every active feature branch then red-✗es until it forward-syncs (a single default-branch workflow bump has a fan-out cost) — so weigh whether a cosmetic action-version bump is worth the dance.
+- **`skills/review-loop/references/engine-adapter-contract.md` § CWD gotcha** — added the **stale-local-adapter fallback**: when a project's committed `tools/find_<engine>_comments.sh` lags the canonical (mind-vault) version, run the canonical one against the project (`cd <project> && bash <mind-vault>/tools/find_<engine>_comments.sh <PR>`) rather than skipping the review — the project port can have a parser-capability gap (e.g. a pre-C1 claude adapter misses summary-body findings → false CLEAN). Belt-and-suspenders: read the raw `claude[bot]` summary-comment body + inline directly. Re-syncing the port is the durable fix; the canonical run unblocks the review now.
+
 ## v4.6.3 — ci: bump actions/checkout v4 → v6 in the claude review workflows
 
 Patch release. Bumps `actions/checkout@v4 → v6` in the two claude-review workflow files — both the **asset templates** (`skills/review-loop/assets/claude.yml`, `claude-code-review.yml`) that projects port from, and mind-vault's **own live workflows** (`.github/workflows/`), which dogfood the engine. Keeps the canonical templates current with the deployed downstream version (where the same bump just landed) so future ports don't ship a stale v4. (2026-06-04)
