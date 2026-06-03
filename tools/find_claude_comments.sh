@@ -714,6 +714,12 @@ cid = c.get('id', '')
 url = c.get('html_url', '')
 # Severity heuristic mirrors the inline render (UNCONFIRMED stamp; common spellings).
 # Bias HIGH when the body names a security failure mode; the loop re-triages anyway.
+# NOTE: bare keyword substrings (privilege/escalation/violation/missing) are SAFE here
+# even though they are deliberately NOT used as CLAUDE_FINDING_MARKERS (where a keyword
+# in clean prose would false-classify clean-vs-findings). This block runs ONLY when the
+# body is already classified findings (SUMMARY_FINDINGS=true), so a keyword in a mixed
+# review's clean section can at worst over-stamp severity — and the loop re-triages
+# severity regardless. The classify-vs-render asymmetry is intentional. (claude #169 NF1)
 b = body.lower()
 if 'critical' in b:
     severity, color = 'CRITICAL', '\033[0;31m'
