@@ -8,7 +8,7 @@
 
 ---
 
-**v4.0.4 — Multi-engine code review · Open-source release (Windows-host adopter bootstrap + `make release` helper + expanded ONBOARDING + `docs/guides/` subdirectory).**
+**v4.6 — Claude Code Review as a third `/review-loop` engine (auto-trigger / comment-anchored adapter alongside Cursor Bugbot + GitHub Copilot; the review sync contract generalized 2→N). Recent line: agent profiles → recognized Claude Code subagent schema (v4.5), sprint-auto v3.2 integration-as-merge-gate (v4.4).**
 
 Cross-host configuration library for AI coding agents — skills, commands, subagent personas, and shared rules, authored once and symlinked into every agent-aware tool.
 
@@ -230,3 +230,12 @@ Commit all non-sensitive configuration to git.
 ## License
 
 Licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Kestutis Januskevicius.
+
+<!-- wrap:readme-currency-audited 2026-06-03 -->
+<!-- wrap:readme-currency
+N: 5
+counts:
+  skills: ls skills/*/SKILL.md | wc -l
+  agents: ls agents/AGENT_*.md | wc -l
+  commands: ls commands/*.md | wc -l
+-->
