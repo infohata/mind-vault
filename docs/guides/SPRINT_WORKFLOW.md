@@ -151,7 +151,9 @@ Typical invocation on a new feature:
 /plan <slug>               # or /brainstorm <slug> — produces plan doc
 /work <plan-path>          # dispatches to personas, commits as it goes
 # ... open PR ...
-/review-loop <pr-url> <engine>    # bugbot | copilot | claude | any subset, per project's review_engine
+/review-loop <pr-url> <engine>    # 4a deliverables — bugbot | copilot | claude | any subset, per project's review_engine
+/wrap                      # 4b finalize docs (pre-merge, --scope=docs default)
+/review-loop <pr-url> <engine>    # 4c docs pass — same engine(s); code-only PRs collapse this
 /compound                  # routes what we learned
 ```
 

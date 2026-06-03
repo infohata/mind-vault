@@ -35,6 +35,9 @@ if [ -z "$MARKER_DATE" ]; then
     FIRE=1                                   # no marker → stale
 elif [ "$MARKER_DATE" \> "$(date +%F)" ]; then
     FIRE=1                                   # future-dated / clock-skewed → stale
+elif [ "$MARKER_DATE" = "$(date +%F)" ]; then
+    :                                        # audited TODAY → skip (FIRE stays 0). Explicit, so same-day
+                                             # idempotency holds regardless of how gh interprets `merged:>today`
 elif COUNT=$(gh pr list --state merged --base "$BASE" --limit "$N" \
         --search "merged:>$MARKER_DATE" --json number --jq 'length' 2>/dev/null); then
     [ "$COUNT" -ge "$N" ] && FIRE=1          # cap query at N: length==N ⇔ ≥N merged (no paging guesswork)
@@ -48,9 +51,11 @@ else
 fi
 ```
 
-**Same-day idempotency guard:** a marker dated today ⇒ `merged:>today` matches 0
-PRs ⇒ no fire. So the `docs`→`full` two-pass re-run never double-audits — the
-`docs` pass writes today's marker, the `full` re-run sees count 0 and skips. No
+**Same-day idempotency guard:** the explicit `MARKER_DATE = today → skip` branch
+means a marker written today never re-fires the audit the same day — regardless of
+how `gh` interprets `merged:>today` (which can include same-day merges on an active
+base branch). So the `docs`→`full` two-pass re-run never double-audits: the `docs`
+pass writes today's marker, the `full` re-run hits the same-day branch and skips. No
 per-pass special-casing.
 
 ## The marker
