@@ -31,7 +31,7 @@ This engine drives `anthropics/claude-code-action@v1` running the **`code-review
 
 ## § Tool invocations
 
-- `./tools/find_claude_comments.sh <PR_NUMBER>` — probes engine reachability (below), then synthesizes the contract-shape stream: `CLAUDE_CHECKRUN=... STATUS=<queued|in_progress|completed>` from the **Actions job** (latest run by `run_started_at` for the head SHA), `CLAUDE_LATEST_REVIEW=...` anchored on the summary-comment id (or newest head-SHA inline comment id if no summary), inline finding blocks each carrying the mandatory `(comment id <cid>, review <rid>)` token, and an optional legacy `CLAUDE_CLEAN_SIGNAL=...` (non-authoritative). May also emit `CLAUDE_NOT_INSTALLED=true` (reachability) or `CLAUDE_REVIEW_PENDING=...` (race guard).
+- `./tools/find_claude_comments.sh <PR_NUMBER>` — probes engine reachability (below), then synthesizes the contract-shape stream: `CLAUDE_CHECKRUN=... STATUS=<queued|in_progress|completed>` from the **Actions job** (latest run by `run_started_at` for the head SHA), `CLAUDE_LATEST_REVIEW=...` anchored on the summary-comment id (or newest head-SHA inline comment id if no summary), inline finding blocks each carrying the mandatory `(comment id <cid>, review <rid>)` token, **summary-BODY finding blocks** carrying `(comment id <cid>, review summary)` when the `## Code review` summary itself is findings-bearing (the C1 surface — see § calibration update — findings live in the SUMMARY BODY), and an optional legacy `CLAUDE_CLEAN_SIGNAL=...` (non-authoritative). May also emit `CLAUDE_NOT_INSTALLED=true` (reachability), `CLAUDE_DRAFT_NOOP=true` (draft PR — no review), or `CLAUDE_REVIEW_PENDING=...` (race guard).
 - `./tools/claude_retrigger.sh <PR_NUMBER>` — **fallback only.** Posts the hard-coded `@claude review once` comment. Pre-approvable in `~/.claude/settings.json`. See § Push-triggered model below — Phase 3 does NOT call this after a fix push.
 
 **Reachability probe (A2 / R4).** `find_claude_comments.sh` probes `gh api .../actions/workflows` for `claude-code-review.yml` by filename. If the workflow is absent it emits `CLAUDE_NOT_INSTALLED=true` and exits 0, so the orchestrator's default-engine resolution can **self-exclude** claude rather than poll an un-provisioned engine to HUNG.
@@ -40,13 +40,21 @@ This engine drives `anthropics/claude-code-action@v1` running the **`code-review
 
 ❌ **DON'T** treat `CLAUDE_NOT_INSTALLED=true` on an *explicit* `/review-loop <PR> claude` as a silent skip — it degrades **loudly**: hand back with a clear "claude action not installed (run `/install-github-app`)" message. Loud-not-silent is the contract.
 
-## § Push-triggered model — claude is NOT retriggered after a fix push (A7)
+## § Push-triggered for the FIRST review; EXPLICIT retrigger for every review after (A7 — CORRECTED, PR #169 self-dogfood)
 
-claude is a **push-triggered** engine. The `claude-code-review.yml` action auto-runs on every push (`synchronize`), so **a fix push IS the retrigger**.
+The `claude-code-review.yml` action auto-runs on every push (`synchronize`), **but the `code-review` plugin skips the auto-run once claude has already posted a review on the PR** — it posts a `## Code review\n\nSkipping review — Claude has already posted a code review comment` no-op instead of a fresh review. So the push is the retrigger **only for the first review**:
 
-✅ **DO** let Phase 3's fix push trigger the next claude run implicitly; `find_claude_comments.sh` picks up the `synchronize` auto-run.
+- The **push auto-run produces a real review ONLY the first time** claude sees the ready PR (any push before claude has commented). 
+- Every **subsequent push auto-SKIPS** → no fresh verdict (a "Skipping review …" no-op, caught by `CLAUDE_NOOP_PATTERNS`). Verified PR #169: pushes `06b3a3b` + `16e6dd4` both skip-no-op'd after the first review on `7399749`.
+- An **explicit `@claude review`** (`claude_retrigger.sh`) **overrides the skip and forces a fresh review.** Verified PR #169: the explicit retrigger produced a full 3-minute review where the two prior pushes had skipped. Note the explicit path posts in the **@-mention / task format** ("Claude finished @user's task … ### Code Review …") — a different shape than the auto "## Code review" summary; the catch-everything classifier (§ Review-state + clean detection) handles both.
 
-❌ **DON'T** fire `claude_retrigger.sh` after a Phase-3 fix push. The push already triggered the action; an explicit `@claude review once` on the same head SHA double-runs it and creates a "which run is authoritative" race. The retrigger script exists for ONE case only: the zero-activity bootstrap where `find_claude_comments.sh` finds **no Actions run at all** for the head SHA (the auto-run never fired — fresh PR, just-installed workflow).
+✅ **DO** let the **FIRST** claude review come from the push / un-draft auto-run (no explicit retrigger needed before claude has commented).
+
+✅ **DO** fire `claude_retrigger.sh` after a Phase-3 fix push **once claude has already reviewed the PR** — the push auto-run will skip, so the explicit `@claude review` is the only thing that gets a fresh verdict on the fix. **This REVERSES the prior "the push IS the retrigger, don't double-fire" guidance, which was wrong for the 2nd+ review** (the feared double-run race doesn't occur: the auto-run skips, so the explicit retrigger is the sole review).
+
+❌ **DON'T** expect a fix push alone to re-review after claude's first comment — it skip-no-ops, and the loop will read the stale prior verdict (or a no-op) until you explicitly retrigger.
+
+The retrigger script also covers the **zero-activity bootstrap**: no Actions run at all for the head SHA (fresh PR / just-installed workflow).
 
 **Dedup.** `find_claude_comments.sh` always selects the **latest Actions run by `run_started_at`** + the newest summary comment for the head SHA, so any auto-run / fallback overlap collapses to one authoritative signal.
 
@@ -86,7 +94,7 @@ The legacy `CLAUDE_CLEAN_SIGNAL` line is corroboration only; the orchestrator de
 
 ## § Staleness rule
 
-Keyed on **comment ids** (synthesized anchor), not a review id. `CLAUDE_LATEST_REVIEW` = the summary-comment id, or the newest head-SHA inline comment id when no summary exists. Each inline finding carries `(comment id <cid>, review <rid>)`; whether the inline comments share a single `pull_request_review_id` is **unconfirmed** (Q1, § first-run calibration) — the anchor keys on the comment id either way, so the rule is safe regardless. When `<rid>` is null/absent the orchestrator tolerates an empty review token for comment-anchored engines.
+Keyed on **comment ids** (synthesized anchor), not a review id. `CLAUDE_LATEST_REVIEW` = the summary-comment id, or the newest head-SHA inline comment id when no summary exists. Each inline finding carries `(comment id <cid>, review <rid>)`; whether the inline comments share a single `pull_request_review_id` is **unconfirmed** (Q1, § residual open questions) — the anchor keys on the comment id either way, so the rule is safe regardless. When `<rid>` is null/absent the orchestrator tolerates an empty review token for comment-anchored engines.
 
 ## § Race-condition caveats
 
@@ -120,7 +128,7 @@ Settle age is computed in Python `datetime` (cross-platform), never `date -d`.
 
 ## § Common patterns (codified Tier 1)
 
-The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). No claude-specific deltas at present; claude's behavioural quirks live in § Review-state + clean detection and § Race-condition caveats above. (claude's severity stamp + comment-body markers are unconfirmed — see § first-run calibration; codify deltas here once a findings-bearing review lands.)
+The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). No claude-specific deltas at present; claude's behavioural quirks live in § Review-state + clean detection and § Race-condition caveats above. (claude's comment-body finding markers are now calibrated — see § calibration update — findings live in the SUMMARY BODY; the severity stamp on a summary-body finding is a heuristic, re-triaged by the loop.)
 
 ## § Review-state gate
 
@@ -137,20 +145,21 @@ Two runs on the SAME commit, non-draft, settled the open questions:
 
 **Net engine capability (action + `code-review` plugin):** posts **findings** reliably; never posts a **positive clean verdict** — a clean PR reads SILENT (correctly held non-clean by the detection, so SAFE, but never a green "claude says clean"). Consequence for the loop: claude contributes findings; it cannot be the source of a CLEAN signal. **For a reliable clean verdict, the managed Claude Code Review App** (named check-run, verdict independent of the comment buffer) **remains the robust-mode answer** — IDEA-012 stays open on this.
 
-## § first-run calibration — status after the PR #167 dogfood (2026-06-02, SUPERSEDED by the block above on identity + posting)
+## § calibration update — findings live in the SUMMARY BODY (downstream, 2026-06-03)
 
-Calibrated against claude-code-action run `26834423838` (model `claude-sonnet-4-6`), a **clean** run (logged "No buffered inline comments").
+The first *high-volume* findings-bearing run (13 `claude[bot]` summary comments across a long iteration) exposed that the prior "findings = inline comments + a short summary" model **undercounts where claude puts findings**. CALIBRATED against the real bodies; the adapter (`find_claude_comments.sh`) was fixed to match (the **C1** fix). Corrections (the last two added by the PR #169 self-dogfood — running this engine on the PR that ships C1):
 
-**✅ CONFIRMED:**
-- **Q1 (identity)** — ⚠️ SUPERSEDED. The dogfood concluded `github-actions[bot]`, but that run posted no claude content; a later findings-bearing run (non-draft) proved the posting identity is **`claude[bot]`**. `CLAUDE_LOGINS` covers both, so detection held. See § Identity for the correction. Inline detection is login-only; summary stays BOTH-AND.
-- **Q3 (`actions: read`)** — the local `gh` auth reads `actions/workflows/claude-code-review.yml/runs` fine; `CLAUDE_CHECKRUN` synthesizes correctly. No workflow change needed.
-- **Posting model** — the action posts ONLY buffered inline comments (synchronously, in-job); there is **no summary comment**. Clean = **zero head-SHA inline comments** (the A6 zero-inline arm). The summary-substring arm is dead backup. Settle window cut to 180s (in-job synchronous posting).
+- **Findings often post ONLY in the summary BODY, not inline.** claude's convention findings (CLAUDE.md docstring violations) and cross-file findings it can't line-anchor (privilege-escalation spanning a form + a view) are written as a structured report **inside the `claude[bot]` "## Code review" issue-comment body** — `### Bugs / Security`, `#### 1. …`, `### CLAUDE.md compliance / Docstrings missing …` — with **zero inline comments**. The old adapter only read the summary body for the clean substring, never surfaced its findings → claude's convention review was **invisible to the loop** (the user surfaced ~6 URL + ~30 docstring findings by hand). Fix: the adapter now surfaces a findings-bearing summary body as a finding block carrying `(comment id <cid>, review summary)`.
+- **The summary heading is literally `## Code review` (space), which the old `code-review` (hyphen) signature did NOT match** → the whole summary was unrecognized. Signature widened to `code[ -]?review`.
+- **Clean is WHOLE-REVIEW, not substring-anywhere.** claude clears sections independently: a single review says **"Bugs: No issues found."** in one section AND lists **"Docstrings missing"** in another. A bare `'no issues found' in body` test **false-cleans** that mixed review (the dangerous direction). Clean requires a positive clean phrase (`no issues/bugs/problems found`) AND the **absence of any finding marker** (structural, not security-keyword: a genuinely-clean review NAMES the concepts it checked, e.g. *"the privilege-escalation guard looks correct"*, so `privilege`/`escalation` as markers false-positive on clean prose). Re-validated against all 13 downstream bodies (2026-06-03): **3 NOOP, 9 FINDINGS** (incl. every mixed clean-bugs-but-dirty-compliance review), **1 CLEAN** (the final whole-review verdict) — **zero false-cleans** (the PR body's "2 NOOP / 10" was an off-by-one miscount; all three `Skipped` bodies are genuine no-ops).
+- **No-op skip bodies must be filtered — ANCHORED.** claude posts `## Code review\n\nSkipped — …draft status` and `## Code review\n\nSkipped: …already reviewed this PR` issue comments that match the signature but are **not verdicts**. Anchored to the heading-then-`Skipped` shape (`^##\s+code[ -]?review\s*\n+\s*skipped`, `re.MULTILINE`) — **not** a bare search-anywhere — so a real findings body whose *prose* merely says "already reviewed in PR #N but regressed" is not false-filtered (PR #169 self-dogfood caught the old unanchored `already (posted|reviewed)` arm dropping exactly that — claude's finding body literally contained "already reviewed").
+- **Surface is CATCH-EVERYTHING, marker-INDEPENDENT (PR #169 self-dogfood).** Review format is **non-deterministic** — count-line ("One issue found.") + ``### `file` `` headers in one run, `#### 1.` numbered + `### Bugs` sections in another, future runs may differ again. So the adapter does **not** require a matched marker to surface findings: a posted, non-no-op summary is **either provably-clean OR surfaced-as-findings** (`findings = posted ∧ ¬clean`). Markers now only gate the *clean* determination + severity. An unseen future finding shape therefore can never read SILENT. (The dogfood: claude posted "One issue found." under ``### `file` `` while reviewing this adapter; the marker-only logic read SILENT and dropped it — the inversion + anchored no-op are the fix.)
 
-**⚠️ The PR #167 calibration run's "clean" was MISLEADING (corrected after the downstream validation).** That run executed with a `pull-requests: read` workflow — read-only **cannot post review comments**. It happened to be clean (nothing to flag), so the missing post capability didn't show. **Read-only does not mean "claude reviews fine and posts nothing"; it means a findings-bearing run would have found issues and SILENTLY FAILED TO POST them → a false CLEAN.** The fix is `pull-requests: write` + `issues: write` (see § Identity + onboarding reference). Never calibrate "clean" off a read-only run.
+This does **not** change the net capability above: claude still posts findings reliably and never a positive clean verdict (a fully-clean tree still reads SILENT — the forced-summary prompt doesn't fire on a short-circuit clean run). The C1 fix only stops claude's *findings* — when they exist and live in the body — from being silently dropped.
 
-**✅ Findings-bearing validation (downstream, write perms):** a complex code PR ran the 3-engine loop with the write-perm workflow. Claude validated past the action's anti-tampering guard, ran with posting rights, and returned a genuine clean on the (already-fixed) diff — confirming the run no longer ERRORs under write perms. (A run that ERRORs vs one that genuinely-cleans is the distinction read-only obscured.)
+## § residual open questions (post-downstream calibration)
 
-**⏳ STILL PENDING a findings-bearing review that actually posts:**
-- **Q1 (shared review id)** — whether inline findings share a `pull_request_review_id` is still unobserved (no run has posted a finding yet). The anchor keys on comment id either way, so safe; confirm when claude first posts.
-- **`CLAUDE_BODY_SIGNATURES` wording** — only matters for the (currently-dead) summary arm now that inline is login-only; lock it if/when a summary comment ever appears.
-- **Q2 (`@claude review once` via the action path)** — not exercised: the action auto-ran on push, so the fallback retrigger was never needed. Confirm the fallback works if a future PR's auto-run fails to fire; else use the commented `@claude /code-review:code-review …` fallback in `claude_retrigger.sh`.
+The §131 + §140 downstream blocks supersede the PR #167 first-run calibration — identity (`github-actions[bot]` → **`claude[bot]`**), the dead "zero-inline-only, no summary" posting model, and `CLAUDE_BODY_SIGNATURES` wording are all now confirmed. Two items survive it:
+
+- **Never calibrate "clean" off a read-only (`pull-requests: read`) run.** The PR #167 run read clean only because it had nothing to flag; read-only silently **cannot post**, so a *findings-bearing* read-only run would fail to post → false CLEAN. Fix is `pull-requests: write` + `issues: write` (§ Identity + onboarding reference).
+- **Still open:** **Q2** — the `claude_retrigger.sh` `@claude review once` fallback is unexercised (the action auto-runs on push); confirm if a future auto-run fails to fire. **Q1** — whether inline findings share a `pull_request_review_id` is unobserved; the anchor keys on comment id either way (§ Staleness), so safe regardless.

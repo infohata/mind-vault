@@ -106,6 +106,43 @@ The contract lives entirely below the public API of the preview-surface store (`
 
 That's it. Three additive lines per new surface; no protocol changes.
 
+## Template hrefs use `{% url %}`; only the JS-consumed map stays literal
+
+Two URL surfaces coexist in this architecture, and the convention differs by surface — getting it
+backwards is a recurring review-bot finding:
+
+- **Django-template hrefs → `{% url %}`.** A list-row preview link / edit affordance rendered by a
+  Django template uses the named-route tag against the **fragment route**, not a hand-typed path:
+
+  ```django
+  <a href="{% url 'kb:category_form_fragment' category.pk %}"
+     data-preview-link data-preview-type="category-edit"
+     data-preview-identifier="{{ category.pk }}">{{ category.name }}</a>
+  ```
+
+  `{% url %}` is correct here because the template renders server-side where `reverse()` is available;
+  a literal path silently rots when the URLconf changes and bypasses the route-name indirection the
+  rest of the app relies on.
+
+- **The JS-consumed pattern map (`URL_PATTERN_BY_TYPE`) stays literal** — and ONLY that map. It's read
+  by `preview_surface.js` for cold-start / popstate URL derivation where there is **no `reverse()`**
+  (it's a browser-side string-template lookup, `'{id}'`-substituted in JS). That's the single
+  documented exception, not a general "shell hrefs are literal" rule.
+
+**The mis-stated lesson to unlearn:** "shell/preview hrefs must be literal, never `{% url %}`." That
+came from a real bug — a preview link pointed at the WRONG route (`*_update`, which 302s to a full page
+instead of returning the fragment) — but the defect was the *wrong route name*, not the `{% url %}` tag.
+`{% url 'app:entity_form_fragment' pk %}` (correct route) and the literal `/entity/ui/form/<pk>/` render
+**byte-identical**, so the tag was never the problem. Use `{% url %}` on the fragment route in templates;
+keep only `URL_PATTERN_BY_TYPE` literal. (Meta-lesson: when a note conflicts with the canonical
+working pattern, the guide, AND green tests, fix the note — *working code wins against ceremony*.)
+
+**Caveat for tests:** because `{% url %}` and the matching literal render byte-identical, an affordance
+unit test asserting the literal `/entity/ui/form/<pk>/` string passes under BOTH forms — neither unit
+nor e2e can distinguish `{% url %}` from a literal href. This convention is therefore **not
+test-verifiable**; the guide/convention is the authority, and a review finding on it must be argued from
+the convention, not from a failing test.
+
 ## Bookmark-survival invariant
 
 The surface URL (`/articles/`) MUST stay name-stable across the migration — same URL, same name, new view body. Bookmarks against the legacy detail URL (`/articles/<pk>/`) get a 302 to `/articles/?open=article.<pk>` (same shell, drawer pre-opened). The redirect is callable-only; the legacy view body retires in a later cleanup IDEA. Without this invariant, every saved bookmark breaks at migration.

@@ -153,8 +153,17 @@ To add a new engine (e.g. CodeRabbit, a hypothetical new vendor):
 
 `SKILL.md` itself processes engines from the `ENGINES` argument generically and does not enumerate them by name in code — adding a new engine does not require structural changes to the orchestrator's phase logic. The "no changes required" applies to the orchestrator's algorithmic surface; the user-facing engine list lives in `commands/review-loop.md` so it can document what the user can pass.
 
+## Calibration discipline (how to get an adapter's clean/findings split right)
+
+A review engine's posted output is **not a stable, documented format** — it is model-generated prose that varies run to run (claude alone posts findings as "One issue found." + ``### `file` `` headers, as `#### 1.` numbered sections, and as mixed "Bugs: no issues / Docstrings: missing" reviews; no-ops as both "Skipped …" and "Skipping …"). Three rules keep an adapter's classifier safe under that non-determinism — learned the hard way dogfooding the claude adapter on the PR that shipped it (mind-vault #169):
+
+1. **Surface is catch-everything, marker-INDEPENDENT.** Decide *findings* as `posted ∧ ¬provably-clean`, NOT `matched a known finding-marker`. A posted, non-no-op review is therefore ALWAYS either provably-clean (a positive clean phrase AND no finding marker — the mixed-review guard) or surfaced-as-findings. Markers may inform the *clean* determination and severity, but must never be the *sole* gate that decides whether to surface — an unseen future finding format would then read as SILENT/clean, the one unsafe direction. Over-surfacing a clean-but-novel-phrased review is the safe failure (the loop reads it and resolves); dropping a findings review is not.
+2. **Dogfood the adapter on a PR that exercises its own finding-shape.** A synthetic/unit test feeds the adapter *your* assumed format and passes; only a live review on a real PR posts the shapes you didn't anticipate. Running the engine on the very PR that changes its adapter is the highest-yield test (it caught five real calibration bugs in one pass for claude).
+3. **Validate against the full real corpus, not the count a summary claims.** When calibration cites "N NOOP / M FINDINGS" from a source PR, re-run the classifier over *every* body in that PR's intact review history (`gh api repos/<owner>/<repo>/issues/<N>/comments`) and confirm the split + **zero false-cleans / zero false-SILENT** yourself — the cited count can be an off-by-one (the claude calibration's "2 NOOP" was really 3).
+
 ## Anti-patterns
 
+- ❌ Surfacing findings ONLY when a known finding-marker matches. Engine output format is non-deterministic; a marker list always lags a new format → false-SILENT (findings dropped). Default to surface-unless-provably-clean (§ Calibration discipline).
 - ❌ Adapter writes directly to the orchestrator's scratch file. The orchestrator owns scratch; adapters expose stdout shape only.
 - ❌ Engine-specific decision-tree branches in the orchestrator. If an engine needs special-case handling, lift it into the adapter contract (e.g. service-error retry-budget) or hand back to the user.
 - ❌ Cross-engine knowledge in an adapter (e.g. bugbot's adapter referencing copilot's check-run name). Each adapter is self-contained; cross-engine coordination lives in `multi-engine-sync.md` and the orchestrator.
