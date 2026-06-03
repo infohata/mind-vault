@@ -10,6 +10,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.6.3 — ci: bump actions/checkout v4 → v6 in the claude review workflows
+
+Patch release. Bumps `actions/checkout@v4 → v6` in the two claude-review workflow files — both the **asset templates** (`skills/review-loop/assets/claude.yml`, `claude-code-review.yml`) that projects port from, and mind-vault's **own live workflows** (`.github/workflows/`), which dogfood the engine. Keeps the canonical templates current with the deployed downstream version (where the same bump just landed) so future ports don't ship a stale v4. (2026-06-04)
+
+### Changed
+
+- **`actions/checkout@v4 → v6`** in `skills/review-loop/assets/claude.yml`, `skills/review-loop/assets/claude-code-review.yml`, `.github/workflows/claude.yml`, `.github/workflows/claude-code-review.yml`. ⚠️ Because the Claude review App validates the live workflow byte-for-byte against the default branch, **this PR's own `claude-review` check fails by design** (the PR head no longer matches the current `main` baseline — the documented anti-tampering bootstrap, whose 401 says "this is normal and you should ignore this error"). Safe to merge through; `main` becomes the new v6 baseline on merge.
+
 ## v4.6.2 — compound: claude-engine summary-body findings (C1) + taxonomy-shell review patterns
 
 Patch release (compound of a downstream KB-taxonomy-shell-migration PR's review loop). Headline is the **C1 claude-engine fix**: the adapter only parsed inline comments + a clean-substring, so claude's `## Code review` summary-BODY findings (CLAUDE.md convention violations, cross-file security notes it can't line-anchor) were **invisible to the loop** — calibrated and fixed against 13 real `claude[bot]` summary bodies on one PR. The other five are reference additions/corrections surfaced by the same loop. (2026-06-03)
