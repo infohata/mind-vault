@@ -86,7 +86,7 @@ The legacy `CLAUDE_CLEAN_SIGNAL` line is corroboration only; the orchestrator de
 
 ## § Staleness rule
 
-Keyed on **comment ids** (synthesized anchor), not a review id. `CLAUDE_LATEST_REVIEW` = the summary-comment id, or the newest head-SHA inline comment id when no summary exists. Each inline finding carries `(comment id <cid>, review <rid>)`; whether the inline comments share a single `pull_request_review_id` is **unconfirmed** (Q1, § first-run calibration) — the anchor keys on the comment id either way, so the rule is safe regardless. When `<rid>` is null/absent the orchestrator tolerates an empty review token for comment-anchored engines.
+Keyed on **comment ids** (synthesized anchor), not a review id. `CLAUDE_LATEST_REVIEW` = the summary-comment id, or the newest head-SHA inline comment id when no summary exists. Each inline finding carries `(comment id <cid>, review <rid>)`; whether the inline comments share a single `pull_request_review_id` is **unconfirmed** (Q1, § residual open questions) — the anchor keys on the comment id either way, so the rule is safe regardless. When `<rid>` is null/absent the orchestrator tolerates an empty review token for comment-anchored engines.
 
 ## § Race-condition caveats
 
@@ -120,7 +120,7 @@ Settle age is computed in Python `datetime` (cross-platform), never `date -d`.
 
 ## § Common patterns (codified Tier 1)
 
-The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). No claude-specific deltas at present; claude's behavioural quirks live in § Review-state + clean detection and § Race-condition caveats above. (claude's severity stamp + comment-body markers are unconfirmed — see § first-run calibration; codify deltas here once a findings-bearing review lands.)
+The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). No claude-specific deltas at present; claude's behavioural quirks live in § Review-state + clean detection and § Race-condition caveats above. (claude's comment-body finding markers are now calibrated — see § calibration update — findings live in the SUMMARY BODY; the severity stamp on a summary-body finding is a heuristic, re-triaged by the loop.)
 
 ## § Review-state gate
 
@@ -148,20 +148,9 @@ The first *high-volume* findings-bearing run (13 `claude[bot]` summary comments 
 
 This does **not** change the net capability above: claude still posts findings reliably and never a positive clean verdict (a fully-clean tree still reads SILENT — the forced-summary prompt doesn't fire on a short-circuit clean run). The C1 fix only stops claude's *findings* — when they exist and live in the body — from being silently dropped.
 
-## § first-run calibration — status after the PR #167 dogfood (2026-06-02, SUPERSEDED by the block above on identity + posting)
+## § residual open questions (post-downstream calibration)
 
-Calibrated against claude-code-action run `26834423838` (model `claude-sonnet-4-6`), a **clean** run (logged "No buffered inline comments").
+The §131 + §140 downstream blocks supersede the PR #167 first-run calibration — identity (`github-actions[bot]` → **`claude[bot]`**), the dead "zero-inline-only, no summary" posting model, and `CLAUDE_BODY_SIGNATURES` wording are all now confirmed. Two items survive it:
 
-**✅ CONFIRMED:**
-- **Q1 (identity)** — ⚠️ SUPERSEDED. The dogfood concluded `github-actions[bot]`, but that run posted no claude content; a later findings-bearing run (non-draft) proved the posting identity is **`claude[bot]`**. `CLAUDE_LOGINS` covers both, so detection held. See § Identity for the correction. Inline detection is login-only; summary stays BOTH-AND.
-- **Q3 (`actions: read`)** — the local `gh` auth reads `actions/workflows/claude-code-review.yml/runs` fine; `CLAUDE_CHECKRUN` synthesizes correctly. No workflow change needed.
-- **Posting model** — the action posts ONLY buffered inline comments (synchronously, in-job); there is **no summary comment**. Clean = **zero head-SHA inline comments** (the A6 zero-inline arm). The summary-substring arm is dead backup. Settle window cut to 180s (in-job synchronous posting).
-
-**⚠️ The PR #167 calibration run's "clean" was MISLEADING (corrected after the downstream validation).** That run executed with a `pull-requests: read` workflow — read-only **cannot post review comments**. It happened to be clean (nothing to flag), so the missing post capability didn't show. **Read-only does not mean "claude reviews fine and posts nothing"; it means a findings-bearing run would have found issues and SILENTLY FAILED TO POST them → a false CLEAN.** The fix is `pull-requests: write` + `issues: write` (see § Identity + onboarding reference). Never calibrate "clean" off a read-only run.
-
-**✅ Findings-bearing validation (downstream, write perms):** a complex code PR ran the 3-engine loop with the write-perm workflow. Claude validated past the action's anti-tampering guard, ran with posting rights, and returned a genuine clean on the (already-fixed) diff — confirming the run no longer ERRORs under write perms. (A run that ERRORs vs one that genuinely-cleans is the distinction read-only obscured.)
-
-**⏳ STILL PENDING a findings-bearing review that actually posts:**
-- **Q1 (shared review id)** — whether inline findings share a `pull_request_review_id` is still unobserved (no run has posted a finding yet). The anchor keys on comment id either way, so safe; confirm when claude first posts.
-- **`CLAUDE_BODY_SIGNATURES` wording** — only matters for the (currently-dead) summary arm now that inline is login-only; lock it if/when a summary comment ever appears.
-- **Q2 (`@claude review once` via the action path)** — not exercised: the action auto-ran on push, so the fallback retrigger was never needed. Confirm the fallback works if a future PR's auto-run fails to fire; else use the commented `@claude /code-review:code-review …` fallback in `claude_retrigger.sh`.
+- **Never calibrate "clean" off a read-only (`pull-requests: read`) run.** The PR #167 run read clean only because it had nothing to flag; read-only silently **cannot post**, so a *findings-bearing* read-only run would fail to post → false CLEAN. Fix is `pull-requests: write` + `issues: write` (§ Identity + onboarding reference).
+- **Still open:** **Q2** — the `claude_retrigger.sh` `@claude review once` fallback is unexercised (the action auto-runs on push); confirm if a future auto-run fails to fire. **Q1** — whether inline findings share a `pull_request_review_id` is unobserved; the anchor keys on comment id either way (§ Staleness), so safe regardless.
