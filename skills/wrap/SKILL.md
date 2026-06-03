@@ -367,7 +367,7 @@ Commit the documentation edits on the same branch that carries the IDEA-completi
 - **Pre-merge mode** — the feature branch (`auto/<slug>` in sprint-auto, or whatever feature branch the work has been happening on). All wrap commits ride into the merge together.
 - **Post-merge fallback** — a fresh `docs/idea-NNN-wrap` branch off `origin/main` (matches the `/compound` branch-or-extend decision tree).
 
-If Step 6b fires next, its whole-README audit patches **and** the `wrap:readme-currency-audited` marker must land on this same branch (the marker contract in [`references/README_CURRENCY.md`](references/README_CURRENCY.md) requires *marker present ⟺ audit ran on this ref*) — so either defer this commit until after 6b, or land 6b's patches + marker as a follow-on commit on the same branch. Don't merge before 6b runs.
+If Step 6b fires next, its whole-README audit patches **and** the `wrap:readme-currency-audited` marker must land on this same branch (the marker contract in [`references/README_CURRENCY.md`](references/README_CURRENCY.md) requires *marker present ⟺ audit ran on this ref*) — so either defer this commit until after 6b, or land 6b's patches + marker as a follow-on commit on the same branch. Don't merge until Step 6b has either fired (patches + marker landed) or skipped per its gates below — just don't pre-empt a fire by merging first.
 
 ### Step 6b — Whole-README currency audit (staleness-gated, conditional)
 
