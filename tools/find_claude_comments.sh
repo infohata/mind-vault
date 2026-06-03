@@ -299,14 +299,16 @@ export CLAUDE_CLEAN_PATTERNS='no issues found|no bugs found|no problems found|no
 # default is what makes an unseen 3rd format safe.)
 export CLAUDE_FINDING_MARKERS='missing|violation|❌|#### |### [0-9]|### `|[0-9]+ (issue|bug|problem|finding)s? found|(one|two|three|four|five|six|seven|eight|nine|ten) (issue|bug|problem|finding)s? found'
 # Signature-matching bodies that are claude NO-OPs, never verdicts. Anchored to the
-# skip-preamble SHAPE — the "## Code review" heading immediately followed by "Skipped …"
-# — matched with re.MULTILINE so `^` is a line start. This catches the observed variants
-# ("Skipped — draft status", "Skipped: already reviewed this PR") WITHOUT a bare
-# search-anywhere arm: PR #169 self-dogfood flagged that the old loose `already (posted|
-# reviewed)` arm would false-no-op a REAL findings body whose prose merely says "already
-# reviewed in PR #X but regressed" → findings silently dropped (the unsafe direction).
-# The heading-anchored "Skipped" shape covers every real no-op; the loose arm is gone.
-export CLAUDE_NOOP_PATTERNS='^##\s+code[ -]?review\s*\n+\s*skipped'
+# skip-preamble SHAPE — the "## Code review" heading immediately followed by skip prose —
+# matched with re.MULTILINE so `^` is a line start. claude phrases the skip BOTH ways:
+# past-tense "Skipped — draft status" / "Skipped: already reviewed this PR" (teisutis #516)
+# AND gerund "Skipping review: already posted a code review comment" (mind-vault #169) —
+# so the verb arm is `skipp(ed|ing)`. Anchoring (vs a bare search-anywhere) is deliberate:
+# PR #169 self-dogfood flagged that a loose `already (posted|reviewed)` arm would
+# false-no-op a REAL findings body whose prose merely says "already reviewed in PR #X but
+# regressed" → findings silently dropped (the unsafe direction). The heading-anchored
+# skip shape covers every observed no-op without that risk.
+export CLAUDE_NOOP_PATTERNS='^##\s+code[ -]?review\s*\n+\s*skipp(ed|ing)'
 
 # ------------------------------------------------------------------------------
 # Pass 1 — Review-state from the Actions job (A7/R2): synthesize CLAUDE_CHECKRUN
