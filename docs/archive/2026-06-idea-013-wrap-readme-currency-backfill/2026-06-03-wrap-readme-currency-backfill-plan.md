@@ -131,10 +131,12 @@ that partial edit and **never fire on the very case that motivates this IDEA**.
 - **D2 — Default N = 5, overridable.** Optional per-project hint block (see D4)
   may set `N`. Absent → 5. Count source is a **server-side date-filtered query**
   (architect 4.1), not the enumerate-then-filter recipe Step 4 uses for backfill:
-  `gh pr list --state merged --base <base> --search "merged:>YYYY-MM-DD" --json
-  number --jq 'length'`, keyed on the marker date. No client-side `--limit` cap to
-  couple a display limit to gate correctness; squash-merge-friendly (`git log`
-  alone misses squash merges).
+  `gh pr list --state merged --base <base> --limit "$N" --search
+  "merged:>YYYY-MM-DD" --json number --jq 'length'`, keyed on the marker date. As
+  shipped, `--limit "$N"` caps the query at the threshold itself (`length == N` ⇔
+  ≥N merged) — sidesteps `gh pr list`'s 30-row default page size *and* keeps the
+  gate correct for any hint-overridden `N`; squash-merge-friendly (`git log` alone
+  misses squash merges).
 - **D2a — `gh`-unavailable fallback: calendar staleness** (architect 4.2, R9). If
   `gh pr list` errors (no auth / non-GitHub remote), fall back to a zero-network
   signal: audit if marker absent OR marker date older than a calendar threshold

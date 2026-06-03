@@ -10,7 +10,7 @@ staleness threshold and patches mechanical drift in-wrap.
 
 Step 6b runs **after** Step 6's per-identifier loop, gated three ways:
 
-1. **Scope** — eligible under `--scope=docs` / `full`; **skipped under
+1. **Scope** — eligible under `--scope=docs` / `--scope=full`; **skipped under
    `--scope=idea-only`** (per-IDEA sprint-auto wraps; the batch wrap is the audit
    point — see *Sprint-auto asymmetry*).
 2. **Staleness** — count merged PRs on the base branch since the last
@@ -27,15 +27,17 @@ sidesteps `gh pr list`'s 30-row default page size entirely — no large-cap
 guessing, correct for any overridden `N`:
 
 ```bash
+FIRE=0                                        # init: default skip; a branch below sets 1 only when stale
+N=$(grep -oE 'N:[[:space:]]*[0-9]+' README.md | head -1 | grep -oE '[0-9]+'); N=${N:-5}  # hint-block override, else 5
 MARKER_DATE=$(grep -oE 'wrap:readme-currency-audited [0-9]{4}-[0-9]{2}-[0-9]{2}' README.md | awk '{print $2}')
 BASE=$(gh pr view --json baseRefName --jq .baseRefName 2>/dev/null || echo main)
 if [ -z "$MARKER_DATE" ]; then
     FIRE=1                                   # no marker → stale
 elif [ "$MARKER_DATE" \> "$(date +%F)" ]; then
     FIRE=1                                   # future-dated / clock-skewed → stale
-elif COUNT=$(gh pr list --state merged --base "$BASE" --limit "${N:-5}" \
+elif COUNT=$(gh pr list --state merged --base "$BASE" --limit "$N" \
         --search "merged:>$MARKER_DATE" --json number --jq 'length' 2>/dev/null); then
-    [ "$COUNT" -ge "${N:-5}" ] && FIRE=1     # cap query at N: length==N ⇔ ≥N merged (no paging guesswork)
+    [ "$COUNT" -ge "$N" ] && FIRE=1          # cap query at N: length==N ⇔ ≥N merged (no paging guesswork)
 elif command -v python3 >/dev/null 2>&1; then
     # gh unavailable → calendar fallback (zero network). Age in days via Python
     # datetime (cross-platform), never `date -d` (GNU-only; fails on BSD/macOS).
