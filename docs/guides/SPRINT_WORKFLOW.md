@@ -8,9 +8,9 @@ flowchart LR
     I1(["/idea — capture"]) --> P
     P(["/plan · /brainstorm — what + how"]) --> W
     W(["/work — execute"]) --> RD
-    RD(["review-loop — deliverables\n+ curator · architect"]) --> WR
+    RD(["/review-loop — deliverables\n+ curator · architect"]) --> WR
     WR(["/wrap — finalize docs\n(pre-merge)"]) --> RR
-    RR(["review-loop — docs"]) --> C
+    RR(["/review-loop — docs"]) --> C
     C(["/compound — router"]) -.promotes.-> V[("mind-vault\nskills · rules · agents\ncommands · memory")]
     C -.next sprint.-> I1
 ```

@@ -33,8 +33,10 @@ elif COUNT=$(gh pr list --state merged --base "$BASE" \
         --search "merged:>$MARKER_DATE" --json number --jq 'length' 2>/dev/null); then
     [ "$COUNT" -ge "${N:-5}" ] && FIRE=1     # PR-count signal
 else
-    # gh unavailable → calendar fallback (zero network)
-    [ "$(( ($(date +%s) - $(date -d "$MARKER_DATE" +%s)) / 86400 ))" -ge 30 ] && FIRE=1
+    # gh unavailable → calendar fallback (zero network). Age in days via Python
+    # datetime (cross-platform), never `date -d` (GNU-only; fails on BSD/macOS).
+    AGE_DAYS=$(python3 -c "import datetime,sys; print((datetime.date.today()-datetime.date.fromisoformat(sys.argv[1])).days)" "$MARKER_DATE")
+    [ "$AGE_DAYS" -ge 30 ] && FIRE=1
 fi
 ```
 
