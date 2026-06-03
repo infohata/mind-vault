@@ -40,13 +40,21 @@ This engine drives `anthropics/claude-code-action@v1` running the **`code-review
 
 ❌ **DON'T** treat `CLAUDE_NOT_INSTALLED=true` on an *explicit* `/review-loop <PR> claude` as a silent skip — it degrades **loudly**: hand back with a clear "claude action not installed (run `/install-github-app`)" message. Loud-not-silent is the contract.
 
-## § Push-triggered model — claude is NOT retriggered after a fix push (A7)
+## § Push-triggered for the FIRST review; EXPLICIT retrigger for every review after (A7 — CORRECTED, PR #169 self-dogfood)
 
-claude is a **push-triggered** engine. The `claude-code-review.yml` action auto-runs on every push (`synchronize`), so **a fix push IS the retrigger**.
+The `claude-code-review.yml` action auto-runs on every push (`synchronize`), **but the `code-review` plugin skips the auto-run once claude has already posted a review on the PR** — it posts a `## Code review\n\nSkipping review — Claude has already posted a code review comment` no-op instead of a fresh review. So the push is the retrigger **only for the first review**:
 
-✅ **DO** let Phase 3's fix push trigger the next claude run implicitly; `find_claude_comments.sh` picks up the `synchronize` auto-run.
+- The **push auto-run produces a real review ONLY the first time** claude sees the ready PR (any push before claude has commented). 
+- Every **subsequent push auto-SKIPS** → no fresh verdict (a "Skipping review …" no-op, caught by `CLAUDE_NOOP_PATTERNS`). Verified PR #169: pushes `06b3a3b` + `16e6dd4` both skip-no-op'd after the first review on `7399749`.
+- An **explicit `@claude review`** (`claude_retrigger.sh`) **overrides the skip and forces a fresh review.** Verified PR #169: the explicit retrigger produced a full 3-minute review where the two prior pushes had skipped. Note the explicit path posts in the **@-mention / task format** ("Claude finished @user's task … ### Code Review …") — a different shape than the auto "## Code review" summary; the catch-everything classifier (§ Review-state + clean detection) handles both.
 
-❌ **DON'T** fire `claude_retrigger.sh` after a Phase-3 fix push. The push already triggered the action; an explicit `@claude review once` on the same head SHA double-runs it and creates a "which run is authoritative" race. The retrigger script exists for ONE case only: the zero-activity bootstrap where `find_claude_comments.sh` finds **no Actions run at all** for the head SHA (the auto-run never fired — fresh PR, just-installed workflow).
+✅ **DO** let the **FIRST** claude review come from the push / un-draft auto-run (no explicit retrigger needed before claude has commented).
+
+✅ **DO** fire `claude_retrigger.sh` after a Phase-3 fix push **once claude has already reviewed the PR** — the push auto-run will skip, so the explicit `@claude review` is the only thing that gets a fresh verdict on the fix. **This REVERSES the prior "the push IS the retrigger, don't double-fire" guidance, which was wrong for the 2nd+ review** (the feared double-run race doesn't occur: the auto-run skips, so the explicit retrigger is the sole review).
+
+❌ **DON'T** expect a fix push alone to re-review after claude's first comment — it skip-no-ops, and the loop will read the stale prior verdict (or a no-op) until you explicitly retrigger.
+
+The retrigger script also covers the **zero-activity bootstrap**: no Actions run at all for the head SHA (fresh PR / just-installed workflow).
 
 **Dedup.** `find_claude_comments.sh` always selects the **latest Actions run by `run_started_at`** + the newest summary comment for the head SHA, so any auto-run / fallback overlap collapses to one authoritative signal.
 

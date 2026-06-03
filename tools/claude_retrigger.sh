@@ -3,18 +3,18 @@
 # Usage: ./tools/claude_retrigger.sh [PR_NUMBER]
 #        ./tools/claude_retrigger.sh  # Uses current branch's PR
 #
-# ⚠️ FALLBACK ONLY — claude is a PUSH-TRIGGERED engine (architect A7 / R2).
-# The `claude-code-review.yml` action auto-runs on every push (`synchronize`),
-# so a fix push IS the retrigger. /review-loop's Phase 3 does NOT call this after
-# a fix push — doing so would double-run the action on one head SHA (the
-# synchronize auto-run + this explicit comment) and create a "which run is
-# authoritative" race. (find_claude_comments.sh dedups by selecting the latest
-# Actions run by run_started_at, but avoiding the double-run is cleaner.)
-#
-# This script exists for ONE case: the zero-activity bootstrap when
-# find_claude_comments.sh finds NO Actions run at all for the head SHA (e.g. the
-# auto-run never fired — fresh PR before the action settled, or a workflow that
-# was just installed). Then the loop posts this once to kick a review.
+# The push auto-run (`claude-code-review.yml` on `synchronize`) only produces a
+# review the FIRST time — the `code-review` plugin SKIPS the auto-run once claude
+# has already posted a review on the PR ("Skipping review — already posted …").
+# So this explicit `@claude review` is REQUIRED, not fallback-only, in two cases
+# (corrected PR #169 self-dogfood — see engine-claude.md § Push-triggered model):
+#   1. Phase-3 retrigger after a fix push, ONCE claude has already reviewed — the
+#      push will skip-no-op, so the explicit request is the only way to a fresh
+#      verdict on the fix. (No double-run race: the auto-run skips.)
+#   2. The zero-activity bootstrap — no Actions run at all for the head SHA (fresh
+#      PR before the action settled, or a just-installed workflow).
+# Before claude's first comment, the push/un-draft auto-run suffices — no need to
+# call this for the very first review.
 #
 # The body is hard-coded to "@claude review once" so Claude Code can pre-approve
 # this script in ~/.claude/settings.json without risk of arbitrary comment

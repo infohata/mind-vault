@@ -297,7 +297,7 @@ export CLAUDE_CLEAN_PATTERNS='no issues found|no bugs found|no problems found|no
 # in the SAFE direction now. (Format is non-deterministic — PR #169 posted "One issue
 # found." + "### `file`", downstream posted "#### 1." numbered; the catch-everything
 # default is what makes an unseen 3rd format safe.)
-export CLAUDE_FINDING_MARKERS='missing|violation|❌|#### |### [0-9]|### `|[0-9]+ (issue|bug|problem|finding)s? found|(one|two|three|four|five|six|seven|eight|nine|ten) (issue|bug|problem|finding)s? found'
+export CLAUDE_FINDING_MARKERS='\bmissing\b|\bviolation\b|❌|#### |### [0-9]|### `|[0-9]+ (issue|bug|problem|finding)s? found|(one|two|three|four|five|six|seven|eight|nine|ten) (issue|bug|problem|finding)s? found'
 # Signature-matching bodies that are claude NO-OPs, never verdicts. Anchored to the
 # skip-preamble SHAPE — the "## Code review" heading immediately followed by skip prose —
 # matched with re.MULTILINE so `^` is a line start. claude phrases the skip BOTH ways:
@@ -723,8 +723,13 @@ elif 'violation' in b or 'missing' in b or '⚠️' in body:
     severity, color = 'MEDIUM', '\033[1;33m'
 else:
     severity, color = 'INFO', ''
-m = re.search(r'^#{1,6}\s+(.+)$', body, re.MULTILINE)
-title = m.group(1).strip() if m else 'Claude summary review'
+# Title = first FINDING heading; skip the review-level heading whose text is just
+# Code review (constant across every summary — claude #169 F1). Fall back to any
+# heading, then a default. Handles both the auto and @-mention summary formats.
+# (NOTE: no double quotes in this -c block — they break the bash-wrapped python.)
+headings = re.findall(r'^#{1,6}\s+(.+)$', body, re.MULTILINE)
+finding_headings = [h.strip() for h in headings if not re.match(r'code[ -]?review\b', h.strip(), re.I)]
+title = (finding_headings or [h.strip() for h in headings] or ['Claude summary review'])[0]
 separator = '━' * 80
 print(f'{color}{separator}\033[0m')
 # Mandatory contract token — verbatim '(comment id <cid>, review summary)'.
