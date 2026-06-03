@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-_(none)_
+- [IDEA-013](IDEA-013-wrap-readme-currency-backfill.md) — Amend /wrap docs pass to audit + backfill the project's main README
 
 ## 💡 Low Priority (backlog)
 
