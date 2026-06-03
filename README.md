@@ -102,7 +102,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 
 ## Commands
 
-Slash commands surface from two sources via the host's symlink: `commands/` (7 review/PR/utility entries) and `skills/` (every skill with a `name:` frontmatter is invocable as `/<name>` per the skill-writer convention). The two groups below list the **sprint-workflow** + **automation** + **review/PR** entries — the most common surfaces. Engineering-pattern skills (`django`, `django-frontend`, `deployment`, `surgical-tdd`, `dependabot-triage`, `mobile-ux-polish`, `skill-writer`, `artefact-retrieval`) are also slash-invocable but typically activate via trigger-phrase rather than direct slash; see each skill's frontmatter.
+Slash commands surface from two sources via the host's symlink: `commands/` (6 review/PR/utility entries) and `skills/` (every skill with a `name:` frontmatter is invocable as `/<name>` per the skill-writer convention). The two groups below list the **sprint-workflow** + **automation** + **review/PR** entries — the most common surfaces. Engineering-pattern skills (`django`, `django-frontend`, `deployment`, `surgical-tdd`, `dependabot-triage`, `mobile-ux-polish`, `skill-writer`, `artefact-retrieval`) are also slash-invocable but typically activate via trigger-phrase rather than direct slash; see each skill's frontmatter.
 
 **Sprint workflow:** `/ideate`, `/idea`, `/plan` (alias `/brainstorm`), `/work`, `/wrap`, `/compound`, `/ingest-backlog`.
 

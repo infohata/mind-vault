@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-- [IDEA-013](../archive/2026-06-idea-013-wrap-readme-currency-backfill/IDEA-013-wrap-readme-currency-backfill.md) — Amend /wrap docs pass to audit + backfill the project's main README
+_(none)_
 
 ## 💡 High Priority (backlog)
 
@@ -25,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-013: Amend /wrap docs pass to audit + backfill the project's main README ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-06-03 · **See**: [Archive](../archive/2026-06-idea-013-wrap-readme-currency-backfill/IDEA-013-wrap-readme-currency-backfill.md), [PR #168](https://github.com/infohata/mind-vault/pull/168).
+Added `/wrap` **Step 6b — whole-README currency audit** (staleness-gated, `docs`/`full` scope only, skipped under `idea-only`): a `<!-- wrap:readme-currency-audited YYYY-MM-DD -->` marker anchors staleness (NOT file mtime, so Step-6 partial touches don't reset it); fires when ≥N (default 5) base-branch PRs merged since the last audit, with a `gh`-down calendar fallback (>30 days). Probes version framing (vs Step-4b `VER_SOURCE`), counts (vs filesystem globs, fail-loud on unknown shapes), feature-table completeness, and stale ⚠️ flags; findings inherit Step 6's patch-now-mechanical vs flag-follow-up dispositions. Logic lives in [`skills/wrap/references/README_CURRENCY.md`](../../skills/wrap/references/README_CURRENCY.md) (references-first). Also reconciled the **two-pass workflow ordering** (`work → review (deliverables) → wrap → review (docs) → compound`) as canonical across the headline surfaces (both mermaid diagrams, README/ONBOARDING glyphs, SPRINT_WORKFLOW stages). First dogfood landed in-branch (the audit found its own README's version-framing drift; this wrap's re-audit then caught a stale `commands/` count). Architect-reviewed (🟡 → 6 must-fixes folded). Extends [IDEA-008](../archive/2026-05-idea-008-wrap-doc-finalization-scope/IDEA-008-wrap-doc-finalization-scope.md) (`--scope` enum the audit respects) + [IDEA-003](../archive/2026-05-idea-003-version-tag-automation/IDEA-003-version-tag-automation.md) (Step-4b version-source detection the version-framing check aligns with).
 
 ### IDEA-012: Integrate Claude Code Review as a third review-loop engine ✅ COMPLETE
 

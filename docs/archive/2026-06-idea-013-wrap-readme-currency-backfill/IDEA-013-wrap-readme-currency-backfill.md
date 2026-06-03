@@ -1,14 +1,14 @@
 ---
 id: 013
 title: Amend /wrap docs pass to audit + backfill the project's main README
-status: in-progress   # idea | in-progress | complete | superseded
+status: complete   # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []
 superseded_by: null
 depends_on: []
 related: [3, 8, 12]
 created: 2026-06-03
-completed: null
+completed: 2026-06-03
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 auto_safe: false
@@ -19,7 +19,7 @@ sensitive_paths_cleared_reason: "Touches only skills/wrap/SKILL.md (+ possibly a
 
 # IDEA-013: Amend /wrap docs pass to audit + backfill the project's main README
 
-**Status**: 🚧 In Progress
+**Status**: ✅ Complete (2026-06-03)
 **Priority**: Medium
 
 **Problem** (or opportunity): `/wrap`'s Step 6 (downstream docs scan) only greps the main README for the **current IDEA's** changed identifiers (deleted symbols, renamed models, new make-targets). It never audits the README as a **whole** against current reality. So the main README accumulates silent drift across many IDEAs — version-highlight framing goes stale (mind-vault's README still frames "v4 highlights" at v4.6), skill/command/agent counts fall behind, feature/capability tables miss newer skills, and stability flags (e.g. the sprint-auto ⚠️) outlive their cause — because **no single IDEA's wrap is responsible for whole-README currency**. Step 4 already solves exactly this shape for CHANGELOG/devlog via **backfill-gap detection** (list recently-merged PRs, cross-reference against entries, backfill ≤3 / surface larger gaps); the README has no equivalent.
