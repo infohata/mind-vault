@@ -284,20 +284,31 @@ export CLAUDE_CLEAN_PATTERNS='no issues found|no bugs found|no problems found|no
 # the security concepts it checked ("the privilege-escalation guard looks correct"),
 # so security keywords (privilege/escalation/security) FALSE-POSITIVE on clean prose
 # (calibrated: the genuinely-clean downstream review that named the guards it checked).
-# Only numbered-finding headers + the
-# missing/violation report-list words reliably distinguish a findings-bearing body.
+# Distinguish a findings-bearing body via STRUCTURAL markers (not security keyword-
+# prose — a genuinely-clean review NAMES the concepts it checked). Markers:
+#   • numbered/sectioned finding headers — `#### `, `### [0-9]`;
+#   • file-grouped finding headers — `### ` + a backtick (claude groups findings under
+#     "### `path/to/file` — …"; a clean review's headers are `### Bugs` / `### Security`
+#     with NO backtick, so this can't false-positive on clean prose);
+#   • the count line — `<N> issue(s)/bug(s)/… found` with a NON-"no" quantifier
+#     ("One issue found.", "3 issues found") — the clean phrase is "No … found" (caught
+#     by CLAUDE_CLEAN_PATTERNS), so a numeric/word count never collides with it;
+#   • the report-list words `missing` / `violation` / ❌.
 # Bias is deliberate: a marker firing on a clean body → over-surface (loop reads it,
-# resolves) = safe; a marker MISSING on a findings body → false-clean = the one
-# unsafe direction. `### [0-9]` / `#### ` match claude's numbered finding sections.
-export CLAUDE_FINDING_MARKERS='missing|violation|❌|#### |### [0-9]'
-# Signature-matching bodies that are claude NO-OPs, never verdicts. Keyed on the
-# skip-preamble SHAPE ("## Code review" heading immediately followed by "Skipped …"),
-# which catches all observed punctuation variants: "Skipped — draft status",
-# "Skipped — already posted", "Skipped: already reviewed this PR". Anchoring to the
-# heading-then-skipped shape (not a bare "skipped" search-anywhere) avoids dropping a
-# REAL verdict whose prose happens to mention "skipped" mid-body. `already (posted|
-# reviewed)` is a belt-and-suspenders second arm.
-export CLAUDE_NOOP_PATTERNS='code review\s+skipped|already (posted|reviewed)'
+# resolves) = safe; a marker MISSING on a findings body → false-clean = the one unsafe
+# direction. (PR #169 self-dogfood: claude posted "One issue found." under "### `file`"
+# — the old `### [0-9]`/`#### `-only markers matched neither → false SILENT, finding
+# dropped. The count + backtick-header arms close that gap.)
+export CLAUDE_FINDING_MARKERS='missing|violation|❌|#### |### [0-9]|### `|[0-9]+ (issue|bug|problem|finding)s? found|(one|two|three|four|five|six|seven|eight|nine|ten) (issue|bug|problem|finding)s? found'
+# Signature-matching bodies that are claude NO-OPs, never verdicts. Anchored to the
+# skip-preamble SHAPE — the "## Code review" heading immediately followed by "Skipped …"
+# — matched with re.MULTILINE so `^` is a line start. This catches the observed variants
+# ("Skipped — draft status", "Skipped: already reviewed this PR") WITHOUT a bare
+# search-anywhere arm: PR #169 self-dogfood flagged that the old loose `already (posted|
+# reviewed)` arm would false-no-op a REAL findings body whose prose merely says "already
+# reviewed in PR #X but regressed" → findings silently dropped (the unsafe direction).
+# The heading-anchored "Skipped" shape covers every real no-op; the loose arm is gone.
+export CLAUDE_NOOP_PATTERNS='^##\s+code[ -]?review\s*\n+\s*skipped'
 
 # ------------------------------------------------------------------------------
 # Pass 1 — Review-state from the Actions job (A7/R2): synthesize CLAUDE_CHECKRUN
@@ -394,7 +405,7 @@ except Exception:
     sys.exit(0)
 logins = set(os.environ.get('CLAUDE_LOGINS', '').split())
 sig_re = re.compile(os.environ.get('CLAUDE_BODY_SIGNATURES', 'a^'), re.IGNORECASE)
-noop_re = re.compile(os.environ.get('CLAUDE_NOOP_PATTERNS', 'a^'), re.IGNORECASE)
+noop_re = re.compile(os.environ.get('CLAUDE_NOOP_PATTERNS', 'a^'), re.IGNORECASE | re.MULTILINE)
 def is_claude_summary(c):
     login = (c.get('user') or {}).get('login') or ''
     body = c.get('body') or ''
