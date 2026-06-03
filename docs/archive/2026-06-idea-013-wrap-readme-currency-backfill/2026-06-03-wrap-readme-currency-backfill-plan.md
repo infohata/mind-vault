@@ -273,8 +273,11 @@ Six must-fix items, all incorporated above:
 3. **2.2 (Major)** `WRAP_BEFORE_REVIEW.md` pass-1 enumeration must include 6b →
    **R8 + Execution step 4**.
 4. **4.2 (Major)** `gh`-unavailable calendar-staleness fallback → **D2a + R9**.
-5. **4.1 (Major)** server-side `--search "merged:>DATE"` count, drop `--limit`
-   cap → **D2**.
+5. **4.1 (Major)** server-side `--search "merged:>DATE"` count → **D2**. (As
+   shipped, the recipe keeps a deliberate `--limit "$N"` — capping the query at
+   the threshold itself, which both sidesteps gh's 30-row default page size and
+   keeps the gate correct for any hint-overridden `N`; the must-fix was about not
+   letting a *display* cap silently bound correctness, not omitting `--limit`.)
 6. **3.2 (Major)** sprint-auto asymmetry documented as intentional → **Execution
    step 1 reference contents**.
 

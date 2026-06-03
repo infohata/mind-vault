@@ -367,6 +367,8 @@ Commit the documentation edits on the same branch that carries the IDEA-completi
 - **Pre-merge mode** — the feature branch (`auto/<slug>` in sprint-auto, or whatever feature branch the work has been happening on). All wrap commits ride into the merge together.
 - **Post-merge fallback** — a fresh `docs/idea-NNN-wrap` branch off `origin/main` (matches the `/compound` branch-or-extend decision tree).
 
+If Step 6b fires next, its whole-README audit patches **and** the `wrap:readme-currency-audited` marker must land on this same branch (the marker contract in [`references/README_CURRENCY.md`](references/README_CURRENCY.md) requires *marker present ⟺ audit ran on this ref*) — so either defer this commit until after 6b, or land 6b's patches + marker as a follow-on commit on the same branch. Don't merge before 6b runs.
+
 ### Step 6b — Whole-README currency audit (staleness-gated, conditional)
 
 Step 6 patches what *this* IDEA touched; nothing makes any single wrap responsible for the **whole** README, so it drifts across many IDEAs (version framing, counts, feature tables, stale ⚠️ flags). Step 6b is the devlog backfill-gap rule (Step 4 §2) applied to the README — it fires on a staleness threshold and patches mechanical drift in-wrap.

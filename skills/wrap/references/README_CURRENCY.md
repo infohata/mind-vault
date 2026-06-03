@@ -29,7 +29,7 @@ guessing, correct for any overridden `N`:
 ```bash
 FIRE=0                                        # init: default skip; a branch below sets 1 only when stale
 N=$(grep -oE 'N:[[:space:]]*[0-9]+' README.md | head -1 | grep -oE '[0-9]+'); N=${N:-5}  # hint-block override, else 5
-MARKER_DATE=$(grep -oE 'wrap:readme-currency-audited [0-9]{4}-[0-9]{2}-[0-9]{2}' README.md | awk '{print $2}')
+MARKER_DATE=$(grep -oE 'wrap:readme-currency-audited [0-9]{4}-[0-9]{2}-[0-9]{2}' README.md | head -1 | awk '{print $2}')  # head -1: tolerate a stray duplicate marker (keep single-line)
 BASE=$(gh pr view --json baseRefName --jq .baseRefName 2>/dev/null || echo main)
 if [ -z "$MARKER_DATE" ]; then
     FIRE=1                                   # no marker → stale

@@ -247,7 +247,7 @@ If your repo has no external review bot, run `AGENT_curator` against the local d
 /wrap
 ```
 
-Post-merge sweep — flips IDEA frontmatter to `complete`, re-sorts the index, appends a devlog entry, tears down any per-IDEA worktree stack, scans project docs for stale references. Can run pre-merge on the feature branch so the merge lands the final docs state in one shot.
+**Pre-merge docs finalization** (the default, `--scope=docs`) — flips IDEA frontmatter to `complete`, re-sorts the index, appends a devlog entry, scans project docs for stale references (plus the staleness-gated whole-README currency audit). Runs on the feature branch **before** the docs-review pass, so engines see docs at their merged shape and the merge lands the final state in one shot. This is the middle of the two-pass finish the headline shows: **`/review-loop` (deliverables) → `/wrap` → `/review-loop` (docs)** — after wrap, re-run `/review-loop` so the engines review the finalized docs (code-only PRs collapse this second pass). Only the destructive per-IDEA worktree teardown is strictly post-merge.
 
 ### Stage 5 — compound
 
