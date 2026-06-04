@@ -177,11 +177,7 @@ The plan's philosophy stays the same at every scope; the depth scales.
 - [references/PROD_DATA_SNIFF_BEFORE_DESIGN_LOCK.md](references/PROD_DATA_SNIFF_BEFORE_DESIGN_LOCK.md) — when a plan's design hinges on a data-shape assumption verified only in dev, require a prod-data sniff before commit OR document a dev-as-proxy override with rationale
 - [references/VERIFY_ARCHITECTURAL_CLAIMS_AT_RUNTIME.md](references/VERIFY_ARCHITECTURAL_CLAIMS_AT_RUNTIME.md) — a subsystem's runtime-shape claim (global vs per-tenant config, request lifecycle, multi-tenancy) can't be confirmed by reading code at one point; it's a blind spot for fan-out agents AND review bots — trace the lifecycle or flag for human confirmation before locking it into a reference/plan
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — the location-by-status contract driving step 6's `idea` → `in-progress` move
-- [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
+- [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
 - [skills/idea/SKILL.md](../idea/SKILL.md) — previous stage; produces the IDEA file this skill consumes
 - [skills/work/SKILL.md](../work/SKILL.md) — next stage; executes the plan this skill emits
 - [agents/AGENT_architect.md](../../agents/AGENT_architect.md) — the reviewer persona invoked in step 5
-
----
-
-**Last Updated**: 2026-04-20

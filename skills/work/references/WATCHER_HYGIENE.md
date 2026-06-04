@@ -125,7 +125,3 @@ Surfaced 2026-05-06 in a sprint-auto batch, refined twice the same morning:
 2. First-pass rule (this file's earlier version) prescribed a TIMEOUT bound on every watcher as a self-clean upper limit. User correction: "that shell is running soon 5h44min so timeout is definitely not working. and we have a rule NOT to setup timeouts because they might break large test suite prematurely. all good, just need effective garbage collection."
 
 The first-pass rule was wrong on two counts: (a) the hanging watcher had no TIMEOUT — it used a `until ! pgrep -f …` exit condition that self-matched and never exited (Failure Mode D); (b) project convention forbids wall-clock TIMEOUTs on watchers/test-running shells because they break legitimate long test suites. The revised rule (this version) drops the TIMEOUT prescription and makes explicit-stop-by-orchestrator the sole cleanup mechanism, with self-match avoidance added as a sibling failure mode.
-
----
-
-**Last Updated**: 2026-05-06

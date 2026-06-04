@@ -1,7 +1,7 @@
 ---
 name: django
 description: Apply cross-project Django backend conventions — BaseModel abstractions, DRF viewsets, ORM optimisation (select_related / prefetch_related), multi-tenancy boundaries, generic-FK patterns, permission probes, and translation workflow — before hitting templates.
-license: MIT
+license: Apache-2.0
 metadata:
   author: mind-vault
   version: '5.0'
@@ -19,18 +19,6 @@ metadata:
 Core Django backend patterns for project organisation, model abstractions, DRF conventions, ORM optimisation, middleware, and testing. Applies identically across single-tenant and multi-tenant projects; specialised concerns (Channels, Celery, multi-tenancy, i18n) live in `references/`.
 
 **Pairs with:** [django-frontend](../django-frontend/SKILL.md) for HTMX / Alpine / Bulma template patterns. Load both on full-stack feature work (e.g. a view that returns an HTMX partial on `HX-Request`).
-
-**Optional extensions** (load on demand):
-
-- [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation (django-tenants)
-- [Async WebSocket](references/ASYNC_WEBSOCKET.md) — Channels consumers and routing
-- [Celery Background Tasks](references/CELERY.md) — async job processing
-- [Logging Patterns](references/LOGGING.md) — structured logging and audit trails
-- [Internationalization](references/I18N.md) — translation workflow, fuzzy-wipe, locale testing
-- [Testing Patterns](references/TESTING.md) — query-count asserts, locale enforcement, isolation
-- [Development Workflow](references/DEVELOPMENT_WORKFLOW.md) — env config, Docker dev-loop
-- [Multi-Tenant + Async](references/MULTI_TENANT_ASYNC.md)
-- [Multi-Tenant + Celery](references/MULTI_TENANT_CELERY.md)
 
 ## When to use
 
@@ -410,6 +398,8 @@ for article in articles:
 Article.objects.filter(status="draft").update(status="published")
 ```
 
+**Caveat — bulk ops bypass the model layer.** `.update()` / `bulk_create` / `bulk_update` issue SQL directly: they skip `save()`, `pre_save`/`post_save` signals, and `auto_now`/`auto_now_add`. A `.update(status=…)` leaves `updated_at` frozen — set it explicitly (`.update(status=…, updated_at=timezone.now())`). See [`references/BULK_ORM_BYPASSES_MODEL_LAYER.md`](references/BULK_ORM_BYPASSES_MODEL_LAYER.md) for the full skip-list, the manual-side-effect options, and the reviewer grep.
+
 **When NOT to optimise:** small result sets (\<10 rows), related objects not accessed in the code path, measured impact negligible. Premature `select_related` over-fetches columns and can make things worse.
 
 **Assert query count in tests:**
@@ -575,22 +565,28 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [FileField MIME capture](references/FILEFIELD_MIME_CAPTURE.md) — `FieldFile.content_type` is empty by design; capture browser MIME at upload + import-time `assert` that locks the canonical set ↔ consumer dict against drift
 - [Env-driven allowlists / denylists as `frozenset`](references/ENV_DRIVEN_ALLOWLISTS.md) — three-property pattern (env override + O(1) hot-path + immutable global), full BLOCKED_UPLOAD_MIMES + EXTENSIONS shape, replace-not-extend env semantics
 - [`ManifestStaticFilesStorage` restart contract](references/MANIFEST_STATIC_FILES_STORAGE.md) — `collectstatic` writes the new file + manifest, but the running app server's `{% static %}` cache holds the OLD hash; require `make static && make restart-web` for changes to land for users
-- [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation
+- [Multi-Tenant Architecture](references/MULTI_TENANT.md) — schema-per-tenant isolation (django-tenants); incl. cross-schema cascade teardown for tests that create a real tenant (drop-schema + raw-SQL deletes, not ORM cascade)
+- [Idempotent seed / management commands](references/IDEMPOTENT_SEED_COMMANDS.md) — top-up idempotency trio (attach M2M/FK not only on `created`; correct privileged-user flags on existing rows; globally-unique-conflict no-abort) + DEBUG prod-guard on privileged-user seeds
+- [Resource lifecycle — drop vs ensure](references/RESOURCE_LIFECYCLE_DROP_VS_ENSURE.md) — a destructive op (drop/clear/purge an index, cache, table, bucket, scratch dir) silently undoes itself unless you audit EVERY re-creation path: lazy ensure-on-use, first-use create, deploy/bootstrap ensure. Re-point them at the new target or guard them; prove with a post-drop read, not "delete was called"
+- [Splitting a flat module into a package (AST extraction)](references/MODULE_SPLIT_AST_EXTRACTION.md) — byte-exact `ast`-driven flat-module → package split (bucket-by-prefix, leading-comment + PEP-224 attr-docstring capture, coverage assertion, blank-line-only `autopep8`, `pyflakes` import trim); Python-general recipe that owns the `RULE_rename-before-drop` forced-atomic-member sequencing (the rule points here)
 - [Async WebSocket](references/ASYNC_WEBSOCKET.md) — Channels consumers and routing
-- [Celery Background Tasks](references/CELERY.md)
-- [Logging Patterns](references/LOGGING.md)
-- [Internationalization](references/I18N.md) — full translation workflow
-- [Testing Patterns](references/TESTING.md)
-- [Development Workflow](references/DEVELOPMENT_WORKFLOW.md)
+- [Celery Background Tasks](references/CELERY.md) — async job processing
+- [Logging Patterns](references/LOGGING.md) — structured logging and audit trails
+- [Internationalization](references/I18N.md) — translation workflow, fuzzy-wipe, locale testing
+- [Testing Patterns](references/TESTING.md) — query-count asserts, locale enforcement, isolation
+- [Development Workflow](references/DEVELOPMENT_WORKFLOW.md) — env config, Docker dev-loop
 - [Multi-Tenant + Async](references/MULTI_TENANT_ASYNC.md)
 - [Multi-Tenant + Celery](references/MULTI_TENANT_CELERY.md)
 - [django-frontend](../django-frontend/SKILL.md) — HTMX / Alpine / Bulma frontend pairing
 - [deployment](../deployment/SKILL.md) — production deployment patterns
 - [surgical-tdd](../surgical-tdd/SKILL.md) — focused test execution
-- [`RULE_i18n-workflow`](references/I18N_WORKFLOW.md) — hard rules for translations; FORCE_SYNC_MSGIDS overwrite-existing-msgstr gotcha; don't-translate-dev-notes; blocktrans `%(var)s` placeholder format
-- [Form-invalid status](references/FORM_INVALID_STATUS.md) — Django's default `form_invalid` returns 200 + form-with-errors, NOT 422; status-only gating closes HTMX modals on validation failure; fix via `HTMXFormStatusMixin` or `HX-Trigger` header gate
+- [`RULE_i18n-workflow`](references/I18N_WORKFLOW.md) — hard rules for translations; FORCE_SYNC_MSGIDS overwrite-existing-msgstr gotcha (+ stale-after-rename audit); don't-translate-dev-notes; blocktrans `%(var)s` placeholder format; GNU gettext singular/plural hash collision (a blocktrans refactor silently breaks pre-existing `{% trans "Noun" %}` callers; fix = always-plural label + count separator, or `msgctxt` disambiguation); always-plural button labels via verb form (`Add X`) to sidestep adjective-noun gender agreement in inflected locales
+- [Forms — cross-skill index](../django-frontend/references/FORMS_INDEX.md) — entry point for form work across django + django-frontend (rendering / status+swap / validation / formsets / uploads / FK validation); bridges to the template-side refs without a grep.
+- [Form-invalid status](references/FORM_INVALID_STATUS.md) — `form_invalid` returns 200 by default; HTMX-aware views need 422 (via `HTMXFormStatusMixin`) OR `HX-Trigger`-gated modal close. Paired client `htmx:beforeSwap` listener required to let HTMX swap 422 bodies.
+- [ModelForm `_post_clean` trap](references/MODELFORM_POST_CLEAN_TRAP.md) — `is_valid()` writes `cleaned_data` INTO `self.instance` via `construct_instance`, so `instance.field` reads after that return the POST value. Defeats change-detection; `form.changed_data` doesn't substitute. Fix: snapshot before bind.
+- [Bulk ORM bypasses the model layer](references/BULK_ORM_BYPASSES_MODEL_LAYER.md) — `.update()` / `bulk_create` / `bulk_update` skip `save()`, `pre_save`/`post_save` signals, and `auto_now`/`auto_now_add`; the classic bug is a `.update(status=…)` leaving `updated_at` frozen (fix: set it explicitly). Skip-list, manual-side-effect options, reviewer grep for `auto_now`/`@receiver`/`def save(` siblings.
+- [Tenant-scoped FK validation](references/TENANT_SCOPED_FK_VALIDATION.md) — validate-and-prune helpers walking shared-schema `org_id`-carrying models must explicitly `.filter(org_id=…)`; schema routing covers only tenant-schema models.
+- [Permission-gate probe](references/PERMISSION_GATE_PROBE.md) — when re-implementing a view's authorization elsewhere (fragment / 2nd endpoint / command), replicate the *effective* gate (`permission_classes` AND `get_queryset` AND `dispatch`/`get_object`), not the coarse declared class — copying the class alone silently widens the gate; the inverse (legacy gate authorizes on historical authorship → fix, don't copy) + re-gate-the-legacy-endpoint + UI-bypass test + the dual (server-gated but the affordance still leaks — thread the permission flag to the template or drop the dead "for symmetry" param)
 - [Django Documentation](https://docs.djangoproject.com/)
 - [Django REST Framework](https://www.django-rest-framework.org/)
 - [Django ORM Query Optimisation](https://docs.djangoproject.com/en/stable/topics/db/optimization/)
-
-**Last Updated**: 2026-05-01

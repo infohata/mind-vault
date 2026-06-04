@@ -206,7 +206,3 @@ Rebuild the index from scratch when out of sync: scan both dirs, read each file'
 - [`skills/work/SKILL.md`](../../work/SKILL.md) — on PR merge, updates frontmatter only by default (`status: complete`, `completed: <date>`). Triggers the `idea` → archive fallback move when `/plan` was bypassed and the source file is still in `docs/ideas/` (small-scope `/idea` → `/work` shortcut).
 - [`skills/compound/SKILL.md`](../../compound/SKILL.md) — may trigger `idea` → archive move directly when post-incident routing classifies an idea as superseded or rejected before any execution started.
 - [`skills/ingest-backlog/SKILL.md`](../../ingest-backlog/SKILL.md) — emits files to both dirs per this rule during brownfield takeover; retires any existing `docs/execution/` tree as part of the write step.
-
----
-
-**Last Updated**: 2026-04-20

@@ -61,7 +61,7 @@ If the learning's violations require a conversation ("why did you do it this way
 
 ### Command vs. script
 
-- **Slash command** (`/compound`, `/bugbot-loop`) = user-facing, interactive, part of the workflow.
+- **Slash command** (`/compound`, `/review-loop`) = user-facing, interactive, part of the workflow.
 - **Script** (`tools/bugbot_retrigger.sh`) = headless utility, usually called from another command or a human-run shell.
 
 ### Body vs. reference vs. asset (within mind-vault)
@@ -107,7 +107,3 @@ If a learning genuinely applies to multiple destinations (e.g. a new pattern + a
 3. **Command third** (the "shortcut").
 
 One compound invocation, multiple destination commits — they share the same provenance and end up on the same mind-vault PR.
-
----
-
-**Last Updated**: 2026-04-19

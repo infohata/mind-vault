@@ -24,7 +24,9 @@ Two integration shapes:
 
 ### Option A — `Host`-header injection per browser context
 
-Simplest and recommended. Playwright sends an explicit `Host` header on every request:
+> ⚠️ **May fail on current Chromium / Playwright** — chromium increasingly refuses Host-header overrides via CDP (`net::ERR_INVALID_ARGUMENT`); `extra_http_headers={'Host': ...}` is filtered by the fetch API. Validate against your stack; if it errors, use the **ALLOWED_HOSTS + non-primary `Domain` row** routing pattern documented in [`VISUAL_ACUITY_TESTS_VIA_PLAYWRIGHT.md` § Routing](VISUAL_ACUITY_TESTS_VIA_PLAYWRIGHT.md#5-chromium-refuses-host-header-overrides) instead. Option A below remains documented because it still works in some chromium / Playwright combinations.
+
+Playwright sends an explicit `Host` header on every request:
 
 ```python
 import pytest
@@ -134,6 +136,22 @@ def tenant_a_user(tenant_a):
 
 The `schema_context` block is non-negotiable: without it, Django queries hit `public` and either fail (if the model is tenant-scoped) or pollute (if the model exists in `public`).
 
+## Seed determinism — the corpus a test needs must be GUARANTEED by the seed, never incidental
+
+When a test (especially a parametrized one sweeping several surfaces/models) requires a specific corpus *shape* — "a scoped+tagged row for each of articles/events/faqs", "a discriminating scope that partitions the set", "one approved + one unapproved record" — that shape must be **created deterministically by the seed command/fixture**, not assumed to already exist in a long-lived dev tenant.
+
+The failure mode is a green that lies. A reusable dev/e2e tenant accumulates hand-made rows over months; a test that happens to find a `scoped+tagged Event` there **passes locally by luck** and **fails on a fresh volume / CI / post-`--reset` tenant** where only the synthetic seed rows exist. The bug isn't in the test logic — it's that the seed under-specified the corpus.
+
+The tell: parametrizing one passing case across N surfaces, and some params pass while others `fail` with "no row of shape X". The passing ones were riding incidental playground data; the failing ones exposed that the seed only ever guaranteed the shape for the *original* surface.
+
+Discipline when you add a test that needs a corpus shape:
+
+1. **Amend the seed to guarantee the shape** for every case the test exercises (idempotent `get_or_create` + a non-destructive `.add()` heal so re-seeding a partially-populated tenant tops it up rather than duplicating).
+2. **Lock the invariant in a fast unit test** against a throwaway tenant — `assert Model.objects.filter(<shape>).exists()` — so a future seed regression trips in seconds at the unit layer, not minutes later in the Playwright run (or never, if CI's tenant happens to have the row).
+3. **Make corpus-absence a hard failure, not a skip.** Once the seed guarantees the shape, `pytest.fail("provision the corpus with <seed cmd>")` on absence — a `pytest.skip` re-opens the false-green door.
+
+Amending another component's seed to support your test is a legitimate cross-component amendment — document it bidirectionally (the seed's invariant list + the test's rationale) so the next reader sees why the seed grew a tagged Event it doesn't obviously need.
+
 ## Authentication — pre-baked cookies vs UI login
 
 For tests that don't *exercise* the login flow, pre-bake the session cookie to skip a full UI login on every test:
@@ -214,6 +232,8 @@ Default to option 1. Add an explicit list of tables that need truncation; `cur.e
 - ❌ **Sharing a `BrowserContext` across tenants** — cookies, localStorage, IndexedDB are context-scoped. One context per tenant.
 - ❌ **Pre-baking session cookies WITHOUT `schema_context` on session save** — the session row lands in `public.django_session` instead of `<tenant>.django_session`; SessionMiddleware looks in the wrong schema.
 - ❌ **Cookie `domain` mismatch** with the `Host` header — the browser silently drops the cookie. Symptom: every authed test redirects to login.
+- ❌ **Relying on incidental rows in a long-lived dev tenant** for a corpus shape the test needs — passes locally, fails on a fresh-volume/CI/`--reset` tenant. Guarantee the shape in the seed + lock it in a fast unit invariant. See § Seed determinism.
+- ❌ **Hardcoding a host in a URL assertion** — `to_have_url('http://localhost/orgs/5/invitations/')`. Assert a **relative path** (`to_have_url('/orgs/5/invitations/')`); Playwright resolves it against the context's `base_url`. The hardcode is doubly wrong here: the configured `base_url` differs from the dev box (the docker test runner reaches the app over an internal hostname, not `localhost`), **and** in multi-tenant tests the host *is* the tenant identity (the `Host` header from § Option A) — a literal host in the assertion silently asserts the wrong tenant or never matches. Relative paths are tenant-agnostic and base-URL-agnostic; they're the only form that survives both. (`grep` for `to_have_url.*http` should return zero hits.)
 
 ## Related references
 
@@ -221,7 +241,3 @@ Default to option 1. Add an explicit list of tables that need truncation; `cur.e
 - [`../../django/references/MULTI_TENANT_ASYNC.md`](../../django/references/MULTI_TENANT_ASYNC.md) — async/WebSocket counterparts.
 - [`../../django/references/TENANT_SCOPED_FK_VALIDATION.md`](../../django/references/TENANT_SCOPED_FK_VALIDATION.md) — orthogonal isolation failure (shared-schema rows with `org_id`).
 - [`HTMX_ALPINE_WAITS.md`](HTMX_ALPINE_WAITS.md) — Playwright wait recipes once tenant routing is solved.
-
----
-
-**Last Updated**: 2026-05-09

@@ -132,6 +132,7 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
 ### 4. Auto-incrementing IDEA-NNN
 
 - Scan **both IDEA-file locations** together: `<project>/docs/ideas/IDEA-*.md` and `<project>/docs/archive/*/IDEA-*.md`. Zero-padded three-digit numbers preferred (`IDEA-042` not `IDEA-42`). Scanning only `docs/ideas/` would miss IDEAs in any non-backlog state (`in-progress`, `complete`, `superseded`, `rejected`) — all live in the archive tree per [`RULE_ideas-location-status`](references/IDEAS_LOCATION_STATUS.md) — and produce a collision on the next increment.
+- **Each project's numbering is independent.** Scan ONLY the target project's `docs/ideas/` + `docs/archive/`. Never carry a number from another project's stream (e.g. agent working a teisutis compound branch checked into mind-vault must NOT pick "next after IDEA-166" — IDEA-166 lives in teisutis, mind-vault has its own sequence starting at IDEA-001). The branch name (`compound/2026-05-DD-idea-NNN-...`) often references the originating project's IDEA — that is NOT the target project's next number. The scan-from-disk rule is what defines the next number; conversation context referencing other projects' IDEAs is irrelevant.
 - Take max + 1. If no files exist, start at `IDEA-001`.
 - User override: `/idea 200 "Title here"` forces the number. Warn and ask if the number already exists **in either location**.
 - Do **not** attempt to find "gaps" in the numbering. Numbers are append-only; holes from deleted ideas stay as holes.
@@ -151,10 +152,7 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
 - [assets/idea-template.md](assets/idea-template.md) — the verbatim template written to disk
 - [references/update-semantics.md](references/update-semantics.md) — detailed rules for editing an existing IDEA file
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](references/IDEAS_LOCATION_STATUS.md) — location-by-status routing contract, including the `git mv` semantics for status transitions
-- [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
+- [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
 - [skills/plan/SKILL.md](../plan/SKILL.md) — next stage; consumes the IDEA file and triggers `idea` → `in-progress` move
 - [skills/work/SKILL.md](../work/SKILL.md) — triggers the `in-progress` → `complete` move on PR merge
 - [skills/ingest-backlog/SKILL.md](../ingest-backlog/SKILL.md) — brownfield-takeover helper when the project has a legacy monolithic backlog
----
-
-**Last Updated**: 2026-04-20

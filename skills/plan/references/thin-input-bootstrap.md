@@ -74,7 +74,3 @@ When the bootstrap completes:
 3. Proceed to `SKILL.md` step 3 (research before structuring) with the enriched context.
 
 The bootstrap is over; the plan phase begins. Do not return to bootstrap mode mid-plan unless the user explicitly asks to re-open questions.
-
----
-
-**Last Updated**: 2026-04-19

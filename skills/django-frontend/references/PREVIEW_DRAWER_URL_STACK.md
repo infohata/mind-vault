@@ -106,6 +106,43 @@ The contract lives entirely below the public API of the preview-surface store (`
 
 That's it. Three additive lines per new surface; no protocol changes.
 
+## Template hrefs use `{% url %}`; only the JS-consumed map stays literal
+
+Two URL surfaces coexist in this architecture, and the convention differs by surface — getting it
+backwards is a recurring review-bot finding:
+
+- **Django-template hrefs → `{% url %}`.** A list-row preview link / edit affordance rendered by a
+  Django template uses the named-route tag against the **fragment route**, not a hand-typed path:
+
+  ```django
+  <a href="{% url 'kb:category_form_fragment' category.pk %}"
+     data-preview-link data-preview-type="category-edit"
+     data-preview-identifier="{{ category.pk }}">{{ category.name }}</a>
+  ```
+
+  `{% url %}` is correct here because the template renders server-side where `reverse()` is available;
+  a literal path silently rots when the URLconf changes and bypasses the route-name indirection the
+  rest of the app relies on.
+
+- **The JS-consumed pattern map (`URL_PATTERN_BY_TYPE`) stays literal** — and ONLY that map. It's read
+  by `preview_surface.js` for cold-start / popstate URL derivation where there is **no `reverse()`**
+  (it's a browser-side string-template lookup, `'{id}'`-substituted in JS). That's the single
+  documented exception, not a general "shell hrefs are literal" rule.
+
+**The mis-stated lesson to unlearn:** "shell/preview hrefs must be literal, never `{% url %}`." That
+came from a real bug — a preview link pointed at the WRONG route (`*_update`, which 302s to a full page
+instead of returning the fragment) — but the defect was the *wrong route name*, not the `{% url %}` tag.
+`{% url 'app:entity_form_fragment' pk %}` (correct route) and the literal `/entity/ui/form/<pk>/` render
+**byte-identical**, so the tag was never the problem. Use `{% url %}` on the fragment route in templates;
+keep only `URL_PATTERN_BY_TYPE` literal. (Meta-lesson: when a note conflicts with the canonical
+working pattern, the guide, AND green tests, fix the note — *working code wins against ceremony*.)
+
+**Caveat for tests:** because `{% url %}` and the matching literal render byte-identical, an affordance
+unit test asserting the literal `/entity/ui/form/<pk>/` string passes under BOTH forms — neither unit
+nor e2e can distinguish `{% url %}` from a literal href. This convention is therefore **not
+test-verifiable**; the guide/convention is the authority, and a review finding on it must be argued from
+the convention, not from a failing test.
+
 ## Bookmark-survival invariant
 
 The surface URL (`/articles/`) MUST stay name-stable across the migration — same URL, same name, new view body. Bookmarks against the legacy detail URL (`/articles/<pk>/`) get a 302 to `/articles/?open=article.<pk>` (same shell, drawer pre-opened). The redirect is callable-only; the legacy view body retires in a later cleanup IDEA. Without this invariant, every saved bookmark breaks at migration.
@@ -147,7 +184,7 @@ function _rebroadcastSwap(target) {
 }
 ```
 
-Fire on the **swapped element**, not on `document` — events bubble UP. A listener on `document.body` will catch a dispatch on a descendant; a listener on `document.body` will **not** catch a dispatch on `document` (events don't propagate DOWN). Mirrors HTMX's own dispatch behaviour. See [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 3 for the bubble-direction rationale.
+Fire on the **swapped element**, not on `document` — events bubble UP. A listener on `document.body` will catch a dispatch on a descendant; a listener on `document.body` will **not** catch a dispatch on `document` (events don't propagate DOWN). Mirrors HTMX's own dispatch behaviour. See [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 3 for the bubble-direction rationale. The **binder side** — what widget binders must do to (re-)mount robustly under *either* dispatch shape (this element-dispatch one, or a body-replacer's `document`-dispatch + `detail.elt`), across the event / bind-target / detail-key axes — is [`HTMX_WIDGET_LIFECYCLE.md`](HTMX_WIDGET_LIFECYCLE.md) § 6.
 
 ### Edit-frame guard — short-circuit refreshes when the user has in-flight unsaved input
 
@@ -188,6 +225,55 @@ function flipDrawerEditFrameOnSave(surface, payload) {
 ```
 
 URL conventions live as a project-level pattern map (mirrors `URL_PATTERN_BY_TYPE` from the URL contract). Per-entity files own only entity-specific cosmetics (title hints, post-save toasts, etc.). New entities inherit the routing for free.
+
+### The per-entity hard-gate reuse trap — a type-gated listener can't be shared by `<script>` include
+
+Per-entity cosmetics files (`<entity>_actions.js`: drawer-close-on-delete, drawer-title-on-save) almost always open with a type discriminator that bails for foreign payloads:
+
+```js
+function onEntityChanged(event) {
+    var payload = event.detail || {};
+    if (payload.type !== 'article') return;   // ← the hard gate
+    if (payload.action === 'saved') onSaveCosmetics();
+    else if (payload.action === 'deleted') onDelete(payload);
+}
+document.addEventListener('entityChanged', onEntityChanged, { capture: true });   // document, not document.body — see ALPINE_HTMX_GOTCHAS §11
+```
+
+The trap: standing up a new entity surface and wanting the same drawer-close-on-delete behaviour, **reusing the file via `<script src="…/article_actions.js">` does NOT work** — the gate `payload.type !== 'article'` returns early for every `faq` / `event` payload, so the listener silently no-ops. The new entity's delete emits `entityChanged{type:'faq', action:'deleted'}`, the listener bails, the drawer stays open on the just-deleted record. The save-title cosmetic dies the same way.
+
+It's **silent** — no console error; the page mostly works (the declarative `data-refresh-on` list refresh still fires — that's walker-owned, not gated), so the bug hides until someone deletes a record *while its drawer is open*. A template comment like "reused from the article surface — graceful no-op where article selectors aren't in the DOM" is the tell-tale wrong model: it doesn't no-op on missing *selectors*, it hard-returns on the *type gate* before touching the DOM.
+
+The fix matches the per-entity convention: **each surface gets its own `<entity>_actions.js`** — a copy with type token, detail-body class, and title-hint attribute swapped (`'faq'`, `.faq-detail-body`, `[data-faq-title-hint]`). The detail-body partial usually already exposes the right selectors (a tell the original author intended a dedicated file and took the reuse shortcut). Generalising to a type-keyed dispatch table is only worth it past ~3 entities; below that the per-entity copy is lower-risk and matches the walker-vs-per-entity split above.
+
+Sweep heuristic (`RULE_self-sweep` defensive-code sweep): a new shell template adding `<script src="…/<otherentity>_actions.js">` is the smell. Grep the included file's first `if (payload.type !== …)` line; if the literal doesn't match the new surface's type, it's a dead include.
+
+### Resolving the trap at scale — one convention-driven listener, loaded globally
+
+Once you hit ~3 entities (article + event + faq), stop copying per-entity files and **collapse to a single generic listener** — and the lever that makes it clean is that the per-entity files differ *only* by a type token and selectors that already follow a **convention** (`.<type>-detail-body`, `[data-<type>-title-hint]`, frame types `<type>` / `<type>-edit`). Derive those from the `entityChanged` payload's `type` instead of hard-coding them:
+
+```js
+function onEntityChanged(event) {
+    var payload = event.detail || {};
+    var type = payload.type;                 // 'article' | 'event' | 'faq' | …
+    if (!type) return;
+    if (payload.action === 'saved')   onSaveCosmetics(type);
+    else if (payload.action === 'deleted') onDelete(type, payload);
+}
+function onSaveCosmetics(type) {
+    var body = document.querySelector('.' + type + '-detail-body');
+    if (!body) return;                       // surface not following the convention → no-op
+    var hint = body.querySelector('[data-' + type + '-title-hint]');
+    // … mutate stack top title …
+}
+```
+
+Payoff: a **new** surface that follows the convention gets drawer-close + title-on-save for free — **nothing to register**, no per-entity file to forget. (This is also what kills the hard-gate trap above: there's no type-gate to mismatch, and no per-entity `<script>` to mis-include.) `RULE_rename-before-drop`: add the generic listener + switch the loading, verify green, then drop the old per-entity files.
+
+Two non-obvious requirements when you consolidate:
+
+1. **Load it GLOBALLY (from the base shell template), NOT per-shell `{% block extra_js %}`.** Shell-nav hot-swaps replace only the swap-target region; a per-shell `extra_js` script never loads when the user arrives at that surface via *cross-surface* shell-nav. A globally-loaded listener survives nav. (The per-entity files were per-shell — which means the old approach was *also* silently broken after cross-surface nav, not just the reuse case. Heavy surface-specific assets that genuinely can't be global — mermaid, rich-text editors — need a separate load-on-nav loader; that's a distinct concern from this always-on listener.)
+2. **Register on `document`, NOT `document.body`** — see [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) §11 for the always-exists / `body`-null-crash rationale. Drawer-specific deltas: it catches an `entityChanged` dispatched directly on `document`, and `{capture: true}` fires it in the capture phase ahead of the bubble-phase refresh-walker — match whatever target the walker uses (walker on `document` → listener on `document` too). **Self-sweep note:** when porting an old listener faithfully, re-check the *target* — copying `document.body` from the files being consolidated carried the latent crash forward until review caught it.
 
 ### Empty-snapshot fallback in pop / popstate handlers
 
@@ -502,5 +588,3 @@ The drawer's click router checks `data-preview-route`; absent attribute stays de
 ## Reference
 
 When this contract is added by a downstream IDEA on top of an upstream preview-drawer foundation IDEA, file the cross-IDEA backref per [`RULE_cross-idea-amendments`](../../../rules/RULE_cross-idea-amendments.md).
-
-**Last Updated**: 2026-05-14

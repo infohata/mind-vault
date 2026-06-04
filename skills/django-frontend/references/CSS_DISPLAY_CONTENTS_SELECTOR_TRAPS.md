@@ -112,7 +112,3 @@ Add to the structural-change checklist for any commit that introduces or moves a
 - [ ] For each, decide: does the rule still apply through the new intermediate? If yes, widen. If no, leave unchanged.
 - [ ] Walk EVERY breakpoint that has its own selector block. Mobile-specific media queries are the most common miss site (they're often last to be updated because they're at the bottom of the file).
 - [ ] If the project has a CSS audit tool (stylelint, postcss-purify), run it on the affected breakpoints.
-
----
-
-**Last Updated**: 2026-05-16

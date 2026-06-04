@@ -105,5 +105,3 @@ Before pushing the wrap commit, re-read the final state of:
 4. The ideas-index entry — does it land in the right section (In Progress vs References — Implemented)?
 
 If any of the four answers is unclear, the audit has failed silently; revisit before committing.
-
-**Last Updated**: 2026-05-14

@@ -23,12 +23,12 @@ docs/plans-sprint-batch-YYYY-MM-DD     ← one feature branch
 ├── commit 1: docs(plan): IDEA-A — draft plan + move IDEA-A to in-progress
 ├── commit 2: docs(plan): IDEA-B — draft plan + move IDEA-B to in-progress
 ├── commit 3: docs(plan): IDEA-C — draft plan + move IDEA-C to in-progress
-├── commit 4: docs(idea): IDEA-A — flip auto_safe + sensitive_paths_cleared to true
+├── commit 4: docs(idea): IDEA-A — flip auto_safe (or auto_safe_with_eval_gate) to true (+ sensitive_paths_cleared only if it touches sensitive paths)
 └── commit 5: docs(plan): IDEA-A — apply post-architect refinements
                                                                                 
                 ↓ one PR review + merge cycle
                                                                                 
-                ↓ /sprint-auto picks up all eligible IDEAs from docs/archive/
+                ↓ /sprint-auto IDEA-A IDEA-B IDEA-C  (explicit slugs; no scan mode)
 ```
 
 Each commit follows the standard `/plan` shape:
@@ -124,12 +124,8 @@ Both bypass the deprecated `projectCards` field that breaks `gh pr edit --body`.
 After merge:
 
 1. `/sprint-auto` (in a fresh session — sprint-auto reads from disk, doesn't need the planning context).
-2. It discovers all `auto_safe: true` + `sensitive_paths_cleared: true` IDEAs from `docs/archive/*/IDEA-*.md` with plan files present.
+2. It runs **only the IDEA slugs passed as explicit args** (`/sprint-auto IDEA-NNN IDEA-MMM ...`) — there is no scan / auto-discovery mode; if the human didn't type the slug, sprint-auto won't touch it. Each named IDEA must additionally have **`auto_safe: true` OR `auto_safe_with_eval_gate: true`** in frontmatter and a plan file present. `sensitive_paths_cleared: true` is a *conditional override* — required only when the IDEA touches auth/permission/schema/infra paths — not a blanket eligibility key. See [`../../sprint-auto/references/safety-gates.md`](../../sprint-auto/references/safety-gates.md).
 3. Dependencies in `depends_on:` arrays are honoured: dependents wait until their dependencies merge.
 4. Per-IDEA worktree spin-up runs through `/work → /<engine>-loop → /wrap → /compound`.
 
 Mixed-eligibility batches are fine — IDEAs in the same PR can be flagged sprint-auto-eligible OR human-driven (`auto_safe: false`). Sprint-auto skips the human-driven ones; you `/work` those manually.
-
----
-
-**Last Updated**: 2026-04-25

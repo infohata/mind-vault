@@ -16,7 +16,7 @@ This skill never commits to `main` and never merges a PR. It stages, commits to 
 **TRIGGER when:**
 
 - user says "compound this", "let's capture what we learned", "document this fix", "promote this to mind-vault", "write this up", "save this learning"
-- a review loop (`/bugbot-loop` or `/copilot-loop`) just cleared findings and there's a non-trivial lesson worth preserving — the review output file is a first-class input source (see [`references/review-finding-ingest.md`](references/review-finding-ingest.md))
+- a review loop (`/review-loop`) just cleared findings and there's a non-trivial lesson worth preserving — the review output file is a first-class input source (see [`references/review-finding-ingest.md`](references/review-finding-ingest.md))
 - a bug was just fixed and the root cause is non-obvious / recurring / cross-project
 - a pattern that kept coming up across multiple tasks finally got named
 
@@ -140,19 +140,19 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
    - **Customer-supplied filenames** → drop or replace with `<filename>`.
    - **Local filesystem paths** (`/Users/<name>/...`, `/home/<name>/...`) → drop.
    - **Customer domain hostnames** → drop or replace with `<tenant-host>`.
-   - **PR / IDEA / commit references** → KEEP (these are project provenance, expected in mind-vault per existing convention; matches the "Last Updated" footer style in other mind-vault files).
+   - **PR / IDEA / commit references** → KEEP mind-vault's own (bare `PR #NNN` / `IDEA-NNN` resolve against mind-vault's numbering and are valid provenance). DROP **clearly foreign** refs: full URLs to another repo (`https://github.com/<other-repo>/pull/NNN`), or project-name-tagged refs (`(Teisutis) IDEA-178`, `teisutis PR #475`). When a bare `IDEA-NNN` / `PR #NNN` appears in context that ties it to another project (surrounding prose names the foreign project, or the number doesn't resolve in mind-vault), drop it or qualify it explicitly. Generalise IDEA-tagged narrative ("what IDEA-178 learned") to neutral framing ("what the first-suite stand-up learned"). Commit messages may keep source-project refs (git history is acknowledged-noisy); the **file body** must be clean.
    - **Module / class / function names** (e.g. `AttachmentSerializer`, `_serialize_batch`, `<app>/`) → KEEP (these are public-API names that future readers need; they're already grep-able from the cited PR).
 
    The "would this be safe in a public repo today?" test is the gate. If the answer is "no", scrub before commit.
 
-6. **Commit.** One commit per invocation, using the standard commit-message format (type(scope): description).
+6. **Commit.** One commit per invocation, using the standard commit-message format (type(scope): description). **Mind-vault self-mode CHANGELOG bump:** when the destination is mind-vault itself (self-promotion, not a project-local write), patch-bump `CHANGELOG.md` in this same commit — pure `/compound` PRs increment the patch component by 1 (`vX.Y.Z → vX.Y.(Z+1)`, not a bump *to* `0.0.1`) with their own `## v` section (no IDEA → `/wrap` never runs to do it). See [`references/mind-vault-promotion.md`](references/mind-vault-promotion.md) § Self-mode CHANGELOG bump.
 7. **Push.** `git push --set-upstream origin <branch>`.
 8. **Ensure open PR.** `gh pr view <branch>` to check existence. If no PR exists, `gh pr create --title "..." --body "..."`. If one exists, append a short note to the PR body describing what this `/compound` invocation added — keeps the PR description current.
 9. **Report back.** Print the branch, commit SHA, and PR URL. Never suggest the human merge — that's theirs to do.
 
 ### 5. Cross-link and index
 
-- Every mind-vault promotion also references the project-local source that triggered it. If the learning started as a PR-review finding (from any review engine), the new skill/rule/agent entry cites the PR in its Last Updated / provenance section.
+- Every mind-vault promotion is traceable back to the project-local source that triggered it — but **foreign-project PR links and IDEA numbers go in the commit message only**, never in the skill/rule/agent file body (that's what the scrub gate enforces). In-body provenance is limited to mind-vault's own PR/IDEA refs. The commit's `git log` + body carry the foreign-project trail (review id, source PR URL, etc.).
 - Project-local solution docs reference any mind-vault assets they generalised from, so future `/compound` invocations can detect duplicates.
 - Auto-memory entries include their one-line `MEMORY.md` pointer — that's the index.
 
@@ -168,7 +168,7 @@ match the new trigger, revise the frontmatter and try again.
 
 ## Review-finding input mode
 
-When the input is a review-loop output file (`/bugbot-loop` or `/copilot-loop`), iterate each cleared finding:
+When the input is a review-loop output file (`/review-loop`), iterate each cleared finding:
 
 1. Read the finding: category, severity, file, one-line description, fix applied.
 2. Decide if it's compound-worthy: if the finding appeared the first time in this project, probably not (noise). If the same category has appeared before — grep solutions and mind-vault for prior matches — promote.
@@ -179,7 +179,7 @@ See [`references/review-finding-ingest.md`](references/review-finding-ingest.md)
 
 ## Interaction rules
 
-- **No project / customer data leaks into mind-vault — ever.** Mind-vault is a cross-project knowledge store and must contain only generic, reusable patterns. Run the customer-data scrub gate (step 5 above) on every mind-vault commit, regardless of the destination (skill / rule / agent / command / tool). The gate is mandatory, not advisory; a leak in a private repo today is a leak in a public repo tomorrow. Identifiers and IDs are out; PR / IDEA / commit references and module names are in.
+- **No project / customer data leaks into mind-vault — ever.** Mind-vault is a cross-project knowledge store and must contain only generic, reusable patterns. Run the customer-data scrub gate (§ Mind-vault promotion, step 5) on every mind-vault commit, regardless of destination (skill / rule / agent / command / tool). The gate is mandatory; a leak in a private repo today is a leak in a public repo tomorrow. Out: customer identifiers, foreign-project IDEA/PR numbers, project-name tags. In: mind-vault's own PR/IDEA refs and module/function names.
 - **Shape-C narrative probe asks three questions max.** If the user's still unsure after three, fall back to the taxonomy quiz rather than asking a fourth.
 - **Never silently promote to mind-vault.** Every mind-vault-destination write is explicit and confirmed.
 - **Never auto-merge the mind-vault PR.** `RULE_git-safety` is not negotiable.
@@ -197,15 +197,11 @@ See [`references/review-finding-ingest.md`](references/review-finding-ingest.md)
 
 - [references/routing-decision-tree.md](references/routing-decision-tree.md) — the 6-destination taxonomy, narrative-probe questions, disambiguation heuristics
 - [references/mind-vault-promotion.md](references/mind-vault-promotion.md) — full branch policy, PR maintenance, commit-message conventions for mind-vault destinations
-- [references/review-finding-ingest.md](references/review-finding-ingest.md) — parsing rules for review-loop output (engine-agnostic; same shape from `/bugbot-loop` or `/copilot-loop`), de-duplication against prior findings
+- [references/review-finding-ingest.md](references/review-finding-ingest.md) — parsing rules for review-loop output (engine-agnostic; same shape regardless of engine), de-duplication against prior findings
 - [assets/solution-template.md](assets/solution-template.md) — project-local solution doc structure
 - [assets/skill-scaffold-template.md](assets/skill-scaffold-template.md) — minimal new-skill scaffold to emit when promoting a cross-project pattern
-- [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with the compound-routing table
+- [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with the compound-routing table
 - [skills/skill-writer/SKILL.md](../skill-writer/SKILL.md) — meta-standard consulted when emitting a new skill
 - [rules/RULE_git-safety.md](../../rules/RULE_git-safety.md) — branching and commit contract honoured during mind-vault promotion
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — location-by-status routing; `/compound` may trigger the `idea`→archive move when post-incident routing classifies an IDEA as superseded or rejected before any execution started
-- [commands/bugbot-loop.md](../../commands/bugbot-loop.md) / [commands/copilot-loop.md](../../commands/copilot-loop.md) — the preceding review stage whose output this skill consumes (engine-specific commands; same output shape)
-
----
-
-**Last Updated**: 2026-04-30
+- [skills/review-loop/SKILL.md](../review-loop/SKILL.md) — the preceding review stage whose output this skill consumes (engine-agnostic; same output shape regardless of engine)

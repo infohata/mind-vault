@@ -1,217 +1,49 @@
 # RULE_self-sweep-before-push
 
-Before `git commit` on any cycle that touches Python or JS source, run a brief self-sweep on every file edited this cycle. The sweep catches the same trivial findings any code-review bot will catch — at zero cycle-cost, instead of the 5-10 minute round-trip of "push → review → fix-comment → push → re-review".
+Before `git commit` on any cycle that touches Python or JS source — **or makes substantial doc/markdown changes** — run a brief self-sweep on every file edited this cycle. The sweep catches the same trivial findings any review bot will catch — 1 second locally vs a 3-10 min (billed) bot round-trip.
 
-## The Hard Rule
+Grep recipes, full Why-This-Matters discussion, edge cases, the Pyflakes Pipe Pattern, and the **Pipeline Exit-Code Discipline** (gate on the upstream's exit, not a downstream `tee`/`grep`/`jq`) live in [`../docs/rules/RULE_self-sweep-before-push-rationale.md`](../docs/rules/RULE_self-sweep-before-push-rationale.md). Load on first encounter or when adjudicating an edge case.
 
-For every file edited in the current commit's working set:
+## The Five Sweep Triggers
 
-1. **Imports block** — every `import X, Y, Z` and `from X import A, B, C`: are A/B/C all referenced in the file? If not, drop them.
-2. **Dead conditionals** — any `if foo:` followed by code that's overwritten unconditionally a few lines later? Same for ternaries with both branches reaching the same effective state.
-3. **Unused locals** — `var = something()` that's never read. Either drop the assignment (keep the side-effect call: `something()`) or rename to `_` to signal intent.
-4. **Stale comment vs code** — does the comment still describe what the code does, or did the last edit invalidate it?
+### 1. Touched-files sweep (every commit)
 
-For Python files, `python -m pyflakes <path>` (already in dev-image for most projects) catches #1 and #3 mechanically in ~1 second. For JS, eyeball at minimum.
+For every file edited in the current commit's working set, check:
+
+1. **Imports block** — every `import X` and `from X import A, B`: is each name referenced? If not, drop.
+2. **Dead conditionals** — `if foo:` followed by code overwritten unconditionally a few lines later.
+3. **Unused locals** — `var = something()` never read. Drop, or rename to `_` if the side effect matters.
+4. **Stale comment vs code** — does the comment still describe what the code does?
+
+Python: `python -m pyflakes <path>` catches #1 and #3 mechanically. In a docker-first project where the image lacks pyflakes, run as a one-shot:
+
+```bash
+docker compose exec -T web pip install --quiet pyflakes && docker compose exec -T web python -m pyflakes <changed-files>
+```
+
+For JS, eyeball at minimum. Scope is **touched files entirely**, not just the new diff — pre-existing dead imports in a file you just edited are in scope (threshold ~10 mechanical edits before splitting to a separate PR).
+
+### 2. Contract-change sweep (when changing a public function's signature)
+
+When you change a function's return type, parameter signature, or thrown exceptions, grep ALL callers in the SAME commit. The most common wasted-bot-cycle pattern is missing a sibling caller in the same file. Recipes + "what counts as a contract change" → rationale doc.
+
+### 3. Defensive-code sweep (when adding a defensive read of someone else's field)
+
+When you add code that reads a field on an object you didn't author (`if (state.foo)`, `try { state.foo.method() }`), grep the producer's source for the WRITE site of that field FIRST. Zero writes = phantom-field guard whose condition is permanently `undefined`. Failure-mode walkthrough + grep patterns → rationale doc.
+
+**A guard that *skips* or *discards* rows is itself a data-shape claim — validate it against the producer's REAL data, not a mock.** Adding `if not looks_valid(x): skip` (e.g. `int(id)` with a skip-on-failure, a regex filter, a type check) encodes an assumption about what the producer actually emits. If that assumption is wrong, the guard silently drops *every* row — often a worse failure than the bug it was meant to prevent (empty result vs loud error). Mocks are dangerous here: a unit test you wrote feeds the guard *your* assumed shape, so it passes; an architecture review reads the same assumption and nods. Only the producer's real, seeded data exposes the mismatch. Before shipping a discard/skip guard: grep the producer's write site for the field's actual shape, and check whether a sibling reader already decodes it (copy that, don't reinvent). If the data is composite/encoded, decode — don't reject. Pairs with [`RULE_rename-before-drop`](RULE_rename-before-drop.md) (partial-state left behind at phase boundaries).
+
+### 4. Touched-suite sweep (when you run a test suite)
+
+When `make test` reports pre-existing failures unrelated to your change, fix them in the SAME PR. Do not file as "out-of-scope". Habituation, bisect-poisoning, and reviewer-confusion costs → rationale doc.
+
+### 5. Doc-consistency sweep (doc-heavy commits)
+
+When a commit carries substantial doc/markdown changes (IDEA files, ideas index, plan docs, devlogs) — **even alongside code** — sweep the consistency class bots flag one-nit-per-cycle: (1) frontmatter `related`/`depends_on`/`supersedes` ↔ body prose symmetry, every id and every edge; (2) every id in an ordering/recap block has an index-table row; (3) count/range claims match the listed set; (4) domain-terminology precision (e.g. shared-schema vs per-tenant); (5) PR-description ↔ final-diff drift; (6) frontmatter formatting matches repo convention. Grep recipes + detail → rationale doc.
 
 ## When This Applies
 
 - Every commit on a feature branch that touches `.py` or `.js` source.
-- Mandatory before push if a review-bot-equivalent code-review bot is wired up to the PR — the self-sweep saves an entire review-bot cycle (review + commit + retrigger + re-review) per trivial finding.
-- Especially valuable inside `review-loop` skills: between Phase 2 (apply edits) and Phase 3 (commit + push + retrigger), so trivial issues never reach review-bot.
-
-## The Pyflakes Pipe Pattern
-
-Most projects don't ship `pyflakes` in the production image. Two clean ways to run it on demand:
-
-**Project Makefile target** (one-time setup, durable):
-
-```make
-self-sweep:
-	@docker compose exec -T web pip install --quiet pyflakes 2>/dev/null
-	@docker compose exec -T web python -m pyflakes $(PATHS)
-```
-
-**One-shot pip install + run** (when no Makefile target exists):
-
-```bash
-docker compose exec -T web pip install --quiet pyflakes
-docker compose exec -T web python -m pyflakes <changed-files>
-```
-
-The pip install is idempotent (no-op if already installed) and free in any reasonable dev image — the marginal cost is ~50ms after the first run.
-
-## Contract-Change Sweep: When You Modify a Shared Helper's Return Type or Signature
-
-Distinct discipline from the touched-files sweep, applies on a different trigger: **whenever you change a public-facing function's return type, parameter signature, or thrown exceptions, grep for ALL callers in the SAME commit.** Not just the most-prominent caller, not just the one you remembered, not just the one a test happened to cover. Every caller.
-
-The single most common "wasted review-bot cycle" pattern this rule prevents: a helper changes its contract, you patch the obvious caller, ship it. review-bot reviews the diff, spots a second caller — often in the SAME file — that wasn't updated. You fix that one, ship it. review-bot reviews again, spots a third caller in another file. By the time you're clean, you've burned three cycles on what was one self-contained refactor.
-
-### The grep that catches it
-
-For the typical refactor where a JS helper or Python function changes:
-
-```bash
-# Inside a docker compose container or repo root:
-grep -rn '\bfunctionName(' --include="*.js" --include="*.ts" --include="*.py"
-```
-
-For Python specifically, when the change is to a method on a class:
-
-```bash
-grep -rn '\.methodName(' --include="*.py"
-```
-
-Both should be run from the project root, not the file's directory — review-bot will catch any caller anywhere in the repo, so the sweep needs the same scope.
-
-### What counts as a contract change worth sweeping
-
-- **Return type changes**: `return undefined` → `return Promise.reject(...)` (any sync→async return). Callers without `.catch()` now leak unhandled rejections. Callers without `await` see different behaviour.
-- **Throwing where the caller didn't expect**: a previously infallible function now raises. Wrap-checking callers crash in production.
-- **Default parameter changes**: a previously optional positional now required. All call sites without explicit pass-through silently regress.
-- **Async-ifying a sync function**: callers that ignored the return value now silently complete out-of-order, races appear in tests intermittently.
-- **Removing a side effect**: callers that depended on the side effect (DOM mutation, log emission, cache invalidation) silently degrade.
-
-### What does NOT need the sweep
-
-- Pure additions: a new optional kwarg, a new return field on an existing dict-shaped return. Callers ignoring the new surface are unaffected.
-- Internal refactors that don't cross the function boundary: renaming a local variable, changing the implementation while keeping the signature + return type identical.
-- Adding logging / metrics that don't alter return value or exception shape.
-
-### When the sweep finds many callers
-
-If grep returns >5 callers and they're all in the project, judgement call:
-
-- **All in one file or one tight cluster**: handle in the same commit as the contract change. One reviewable diff, atomic semantics.
-- **Spread across many files / apps**: ship the contract change in commit N with a backwards-compat shim (the helper returns BOTH the old shape AND the new shape, callers on the old path keep working); ship the per-caller updates in commits N+1...N+M; remove the shim in commit N+M+1. The shim window prevents an N-file PR from blocking on per-file review feedback.
-
-## Defensive-Code Sweep: Verify Against the Producer's Write Site, Not the Read Site
-
-Sibling to the Contract-Change Sweep, fires on a different trigger: **whenever you add a defensive code path that reads a field, method, or attribute, grep for the WRITE site of that field in the producer code BEFORE shipping the defense.** If grep returns zero writes, the field doesn't exist — your defensive code is a phantom-field guard whose condition is permanently `undefined`.
-
-The failure mode: a defensive `if (state.someField)` or `try { state.someField.method() }` reads a field that was renamed, never existed, or lives on a different object than the author assumed. The guard appears to work — the field is always falsy, so the defensive branch always fires. Its "recovery" action (reload, retry, fallback) then masks any deeper bug that would otherwise have surfaced. The phantom-field typo is invisible during manual smoke (the recovery hides it), and the masked underlying bug surfaces only when the defense is later investigated for retirement — at which point both findings land together and look causally connected when they're independent.
-
-### The grep that catches it
-
-```bash
-# Whatever field your defensive code reads — grep the producer's source for the WRITE site.
-grep -rn '\b<fieldName>\s*=' <producer-module>/   # JS / Python assignment
-grep -rn '\b<fieldName>\b' <producer-module>/     # widen if assignment uses computed keys
-```
-
-For object properties on a JS module-level store / Alpine store / class instance, search for the constructor / initialiser that creates the object literal:
-
-```bash
-grep -B 2 -A 20 'Alpine.store(.<storeName>' <module>/static/<module>/js/
-```
-
-Read every key in the literal. If the field your defense reads isn't there (and isn't ASSIGNED in any code path), the field doesn't exist — either find the correct key (the actual one in the producer's literal) or remove the defense if no real failure mode requires it.
-
-### When this sweep especially matters
-
-- Adding any `try` / `catch` whose `try` body reads a field you didn't author (the catch silently swallows `TypeError: Cannot read property X of undefined`).
-- Adding any `if (obj.field)` guard where `obj` comes from a different module / store / library.
-- Refactoring a producer that renames internal fields — every consumer's defensive guard now reads a stale name. The rename-before-drop discipline catches the call sites; this rule catches the field accesses.
-- Diagnostic logging that reads state from another module (`console.log('frames:', store.frames)` — if `frames` was renamed to `stack`, the log always prints `frames: undefined` and the diagnostic appears to confirm that "frames is empty" when actually the field doesn't exist).
-
-## Touched-Suite Sweep: Fix Pre-Existing Failures in Suites You Run
-
-Sibling to the dead-imports sweep, applies to a different artefact: **whenever you run a test suite (full or partial) for any reason and observe a pre-existing failure that's unrelated to your current change, FIX IT in the same PR.** Do not file it as "out-of-scope" or "pre-existing — not my problem". The cost calculus is identical to the dead-imports sweep: a test failure that's known but not fixed becomes either (a) a habituation point where the team learns to ignore failures, or (b) a noise-floor that masks real regressions on the next PR.
-
-### When this fires
-
-- Running `make test` to verify YOUR change doesn't break anything, and the report shows N failures, of which M were already failing on the parent branch BEFORE your change.
-- The forward-merge of an upstream branch surfaces failures that weren't visible when the upstream PR landed (the upstream PR's test pass was on a pre-merge branch state; post-merge state combines with your branch and reveals the gap).
-- A review-bot review reports findings on tests that were already failing — review-bot doesn't distinguish "your fault" from "pre-existing" and neither should you.
-
-### The rule
-
-If the suite reports M pre-existing failures and N new failures from your change:
-
-1. Triage all M+N failures together. Don't draw a "mine vs theirs" boundary.
-2. For each pre-existing failure, identify the actual cause (look at the source, the test, the commit that introduced the change that broke the test).
-3. Fix or update each test in the SAME PR as your work. If the test is broken because its EXPECTED constant was never updated after a related refactor, update the EXPECTED constant. If the test's contract is genuinely obsolete (the behaviour it asserts was intentionally retired), delete the test with a one-line commit message explaining why.
-4. The commit message for the test fixes should attribute the introducing change ("Pre-existing failures from IDEA-XXX refactor — EXPECTED constants weren't updated alongside the source change") so future readers understand the recovery story.
-
-### Why this matters
-
-- **Habituation**: a known-failing test that ships green-on-PR-because-CI-doesn't-run-it (or red-but-ignored) trains the team to ignore red. The next genuine regression hides behind the same dismissal.
-- **Bisect-poisoning**: if you ship code while pre-existing tests are red, `git bisect` against a future regression can't distinguish "this commit introduced the failure" from "the failure existed all along".
-- **Reviewer confusion**: a reviewer who sees N failures on a PR's CI run can't tell which N-K are your responsibility. The reviewer either approves blind or asks you to attribute, neither of which scales.
-- **Compound interest**: every PR shipped with M pre-existing failures grows the noise floor by M (unless someone happens to fix the failure as a one-off). The dominant strategy if everyone follows this discipline is to monotonically decrease the failure count.
-
-### Anti-pattern
-
-❌ "These 4 failures are pre-existing — I'll file a follow-up issue and continue with my work."
-
-This is the noise-floor growth path. The follow-up issue rarely ships because it's not attached to a feature delivery cycle. Other engineers see the same failures on their PRs and apply the same dismissal. Six months later the test suite has 40 known-failing tests that nobody trusts.
-
-The correct response, even when the failures are genuinely unrelated to your work: triage and fix in your PR, attributed to the introducing change in the commit message. The cost is bounded (typically 5-30 minutes per pre-existing failure once the diagnosis is in hand); the benefit compounds.
-
-## Pipeline Exit-Code Discipline
-
-The sweep is only as honest as the script that runs it. A pipeline whose **upstream** stage fails but whose **downstream** stage exits 0 will tell you "success" when the actual sweep / build / test never ran. The canonical bite:
-
-```bash
-./tools/sprint-auto-bootstrap.sh integration-runner 0 --port-offset 30000 \
-    2>&1 | tee -a "$BATCH_LOG"; echo "=== BOOTSTRAP EXIT: $? ==="
-# Prints "BOOTSTRAP EXIT: 0" regardless of the bootstrap's actual exit code,
-# because $? captures `tee`'s exit, not the bootstrap's.
-```
-
-`tee` (and `cat`, `head`, `tail`, `jq` reading a pipe, almost anything downstream of `|`) is essentially-always going to exit 0 — so anything `$?` could tell you about the upstream is gone. **Cost of getting this wrong**: I shipped a "bootstrap green" status to a downstream step that actually failed at the very first `sed`, then watched the next step trip over the absence of the artefacts the bootstrap was supposed to produce. The discovery — `tee` ate the exit code — was a small delay, but it counted as a wasted iteration in a review-loop budget.
-
-Two equally-clean fixes; pick whichever fits the call site:
-
-1. **Drop the pipe** — `./script ... > "$LOG" 2>&1; echo "EXIT: $?"`. The script writes directly to the log; `$?` is now the script's exit. Simplest when you don't need progressive stdout.
-2. **`PIPESTATUS[0]`** — `./script ... 2>&1 | tee -a "$LOG"; echo "EXIT: ${PIPESTATUS[0]}"`. Bash-specific; reads the exit code of the first command in the most recent pipeline. Keep this when you genuinely want `tee` (live progress + retained log).
-
-Either form is one keystroke past the buggy form and removes the lie.
-
-The same shape bites less obviously in:
-
-- `make test 2>&1 | grep -E 'PASS|FAIL'; echo "$?"` — `grep`'s exit (0 = found, 1 = no match), not `make test`'s.
-- `pytest ... | tee artifacts/pytest.log` in CI scripts where the job's pass/fail is keyed off `$?`.
-- `gh api ... | jq '...'` where a 404 from the API gets formatted as `null` and the job continues.
-
-**The discipline**: when a script's purpose is to **gate** a subsequent step (commit, push, retrigger, hand-off), the exit code that gates MUST be the upstream's, not a downstream filter's. Prefer redirection over `tee` unless live progress is genuinely required; when `tee` is required, use `${PIPESTATUS[0]}`. Adding the word "bootstrap" or "test" to the eventual "EXIT: 0" output doesn't make the 0 honest — name the source, not the destination.
-
-## Scope: Touched Files, Not Just New Edits
-
-When pyflakes flags pre-existing dead imports / unused locals in a file you're editing, **clean them up in the same commit** (or a separate `chore(tests):` commit if the diff would otherwise be confusing). Pre-existing findings in touched files are in scope, not out of scope.
-
-The reasoning: leaving known dead code in a file you just touched is a "loose end". The cost is one more pyflakes sweep + a small commit; the win is the file being clean for the next person who opens it. Side effect: makes the file behave with `--sweep` / `--unused-import-strict` linting modes that future projects might enable.
-
-**Threshold**: ≤ ~10 mechanical edits → roll into the current PR. > 10 → separate cleanup PR (don't balloon the current PR's diff with unrelated cleanup).
-
-## Why This Matters
-
-### The review-bot-cycle math
-
-review-bot (or any equivalent code-review bot) takes 3-10 minutes per review cycle: comment posted → fetch via API → triage → apply fix → push → bot re-reviews. A 1-second pyflakes sweep that catches the same finding eliminates that cycle entirely.
-
-For a multi-cycle review-bot loop on a single PR, every avoided cycle compounds: each saved cycle reduces wall-clock time by 3-10 min AND reduces context-window cost AND avoids billing the code-review bot.
-
-### Trivial findings dominate the no-progress-loop budget
-
-The review-loop's no-progress detector treats every category-attempt as a budget hit. A trivial dead-import finding consumes the same per-category counter as a substantive bug. Pre-sweeping trivial findings keeps the budget free for the actual subtle bugs review-bot catches.
-
-### "Is this commit obviously sloppy" — not "is this commit perfectly clean"
-
-Don't go deeper than this — full ruff / mypy passes are PR-time / CI-time concerns, not per-commit. The sweep is the minimum bar for "nothing obviously broken"; anything beyond is the reviewer's / CI's job.
-
-## Anti-Patterns
-
-- ❌ "It'll get caught in CI / by review-bot eventually" — yes, and each catch is a 3-10 minute cycle. The sweep is 1 second.
-- ❌ Skip-on-pre-existing — if the file has 5 dead imports and you add a 6th, fixing only the 6th leaves the file in the same state. Sweep all 6.
-- ❌ Run pyflakes from inside an IDE that lints on save — sometimes works, sometimes doesn't, depends on Python interpreter resolution + venv config. The container-side run is authoritative because it matches what review-bot's review will see.
-- ❌ Suppress with `# noqa: F401` when the import is actually dead — that's masking the issue, not fixing it. Suppress only when the import has a side effect (e.g. registers a Django app's signal handlers via import-time code).
-
-## Relationship to Other Rules
-
-- [`RULE_git-safety`](RULE_git-safety.md) — the sweep runs on the feature branch before push; doesn't change branch policy.
-- [`RULE_rename-before-drop`](RULE_rename-before-drop.md) — sweeps also catch leftover imports after a rename (the dropped symbol's import stays, pyflakes flags it).
-- The review-loop skill (where it exists) should run pyflakes self-sweep between Phase 2 and Phase 3 as a built-in step.
-
----
-
-**Last Updated**: 2026-05-28
+- Every commit that is **doc-heavy** (substantial IDEA / index / plan / devlog markdown), even when it also carries code — trigger 5.
+- Mandatory before push if a review bot (code or doc) is wired up to the PR — saves an entire billed bot cycle per trivial finding.
+- Especially valuable inside `review-loop` skills: between Phase 2 (apply edits) and Phase 3 (commit + push + retrigger).

@@ -150,7 +150,3 @@ When a brownfield takeover surfaces a shape this file doesn't cover:
 1. Add a new `## Variant — <name>` section here with the detection heuristic and mapping rules.
 2. Extend the skill's parsing logic in `SKILL.md` step 2 to branch on the new detection.
 3. Do NOT special-case inside the core skill body — keep the format specifics isolated in this reference file so the core remains stable.
-
----
-
-**Last Updated**: 2026-04-19

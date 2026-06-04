@@ -160,7 +160,3 @@ The per-IDEA auto-run log makes review mechanical. Expected fields:
 - **Worktree path** (always present; human `cd`s there to investigate)
 - **Diagnostic excerpt** (last 50 lines of `/work`'s test output on failure; the architect's rejection verdict on rejection; the bootstrap script's stderr on bootstrap failure)
 - **Cleanup command**: one-liner to tear down the worktree + its docker stack once the human is done (`cd <worktree> && docker compose down -v && cd - && git worktree remove <worktree>`)
-
----
-
-**Last Updated**: 2026-05-05

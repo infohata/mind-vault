@@ -1,7 +1,7 @@
 #!/bin/bash
 # Find GitHub Copilot review activity on a PR — inline comments, top-level PR
 # comments, and reviews.
-# Used by the /copilot-loop skill (mind-vault) as well as human inspection.
+# Used by the /review-loop skill (mind-vault) as well as human inspection.
 #
 # Bot user.login dual identity — confirmed empirically on mind-vault PR
 # #118 (2026-05-17 cycle 2): GitHub Copilot's PR-review bot exposes
@@ -15,12 +15,14 @@
 # entries. The check-run app-slug filter ('copilot' substring match) is
 # still best-guess — calibrate when the first check-run-bearing PR runs
 # through. If a future Copilot product change adds a third spelling,
-# extend the tuple below + AGENT_copilot.md + commands/copilot-loop.md.
+# extend the tuple below + skills/review-loop/references/engine-copilot.md.
 #
 # Output contract:
 #   - Prints a single `COPILOT_CLEAN_SIGNAL=<id> COMMIT=<sha> AT=<iso-timestamp>` line
-#     on its own when copilot's most recent review on the PR is a "found no new issues"
-#     clean-signal. The loop's Phase 4 decision tree greps for this line.
+#     on its own when copilot's most recent review on the PR is a clean-signal
+#     ("found no new issues" OR "generated no new comments" — both phrasings observed
+#     in the wild as of 2026-05-22). The loop's Phase 4 decision tree greps for
+#     this line.
 #     The signal source is /pulls/<N>/reviews PRIMARILY, with a /commits/<sha>/check-runs
 #     fallback (added 2026-05-06): copilot can post the clean signal as a GitHub Check
 #     instead of a review-body — the script synthesizes COPILOT_CLEAN_SIGNAL from a
@@ -106,7 +108,8 @@ REVIEWS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews?per_page
 # /check-runs API — added 2026-05-06 after PR #429 spent ~35 min polling /reviews
 # for a clean signal that copilot had posted as a successful GitHub Check.
 # Copilot's clean signal can land in EITHER:
-#   - /pulls/<N>/reviews with body "found no new issues" (the original signal source)
+#   - /pulls/<N>/reviews with a clean-body matching one of CLEAN_PHRASES
+#     ("found no new issues" / "generated no new comments") — original signal source
 #   - /commits/<sha>/check-runs with conclusion=success on the Copilot app's check-run
 # This script accepts either as clean. The /check-runs path requires the PR HEAD SHA;
 # we fetch it via /pulls/<N> and gracefully degrade to empty state if that fetch fails.
@@ -126,7 +129,7 @@ fi
 #
 #   1. CLEAN_SIGNAL_LINE   — "is copilot saying HEAD is clean right now?"
 #                            Emits COPILOT_CLEAN_SIGNAL only on positive match.
-#                            Empty otherwise. Drives /copilot-loop's Phase 4
+#                            Empty otherwise. Drives /review-loop's Phase 4
 #                            fast-path hand-back.
 #
 #   2. LATEST_REVIEW_LINE  — "what is the most recent copilot review, regardless
@@ -145,7 +148,7 @@ fi
 #   - Each block answers ONE question and is independently readable (~15 lines
 #     vs ~40 for a consolidated emit-three-markers block).
 #   - The line-by-line stdout shape (independently empty-able markers in their
-#     existing order) IS a contract — `/copilot-loop` Phase 4 greps the
+#     existing order) IS a contract — `/review-loop` Phase 4 greps the
 #     `^COPILOT_CLEAN_SIGNAL=` anchor; consolidating risks reordering or
 #     emitting empty placeholders that subtly change consumer behaviour.
 #   - Three python3 spawns is ~150ms total — invisible at the loop's 270s
@@ -165,13 +168,29 @@ copilot = [r for r in reviews if (r.get('user') or {}).get('login') in ('Copilot
 # Newest first
 copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
 # The output contract (file header, lines 5-8) says the marker fires iff copilot's
-# MOST RECENT review is the 'found no new issues' clean-signal. Check the newest
-# review only — never skip past a newer non-clean review to find an older clean
-# one. The 'Recent reviews' pass below separately surfaces non-clean history.
+# MOST RECENT review is a clean-signal. Check the newest review only — never skip
+# past a newer non-clean review to find an older clean one. The 'Recent reviews'
+# pass below separately surfaces non-clean history.
+#
+# Two body-text phrasings observed in the wild as of 2026-05-22:
+#   * 'found no new issues' — classic Copilot wording.
+#   * 'generated no new comments' — newer wording, surfaced on PR #474 (teisutis)
+#     when the final review was effectively clean but the body started with
+#     '## Pull request overview\n\nCopilot reviewed N out of N changed files
+#     in this pull request and generated no new comments.' The legacy matcher
+#     missed it; review-loop had to fetch the body manually to confirm CLEAN.
+# Match either phrasing. Compare case-insensitively so a future Copilot
+# template tweak (e.g. sentence-case 'Generated no new comments') doesn't
+# silently break clean detection — CLEAN_PHRASES stays lowercase, body
+# is lower-cased at compare time.
+CLEAN_PHRASES = ('found no new issues', 'generated no new comments')
+def _is_clean_body(body):
+    body_l = (body or '').lower()
+    return any(p in body_l for p in CLEAN_PHRASES)
 if copilot:
     r = copilot[0]
     body = r.get('body') or ''
-    if 'found no new issues' in body:
+    if _is_clean_body(body):
         rid = r.get('id')
         commit = r.get('commit_id') or ''
         at = r.get('submitted_at') or ''
@@ -179,13 +198,13 @@ if copilot:
 " 2>/dev/null || true)
 
 if [ -n "$CLEAN_SIGNAL_LINE" ]; then
-    # Machine-readable marker for /copilot-loop Phase 4: MUST be plain text, no ANSI
+    # Machine-readable marker for /review-loop Phase 4: MUST be plain text, no ANSI
     # escapes. Phase 4 greps `^COPILOT_CLEAN_SIGNAL=` and parses `COMMIT=<sha>` for
     # the fast-path hand-back. Wrapping this in color codes prefixes the line with
     # `\033[0;32m`, breaks the anchor, and suffixes `AT=<ts>` with `\033[0m` — the
     # exact failure mode this script exists to prevent.
     echo "$CLEAN_SIGNAL_LINE"
-    echo -e "${GREEN}✅ Copilot reviewed the PR head and found no new issues.${NC}"
+    echo -e "${GREEN}✅ Copilot's most recent review on the PR head is a clean-signal (no new findings).${NC}"
     echo ""
 fi
 
@@ -198,7 +217,7 @@ fi
 # /commits/<sha>/check-runs. Make the script tolerant: emit COPILOT_CHECKRUN
 # unconditionally (informational), and SYNTHESIZE COPILOT_CLEAN_SIGNAL when the
 # check-run reports success and /reviews didn't already produce a clean signal
-# for HEAD. Downstream consumers (/copilot-loop Phase 4) only need to grep
+# for HEAD. Downstream consumers (/review-loop Phase 4) only need to grep
 # COPILOT_CLEAN_SIGNAL — the synthesis preserves the existing contract.
 #
 # App identification — match by Copilot-specific markers ONLY. Earlier
@@ -243,29 +262,136 @@ at = latest.get('completed_at') or latest.get('started_at') or ''
 print(f'COPILOT_CHECKRUN={rid} COMMIT={sha} STATUS={status} CONCLUSION={conclusion} AT={at}')
 " 2>/dev/null || true)
 
+# Did Copilot post a REVIEW (not merely a check-run) for the current head SHA, and are
+# there any Copilot inline findings already? Both feed the review-pending race guard.
+HEAD_REVIEW_POSTED=$(echo "$REVIEWS" | PR_HEAD_SHA="$PR_HEAD_SHA" python3 -c "
+import json, os, sys
+try:
+    reviews = json.load(sys.stdin)
+except Exception:
+    print('false'); sys.exit(0)
+head = os.environ.get('PR_HEAD_SHA','')
+cop = [r for r in reviews if (r.get('user') or {}).get('login') in ('Copilot','copilot-pull-request-reviewer[bot]')]
+print('true' if any((r.get('commit_id') or '') == head for r in cop) else 'false')
+" 2>/dev/null || echo "false")
+
+# Copilot review id FOR THE HEAD SHA (empty if none yet) — HEAD-AWARE. The head review (not merely
+# the latest, which on the settle-valve path points at a PRIOR-SHA review) is what makes the precheck
+# honest: stale prior-SHA comments don't block the valve's clean synthesis; head findings correctly do.
+COPILOT_HEAD_RID=$(echo "$REVIEWS" | PR_HEAD_SHA="$PR_HEAD_SHA" python3 -c "
+import json, os, sys
+try:
+    reviews = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+head = os.environ.get('PR_HEAD_SHA', '')
+cop = [r for r in reviews
+       if (r.get('user') or {}).get('login') in ('Copilot','copilot-pull-request-reviewer[bot]')
+       and (r.get('commit_id') or '') == head]
+cop.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
+if cop:
+    print(cop[0].get('id') or '')
+" 2>/dev/null || true)
+
+# Any ACTIVE Copilot inline findings — on the HEAD-SHA review only, NOT stale comments from prior
+# reviews GitHub keeps visible. Gates the CLEAN_SIGNAL check-run synthesis. No head-SHA review yet
+# (incl. the settle-valve check-run-only path) → empty rid → empty precheck → not blocked by stale.
+COPILOT_INLINE_PRECHECK=$(echo "$INLINE_COMMENTS" | COPILOT_HEAD_RID="$COPILOT_HEAD_RID" python3 -c "
+import json, os, sys
+try:
+    comments = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+rid = os.environ.get('COPILOT_HEAD_RID', '')
+if not rid:
+    sys.exit(0)
+active = [c for c in comments
+          if (c.get('user') or {}).get('login') in ('Copilot','copilot-pull-request-reviewer[bot]')
+          and str(c.get('pull_request_review_id') or '') == rid]
+if active:
+    print('yes')
+" 2>/dev/null || true)
+
 if [ -n "$COPILOT_CHECKRUN_LINE" ]; then
-    echo "$COPILOT_CHECKRUN_LINE"
-    # Synthesize COPILOT_CLEAN_SIGNAL from a successful check-run when /reviews
-    # didn't produce one for HEAD. The downstream /copilot-loop Phase 4 only
-    # greps COPILOT_CLEAN_SIGNAL; this preserves the existing consumer contract.
-    # In-progress Copilot check-runs emit `STATUS=` / `CONCLUSION=` with
-    # empty values. `grep -oE 'FIELD=[^ ]+'` (requiring ≥1 non-space char
-    # after `=`) returns 1 in that case. With `set -eo pipefail` (enabled
-    # at top of file) the grep's exit propagates through the pipe and
-    # aborts the script. Append `|| true` to each pipeline so empty
-    # fields fall through to the `!= success` branch (no synthesis)
-    # rather than abort.
+    # Field extraction up-front. `grep -oE 'FIELD=[^ ]+'` requires ≥1 non-space char
+    # after `=`; in-progress check-runs emit empty CONCLUSION= and would make grep exit 1
+    # under `set -eo pipefail`, aborting the script — so each pipeline carries `|| true`.
     cr_status=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'STATUS=[^ ]+' | cut -d= -f2 || true)
     cr_conclusion=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'CONCLUSION=[^ ]+' | cut -d= -f2 || true)
+    cr_id=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'COPILOT_CHECKRUN=[^ ]+' | cut -d= -f2 || true)
+    cr_sha=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'COMMIT=[^ ]+' | cut -d= -f2 || true)
+    cr_at=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'AT=[^ ]+' | cut -d= -f2 || true)
+
+    # ── Review-pending race guard ──────────────────────────────────────────────
+    # Copilot's check-run flips to completed+success BEFORE its inline review posts
+    # (observed lag 3m42s on mind-vault PR #148, 2026-05-27: check-run completed
+    # 13:32:56Z, review with 2 findings posted 13:36:38Z). A poll landing in that gap
+    # sees DONE + zero findings and the loop concludes a FALSE CLEAN, shipping the
+    # about-to-post findings unreviewed. `conclusion=success` is emitted whether or not
+    # Copilot found issues, so the check-run alone is NEVER a clean verdict.
+    #
+    # Trust a completed+success check-run as DONE only once Copilot has posted a REVIEW
+    # for the head SHA. Until then (review pending), downgrade the emitted status to
+    # in_progress so /review-loop treats it as RUNNING and keeps waiting. Settle valve
+    # (COPILOT_REVIEW_SETTLE_SECONDS, default 600) covers the rare case where Copilot
+    # posts only a check-run and no review at all — after it elapses the check-run is
+    # trusted so the loop doesn't poll to its idle timeout.
+    # CONCLUSION-AGNOSTIC downgrade: copilot always concludes `success` (even with findings),
+    # so the gate is moot for copilot today — but the orchestrator ignores CONCLUSION for
+    # structural clean, so the guard must hold for ANY completed check-run with no head-SHA
+    # review (keeps the contract uniform with bugbot, whose non-success findings runs need it).
+    # `CONCLUSION=success` gates only the CLEAN_SIGNAL synthesis below, never this downgrade.
+    SETTLE=${COPILOT_REVIEW_SETTLE_SECONDS:-600}
+    COPILOT_DOWNGRADED=
+    if [ "$cr_status" = "completed" ] && [ "$HEAD_REVIEW_POSTED" != "true" ]; then
+        # Settle decision in Python — `datetime` parsing is cross-platform, unlike
+        # `date -d` (GNU coreutils only; BSD/macOS `date` needs `-j -f` and would fail,
+        # leaving the guard permanently pinned on and the valve dead). Emits "elapsed"
+        # iff cr_at parsed AND (now - cr_at) >= SETTLE; "pending" otherwise — a parse
+        # failure lands on "pending" too (default safe = keep waiting).
+        settle_state=$(SETTLE="$SETTLE" CR_AT="$cr_at" python3 -c "
+import os
+from datetime import datetime, timezone
+try:
+    settle = int(os.environ.get('SETTLE', '600'))
+    # Normalize trailing Z → +00:00 so fromisoformat works on Python < 3.11 too.
+    dt = datetime.fromisoformat(os.environ.get('CR_AT', '').replace('Z', '+00:00'))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    age = (datetime.now(timezone.utc) - dt).total_seconds()
+    print('elapsed' if age >= settle else 'pending')
+except Exception:
+    print('pending')
+" 2>/dev/null || echo "pending")
+        # Settle valve may only RELEASE (trust as DONE) a `success` review-less check-run.
+        # A non-success conclusion means findings — never trust a review-less findings run as
+        # DONE after the window (would report it clean); force pending → idle-timeout HUNG.
+        # (Copilot always concludes success, so this is a no-op for copilot but keeps the
+        # adapters consistent + future-proof.)
+        [ "$cr_conclusion" = "success" ] || settle_state=pending
+        if [ "$settle_state" != "elapsed" ]; then
+            cr_status="in_progress"
+            COPILOT_CHECKRUN_LINE=$(echo "$COPILOT_CHECKRUN_LINE" | sed 's/STATUS=completed/STATUS=in_progress/')
+            COPILOT_DOWNGRADED=1
+        fi
+    fi
+
+    echo "$COPILOT_CHECKRUN_LINE"
+
     if [ "$cr_status" = "completed" ] && [ "$cr_conclusion" = "success" ]; then
+        # Reached only when the review content has landed (HEAD_REVIEW_POSTED=true) or the
+        # settle valve fired. Synthesize COPILOT_CLEAN_SIGNAL only if /reviews didn't emit
+        # one AND there are zero Copilot inline findings — never paper a clean over findings.
         echo -e "${GREEN}✅ Copilot check-run reports success for PR head.${NC}"
-        if [ -z "$CLEAN_SIGNAL_LINE" ]; then
-            cr_id=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'COPILOT_CHECKRUN=[^ ]+' | cut -d= -f2 || true)
-            cr_sha=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'COMMIT=[^ ]+' | cut -d= -f2 || true)
-            cr_at=$(echo "$COPILOT_CHECKRUN_LINE" | grep -oE 'AT=[^ ]+' | cut -d= -f2 || true)
+        if [ -z "$CLEAN_SIGNAL_LINE" ] && [ -z "$COPILOT_INLINE_PRECHECK" ]; then
             echo "COPILOT_CLEAN_SIGNAL=checkrun-${cr_id} COMMIT=${cr_sha} AT=${cr_at}"
             CLEAN_SIGNAL_LINE="checkrun-${cr_id}"  # mark non-empty for the summary check below
         fi
+    elif [ -n "$COPILOT_DOWNGRADED" ]; then
+        # Race window: check-run done, review not yet posted for HEAD. Surface the pending
+        # state explicitly; the downgraded STATUS above already keeps the loop waiting.
+        echo "COPILOT_REVIEW_PENDING=checkrun-${cr_id} COMMIT=${cr_sha} SETTLE=${SETTLE}s"
+        echo -e "${YELLOW}⏳ Copilot check-run completed but no review posted for HEAD yet — treating as RUNNING (review-pending race guard) to avoid a false CLEAN.${NC}"
     fi
     echo ""
 fi
@@ -295,7 +421,12 @@ rid = latest.get('id')
 commit = latest.get('commit_id') or ''
 at = latest.get('submitted_at') or ''
 body = (latest.get('body') or '').strip()
-clean = 'true' if 'found no new issues' in body else 'false'
+# Match either of the two known clean-body phrasings — see Pass 1 comment block
+# for the full rationale and the PR #474 (teisutis) reference that surfaced
+# the 'generated no new comments' variant.
+CLEAN_PHRASES = ('found no new issues', 'generated no new comments')
+body_l = body.lower()
+clean = 'true' if any(p in body_l for p in CLEAN_PHRASES) else 'false'
 print(f'COPILOT_LATEST_REVIEW={rid} COMMIT={commit} AT={at} CLEAN={clean}')
 " 2>/dev/null || true)
 
@@ -317,10 +448,15 @@ except Exception:
 copilot = [r for r in reviews if (r.get('user') or {}).get('login') in ('Copilot', 'copilot-pull-request-reviewer[bot]')]
 copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
 shown = 0
+CLEAN_PHRASES = ('found no new issues', 'generated no new comments')
+def _is_clean_body(body):
+    body_l = (body or '').lower()
+    return any(p in body_l for p in CLEAN_PHRASES)
 for r in copilot:
     body = (r.get('body') or '').strip()
-    if not body or 'found no new issues' in body:
-        # Skip empties and the clean-signal review already surfaced above.
+    if not body or _is_clean_body(body):
+        # Skip empties and any clean-signal review (newest one already surfaced
+        # above; older ones are stale clean signals for prior SHAs).
         continue
     rid = r.get('id')
     commit = (r.get('commit_id') or '')[:8]
@@ -387,7 +523,7 @@ for i, comment in enumerate(comments, 1):
     url = comment.get('html_url', '')
     cid = comment.get('id', '')
     # The pull_request_review_id field ties a comment to a specific copilot review.
-    # /copilot-loop Phase 1 compares this against the COPILOT_LATEST_REVIEW marker
+    # /review-loop Phase 1 compares this against the COPILOT_LATEST_REVIEW marker
     # to distinguish active findings (latest-review) from stale persistent threads
     # (older reviews kept by GitHub UI until manually Resolve-conversation-clicked).
     # GitHub documents the field as integer-or-null. .get(key, default) returns the

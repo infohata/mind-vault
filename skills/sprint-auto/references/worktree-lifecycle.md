@@ -1,6 +1,6 @@
 # sprint-auto — worktree lifecycle
 
-**v3.1 architecture (current)**: sprint-auto runs **one** docker stack per batch — the integration worktree's, at port offset `+30000`. Per-IDEA worktrees are pure code surfaces (no `.env`, no docker compose). All verification — per-IDEA targeted tests, per-IDEA review fix-cycles, integration union, full suite, integration review, post-propagation re-review — routes to the integration worktree's stack via the `SPRINT_AUTO_INTEGRATION_WORKTREE` env var. See [`integration-stage.md`](integration-stage.md) for the full integration-worktree contract.
+**v3.2 architecture (current)**: sprint-auto runs **one** docker stack per batch — the integration worktree's, at port offset `+30000`. Per-IDEA worktrees are pure code surfaces (no `.env`, no docker compose). All verification — per-IDEA targeted tests, per-IDEA review fix-cycles, integration union, full suite, integration review — routes to the integration worktree's stack via the `SPRINT_AUTO_INTEGRATION_WORKTREE` env var. See [`integration-stage.md`](integration-stage.md) for the full integration-worktree contract.
 
 **v1 architecture (deprecated)**: every per-IDEA worktree had its own docker stack with a per-IDEA port offset (`10000 + (idea_number % 100) * 100`). Hardware-infeasible at scale — the user explicitly redirected v3 plan toward the single-stack model because running N+1 stacks per batch was impossible on the available hardware.
 
@@ -103,8 +103,6 @@ Lookup order: explicit env override → sibling dir of the project → `~/projec
 
 Updates to the canonical script propagate to every project via `git pull` in mind-vault alone — same benefit as symlinks, without the fragility.
 
-**Caveat — local checkout state (2026-05-28 empirical).** The wrapper finds the canonical script at whatever revision the local mind-vault checkout is currently on. If that's a feature branch (e.g. `compound/<topic>`) or a stale `main`, recent canonical-script fixes that landed on `origin/main` will NOT be in effect — the bootstrap runs the script as the local mind-vault sees it. One observed bite: a `/compound` session left mind-vault on `compound/<topic>` from earlier work; later the same day a sprint-auto run hit a bug the user had **already merged to mind-vault main** as PR #2 a few hours earlier, because the local checkout was still on the pre-fix compound branch. Two operationally cheap mitigations: (a) **wrapper-side warning** — emit `WARN: mind-vault is on '<branch>', not 'main' — canonical script may be stale` when the resolved candidate's `git branch --show-current` isn't `main`; bootstrap continues, but the operator gets the signal; (b) **pin via env** — `export MIND_VAULT_ROOT=<path-to-a-known-main-checkout>` (perhaps a second worktree dedicated to "the canonical main"), so feature-branch work in the primary mind-vault checkout doesn't bleed into project bootstraps.
-
 ## The hooks file
 
 Project-local. Not a symlink, not a wrapper — a real file, edited in-project. Bash functions:
@@ -171,16 +169,11 @@ A latent bug in v1: 6+ IDEAs at offsets `+10000, +20000, ..., +60000` push max r
 
 ## Teardown policy
 
-### v3.1
+### v3.2 (current)
 
-**Per-IDEA worktrees**: nothing to tear down (no stack ever existed). Worktree filesystem stays for code-surface inspection. Cleaned up by the human's `/wrap NNN` post-merge teardown:
+After the human merges the single `[INTEGRATION]` PR, one command from the primary tree — `/wrap --integration sprint-auto-<batch-iso>` — tears down the whole batch (see `skills/wrap/SKILL.md` § `--integration` mode).
 
-```bash
-git worktree remove ../<project>-auto-<slug>
-git branch -d auto/<slug>
-```
-
-**Integration worktree**: stops the stack at S11.13 (`docker compose down`, NOT `-v`; volumes preserved for inspection). The human's `/wrap NNN` for the **last-of-batch** IDEA tears down the rest:
+**Integration worktree**: stops the stack at S11.13 (`docker compose down`, NOT `-v`; volumes preserved for inspection until teardown). `/wrap --integration` then removes the rest:
 
 ```bash
 cd $integration_worktree
@@ -190,7 +183,14 @@ git worktree remove $integration_worktree
 git branch -d integration/sprint-auto-<batch-iso>
 ```
 
-See [`integration-stage.md`](integration-stage.md) § "Integration teardown" and `skills/wrap/SKILL.md` § Step 5 last-of-batch detection.
+**Per-IDEA worktrees**: nothing to tear down (no stack ever existed); the same `/wrap --integration` call removes each `auto/<slug>` worktree + branch (the per-IDEA PRs auto-closed as merged ancestors when the [INTEGRATION] PR merged):
+
+```bash
+git worktree remove ../<project>-auto-<slug>
+git branch -d auto/<slug>
+```
+
+See [`integration-stage.md`](integration-stage.md) § "Integration teardown" and `skills/wrap/SKILL.md` § `--integration` mode.
 
 ### v1 (legacy)
 
@@ -207,7 +207,3 @@ If `tools/sprint-auto-bootstrap.sh` doesn't exist in the project at all, the `/s
 Tests that depend on fixtures, buckets, or indices will fail in `/work`'s verification, and the IDEA will be skipped. This is why the preflight warns loudly when the wrapper is missing and the scripted path is strongly preferred for overnight batches.
 
 For v3.1, the inline fallback only applies to the integration worktree (per-IDEA worktrees never call the script). If the integration bootstrap falls back to the inline minimal mode, it uses `--port-offset 30000` semantics (offset `+10000` is the fallback's hard-coded value — collides with conventional v1 worktrees, so the fallback should be replaced with the proper script promptly).
-
----
-
-**Last Updated**: 2026-05-28

@@ -165,12 +165,84 @@ def event_list_view(request):
 - Static link to a different site / external URL — those should be plain `<a href>` with no JS handler.
 - An admin / debug surface where consistency with the rest of the application isn't a goal.
 
+## Scope discipline: cross-surface marker vs in-surface raw `hx-*`
+
+`data-shell-nav-link` is the **cross-surface** navigation marker — clicking it semantically means "change which app surface I'm looking at" (e.g. articles → events → orgs). The JS handler swaps the full `#shell-swap-target` (workspace + centre subtree) via `outerHTML`, because the workspace BELONGS to the new surface and must re-render with the new surface's nav content.
+
+For **in-surface** affordances — filter forms, section nav within a settings hub, tab strips, sub-section switchers — `data-shell-nav-link` is the WRONG tool. Using it produces the "workspace flash" recurring offender: every in-surface click re-renders the workspace, replaying its entry animation, even though the workspace content is identical to what was already mounted.
+
+The correct in-surface pattern: **raw `hx-*` attributes on the link, targeting the specific centre region with `hx-swap="innerHTML"`**. The workspace stays mounted; only the targeted region swaps.
+
+### Cross-surface — use `data-shell-nav-link`
+
+```django
+<a data-shell-nav-link href="/events/">Events</a>
+```
+
+Handler does: `htmx.ajax('GET', url, { target: '#shell-swap-target', swap: 'outerHTML', headers: {'HX-Shell-Fragment': '1'} })`. Server returns the workspace+centre subtree.
+
+### In-surface — use raw `hx-*` targeting `.shell-center` (or a per-pane marker)
+
+```django
+{# Section nav within a settings hub — workspace MUST stay mounted #}
+<a data-profile-section-link="basics"
+   href="/profile/?section=basics"
+   hx-get="/profile/?section=basics"
+   hx-target=".shell-center"
+   hx-swap="innerHTML"
+   hx-push-url="true">Basics</a>
+```
+
+Server returns just the centre body. Workspace stays mounted; the section-nav script's active-state listener (subscribed to a custom `profileSectionChanged` HX-Trigger event from the server) updates the `is-active` class on the matching link without re-rendering.
+
+### Server side — emit a section-change HX-Trigger
+
+The in-surface path needs a way for the workspace's already-mounted nav to update its active-state when the section changes. The convention: server emits an `HX-Trigger` event whose payload identifies the now-active sub-state; the workspace's inline `<script>` (registered once per workspace mount via a `data-…-bound` guard) listens and toggles `is-active` / `aria-current`.
+
+```python
+# views.py — bare HX-Request branch (in-surface section nav)
+if request.headers.get('HX-Request'):
+    response = HttpResponse(center_html)
+    add_htmx_trigger(
+        response,
+        event='profileSectionChanged',
+        payload={'section': section},
+    )
+    return response
+```
+
+```html
+<!-- workspace partial inline script (registers once via dataset guard) -->
+<script>
+(function () {
+    if (document.body.dataset.profileSectionNavBound === 'true') return;
+    document.body.dataset.profileSectionNavBound = 'true';
+    document.body.addEventListener('profileSectionChanged', function (evt) {
+        var section = evt && evt.detail && evt.detail.section;
+        if (!section) return;
+        var links = document.querySelectorAll('[data-profile-section-link]');
+        links.forEach(function (a) {
+            var match = a.getAttribute('data-profile-section-link') === section;
+            a.classList.toggle('is-active', match);
+            if (match) a.setAttribute('aria-current', 'page');
+            else a.removeAttribute('aria-current');
+        });
+    });
+})();
+</script>
+```
+
+The active-state update is reactive to the server event, not to the swap target — works regardless of WHERE the section body actually swapped (`.shell-center innerHTML`, an entity-refresh walker re-fetch, manual reload).
+
+### When in doubt
+
+If the click changes the URL's first path segment OR the active top-nav highlight, it's **cross-surface** → `data-shell-nav-link`. If the click changes a query parameter OR a sub-state within the same surface (workspace stays identical), it's **in-surface** → raw `hx-*` targeting `.shell-center`.
+
+The trap surfaces when developers cargo-cult `data-shell-nav-link` from cross-surface examples into an in-surface context (e.g. "section nav looks like nav, just use the same marker"). The marker's behaviour is correct for its scope — it's the scope MIS-application that produces workspace flash. Catcher: a visual M-walk test asserting a sentinel attribute on `[data-workspace-<surface>]` survives the click. If it doesn't, the workspace re-rendered.
+
 ## Related references
 
 - [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) — gotchas 1 / 3 / 4 / 10 all touch the handler-vs-attribute design surface from different angles.
 - [`PREVIEW_DRAWER_URL_STACK.md`](PREVIEW_DRAWER_URL_STACK.md) — the other marker family (`data-preview-link`) referenced as the disjoint-vocabulary sibling.
 - [`HTMX_PATTERNS.md`](HTMX_PATTERNS.md) — `HX-Shell-Fragment`-style discriminator headers in the broader HTMX response-routing context.
-
----
-
-**Last Updated**: 2026-05-16
+- [`LISTENER_REBIND_ON_SWAP.md`](LISTENER_REBIND_ON_SWAP.md) — adjacent failure mode when in-surface swap targets a region whose JS listeners die on swap; the `htmx:afterSettle` rebind contract.

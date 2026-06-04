@@ -2,6 +2,23 @@
 
 Rules for routing plan Execution Sequence items to the right persona, and for provisioning parallel worktrees when the plan calls for them. Load on demand at `/work` steps 2 and 3.
 
+## Canonical persona ↔ subagent_type map
+
+Each persona registers as a recognized Claude Code subagent under a namespaced `name:` (the `mv-` prefix avoids collisions with marketplace plugin agents in the shared registry). Dispatch with `Agent(subagent_type: "<id>")`; the backing profile file keeps its `AGENT_*.md` name (Claude dispatches on the frontmatter `name:`, not the filename — see [`docs/guides/AGENT_PORTABILITY.md`](../../../docs/guides/AGENT_PORTABILITY.md)).
+
+| Persona | `subagent_type` | Profile file |
+| --- | --- | --- |
+| Systems Architect | `mv-architect` | `agents/AGENT_architect.md` |
+| Staff Backend Engineer | `mv-backend` | `agents/AGENT_backend.md` |
+| Staff Client-Side Engineer | `mv-frontend` | `agents/AGENT_frontend.md` |
+| SRE / Infrastructure Lead | `mv-devops` | `agents/AGENT_devops.md` |
+| QA / Surgical TDD Enforcer | `mv-test-engineer` | `agents/AGENT_test-engineer.md` |
+| Curator (pre-commit review) | `mv-curator` | `agents/AGENT_curator.md` |
+| External Intelligence Scout | `mv-researcher` | `agents/AGENT_researcher.md` |
+| Technical Writer / Clarifier | `mv-documentation` | `agents/AGENT_documentation.md` |
+
+Conceptual prose elsewhere may still call a persona by its display name (`AGENT_backend`); the dispatchable string an executor passes is always the `mv-` id above.
+
 ## Persona dispatch matrix
 
 The default matrix lives in `SKILL.md`. This file documents the edges, overrides, and the parallel-worktree flow.
@@ -10,13 +27,13 @@ The default matrix lives in `SKILL.md`. This file documents the edges, overrides
 
 Some plan items span multiple personas. Resolve by the **primary artifact touched**, not by the item's stated intent.
 
-| Plan item example | Primary artifact | Persona |
+| Plan item example | Primary artifact | Subagent type |
 | --- | --- | --- |
-| "Add admin widget for billing summary" | Template + Alpine view logic | `AGENT_frontend` |
-| "Add `billing_summary` API endpoint the widget consumes" | DRF viewset | `AGENT_backend` |
-| "Dockerise the new Celery queue" | `docker-compose.yml` + entrypoint | `AGENT_devops` |
-| "Add integration test for the new endpoint" | `test_*.py` | `AGENT_test-engineer` |
-| "Refactor permission layer across auth+billing+kb apps" | Spans 3 apps, shared base class | `AGENT_architect` (author mode) |
+| "Add admin widget for billing summary" | Template + Alpine view logic | `mv-frontend` |
+| "Add `billing_summary` API endpoint the widget consumes" | DRF viewset | `mv-backend` |
+| "Dockerise the new Celery queue" | `docker-compose.yml` + entrypoint | `mv-devops` |
+| "Add integration test for the new endpoint" | `test_*.py` | `mv-test-engineer` |
+| "Refactor permission layer across auth+billing+kb apps" | Spans 3 apps, shared base class | `mv-architect` (author mode) |
 
 If a single item genuinely touches two domains, split it into two items first — the plan is expressing two logical units and should have been split at plan time.
 
@@ -106,9 +123,5 @@ Silent plan deviation is the pattern that makes execution expensive to review la
 ## What NOT to route through this skill
 
 - **Pure refactors without feature content.** If the plan is "extract `EventRenderer` into its own module, no behaviour change", architect is the author; backend is not needed.
-- **Documentation-only work.** `AGENT_documentation` handles it; the work skill barely orchestrates.
+- **Documentation-only work.** `mv-documentation` handles it; the work skill barely orchestrates.
 - **Exploratory prototyping with no plan.** If there's no plan, there's nothing to dispatch. Drop to direct work or route to `/plan`.
-
----
-
-**Last Updated**: 2026-04-19

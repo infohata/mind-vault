@@ -204,7 +204,3 @@ The 0.179 crossover threshold is calibrated against linearized luminance. Withou
 Reference: [WCAG 2.1 § Relative luminance](https://www.w3.org/TR/WCAG21/#dfn-relative-luminance).
 
 Implement once as a Django template filter (e.g. `on_color`) and reuse — the computation is a recurring need (avatar foreground, badge foreground, alert text, themed-pill text); each surface re-deriving it tends to drift back toward the shortcut.
-
----
-
-**Last Updated**: 2026-05-07

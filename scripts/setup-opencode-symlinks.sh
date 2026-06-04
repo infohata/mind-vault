@@ -32,6 +32,12 @@ echo ""
 mv_link_tree rules "$OC/rules"
 echo ""
 
+# Rule rationale: rules link out via `../docs/rules/<rule>-rationale.md` relative
+# paths to keep always-loaded rule bodies short. Symlinking docs/rules alongside
+# makes those relative paths resolve from the symlinked rules location.
+mv_link_tree docs/rules "$OC/docs/rules"
+echo ""
+
 echo "Done. Restart OpenCode sessions to pick up changes."
 echo ""
 echo "Verify: invoke the 'skill' tool in OpenCode; mind-vault skills should appear in the list"

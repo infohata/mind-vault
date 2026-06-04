@@ -200,9 +200,5 @@ Multi-phase completion markers (e.g. `Phase 1 ✅ / Phase 2 ✅ / Phase 3 ✅` o
 - [assets/idea-template.md](assets/idea-template.md) — per-idea file template; same schema as `skills/idea/assets/idea-template.md`
 - [references/legacy-formats.md](references/legacy-formats.md) — format recognition rules, variant handling, field inference heuristics
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — location-by-status routing contract honoured by step 3 and step 5
-- [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — authoritative IDEA frontmatter schema
+- [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — authoritative IDEA frontmatter schema
 - [skills/idea/SKILL.md](../idea/SKILL.md) — the skill that consumes the per-idea format this one produces
-
----
-
-**Last Updated**: 2026-04-20

@@ -60,6 +60,17 @@ html.shell-html {
 - **Sticky-within-pane** (drawer headers, table-row sticky headers, future "save bar" patterns): `position: sticky; top: 0` against the pane's scroll container — automatic once the pane has its own `overflow-y`.
 - **Bottom-anchored elements** (chat composer, save bar): pane internals use a flex-column where the scroll-region is `flex: 1 1 auto; overflow-y: auto; min-height: 0` and the bottom anchor is `flex: 0 0 auto`. The composer never scrolls with the messages.
 - **Scroll-anchor surfaces** (cursor-mode load-more, virtual-list patterns): the `[data-scroll-anchor]` element MUST be a real scroll container — declared `overflow-y: auto` AND content overflows. Under this layout that's automatic for any anchor child of `.shell-center` / `.shell-drawer__body`. Math is unchanged from window-scroll setups.
+- **Edge-affordance lips** (edge rails, pane handles, reveal sliders on a scroll-snap shell): a fixed
+  edge affordance must occupy a **reserved gutter**, never overlay edge-to-edge content (or it hijacks
+  edge taps on the content beneath it). Reserve **permanently** on the always-present side (e.g. the
+  centre pane's left, since the workspace pane always exists), and **gate** the conditional side (e.g.
+  the right, only when the preview pane has content — the appearance-time reflow is masked by that
+  pane's open-animation). Drive both insets off one `--shell-edge-gutter` token shared by the lip width
+  and drawer padding. CSS mechanics: [`SCSS_RESPONSIVE_PATTERNS.md`](SCSS_RESPONSIVE_PATTERNS.md) §2
+  (cascading custom property) + §3 (additive-padding collapse). The JS/architecture half — decoupling
+  the rail from the snap engine, the iOS fixed-in-transformed-ancestor trap, the z-index ladder, and
+  the adjacent-pane reveal model — lives in
+  [`mobile-ux-polish/references/EDGE_AFFORDANCE_RAILS.md`](../../mobile-ux-polish/references/EDGE_AFFORDANCE_RAILS.md).
 
 ## Shared scroll-container helper
 
@@ -94,6 +105,40 @@ The `scrollHeight > clientHeight` check matters: an ancestor declared `overflow-
 
 - **Window-scroll readers go quiescent on shell pages**. Any module reading `window.scrollY` (e.g. mobile nav-hide-on-scroll-down feature, popover positioning that adds `window.scrollY` to absolute coordinates) sees `0` forever because the document doesn't scroll. Annotate in-source and route the trigger to the active pane's scroll or a gesture in a follow-up. Legacy non-shell pages keep working.
 - **Modal scroll-position snapshots become no-ops**. The classic `scrollY = window.scrollY; modal.show(); ...; window.scrollTo(0, scrollY)` pattern saves 0, restores 0 — benign but worth annotating for debuggability.
+
+## Shell-global context keys are reserved — namespace per-surface context
+
+The shell base renders global chrome from a fixed set of context keys — a nav component like `<c-nav-bar :items="nav_items" />`, a workspace title, the current user, etc. A **surface fragment view** that builds its own context dict and reuses one of those global key names (e.g. its own `nav_items` for an in-surface section nav) **clobbers the shell-global value**. The global component then receives the surface's shape; the mismatch surfaces as a hard template crash — classically `{% url '' %}` / `NoReverseMatch` when the component iterates items that lack the expected `url` / `name` fields.
+
+❌ TRAP — surface view reuses a shell-global key:
+```python
+def surface_shell_context(request, ...):
+    return {"nav_items": [...], ...}   # clobbers <c-nav-bar :items="nav_items"> → {% url '' %} crash
+```
+
+✅ FIX — namespace every per-surface context key:
+```python
+    return {"surface_nav_items": [...], ...}   # shell-global nav_items stays intact
+```
+
+**Rule**: treat the shell base template's context keys as a reserved namespace; per-surface views prefix their own (`<surface>_nav_items`, `<surface>_filters`, …). The collision is invisible until the global component iterates the wrong shape, so grep the base/shell templates for `:prop="<key>"` and `{{ <key> }}` before naming a surface context key.
+
+## Settings-hub nav WITH per-section filters: bare `hx-get` + OOB filter swap, not a full fragment re-render
+
+A settings-hub surface (vertical section nav in the workspace, active section in the centre) switches sections with a bare `hx-get` → `.shell-center` (centre-only swap; workspace stays mounted). When the workspace **also carries per-section filters** (a different filter set per section — status on one, date-range on another), there's a temptation to switch the nav to a **full shell-fragment re-render** (workspace + centre) so the correct filter set appears on navigation.
+
+Don't. A full re-render **re-mounts the workspace drawer**, replaying its entry animation on every section click — visibly janky. Instead:
+
+- Keep section nav as a bare `hx-get` → `.shell-center` (centre-only).
+- Have the fragment response **OOB-swap only the filter region** (`hx-swap-oob` on a `#…-filters` container) so per-section filters update in place while the drawer, nav, and any context/org switcher stay mounted and un-animated.
+
+```html
+<!-- fragment response: centre body + an OOB filter-region redraw -->
+<div id="surface-section-body"> … </div>
+<div id="surface-filters" hx-swap-oob="true"> … per-section filters … </div>
+```
+
+**Rule**: re-render the smallest region that changed. A workspace holding *static* nav can ride a full fragment swap; a workspace holding *stateful* chrome (filters, a context switcher, scroll position) must keep that chrome mounted and OOB-swap only what changes. An animation replay on navigation is the tell that you swapped too much.
 
 ## Test contract
 

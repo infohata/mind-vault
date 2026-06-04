@@ -1,6 +1,6 @@
 ---
 name: work
-description: Execute a plan produced by /plan — reads the plan at docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md, enforces RULE_parallel-worktree-docker and RULE_git-safety, dispatches to AGENT_backend/frontend/devops/test-engineer, checks off plan items as commits land. Third stage of the mind-vault sprint workflow.
+description: Execute a plan produced by /plan — reads the plan at docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md, enforces RULE_parallel-worktree-docker and RULE_git-safety, dispatches per the persona dispatch matrix, checks off plan items as commits land. Third stage of the mind-vault sprint workflow.
 ---
 
 # work
@@ -47,16 +47,16 @@ Honour `RULE_git-safety` and `RULE_parallel-worktree-docker` at all times.
 
 Walk the plan's Execution Sequence. For each step, pick the right persona via the dispatch matrix in [`references/persona-dispatch.md`](references/persona-dispatch.md).
 
-Default matrix (projects can override in their own `AGENTS.md`):
+Default matrix (projects can override in their own `AGENTS.md`). The right column is the dispatchable `subagent_type` — pass it verbatim to `Agent(subagent_type: …)`; the profile file backing each id is mapped in [`references/persona-dispatch.md`](references/persona-dispatch.md):
 
-| Plan-item domain | Persona |
+| Plan-item domain | Subagent type |
 | --- | --- |
-| Models, views, signals, DRF, Channels, Celery, ORM | `AGENT_backend` |
-| Templates, Alpine, HTMX, Bulma, static assets, JS | `AGENT_frontend` |
-| Docker, compose, nginx, systemd, CI/CD, env config | `AGENT_devops` |
-| Test authoring, fixture design, coverage gates | `AGENT_test-engineer` |
-| Multi-domain or cross-cutting refactor | `AGENT_architect` (as author now, not reviewer — plan already reviewed) |
-| Documentation-only updates (README, CHANGELOG) | `AGENT_documentation` |
+| Models, views, signals, DRF, Channels, Celery, ORM | `mv-backend` |
+| Templates, Alpine, HTMX, Bulma, static assets, JS | `mv-frontend` |
+| Docker, compose, nginx, systemd, CI/CD, env config | `mv-devops` |
+| Test authoring, fixture design, coverage gates | `mv-test-engineer` |
+| Multi-domain or cross-cutting refactor | `mv-architect` (as author now, not reviewer — plan already reviewed) |
+| Documentation-only updates (README, CHANGELOG) | `mv-documentation` |
 
 Pass the persona the **plan path + the specific item index** — never inline the item's prose into the dispatch prompt (per the "pass paths not content to subagents" convention). The persona reads the plan file itself.
 
@@ -80,7 +80,7 @@ Commit per logical unit, not per file. One commit per completed Execution Sequen
 After all Execution Sequence items land:
 
 1. Run the commands listed in the plan's Verification section. Capture output. **Verification routing — see § "Sprint-auto v3.1 verification routing" below for the env-var-driven mode.**
-2. If verification passes, open a PR: `gh pr create --title "<type>(<scope>): <plan.slug>" --body <plan-derived-body>`. Include the plan path in the PR body so the reviewer has the full context.
+2. If verification passes, open a PR **as a draft**: `gh pr create --draft --title "<type>(<scope>): <plan.slug>" --body <plan-derived-body>`. Include the plan path in the PR body so the reviewer has the full context. **Draft is deliberate:** the Claude review engine is push-triggered (auto-runs + bills a review on every push to a *non-draft* PR), so keeping the PR draft through `/work` + the `/wrap` docs pass suppresses per-commit reviews and SILENT-on-WIP noise. `/review-loop`'s pre-flight un-drafts it so engines review the finalized state once. (Bugbot/Copilot are on-demand and unaffected; un-draft early only if you want a mid-`/work` Claude pass.)
 3. Mark the plan `status: shipped` in frontmatter.
 4. Print the PR URL and suggest the next-stage chain: `/<engine>-loop <pr-url>` → `/wrap NNN`.
 
@@ -103,12 +103,6 @@ If verification fails:
 1. Do NOT open a PR. Do NOT mark the plan shipped.
 2. Document the failure in the plan's Open Questions section (append, don't overwrite).
 3. Route to the user for a decision: fix in place, roll back the latest commit, or return to `/plan` for a revised approach.
-
-#### Sprint-auto v3.2 PR base routing — verify and re-point if needed
-
-When `SPRINT_AUTO_INTEGRATION_BRANCH` is set, the per-IDEA PR must target the integration branch (`gh pr create --base "$SPRINT_AUTO_INTEGRATION_BRANCH"`), not the parent (`main` / `sprint-*`). **Empirical 2026-05-28**: the env var did not propagate cleanly to `gh pr create` in two consecutive subagent-spawned `/work` invocations of one sprint-auto batch — both PRs opened with `base: main` and needed an immediate `gh pr edit --base "$SPRINT_AUTO_INTEGRATION_BRANCH" <PR>` to re-point. The agents caught it both times by inspecting `gh pr view <PR> --json baseRefName` after open and correcting, but the silent default-to-main is the failure mode to guard against.
-
-Cheap belt-and-suspenders: when `SPRINT_AUTO_INTEGRATION_BRANCH` is set, **unconditionally** run `gh pr edit --base "$SPRINT_AUTO_INTEGRATION_BRANCH" <PR>` immediately after `gh pr create` succeeds. It's idempotent (`gh pr edit` is a no-op when the base already matches) and removes the env-propagation failure mode regardless of subagent vs main-context shell.
 
 ### 5a. Sprint-auto v3.1 verification routing
 
@@ -233,7 +227,7 @@ This is the canonical landing page for anyone discovering the idea via grep/inde
 
 - [references/persona-dispatch.md](references/persona-dispatch.md) — per-domain persona routing, worktree setup for parallel work streams, override conventions
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — location-by-status contract driving step 6's archive move on merge
-- [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer
+- [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer
 - [skills/plan/SKILL.md](../plan/SKILL.md) — previous stage; produces the plan this skill executes
 - [skills/compound/SKILL.md](../compound/SKILL.md) — final stage; compound what was learned after review clears
 - [rules/RULE_git-safety.md](../../rules/RULE_git-safety.md) — branching and commit contract
@@ -242,7 +236,3 @@ This is the canonical landing page for anyone discovering the idea via grep/inde
 - [references/WATCHER_HYGIENE.md](references/WATCHER_HYGIENE.md) — load when arming `run_in_background` watchers (test runs, log tails, polling); orchestrator-trash-collection discipline + self-match avoidance
 - [references/AUDIT_NEWLY_REACHABLE_CODE.md](references/AUDIT_NEWLY_REACHABLE_CODE.md) — load when the fix being applied REMOVES a short-circuit (empty-state guard, early return, missing call, async resolution, type-gate relaxation); audit newly-reachable downstream code for latent issues before committing
 - [agents/AGENT_backend.md](../../agents/AGENT_backend.md), [AGENT_frontend.md](../../agents/AGENT_frontend.md), [AGENT_devops.md](../../agents/AGENT_devops.md), [AGENT_test-engineer.md](../../agents/AGENT_test-engineer.md) — implementation personas dispatched by this skill
-
----
-
-**Last Updated**: 2026-05-28

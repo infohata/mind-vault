@@ -158,5 +158,3 @@ make test ARGS="billing.tests.test_models"
 - [Django test runner](https://docs.djangoproject.com/en/stable/topics/testing/tools/)
 - [skill-writer](../skill-writer/SKILL.md) — the conventions this skill follows
 - [django skill](../django/SKILL.md) — Django-specific testing patterns
-
-**Last Updated**: 2026-04-17

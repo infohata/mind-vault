@@ -475,7 +475,3 @@ User direction motivating this generalisation: "cannot micromanage filter states
 - Notifications auto-cleanup to prevent memory leaks
 - Utility functions cached for repeated use
 - Event listeners use event delegation where possible
-
----
-
-**Last Updated**: 2026-05-14

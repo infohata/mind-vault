@@ -145,5 +145,3 @@ Check the log file — screen may have exited because the wrapped command exited
 ```bash
 ssh user@production.com 'tail -n 200 /opt/myapp/deploy-*.log'
 ```
-
-**Last Updated**: 2026-04-17

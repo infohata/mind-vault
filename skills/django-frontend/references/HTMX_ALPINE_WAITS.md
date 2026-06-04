@@ -172,7 +172,3 @@ async def open_htmx_modal(page, trigger_selector: str, modal_selector: str):
 - [`SHELL_NOTIFICATIONS.md`](SHELL_NOTIFICATIONS.md) — toast routing via HX-Trigger.
 - [`MODAL_SYSTEM.md`](MODAL_SYSTEM.md) — Alpine-managed modal lifecycle.
 - [`MULTI_TENANT_PLAYWRIGHT.md`](MULTI_TENANT_PLAYWRIGHT.md) — host-header + schema-seeding fixtures for django-tenants Playwright tests.
-
----
-
-**Last Updated**: 2026-05-09

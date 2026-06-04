@@ -1,7 +1,7 @@
 ---
 name: deployment
 description: Deploy Docker Compose web applications across any project — branch strategy, change-aware scripts, database backup + rollback safety, screen-session remote execution, Let's Encrypt SSL, health checks, and CI/CD wiring.
-license: MIT
+license: Apache-2.0
 metadata:
   author: mind-vault
   version: '2.0'
@@ -21,16 +21,6 @@ Production deployment pattern for containerised web applications using Docker Co
 - Health checks and deployment verification
 - Environment management and `.env` handling
 - Makefile targets for common operations
-
-**Optional extensions** (`references/*.md`, load on demand):
-
-- [Screen Sessions](references/SCREEN_SESSIONS.md) — full remote-deploy screen recipes, monitoring, cleanup
-- [CI/CD Integration](references/CICD.md) — GitHub Actions, GitLab CI, secrets, approval gates
-- [Monitoring](references/MONITORING.md) — Prometheus, Grafana, ELK
-- [Django Deployment](references/DJANGO_DEPLOYMENT.md) — Django-specific optimisations
-- [Server Hardening](references/HARDENING.md) — SSH, UFW, fail2ban, unattended upgrades (run before first deploy)
-- [Container DNS / NSS](references/CONTAINER_DNS_NSS.md) — `getaddrinfo` shadowing public DNS inside containers; anchor case: `sync_domains` silent drop on fresh Debian VPS when hostname matches domain
-- [Shell Installers](references/SHELL_INSTALLERS.md) — authoring + review patterns for `tools/install-*.sh`; 15 patterns (pipefail family, chown, marker blocks, opt-out sweep, case-vs-grep security validation, etc.) distilled from review-loop cycles across PRs #55/#58/#59
 
 ## When to use
 
@@ -461,14 +451,14 @@ The deploy shape is identical for Django, Rails, Express, FastAPI, Phoenix — o
 
 - [`scripts/`](scripts/) — reference implementations (`deploy.sh`, `backup_db.sh`, `verify_deployment.sh`, `setup_server.sh`, `harden_server.sh`)
 - [`scripts/README.md`](scripts/README.md) — per-script usage and customisation
-- [references/SCREEN_SESSIONS.md](references/SCREEN_SESSIONS.md) — mandatory reading for remote deploys
-- [references/CICD.md](references/CICD.md) — automated pipelines
-- [references/MONITORING.md](references/MONITORING.md) — production observability
-- [references/DJANGO_DEPLOYMENT.md](references/DJANGO_DEPLOYMENT.md) — Django-specific patterns
-- [references/HARDENING.md](references/HARDENING.md) — server hardening before first deploy
+- [references/SCREEN_SESSIONS.md](references/SCREEN_SESSIONS.md) — mandatory reading for remote deploys; full screen recipes, monitoring, cleanup
+- [references/CICD.md](references/CICD.md) — GitHub Actions, GitLab CI, secrets, approval gates
+- [references/MONITORING.md](references/MONITORING.md) — Prometheus, Grafana, ELK
+- [references/DJANGO_DEPLOYMENT.md](references/DJANGO_DEPLOYMENT.md) — Django-specific optimisations (migrations, collectstatic, ASGI)
+- [references/HARDENING.md](references/HARDENING.md) — SSH, UFW, fail2ban, unattended upgrades (run before first deploy)
+- [references/CONTAINER_DNS_NSS.md](references/CONTAINER_DNS_NSS.md) — `getaddrinfo` shadowing public DNS inside containers; anchor case: `sync_domains` silent drop on fresh Debian VPS when hostname matches domain
 - [references/LOCAL_DOCKER_DEV_GOTCHAS.md](references/LOCAL_DOCKER_DEV_GOTCHAS.md) — local dev-stack traps: `.dev` HSTS → `.test`, single-file bind-mount stale-inode, `docker-credential-*` PATH, dev-proxy `default_server` prod-backend footgun
+- [references/SHELL_INSTALLERS.md](references/SHELL_INSTALLERS.md) — authoring + review patterns for `tools/install-*.sh`; 15 patterns (pipefail family, chown, marker blocks, opt-out sweep, case-vs-grep security validation, etc.) distilled from review-loop cycles across PRs #55/#58/#59
 - [django skill](../django/SKILL.md) — backend patterns that interact with deploy (migrations, collectstatic, ASGI)
 - [RULE_git-safety](../../rules/RULE_git-safety.md) — rollback is a human-operated procedure
 - [Docker Compose docs](https://docs.docker.com/compose/)
-
-**Last Updated**: 2026-04-29

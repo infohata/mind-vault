@@ -30,6 +30,12 @@ echo ""
 mv_link_tree rules "$CURSOR/rules"
 echo ""
 
+# Rule rationale: rules link out via `../docs/rules/<rule>-rationale.md` relative
+# paths to keep always-loaded rule bodies short. Symlinking docs/rules alongside
+# makes those relative paths resolve from ~/.cursor/rules/.
+mv_link_tree docs/rules "$CURSOR/docs/rules"
+echo ""
+
 echo "Done. Restart Cursor or reload window (Cmd+Shift+P → Developer: Reload Window) to rescan."
 echo ""
 echo "Verify: Cursor Settings → Rules → Agent Decides (skills), /commands in chat"

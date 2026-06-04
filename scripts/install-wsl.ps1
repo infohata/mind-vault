@@ -55,6 +55,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Normalize -Distro: a whitespace-only value (e.g. `-Distro "   "`) is truthy in
+# PowerShell and would otherwise reach `wsl --install -d "   "` and fail. Trim it
+# to empty so it routes to the interactive picker / Store guidance exactly like
+# an omitted -Distro.
+if ($Distro) { $Distro = $Distro.Trim() }
+
 # ----------------------------------------------------------------------------
 # Pretty printing
 # ----------------------------------------------------------------------------
@@ -194,12 +200,24 @@ if (-not $slat) {
 
 if (-not $vtFirmware) {
     Write-Warn2 'Hardware virtualization does NOT appear to be enabled in firmware (BIOS/UEFI).'
+    if (-not $vmMonitor) {
+        Write-Warn2 'CPU VMX monitor-mode extensions are also unavailable — virtualization is very likely OFF.'
+    } else {
+        Write-Info  'CPU VMX monitor-mode extensions ARE present, so VT-x may actually be active (see note below).'
+    }
     Write-Info  'Enable Intel VT-x or AMD-V/SVM in BIOS, then reboot.'
     Write-Info  'Verify via Task Manager -> Performance -> CPU -> "Virtualization: Enabled".'
     Write-Info  '(Some OEMs report this incorrectly; if Task Manager says Enabled, you can continue.)'
     Confirm-Or-Exit 'Continue anyway?'
 } else {
     Write-Ok 'Virtualization is enabled in firmware'
+    # $vmMonitor (VMMonitorModeExtensions) is intentionally NOT a hard gate: it
+    # reads False when another hypervisor (e.g. Hyper-V already enabled) owns
+    # VT-x — a false negative on a perfectly capable machine. It's consulted
+    # above only to sharpen the warning when firmware virtualization looks off.
+    if (-not $vmMonitor) {
+        Write-Info 'Note: VMX monitor-mode extensions report unavailable — normal if Hyper-V already owns VT-x.'
+    }
 }
 
 # ----------------------------------------------------------------------------
@@ -328,6 +346,11 @@ if (-not $useModernInstall) {
     $kernelMsi = [System.IO.Path]::ChangeExtension($tmp.FullName, '.msi')
     Move-Item -LiteralPath $tmp.FullName -Destination $kernelMsi -Force
     try {
+        # Win10 + Windows PowerShell 5.1 can default SecurityProtocol to TLS 1.0/1.1;
+        # Azure blob storage requires TLS 1.2+, so the download fails without this.
+        # -bor preserves any already-enabled protocol (e.g. TLS 1.3) and just adds 1.2.
+        [Net.ServicePointManager]::SecurityProtocol = `
+            [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest -Uri $kernelUrl -OutFile $kernelMsi -UseBasicParsing
 
         # The MSI runs elevated; verify Microsoft's Authenticode signature before exec.

@@ -129,7 +129,7 @@ If multiple `[INTEGRATION-FLAG-*]` markers accumulate (≥ 5 in a single sequent
 2. Surface the count + flag types in the auto-run log's Integration check section.
 3. The morning reviewer sees the flag count up-front; high counts = "go look at this batch's conflict resolutions before merging anything."
 
-If `git merge --abort` is genuinely needed (the agent cannot produce ANY plausible resolution): log the failure for that branch, skip the merge, continue with the next branch in the sequence. The skipped branch's per-PR PR doesn't get the integration's resolutions/wrap-batch via S11.11 forward-sync — it merges to main on its own merits, with the cosmetic devlog/index conflict still present. Sub-optimal but tractable. The auto-run log records `merge_results: [{ slug, outcome: failed, reason: <human-readable> }]`.
+If `git merge --abort` is genuinely needed (the agent cannot produce ANY plausible resolution): log the failure for that branch, skip the merge, continue with the next branch in the sequence. The skipped branch's commits simply aren't reflected on the integration branch, so the `[INTEGRATION]` PR ships without them; the branch's own per-IDEA PR stays open against integration (reviewed at its IDEA-isolated diff) for a later batch. Sub-optimal but tractable. The auto-run log records `merge_results: [{ slug, outcome: failed, reason: <human-readable> }]`.
 
 ## Verification of the resolution commit
 
@@ -150,7 +150,3 @@ This catalogue is **project-agnostic**. Patterns 1–8 cover the structural conf
 **Project-specific resolutions** (e.g. "in this project, when both IDEAs edit `chat.html`, prefer the layout from `auto/audio-playback-*` because its Alpine state is canonical") are NOT catalogued here. They live in:
 - The project's own `tools/sprint-auto-hooks.sh` — specifically a new optional function `resolve_integration_conflict <file>` that the integration-stage bash machinery calls before falling back to this catalogue.
 - A future per-project `docs/sprint-auto-conflict-overrides.md` if the project accumulates enough patterns to warrant one. Mind-vault doesn't ship a template for this; let it emerge organically from real batches.
-
----
-
-**Last Updated**: 2026-04-27

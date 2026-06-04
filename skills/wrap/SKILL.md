@@ -1,7 +1,7 @@
 ---
 name: wrap
-description: Documentation sweep — flip idea frontmatter to complete, re-sort the ideas index, append a devlog entry, surface a version-bump consideration for versioned projects (any version source: VERSION / pyproject.toml / package.json / Cargo.toml / setup.py / versioned CHANGELOG), scan project docs (guides, reference, README) for references that need updating, and (conditionally) emit a manual-evaluation checklist for IDEAs that opted into the eval-gate mode. Default is PRE-merge on the feature branch so merge lands the final docs state in one shot; post-merge fallback handles PRs that shipped without a wrap. **Concludes atomically when the PR target is non-protected** — Step 8 squash-merges via `gh pr merge` after a review re-clearance, eliminating the "wrap then click merge" two-step. Protected targets (main / production / deployment) preserve the human-merge HITL gate. Destructive worktree/volume teardown is strictly post-merge — extended in v3.1 sprint-auto mode to detect last-of-batch and tear down the integration worktree + branch. --scope=idea-only mode narrows the wrap to frontmatter + downstream-docs + eval-checklist only (devlog + ideas-index + version-bump deferred to sprint-auto's batch wrap on the integration branch so the whole sprint ships as ONE versioned release); used by sprint-auto S5 to eliminate the structural N-way line-conflict on devlog/index that every parallel /wrap produces. Runs between the review loop's pass 1 (deliverables) and pass 2 (docs) in sprint-auto mode.
-license: MIT
+description: Documentation sweep — flip idea frontmatter to complete, re-sort the ideas index, append a devlog entry, surface a version-bump consideration for versioned projects (any version source: VERSION / pyproject.toml / package.json / Cargo.toml / setup.py / versioned CHANGELOG), scan project docs (guides, reference, README) for references that need updating — including a staleness-gated whole-README currency audit (Step 6b) that backfills version framing / counts / feature-table / stale-flag drift the per-IDEA scan misses — and (conditionally) emit a manual-evaluation checklist for IDEAs that opted into the eval-gate mode. Runs PRE-merge on the feature branch so merge lands the final docs state in one shot; post-merge fallback handles PRs that shipped without a wrap. Scope is a three-value enum, **`docs` (default) finalizes docs and structurally cannot reach Step 8 (atomic merge)** — the safe no-arg behaviour for the wrap-before-review pass. **`--scope=full` is the explicit opt-in that reaches atomic merge** — Step 8 squash-merges via `gh pr merge` after a review re-clearance on a non-protected target, eliminating the "wrap then click merge" two-step; protected targets (main / production / deployment) preserve the human-merge HITL gate. Destructive worktree/volume teardown is strictly post-merge (mode-gated, not scope-gated) — extended in v3.1 sprint-auto mode to detect last-of-batch and tear down the integration worktree + branch. --scope=idea-only narrows the wrap to frontmatter + downstream-docs + eval-checklist only (devlog + ideas-index + version-bump deferred to sprint-auto's batch wrap on the integration branch so the whole sprint ships as ONE versioned release); used by sprint-auto S5 to eliminate the structural N-way line-conflict on devlog/index that every parallel /wrap produces. Runs between the review loop's pass 1 (deliverables) and pass 2 (docs) in sprint-auto mode.
+license: Apache-2.0
 metadata:
   author: mind-vault
   version: '1.0'
@@ -11,9 +11,11 @@ metadata:
 
 The sprint-workflow step that closes the loop from code-shipped back to docs-coherent — everything that was "in flight" during `/work` + `/<engine>-loop` and now needs a finalized paper trail. Catches the class of work that's cheap to forget and expensive to find later — the devlog entry that didn't get written, the idea still marked `status: in-progress`, the README link that now points at a removed env var, the reference doc section that quotes deleted code.
 
-**Default is pre-merge.** The wrap commits (frontmatter flip, ideas-index move, devlog entry, downstream docs fixes) land on the feature branch, so the PR carries the final docs state into merge in one shot. No follow-up PR, no stale-on-main window between merge and wrap. The "what if the PR doesn't merge?" concern is a non-concern: unmerged commits never reach main, so no stale state can exist — if the branch is closed, the docs commits evaporate with it.
+**Runs pre-merge.** The wrap commits (frontmatter flip, ideas-index move, devlog entry, downstream docs fixes) land on the feature branch, so the PR carries the final docs state into merge in one shot. No follow-up PR, no stale-on-main window between merge and wrap. The "what if the PR doesn't merge?" concern is a non-concern: unmerged commits never reach main, so no stale state can exist — if the branch is closed, the docs commits evaporate with it.
 
-**Concludes atomically for non-protected targets.** When the PR's base branch is non-protected per [`RULE_git-safety`](../../rules/RULE_git-safety.md) (i.e. anything that isn't `main` / `production` / `deployment`), the wrap's final step (Step 8) squash-merges via `gh pr merge --squash --delete-branch` after a review re-clearance pass. This mirrors what sprint-auto already does at the multi-IDEA scale (S11.10 integration PR → S11.12 docs-review → integration merge produces ONE shipping moment for the batch). Single-IDEA wrap follows the same principle: when nothing about the merge target is the HITL gate, the wrap is the deliverer. Protected targets always require a human merge — Step 8 detects and skips, handing back the PR URL.
+**The no-arg default (`--scope=docs`) finalizes docs and stops short of merge.** A bare `/wrap NNN` runs the doc-finalization steps and structurally cannot reach Step 8 (atomic merge) — the safe default, and exactly what the wrap-before-review pass-1 wants: finalize docs, then let `/review-loop` review them at shipped state. Merge is a separate, explicit opt-in (next paragraph). This replaces the older "bare wrap auto-merges, remember to stop before Step 8" footgun.
+
+**Concludes atomically only under `--scope=full`.** When invoked as `/wrap --scope=full NNN` and the PR's base branch is non-protected per [`RULE_git-safety`](../../rules/RULE_git-safety.md) (i.e. anything that isn't `main` / `production` / `deployment`), the wrap's final step (Step 8) squash-merges via `gh pr merge --squash --delete-branch` after a review re-clearance pass. This is the post-review pass-2: re-run `/wrap --scope=full NNN` after `/review-loop` clears — the doc-finalization steps are idempotent guards (already done in pass-1), so it just re-audits and merges. It mirrors what sprint-auto does at the multi-IDEA scale (S11.10 integration-PR review → integration merge = ONE shipping moment). Protected targets always require a human merge — Step 8 detects and skips, handing back the PR URL — so `--scope=full` against `main` simply finalizes docs and hands off.
 
 **Post-merge is the fallback.** If a PR landed without a wrap pass (human merged directly, wrap was forgotten, a hotfix went in on the fly), invoking `/wrap NNN` after the fact creates a small `docs/idea-NNN-wrap` branch with the same outputs and opens a cleanup PR. The skill auto-detects PR state (`gh pr view <N> --json state`) and branches accordingly.
 
@@ -28,6 +30,7 @@ The sprint-workflow step that closes the loop from code-shipped back to docs-coh
 **TRIGGER when:**
 
 - A feature branch has review-loop-cleared deliverables and is ready for its docs pass (pre-merge default).
+- **A doc-heavy / IDEA PR is about to enter `/review-loop`** — run me (bare `/wrap`, `--scope=docs` default) BEFORE review, not only before merge, so the engines review docs at shipped state. The default scope cannot reach merge; merge is the separate `--scope=full` pass after review clears. This is the manual-path mirror of what sprint-auto already sequences (next bullet). Mechanics: [`references/WRAP_BEFORE_REVIEW.md`](references/WRAP_BEFORE_REVIEW.md).
 - Sprint-auto completes its S3+S4 deliverables-review pass and is about to enter its S6+S7 docs-review pass — wrap runs between them.
 - A PR merged without a wrap (post-merge fallback) and the ideas index / devlog / frontmatter are stale on main.
 - Phrasings the user might use: "mark the IDEA complete and update docs", "close out this sprint's paper trail", "devlog + index sort", "finalize the docs side of the merge", "sort the docs before merging".
@@ -40,61 +43,84 @@ The sprint-workflow step that closes the loop from code-shipped back to docs-coh
 
 ## Pattern
 
-Nine steps in order (8 numbered + Step 4b version-bump consideration). Several are conditional: Step 4b fires only when a version source is detected, Step 7 (eval-gate emission) gates on IDEA frontmatter, Step 8 (atomic merge) gates on non-protected target. Most steps are guards — skip silently if the state is already correct. The skill is safe to re-run; it produces the same final state regardless of which steps an earlier run completed.
+Ten steps in order (8 numbered + Step 4b version-bump + Step 6b README-currency audit, both conditional sub-steps). Several are conditional: Step 4b fires only when a version source is detected, Step 6b fires on a staleness threshold (skipped under `idea-only`), Step 7 (eval-gate emission) gates on IDEA frontmatter, Step 8 (atomic merge) gates on non-protected target. Most steps are guards — skip silently if the state is already correct. The skill is safe to re-run; it produces the same final state regardless of which steps an earlier run completed.
 
 ### Scope detection (alongside mode detection)
 
-Before any step, parse the `--scope=idea-only` flag (or its alias `--no-batch-writes` if encountered):
+Before any step, parse the `--scope` flag. It's a three-value enum — **`docs` is the default** (no flag → `docs`):
 
 ```bash
-SCOPE_IDEA_ONLY=false
+SCOPE=docs                       # docs (default) | full | idea-only
 for arg in "$@"; do
     case "$arg" in
-        --scope=idea-only|--no-batch-writes) SCOPE_IDEA_ONLY=true ;;
+        --scope=docs)                 SCOPE=docs ;;
+        --scope=full)                 SCOPE=full ;;
+        --scope=idea-only|--no-batch-writes) SCOPE=idea-only ;;
     esac
 done
 ```
 
-When `SCOPE_IDEA_ONLY=true`:
-- Step 1 (Resolve idea): RUN
-- Step 2 (Frontmatter flip): RUN
-- Step 3 (Re-sort ideas index): **SKIP** — deferred to sprint-auto S11.7 batch wrap on integration branch
-- Step 4 (Devlog entry): **SKIP** — deferred to sprint-auto S11.7
-- Step 4b (Version-bump consideration): **SKIP** — version bumps are sprint-level, not per-IDEA. Deferred to the integration-branch batch wrap so the whole sprint ships as ONE versioned release.
-- Step 5 (Worktree teardown): RUN (per usual mode-detection rules — post-merge only)
-- Step 6 (Downstream docs scan): RUN
-- Step 7 (Eval-gate checklist emission): RUN if frontmatter has `auto_safe_with_eval_gate: true` AND mode is pre-merge
-- Step 8 (Atomic merge): **SKIP** — sprint-auto v3.1 hands per-IDEA wraps to the orchestrator's S11 integration phase; the integration PR (NOT per-IDEA PRs) is the merge gate. `--scope=idea-only` always skips Step 8 to preserve that boundary.
+**Why `docs` is the default, not `full`.** A bare `/wrap NNN` finalizes docs and **structurally cannot reach Step 8 (atomic merge)** — the safe subset. Merge is the *destructive* operation (it ships the IDEA and, post-merge, unblocks teardown), so it's an explicit opt-in via `--scope=full`, never the no-arg default. This makes the wrap-before-review pass-1 a single clean invocation: bare `/wrap` before `/review-loop`, no "remember to stop before Step 8" footgun. See [`references/WRAP_BEFORE_REVIEW.md`](references/WRAP_BEFORE_REVIEW.md).
 
-The flag is a no-op outside sprint-auto context (manual `/wrap NNN` invocations don't need it; the parallel-conflict problem only arises when N branches' `/wrap`s collide).
+Per-scope step-set (the canonical table — each value names a coherent step subset):
+
+| Step | `docs` (default) | `full` (opt-in) | `idea-only` (sprint-auto S5) |
+| --- | --- | --- | --- |
+| 1 Resolve idea | RUN | RUN | RUN |
+| 2 Frontmatter flip (+ body status sub-step) | RUN | RUN | RUN |
+| 3 Re-sort ideas index | RUN | RUN | **SKIP** — deferred to sprint-auto S11.7 batch wrap |
+| 4 Devlog entry | RUN | RUN | **SKIP** — deferred to S11.7 |
+| 4b Version-bump | conditional | conditional | **SKIP** — sprint-level, deferred to batch wrap |
+| 5 Worktree teardown | mode-gated (post-merge only) | mode-gated (post-merge only) | mode-gated (post-merge only) |
+| 6 Downstream-docs scan | RUN | RUN | RUN |
+| 6b README currency audit | conditional (staleness-gated) | conditional (staleness-gated) | **SKIP** — cohort audit deferred to sprint-auto S11.7 batch wrap |
+| 7 Eval-gate emission | conditional (pre-merge + frontmatter) | conditional | conditional |
+| 8 Atomic merge | **SKIP** (sole structural exclusion) | conditional (non-protected + pre-merge) | **SKIP** — integration PR is the merge gate |
+
+Two things to note in the table:
+
+- **Step 5 (teardown) is mode-gated, NOT scope-gated** — it fires only in post-merge context regardless of scope. So a bare `/wrap NNN` (scope `docs`) on an *already-merged* PR (post-merge fallback) still tears down. The defining property of `docs` is "skips Step 8," not "skips Step 5." Do not phrase `docs` as "cannot reach teardown."
+- **`docs` runs Steps 3 + 4** (ideas-index + devlog), so it is **NOT safe for parallel-branch invocations** — N concurrent `docs` wraps would re-introduce the exact N-way line-conflict on `DEVELOPMENT_LOG.md` / `ideas/README.md` that `idea-only` was designed to avoid. Manual `docs` wraps run one-at-a-time (human-directed); never wire `docs` into an automated multi-branch context — that's what `idea-only` is for.
+
+`idea-only` is the sprint-auto S5 scope (parallel per-IDEA branches): it skips Steps 3/4/4b/8 to keep batch-wide writes on the integration branch. `docs` ⊋ `idea-only` on the doc steps (adds 3/4/4b); `full` ⊋ `docs` (adds Step 8).
 
 ### Mode detection (first action each invocation)
 
-Before anything else, determine which mode is running — pre-merge default, post-merge fallback, or self-mode (see below). The decision drives which branch the wrap commits land on:
+Before anything else, determine which mode is running — pre-merge default, post-merge fallback, self-mode, or the sprint-auto-v3.2 batch-teardown `--integration` mode (see below). The decision drives which branch the wrap commits land on:
 
 ```bash
-# 1. Is this mind-vault itself?
-git remote get-url origin | grep -q mind-vault && MODE=self
+# 0. Batch-teardown invocation? `/wrap --integration sprint-auto-<batch-iso>`
+#    is NOT a --scope value — it's a distinct post-merge batch mode. This check
+#    SHORT-CIRCUITS: if it matches, jump straight to § `--integration` mode
+#    (teardown only; no doc steps, no per-IDEA branch) and run NONE of steps 1-2.
+#    It must win even in mind-vault, which dogfoods sprint-auto — so the
+#    mind-vault self-mode check below is explicitly gated on MODE being unset.
+case "$*" in *--integration*) MODE=integration ;; esac
+if [ "$MODE" = integration ]; then
+    : # → § `--integration` mode; skip the rest of mode detection
+else
+    # 1. Is this mind-vault itself?
+    git remote get-url origin | grep -q mind-vault && MODE=self
 
-# 2. Otherwise, what's the PR state for the current branch's open PR, or for the
-#    explicit PR number passed as arg?
-gh pr view "${PR_OR_BRANCH}" --json state,headRefName --jq '.state'
-#   OPEN    → pre-merge default: commit Steps 2-6 onto the current feature branch
-#   MERGED  → post-merge fallback: `git checkout -b docs/idea-NNN-wrap origin/main`
-#             before committing
-#   CLOSED  → refuse: the branch was abandoned; no wrap to do
+    # 2. Otherwise, what's the PR state for the current branch's open PR, or for
+    #    the explicit PR number passed as arg?
+    [ -n "$MODE" ] || gh pr view "${PR_OR_BRANCH}" --json state,headRefName --jq '.state'
+    #   OPEN    → pre-merge default: commit Steps 2-6 onto the current feature branch
+    #   MERGED  → post-merge fallback: `git checkout -b docs/idea-NNN-wrap origin/main`
+    #             before committing
+    #   CLOSED  → refuse: the branch was abandoned; no wrap to do
+fi
 ```
 
 If no PR exists yet (branch pushed but PR not opened), treat as pre-merge default and commit onto the current branch — the PR can be opened later and will carry the wrap commits.
 
 ### Self-mode: running on mind-vault itself
 
-Mind-vault does **not** track IDEA-NNN files of its own — per-project IDEA numbering would collide across the projects mind-vault serves. If `/wrap` is invoked on the mind-vault repository itself, Steps 1–3 (IDEA resolution, frontmatter flip, ideas index re-sort) do not apply and must be skipped.
+Mind-vault **dogfoods its own sprint workflow** — it tracks its own IDEAs in `docs/ideas/` + `docs/archive/YYYY-MM-idea-NNN-<slug>/` and maintains `docs/ideas/README.md`, exactly like any project it serves. So when a mind-vault wrap maps to a mind-vault IDEA, **Steps 1–3 (IDEA resolve, frontmatter flip, ideas-index re-sort) DO apply** — run them normally. Skip Steps 1–3 only when the PR has **no associated IDEA** (a pure `/compound`, chore, or tooling PR) — and that's the universal "no IDEA → nothing to flip" rule, not anything special to mind-vault.
 
-Detection (first match wins):
+The **only** self-mode specialization is **Step 4**: the chronological log is `CHANGELOG.md` at the repo root (Keep-a-Changelog + `## v<N>` version sections), NOT the per-project `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md`.
 
-- `git remote get-url origin` → URL contains `mind-vault`.
-- Repo root has `skills/`, `rules/`, `commands/`, and **no** `docs/ideas/README.md` — the mind-vault signature.
+Detection: `git remote get-url origin` → URL contains `mind-vault`. (Do NOT use "absence of `docs/ideas/README.md`" as a signature — mind-vault has one.)
 
 In self-mode, Step 4 targets `CHANGELOG.md` at the repo root (not `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md`, which is the per-project convention). **End-to-end maintenance is the wrap's job** — not split between "add to Unreleased pre-merge" and "promote to dated section manually later":
 
@@ -111,7 +137,7 @@ Self-mode's CHANGELOG handling is one application of the project-agnostic Step 4
 
 Step 5 (worktree teardown) almost never applies because mind-vault has no docker stack, but the guards are branch-agnostic — run them if they fire.
 
-The load-bearing self-mode work is Step 6: catch `README.md` / `docs/SPRINT_WORKFLOW.md` / `tools/README.md` / `AGENTS.md` / `CLAUDE.md` drift from newly-added skills, commands, rules, or agent passes. That is what `/wrap` is *for* on mind-vault — the paper trail of its own evolution, alongside the changelog.
+The load-bearing self-mode work is Step 6: catch `README.md` / `docs/guides/SPRINT_WORKFLOW.md` / `tools/README.md` / `AGENTS.md` / `CLAUDE.md` drift from newly-added skills, commands, rules, or agent passes. That is what `/wrap` is *for* on mind-vault — the paper trail of its own evolution, alongside the changelog.
 
 ### Step 1 — Resolve the idea
 
@@ -123,13 +149,13 @@ Derive the IDEA-NNN from one of (in order of precedence):
 
 Locate the idea file. Per `RULE_ideas-location-status`, it's at `docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md` once `/plan` or `/work` has run; if still in `docs/ideas/`, the `/plan` → archive move was skipped — fire it now (single `git mv` + frontmatter update) before continuing.
 
-Short-circuit: if frontmatter already shows `status: complete`, assume Step 2 has run and skip it. Steps 3–5 are idempotent and should run regardless.
+Short-circuit: if frontmatter already shows `status: complete`, skip the frontmatter flip — but still run the body-prose status-line sub-step below (it's idempotent and catches a pre-existing frontmatter↔body mismatch the flip-skip would otherwise leave). Steps 3–5 are idempotent and should run regardless.
 
 ### Step 2 — Flip the idea frontmatter
 
 **Pre-condition — IDEA completeness audit.** Before flipping `status: in-progress` → `complete`, walk the plan's acceptance criteria one by one and confirm each is satisfied by the merged code at PR HEAD. Any unmet criterion BLOCKS the flip — either ship the missing work on the same PR, or keep `status: in-progress` and document the pending piece with the ⚠️ marker in every wrap output (devlog entry, ideas-index entry, hand-back report). Phase-shipped IDEAs (multiple PRs over time) use `phase_N_completed:` plus `completed:` to track both phase boundaries and final close-out. Full audit procedure + a worked premature-wrap precedent (status flipped despite a later-phase criterion unmet, surfaced at /compound time) live in [`references/IDEA_COMPLETENESS_AUDIT.md`](references/IDEA_COMPLETENESS_AUDIT.md). Read that reference when this step fires for any IDEA whose plan documented multiple phases or whose acceptance criteria might not all be shipped on this PR.
 
-Per `RULE_ideas-location-status`, frontmatter-edit only — **no file move** (archive dir already exists):
+Per `RULE_ideas-location-status`, edit the frontmatter in place — **no file move** (archive dir already exists); the body-prose status line is synced in the mandatory sub-step below:
 
 ```yaml
 status: complete
@@ -143,11 +169,16 @@ completed: YYYY-MM-DD
 
 Leave `created:` unchanged. If the completed PR superseded or was superseded by another idea, update `superseded_by:` / `supersedes:` too.
 
+**Mandatory sub-step — sync the body-prose status line.** The frontmatter flip isn't the whole job: IDEA files (and many plan/README docs) carry a *second*, human-readable `**Status**: 🚧 In Progress` prose line. After editing frontmatter, grep the same file (and sibling plan/index docs) for a `**Status**:` / `Status:` line and sync it (`✅ Complete (YYYY-MM-DD)`). Skipping this leaves a frontmatter↔body mismatch a doc-reviewing engine **will** flag — a self-inflicted finding. Zero review cost. See [`references/WRAP_BEFORE_REVIEW.md`](references/WRAP_BEFORE_REVIEW.md).
+
 ### Step 3 — Re-sort the ideas index
 
 Edit `docs/ideas/README.md`:
 
+**Idempotency guard (run first).** This step re-runs on every pass of the two-pass flow (pass-1 `docs`, pass-2 `--scope=full`), so guard against double-insert: `grep -q "^### IDEA-NNN:" docs/ideas/README.md` — if the heading already sits under `## ✅ References — Implemented`, this step already ran; skip the insert (but still remove any lingering `## 🚧 In Progress` entry). Without the guard, pass-2 inserts a duplicate Implemented entry.
+
 - Remove the entry from `## 🚧 In Progress`. If that section becomes empty, leave `_(none)_` as its body.
+- **Remove the originating breadcrumb from the old priority tier too.** When `/plan` moved the idea into In Progress it often left a stub in its former priority section — `_(IDEA-NNN moved to In Progress above — /plan …)_` or similar. Grep `grep -n "IDEA-NNN" docs/ideas/README.md` and delete that breadcrumb; if removing it empties a priority tier, leave `_(none)_` as its body (matching the In Progress handling above) — never drop the tier header, the index keeps the full tier skeleton. Skipping this is silent rot: the markers accumulate and falsely read as active backlog (a sprint can amass a dozen stale "moved to In Progress" stubs before anyone notices). Zero-cost to clear at wrap time.
 - Insert a new entry at the top of `## ✅ References — Implemented` with this shape:
 
   ```markdown
@@ -208,7 +239,7 @@ Living recap of the N-IDEA `<sprint-branch>` cohort (NNN→NNN). Read this first
 
 **Maintain end-to-end** — the same discipline that applies to CHANGELOG in self-mode applies here. Once the target file for the new entry is resolved, the wrap's responsibility for the monthly devlog is:
 
-1. **Add** the entry for the just-merged PR at the top of the chronological section (newest first) in the file resolved above — template below.
+1. **Add** the entry for the just-merged PR at the top of the chronological section (newest first) in the file resolved above — template below. **Idempotency guard (run first):** `grep -q "IDEA-NNN.*(PR #<N>)" docs/archive/<YYYY-MM>-DEVELOPMENT_LOG.md` — if an entry for this IDEA+PR already exists (pass-1 of a two-pass flow wrote it), skip the append rather than writing a second copy. The two-pass `docs`→`full` flow makes this re-run routine, so the guard is load-bearing, not theoretical.
 2. **Backfill-gap detection**: list recently merged PRs via `gh pr list --state merged --base <main-or-production> --limit 20 --json number,title,mergedAt` (squash-merge-friendly; `git log --merges` alone would miss squash-merged PRs). Cross-reference against devlog bullets (this month's file *plus* last month's, so month-boundary drift is caught). If prior PRs merged without devlog entries (drift happens — manual merges, rushed wraps on other PRs, etc.), judgement call on scope: ≤3 gaps → backfill in this wrap. **Each missed PR's bullet goes in the devlog for the month when *that* PR merged** (creating the file if it's a month that hasn't been logged yet). For example, today's wrap on a 2026-05 PR that discovers a missed 2026-04 PR writes the new entry to `2026-05-DEVELOPMENT_LOG.md` and the backfill bullet to `2026-04-DEVELOPMENT_LOG.md`. Larger gap → surface in the wrap's hand-back (`"DEVELOPMENT_LOG has M missing entries from PRs #N1-#N2 — backfill in this wrap or separate chore PR?"`) and wait for direction.
 
 Append a new entry at the **top** of the chronological section (newest first). Template:
@@ -238,7 +269,7 @@ Use the last two devlog entries in the same file as style anchors — match pros
 
 ### Step 4b — Version-bump consideration (versioned projects only)
 
-**Fires when** the project has a discoverable version source AND the wrap is not running in `--scope=idea-only` mode. **Skipped** when no version source exists (most internal projects without a published surface), or when `--scope=idea-only` is set (per-IDEA wraps inside sprint-auto defer the version bump to the integration-branch batch wrap so the whole sprint ships as ONE versioned release).
+**Fires when** the project has a discoverable version source AND the scope is `docs` or `full` (i.e. not `idea-only`). **Skipped** when no version source exists (most internal projects without a published surface), or when scope is `idea-only` (per-IDEA wraps inside sprint-auto defer the version bump to the integration-branch batch wrap so the whole sprint ships as ONE versioned release).
 
 **Version-source detection** — first match wins:
 
@@ -248,7 +279,7 @@ elif [ -f pyproject.toml ] && grep -Eq '^[[:space:]]*version[[:space:]]*=' pypro
 elif [ -f package.json ]   && jq -e '.version' package.json >/dev/null 2>&1; then VER_SOURCE=package.json
 elif [ -f Cargo.toml ]     && grep -Eq '^[[:space:]]*version[[:space:]]*=' Cargo.toml; then VER_SOURCE=Cargo.toml
 elif [ -f setup.py ]       && grep -Eq 'version[[:space:]]*=' setup.py; then VER_SOURCE=setup.py
-elif [ -f CHANGELOG.md ]   && grep -Eq '^## (v|V)[0-9]|^## \[[0-9]' CHANGELOG.md; then VER_SOURCE=CHANGELOG.md  # versioned changelog (mind-vault, Keep-a-Changelog projects)
+elif [ -f CHANGELOG.md ]   && grep -Eq '^## (v|V)[0-9]+\.[0-9]|^## \[[0-9]+\.[0-9]' CHANGELOG.md; then VER_SOURCE=CHANGELOG.md  # versioned changelog (mind-vault, Keep-a-Changelog); require MAJOR.MINOR so a bare `## v5` milestone banner can't shadow the real release header
 else VER_SOURCE=none
 fi
 ```
@@ -280,10 +311,13 @@ If `VER_SOURCE=none`, skip this step entirely — the project doesn't publish a 
 3. **Write a headline paragraph** — one paragraph describing what's new, how it relates to the prior version, and what adopter-facing change (if any) it implies. Goes in CHANGELOG, GitHub release notes draft, or the project's release artefact.
 4. **Update downstream version references** — README.md, ONBOARDING / docs callouts (`> You're reading the v<N> docs`), badge URLs that pin to `:latest` vs `:v4`, deploy manifests if the project releases container images, etc. The Step 6 grep pass catches these naturally; flag any that surface for explicit attention here.
 5. **Tag the commit** in the wrap branch's diff so the eventual GitHub release / `git tag` can fast-forward — but **don't `git tag` from the wrap commit itself** unless the project's CI requires it (the human is the tagger by default).
+6. **Surface the post-merge hand-back instruction.** When the project ships a `Makefile` with a `release` target (the mind-vault convention from [IDEA-003](../../docs/archive/2026-05-idea-003-version-tag-automation/IDEA-003-version-tag-automation.md)), include this line in the wrap summary handed back to the human: *"After merging, run `make release` to create the git tag + GitHub release; pass `VERSION=<tag>` if the auto-extracted version differs from the intended tag (the extractor takes the topmost `## vMAJOR.MINOR[.PATCH]` header — keep the newest release header fully-qualified so it isn't read as a bare `v5`; tags from `package.json` / `pyproject.toml` / `Cargo.toml` sources are typically `1.2.3` without a `v` prefix)."* Projects without a Makefile fall back to the manual `git tag -a -m "Release <tag>" -- <tag> && git push origin -- <tag> && gh release create --generate-notes -- <tag>` sequence (annotated tag + `--` separator so a tag name beginning with `-` is treated as a positional, not a flag); mention both forms so the user picks whichever applies. `make release` is idempotent — re-running when the tag already exists is a no-op with a clear "skipping" message, not a `git tag` failure.
 
 **When patch-bumps are project policy.** Some projects bump-per-PR (every merge advances patch); some batch by dated section; some never patch-bump (only minor/major matter for the public). Detect from the project's CHANGELOG style and prior commit log — if the prior two versions advanced by patch on consecutive PRs, treat per-PR patch-bumps as policy and bump without asking. If the prior two versions advanced by minor/major over multi-PR cohorts, the wrap is one of those cohorts' members and the bump-decision is the integration-PR call (sprint-auto path) or the explicit-cohort-finish call (manual path), NOT this individual PR.
 
-**Sprint-auto interaction.** When `SCOPE_IDEA_ONLY=true` this step is **skipped** — per-IDEA wraps inside sprint-auto never bump. The sprint's integration-branch batch wrap (sprint-auto S11.7) is the moment when the cumulative IDEA cohort gets considered as one versioned release. At that point all the cohort's IDEA-archive entries, devlog bullets, and CHANGELOG additions are visible together — the bundle criterion ("three-or-more cohesive features") then has a meaningful denominator. Doing per-IDEA bumps inside sprint-auto would produce N patch-bumps in a single sprint, which is noise.
+**Mind-vault's own policy** is per-PR patch-bump — and that extends to pure `/compound` PRs (no IDEA, so this wrap step never runs for them). `/compound` itself executes the bump in self-mode; see [`../compound/SKILL.md`](../compound/SKILL.md) step 6 + [`../compound/references/mind-vault-promotion.md`](../compound/references/mind-vault-promotion.md) § Self-mode CHANGELOG bump.
+
+**Sprint-auto interaction.** When scope is `idea-only` this step is **skipped** — per-IDEA wraps inside sprint-auto never bump. The sprint's integration-branch batch wrap (sprint-auto S11.7) is the moment when the cumulative IDEA cohort gets considered as one versioned release. At that point all the cohort's IDEA-archive entries, devlog bullets, and CHANGELOG additions are visible together — the bundle criterion ("three-or-more cohesive features") then has a meaningful denominator. Doing per-IDEA bumps inside sprint-auto would produce N patch-bumps in a single sprint, which is noise.
 
 **When in doubt, don't bump.** A rolling entry under the current version is the safe default. The wrap's job is to *surface the question* — if no trigger fires, write the entry and move on without mentioning the bump. If a trigger fires, ask once, then act on the user's call.
 
@@ -291,7 +325,17 @@ If `VER_SOURCE=none`, skip this step entirely — the project doesn't publish a 
 
 **Fires when** wrap is running post-merge AND the sprint ran in a parallel git worktree with its own docker-compose stack. **Skipped** when running from the primary checkout (`git rev-parse --git-common-dir` equals `.git`), when the PR is still open, when the user signalled keep-the-stack-up (`WRAP_KEEP_STACK=1` / `--keep-stack`), or when the worktree has uncommitted work. In `sprint-auto` mode, teardown remains **deferred** to morning review.
 
-Mechanics — destructive teardown sequence (`docker compose down -v` → `git worktree remove` → `git branch -d`), per-file evaluation when `git worktree remove` refuses (forgotten commits, missing gitignore rules, stale ephemera, container-as-root permission residue), and last-of-batch integration cleanup for sprint-auto v3.1 batches — are in [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md). Read that reference when this step fires.
+Mechanics — destructive teardown sequence (`docker compose down -v` → `git worktree remove` → `git branch -d`), per-file evaluation when `git worktree remove` refuses (forgotten commits, missing gitignore rules, stale ephemera, container-as-root permission residue) — are in [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md). Read that reference when this step fires. For a sprint-auto **v3.2** batch, whole-batch teardown runs via the `--integration` mode below, not the per-IDEA path.
+
+### `--integration <batch-iso>` mode (sprint-auto v3.2 batch teardown)
+
+A distinct post-merge invocation — **not** a `--scope` value — that the human runs once after merging the single `[INTEGRATION]` PR of a sprint-auto v3.2 batch: `/wrap --integration sprint-auto-<batch-iso>`. It is teardown-only; it runs **no** doc steps (per-IDEA docs were finalized at S5 `--scope=idea-only`, and the batch-wide devlog/index/version at the S11.7 batch wrap on the integration branch). Mechanics:
+
+1. **Confirm the integration PR merged** — `gh pr list --search "head:integration/sprint-auto-<batch-iso>" --state merged` returns it. If not merged, refuse (teardown is strictly post-merge).
+2. **Tear down the integration worktree + branch** — `docker compose down -v` in the integration worktree (the batch's only docker stack, port offset +30000), then `git worktree remove`, then `git branch -d integration/sprint-auto-<batch-iso>` and delete the remote branch.
+3. **Tear down each per-IDEA worktree + branch** from the batch manifest — the `auto/<slug>` branches auto-closed as merged ancestors when the integration PR merged, so for each: `git worktree remove` + `git branch -d auto/<slug>`.
+
+This is the v3.2 teardown trigger. It **supersedes** the v3.1 last-of-batch `/wrap NNN` trigger (which fired when the last per-IDEA IDEA was wrapped post-merge) — a model that doesn't fit v3.2, where per-IDEA PRs target the integration branch and auto-close on its merge, so they never receive an individual post-merge `/wrap NNN` to act as the trigger. The destructive-sequence + refusal mechanics in [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md) apply per worktree.
 
 ### Step 6 — Downstream docs scan
 
@@ -316,10 +360,22 @@ Each finding → one of three dispositions:
 - **Patch now — documentation catch-up.** If the finding is that a project pattern exists in the code but has no documentation of how to use it (e.g. `PLURAL_TRANSLATIONS` used by seven msgid pairs in `tools/translation_maps/shared.py` but no section in the translation-workflow guide), **patch it in the wrap**. Documentation catching up to existing reality is `/wrap` scope. Do not escalate to a new IDEA, do not defer to a separate PR — a new-IDEA ticket for "document this existing pattern" is noise that never ships; the wrap is where it belongs. This class of finding often surfaces during `/<engine>-loop`'s docs-pass review, which is another reason the wrap commits ride on the feature branch — the review bot reviews the filled-in docs as part of the same PR cycle.
 - **Flag as follow-up** (larger rewrite — e.g. a reference doc section that needs rewriting for a new architecture, a full walkthrough for a genuinely new concept). Note in the PR description. Legitimate follow-ups: reference-doc *rewrites*, architecture-diagram updates, how-to *tutorials*. Illegitimate follow-ups that should be patched now: "this line is stale", "this pattern isn't documented anywhere", "this section describes a deprecated flow". The test: if one to three paragraphs of documentation would close the gap, it's a patch-now, not a follow-up.
 
+  **A ⚠️-stale marker is NOT a disposition.** When the IDEA's own migration is what made a reference section describe a now-dead architecture, the correct wrap action is to **rewrite that section for the new architecture in this wrap** — not to drop a "⚠️ stale as of `<date>`, see IDEA-NNN" banner and move on. The banner leaves the reference *actively wrong* (a future reader still mis-learns the dead shape), defers the real work to an IDEA that may never run, and reads as "covered" when it isn't. The rewrite is bounded — you just shipped the new architecture, so you know its true shape — and it rides the same wrap commit the engines then review. Reserve the genuine follow-up flag for rewrites that depend on work not yet done (e.g. a section that can't be finalized until a *later* IDEA deletes the legacy template); even then, rewrite for the new architecture now and leave only a one-line "residual `<legacy>` pointer drops when IDEA-NNN deletes it" note, not a whole-section stale banner.
+
 Commit the documentation edits on the same branch that carries the IDEA-completion commits from Steps 2–4:
 
 - **Pre-merge mode** — the feature branch (`auto/<slug>` in sprint-auto, or whatever feature branch the work has been happening on). All wrap commits ride into the merge together.
 - **Post-merge fallback** — a fresh `docs/idea-NNN-wrap` branch off `origin/main` (matches the `/compound` branch-or-extend decision tree).
+
+If Step 6b fires next, its whole-README audit patches **and** the `wrap:readme-currency-audited` marker must land on this same branch (the marker contract in [`references/README_CURRENCY.md`](references/README_CURRENCY.md) requires *marker present ⟺ audit ran on this ref*) — so either defer this commit until after 6b, or land 6b's patches + marker as a follow-on commit on the same branch. Don't merge until Step 6b has either fired (patches + marker landed) or skipped per its gates below — just don't pre-empt a fire by merging first.
+
+### Step 6b — Whole-README currency audit (staleness-gated, conditional)
+
+Step 6 patches what *this* IDEA touched; nothing makes any single wrap responsible for the **whole** README, so it drifts across many IDEAs (version framing, counts, feature tables, stale ⚠️ flags). Step 6b is the devlog backfill-gap rule (Step 4 §2) applied to the README — it fires on a staleness threshold and patches mechanical drift in-wrap.
+
+**Gated three ways** (the scope + staleness gates skip silently when they fail; the degraded-env gate *falls back* rather than skips): **scope** — eligible under `docs` / `full`, **skipped under `idea-only`** (sprint-auto's batch wrap is the cohort's audit point); **staleness** — count merged base-branch PRs since the last *whole-README audit* (a `<!-- wrap:readme-currency-audited YYYY-MM-DD -->` marker, **not** the file mtime, so Step-6 partial touches don't reset it), fire iff `count >= N` (default 5); **degraded env** — if `gh` is unavailable, fall back to calendar staleness (marker absent or >30 days old) rather than skipping the audit. A marker dated today ⇒ count 0 ⇒ skip (idempotency guard for the `docs`→`full` two-pass re-run). Future-dated/skewed marker ⇒ treat as stale.
+
+When it fires: run the project-agnostic probes (version framing vs Step-4b `VER_SOURCE`, counts vs filesystem globs, feature-table completeness, stale-flag verification, command surface), map each finding onto Step 6's patch-now-mechanical vs flag-follow-up dispositions, and **refresh the marker on the same branch as the patches**. Full probe checklist, marker mechanics, the fail-loud rule for non-mind-vault count shapes, the optional per-project hint block, and the sprint-auto asymmetry are in [`references/README_CURRENCY.md`](references/README_CURRENCY.md). Read that reference when this step fires.
 
 ### Step 7 — Eval-gate manual evaluation checklist (PRE-MERGE ONLY, conditional)
 
@@ -327,16 +383,16 @@ Commit the documentation edits on the same branch that carries the IDEA-completi
 
 The gate exists for IDEAs whose behaviours render-and-assert tests cannot verify — visual correctness, keyboard nav, screen-reader semantics, animation timing, mobile gesture nuance. Wrap emits the checklist alongside the per-IDEA work; the human walks it as part of integration-PR review. Mechanics — emission shell snippet, placeholder substitution rules, Playwright-coverage pre-fill algorithm for Direction-1 IDEAs, MANUAL_EVAL_TRACKER hand-off when the walk surfaces issues — are in [`references/EVAL_GATE_EMISSION.md`](references/EVAL_GATE_EMISSION.md). Read that reference when this step fires.
 
-### Step 8 — Atomic merge (PRE-MERGE ONLY, conditional on non-protected target)
+### Step 8 — Atomic merge (`--scope=full` ONLY, pre-merge, conditional on non-protected target)
 
-**Fires when** the wrap is running in pre-merge mode AND the PR's target branch is **non-protected** per [`RULE_git-safety`](../../rules/RULE_git-safety.md). Protected branches (`main`, `production`, `deployment` — the project decides which) ALWAYS require a human merge; the wrap stops at "docs are coherent on the feature branch" and hands the PR URL to the user. Non-protected branches (sprint cohort like `sprint/<topic>`, integration branches like `integration/sprint-auto-<batch>`, any feature branch) are agent-authority for `gh pr merge` and the wrap concludes the IDEA atomically.
+**Fires when** scope is `full` (NOT the `docs` default, NOT `idea-only`) AND the wrap is running in pre-merge mode AND the PR's target branch is **non-protected** per [`RULE_git-safety`](../../rules/RULE_git-safety.md). Under the `docs` default this step is structurally unreachable — a bare `/wrap` never merges. Protected branches (`main`, `production`, `deployment` — the project decides which) ALWAYS require a human merge even under `--scope=full`; the wrap stops at "docs are coherent on the feature branch" and hands the PR URL to the user. Non-protected branches (sprint cohort like `sprint/<topic>`, integration branches like `integration/sprint-auto-<batch>`, any feature branch) are agent-authority for `gh pr merge` and `--scope=full` concludes the IDEA atomically.
 
 The HITL gate is *protected-branch* merge, not *every* merge; the gate stays exactly where `RULE_git-safety` puts it. Mechanics — protected-branch detection, pre-merge review re-clearance options (default: wait for re-clean), squash-merge sequence, permission-denial handling, deployment-branch override — are in [`references/ATOMIC_MERGE.md`](references/ATOMIC_MERGE.md). Read that reference when this step fires.
 
 ## Interaction rules
 
 - **Pre-merge is the default.** Unless the PR has already merged (post-merge fallback), the wrap commits land on the feature branch and ride into merge together. This eliminates the stale-on-main window between merge and wrap.
-- **Atomic merge for non-protected targets** (Step 8). When the PR base is `sprint/<topic>` / `integration/<batch>` / any feature branch, the wrap squash-merges itself. Protected targets always preserve the human-merge HITL gate.
+- **Atomic merge is opt-in via `--scope=full`** (Step 8), never the default. A bare `/wrap NNN` (`--scope=docs`) finalizes docs and stops — it cannot reach Step 8. Run `/wrap --scope=full NNN` (the post-review pass-2) to merge: when the PR base is `sprint/<topic>` / `integration/<batch>` / any feature branch, it squash-merges itself; protected targets always preserve the human-merge HITL gate.
 - **Destructive teardown is strictly post-merge.** Step 5's `-v` volume removal + worktree removal + branch delete require the PR to have landed. Non-destructive container shutdown is handled by `/sprint-auto` S5, not here. Step 8's atomic-merge path naturally unblocks Step 5 in the same wrap pass.
 - **Never skip Step 6** just because it reports zero findings — the grep itself is the value; its output is the audit trail.
 - **Never auto-patch architectural docs** (reference `/architecture.md`, high-level guides). Human review required; list findings, let the author decide.
@@ -355,13 +411,10 @@ The HITL gate is *protected-branch* merge, not *every* merge; the gate stays exa
 - [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md) — Step 5 mechanics: destructive teardown sequence, per-file evaluation when `git worktree remove` refuses, last-of-batch integration cleanup for sprint-auto v3.1 batches.
 - [`references/EVAL_GATE_EMISSION.md`](references/EVAL_GATE_EMISSION.md) — Step 7 mechanics: emission shell + placeholder substitution, Playwright-coverage pre-fill algorithm for Direction-1 IDEAs, MANUAL_EVAL_TRACKER hand-off when the walk surfaces issues.
 - [`references/ATOMIC_MERGE.md`](references/ATOMIC_MERGE.md) — Step 8 mechanics: protected-branch detection, pre-merge review re-clearance, squash-merge sequence, permission-denial handling, deployment-branch override.
+- [`references/WRAP_BEFORE_REVIEW.md`](references/WRAP_BEFORE_REVIEW.md) — ordering for doc-heavy PRs: run wrap's doc-finalization steps *before* `/review-loop` so the reviewer sees docs at shipped state (catches doc-consistency findings in the same pass, no post-review drift). Merge stays post-review-clear. Includes the Step 2 body-prose status-line sync rationale.
 - [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md) — the frontmatter-only transition this skill relies on.
 - [`RULE_parallel-worktree-docker`](../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — the worktree + compose-project contract Step 5 tears down.
 - [`/work`](../work/SKILL.md) — the stage before; its output (a PR on a feature branch, review-cleared deliverables) is `/wrap`'s input.
 - [`/compound`](../compound/SKILL.md) — the stage after; `/wrap` leaves the paper trail `/compound` references.
 - [`/sprint-auto`](../sprint-auto/SKILL.md) — the orchestrator that stitches `idea → plan → work → review-loop(deliverables) → wrap-docs → review-loop(docs) → compound` for the unattended case. Sprint-auto's S5 step handles the non-destructive container shutdown; post-merge destructive teardown in Step 5 here complements it. **Step 8's atomic-merge pattern derives from sprint-auto's integration-stage** — the same principle ("when nothing about the merge target is protected, the orchestrator delivers atomically") applies at single-IDEA scale. Manual `/wrap` and sprint-auto's S11 integration merge are two scales of the same idea.
 - [`RULE_git-safety`](../../rules/RULE_git-safety.md) — Step 8's protected-branch detection list (`main` / `production` / `deployment`) and the "merge into protected branch" prohibition that scopes Step 8 to non-protected targets only.
-
----
-
-**Last Updated**: 2026-05-18

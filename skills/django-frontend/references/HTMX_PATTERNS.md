@@ -492,13 +492,118 @@ bodyEl.addEventListener('htmx:beforeSwap', (evt) => {
 The 3-gate composition matters:
 
 1. **Bind on `htmx:beforeSwap`, not `htmx:afterRequest`**: `afterRequest` fires after the form is detached from the DOM during the swap → the event source disappears → listeners that try to walk back to the form get null.
-2. **`xhr.status` 2xx is necessary but not sufficient**: Django's default `form_invalid()` returns status 200 + form-with-errors. Without override, status-only gating closes the modal on validation failure. See [`../../django/references/DJANGO_FORM_INVALID_STATUS.md`](../../django/references/DJANGO_FORM_INVALID_STATUS.md) for the override pattern that makes status-only gating safe.
+2. **`xhr.status` 2xx is necessary but not sufficient**: Django's default `form_invalid()` returns status 200 + form-with-errors. Without override, status-only gating closes the modal on validation failure. See [`../../django/references/FORM_INVALID_STATUS.md`](../../django/references/FORM_INVALID_STATUS.md) for the override pattern that makes status-only gating safe.
 3. **Response `HX-Trigger` header contains the canonical success signal**: the server emits `entityChanged` only on form_valid; absent on form_invalid. The header check is the actual distinguisher.
+
+## Emit the change-signal only on an ACTUAL mutation (producer-side gate)
+
+The modal-scoping gate above is the *consumer* side — listeners must filter the project-wide success event. The *producer* side is the dual: a shared response helper that emits the canonical `entityChanged` (or any refresh signal) must fire it **only when something was actually written**, never on every HTMX response.
+
+The trap is a helper that emits unconditionally:
+
+```python
+def _mutation_response(request, *, success=None, warning=None):
+    if request.headers.get('HX-Request'):
+        response = HttpResponse(status=204)
+        entity_changed(response, type_='X', action='saved')   # ❌ fires on EVERY path
+        ...
+```
+
+Now the validation-failure and no-op paths ("nothing selected", "invalid target", "0 items matched/permitted") return 204 + `entityChanged` too — so every refresh-walker re-renders and every open detail/edit section re-fetches for a change that didn't happen. With an in-place edit-form refresh wired to the same signal, that's user-visible focus disruption *during an error state*.
+
+Gate the emission on a real change. The cleanest signal is usually already present: `success` is set only on the path that wrote something (validation errors / all-skipped no-ops carry only `warning`):
+
+```python
+if success:                                    # ✅ truthy ⇔ a row was actually mutated
+    entity_changed(response, type_='X', action='saved')
+```
+
+Rule of thumb: the change-signal is a claim that state changed. If your code can reach the emit line without having changed state (early-return validation, zero-affected bulk op, idempotent no-op), gate it. Add a test that the no-op path returns its status code but omits the trigger header — it has no other observable symptom.
+
+## Bridge a foreign success event into the canonical refresh signal — don't rebuild the swap
+
+When a NEW affordance's success fires a *different* event than the canonical refresh signal the rest of the surface already listens for, **re-dispatch the canonical signal** rather than writing a bespoke fetch+swap. You inherit the existing walker's URL resolution, scroll preservation, rebind chain, and filter-passthrough for free.
+
+Example: a list surface already refreshes on `entityChanged{type,action}` (a `data-refresh-on` walker). A new uploader on that surface fires only its own `uploadSuccess` doc-event. Bridge it:
+
+```js
+document.addEventListener('uploadSuccess', function () {
+    if (!document.getElementById('the-list')) return;   // only on the surface that has the list
+    document.body.dispatchEvent(new CustomEvent('entityChanged', {
+        bubbles: true, detail: { type: 'X', action: 'saved' },
+    }));
+});
+```
+
+**Caveat that bit — scope the consumer's element lookup to its container.** A refresh listener that resolves *what* to refresh via `document.querySelector('.shared-widget-class')` silently reads the WRONG node the moment a second instance of that class appears elsewhere on the page (e.g. a list-surface uploader adds a second copy of a widget class that an edit-form refresh listener was keying off). Scope the lookup to the owning container:
+
+```js
+// ❌ returns the first .upload-zone in document order — may be a sibling surface's
+const zone = document.querySelector('.upload-zone');
+// ✅ scope to the section that owns this refresh
+const zone = document.getElementById('attachments-section-container')
+                     ?.querySelector('.upload-zone');
+```
+
+Adding a second instance of an existing widget/marker class is a contract change: grep every `document.querySelector('.<class>')` / `getElementsByClassName('<class>')` for that class and confirm each still resolves the intended instance.
+
+## Defer destructive UI-state clears to the async success event, not the submit handler
+
+Clearing local UI state (a selection store, staged inputs, a draft) in the **same synchronous handler** as an async submit loses that state when the request fails — the user must rebuild it to retry.
+
+```js
+// ❌ selection wiped synchronously; a 403/5xx/network failure leaves nothing to retry
+@click="syncIds($refs.form); $refs.form.requestSubmit(); $store.sel.clear();"
+```
+
+`requestSubmit()` only *queues* the HTMX request; `clear()` runs immediately, before the response. Defer the clear to the success event, gated on the outcome:
+
+```js
+// ✅ clear only after the request SUCCEEDS; a failed request preserves the selection
+@click="syncIds($refs.form); $refs.form.requestSubmit();"        // no clear here
+
+document.addEventListener('htmx:afterRequest', (evt) => {
+    const elt = evt.detail && evt.detail.elt;
+    if (!elt?.matches?.('[data-bulk-form]')) return;             // scope to the bulk form
+    if (!evt.detail.successful) return;                          // 2xx only
+    Alpine.store('sel').clear();
+});
+```
+
+`htmx:afterRequest`'s `detail.successful` is true only for 2xx; a network error or 4xx/5xx leaves it false → the destructive clear is skipped → the user retries from the same selection. Scope the listener to the submitting form (a `data-*` marker) so it doesn't fire for unrelated requests. Same shape applies to any "commit then reset" UI: reset on confirmed success, not on submit.
 
 ## Single-event vs multi-event toast dispatch — pick ONE source per flow
 
 When a flow emits `messages.success(request, ...)` AND a JS `HX-Trigger` listener that also calls `uiNotify`, the user sees the toast twice. The fix is at the design level: pick ONE source per flow — see [`SHELL_NOTIFICATIONS.md`](SHELL_NOTIFICATIONS.md) § *Pick ONE source per flow* for the canonical 4-flow table (server `messages.*` / `hx-swap="none"` / server-flash + client post-action with `refreshOnly: true` / pure client-side) and the JS + Python `refreshOnly` code shapes.
 
----
+## Cotton-wrapped partials + `hx-swap="innerHTML"` produce nested duplicate IDs
 
-**Last Updated**: 2026-05-14
+When a partial template is migrated to a cotton primitive that emits its own outer `<div id="X">`, AND the page-level template still wraps the include with `<div id="X">{% include partial %}</div>`, AND a filter form does `hx-target="#X" hx-swap="innerHTML"`:
+
+- **Pre-migration**: partial had no outer id. The page wrapper was the single `#X`. `innerHTML` swap was clean.
+- **Post-migration**: cotton emits `#X` inside the page's `#X`. The filter response's `#X` div lands INSIDE the existing `#X`, producing nested duplicate IDs after every swap. Each subsequent swap nests another level.
+
+```html
+<!-- Before filter swap (already wrong from migration) -->
+<div id="article-list">          ← page-level wrapper
+  <div id="article-list">        ← cotton-emitted wrapper
+    <div id="article-list-items">…</div>
+  </div>
+</div>
+
+<!-- After one innerHTML swap targeting #article-list (matches page wrapper) -->
+<div id="article-list">
+  <div id="article-list">        ← swap response's outer
+    <div id="article-list">      ← nested again
+      …
+    </div>
+  </div>
+</div>
+```
+
+**Fix — both worth applying together**:
+
+1. **Drop the page-level wrapper.** The cotton-emitted wrapper is canonical; the page template just includes the partial directly.
+2. **Switch the filter form from `innerHTML` to `outerHTML`.** The partial's outer wrapper REPLACES (not nests-into) the prior render. The shell-migrated workspaces already use this shape; legacy non-shell filter forms shipped with `innerHTML` that fit a partial-with-no-outer-id shape.
+
+Either fix alone closes the visible bug; both together close the class. The discipline generalises: **once a partial emits its own outer wrapper, all swap targets pointed at that wrapper switch to `outerHTML`**.

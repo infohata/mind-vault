@@ -1,0 +1,2 @@
+# Intentionally empty fixture — tests the "no version source found" error path.
+# `.gitkeep` keeps the directory in version control (git does not track empty dirs).

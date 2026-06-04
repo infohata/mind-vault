@@ -7,6 +7,7 @@ Load this reference when:
 - Building a "Load older" / "Show previous" / chat-history-style pagination flow.
 - Implementing infinite scroll that prepends rather than appends.
 - Reviewing any HTMX swap that uses `hx-swap="afterbegin"` against a scrollable container.
+- A list/section that **re-renders in place** (delete-a-row, refresh-on-event) snaps back to the top after the swap — see § *The sibling scenario — scroll preservation across an in-place replace refresh*.
 
 ## The problem
 
@@ -196,7 +197,49 @@ The one residual exposure: a foreign script that prepends ABOVE the marker BETWE
 
 - **Animate the scroll adjustment.** The change is instantaneous because the user's visual position should not change at all. Adding a smooth-scroll easing would create a brief jitter where the user IS moving relative to content.
 - **Auto-attach to specific containers.** Consumers opt in by adding `data-scroll-anchor` to the scrolling element. This is by design — random page-level swaps shouldn't trigger scroll-position math; the consumer marks which containers care.
-- **Handle `hx-swap` other than ones that mutate the swap target's child list.** The primitive's contract is: target is a container whose `firstElementChild` becomes the marker. `outerHTML` and `replaceWith` swaps replace the entire target, eliminating the marker. Use a different pattern for those (typically `hx-preserve` on the marker if it's a stable element).
+- **Handle `hx-swap` other than ones that mutate the swap target's child list.** The primitive's contract is: target is a container whose `firstElementChild` becomes the marker. `outerHTML` and `replaceWith` swaps replace the entire target, eliminating the marker. Use a different pattern for those — see the sibling scenario below.
+
+## The sibling scenario — scroll preservation across an in-place *replace* refresh
+
+The primitive above solves *prepend* (the list grows above the fold). A different, very common scenario is the **in-place replace refresh**: an HTMX swap re-renders an entire region (a list, a card, a section) after a mutation — a row was deleted, a filter changed, a "refresh-on" event fired (e.g. an entity-list section that re-fetches itself after an edit elsewhere). The swap is `outerHTML` / `innerHTML` on the region, replacing its whole subtree.
+
+The bug: the browser **resets `scrollTop` to 0** when the scroll container's contents are wholesale replaced (the scrolled-to children no longer exist). The user had scrolled down a long list, deleted item #40, and the list snaps back to the top — every refresh yanks them to the start.
+
+This is simpler than the prepend case — there's no marker math, because the goal isn't "keep a specific item anchored" but "keep the *same scroll offset*" (the replacement is near-identical height, minus/plus a row or two). Capture `scrollTop` before, restore it after:
+
+```javascript
+// Capture before the region is replaced…
+function onBeforeSwap(evt) {
+    var target = evt.detail && evt.detail.target;
+    if (!target) return;
+    var scroller = target.closest('[data-scroll-anchor]') || findScroller(target);
+    if (scroller) scroller.dataset.refreshScrollTop = String(scroller.scrollTop);
+}
+
+// …restore after the new subtree is in place.
+function onAfterSwap(evt) {
+    var target = evt.detail && evt.detail.target;
+    if (!target) return;
+    var scroller = target.closest('[data-scroll-anchor]') || findScroller(target);
+    if (!scroller) return;
+    var raw = scroller.dataset.refreshScrollTop;
+    delete scroller.dataset.refreshScrollTop;
+    if (raw === undefined) return;
+    // rAF: let the new subtree lay out (scrollHeight settles) before assigning,
+    // or the browser clamps scrollTop to the momentarily-short content height.
+    requestAnimationFrame(function () {
+        scroller.scrollTop = Number(raw) || 0;
+    });
+}
+```
+
+Three things that make this robust where naive versions break:
+
+- **`requestAnimationFrame` before restoring.** Right after `afterSwap` the new subtree may not have finished layout, so `scrollHeight` can be momentarily smaller than the old `scrollTop`; assigning synchronously gets clamped to the short height and you lose position. Defer one frame so layout settles. (If the refresh response includes lazy images, even rAF can be early — but for text-dense lists it's reliable.)
+- **Resolve the scroll container, not `window`.** In a shell/drawer layout the scrolling element is an inner pane with `overflow-y: auto`, not the document. Walk to the nearest `overflow-y:auto|scroll` ancestor (or a `data-scroll-anchor` opt-in), and restore *that* element's `scrollTop`. Restoring `window.scrollY` does nothing when the page itself doesn't scroll.
+- **Make the handler universal, not per-surface.** Bind once at `document.body` for `htmx:beforeSwap`/`htmx:afterSwap` and gate on the container marker — so every refreshable region inherits preservation for free (a "universal beneficiary"). A per-surface copy is the usual smell that this should have been one shared listener (see [`LISTENER_REBIND_ON_SWAP.md`](LISTENER_REBIND_ON_SWAP.md)).
+
+When the replacement's height differs a lot (a filter that cuts a 200-row list to 5), preserving the raw offset is wrong — the user should land at the top of the new, shorter result. Gate restoration to "same logical content, minor delta" refreshes (a `data-preserve-scroll` opt-in on the region), not filter-driven re-queries that legitimately reset the view.
 
 ## Test pattern
 
@@ -211,7 +254,3 @@ The math is unit-testable in JSDOM with a fake layout. The trickier verification
 If the project supports Playwright/Selenium, automate (1)-(3). Otherwise the manual checklist is the merge gate.
 
 The lesson generalises beyond HTMX: any DOM math that walks `previousElementSibling`/`nextElementSibling` summing `offsetHeight` is fragile to `display: contents` wrappers. The `offsetTop`-diff approach (capture before, measure after, subtract) is the more robust idiom — works for any "how much did THIS element move" question regardless of subtree shape.
-
----
-
-**Last Updated**: 2026-05-04

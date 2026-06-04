@@ -1,7 +1,7 @@
 ---
 name: mobile-ux-polish
 description: Apply mobile + tablet touch-interaction patterns when authoring shell-extending surfaces with swipe gestures, scroll-snap panes, swipe drawers, sticky-on-scroll navbars, or iOS Safari quirk handling. Covers touch drag-vs-tap dual-signal discriminator, scroll-snap settle-timer debounce, deferred-clear flag vs wall-clock timeouts, cold-start instant vs runtime smooth scrollIntoView, and animation-preserving state-lag on close-paths. Pairs with django-frontend for HTMX/Alpine/Bulma fundamentals.
-license: MIT
+license: Apache-2.0
 metadata:
   author: mind-vault
   version: '1.0'
@@ -200,6 +200,7 @@ Failure mode this addresses: clicking the preview's close-X dismisses the drawer
 - ❌ "Mobile UX is just CSS" — patterns above are 70% JS, 30% CSS. Touch-event semantics + scroll-snap timing + reactive bindings dominate.
 - ❌ Wall-clock timeouts for state cleanup (clear `isDragging` after 500ms). Mobile momentum + animation-duration combinatorics outrun any reasonable wall-clock estimate; flag-based deferred-clear scales correctly.
 - ❌ Reaching for `--force` or `!important` to escape a bug class. Most patterns above are about right-shaped abstractions, not stronger overrides.
+- ❌ Adding a stateful animated affordance (pulse / bounce) when a persistent **static** one conveys the same signal. The animation often introduces the feature's only race-prone JS (first-visible state machine + `localStorage` seen-flag that throws in Safari private mode + mark-seen semantics). Ship static; defer the animation as an eval-gated fast-follow → [`references/EDGE_AFFORDANCE_RAILS.md`](references/EDGE_AFFORDANCE_RAILS.md) §3.
 - ❌ Skipping the [manual-eval issues tracker](../wrap/references/MANUAL_EVAL_TRACKER.md) artefact "because it's just for this cycle" — once back-and-forth gets confused, you've already lost the cycle to ambiguity. Introduce the tracker at first regression, not at the fifth.
 
 ## When NOT to use these patterns
@@ -207,6 +208,10 @@ Failure mode this addresses: clicking the preview's close-X dismisses the drawer
 - Pure desktop UI with no touch / scroll-snap / sticky concerns — the touch-event and momentum patterns are noise there.
 - Native-app surfaces (React Native, SwiftUI, Jetpack Compose) — these have their own gesture systems; the patterns here are browser-specific (CSS scroll-snap, DOM touchmove events).
 - Static-site or SSR-only flows with no client interactivity — none of the patterns apply.
+
+## References
+
+- [`references/EDGE_AFFORDANCE_RAILS.md`](references/EDGE_AFFORDANCE_RAILS.md) — adding an edge-affordance rail (lip / pane handle / reveal slider) to a tuned scroll-snap shell: decouple the chrome from the snap engine (fixed-outside-the-container, no snap-geometry mutation, iOS fixed-in-transformed-ancestor trap, z-index ladder), the adjacent-pane reveal model (which rail reveals which pane, content-gated, re-fire on replace-while-open), and the ship-static-defer-the-animation build heuristic. Consumes patterns 1–5 (it relies on the snap/gesture infra, doesn't re-derive it).
 
 ## Related material elsewhere
 
@@ -229,7 +234,3 @@ Patterns surfaced in the same IDEA-143 cycle but applicable beyond mobile work �
 Surfaced during a mobile-shell sprint (bottom-tab nav + pane swipe + iOS Safari gotchas, 60+ commits, 26-issue manual-eval cycle). The five patterns above were lessons from the closing M23-M25 segment of that cycle; sibling patterns that surfaced alongside but apply beyond mobile work live in their proper homes (see Related material elsewhere).
 
 Initial mind-vault landing was as `RULE_mobile-ux-polish-discipline` (PR #103); reshaped into a progressive-disclosure skill in the same PR — the trigger surface (touch + scroll-snap + drawer + iOS quirks) is narrow enough that on-demand activation is the right tradeoff against context-budget spend on every conversation, and the broader patterns belong with their stack-mates rather than bundled under a "mobile" rubric.
-
----
-
-**Last Updated**: 2026-05-07

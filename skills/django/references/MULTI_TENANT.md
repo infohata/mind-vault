@@ -248,6 +248,36 @@ def _load_attachments_by_ids(self, org_id: int, ids: List[int]) -> List[Dict]:
 
 **When ambient is the right call**: at the boundary where the request first arrives — middleware, view, consumer's `connect()`. By the time you're three function calls deep, the boundary already resolved the value; pass it.
 
+### A `public-schema` wrapper NULLS the ambient tenant — don't enclose tenant-reading render code in it
+
+`with schema_context("public")` (or a `with_public_schema()` helper) sets `connection.tenant = None` for its duration — that is its job, since public/shared models live outside any tenant. The trap is the inverse of the ambient-read fragility above: here the wrapper *actively nulls* the tenant. If a **render / response-building function that calls `get_current_tenant()`** runs *inside* that block, the ambient read returns `None`, and any `get_object_or_404`-style lookup keyed on the current tenant raises a spurious **404** — masking the real outcome.
+
+The symptom is maddening: a form POST that should re-render with **422** bound errors returns **404** instead, because the tenant-keyed 404 fires before the intended status is ever set.
+
+❌ TRAP — the invalid-form re-render runs inside the public-schema block:
+```python
+def _post_select(request, ...):
+    with with_public_schema():               # connection.tenant = None for this block
+        form = SelectForm(request.POST)
+        if not form.is_valid():
+            # render_section() calls get_current_tenant() → None → get_object_or_404 → Http404
+            return render_section(request, status=422)   # actually returns 404
+```
+
+✅ FIX — only the shared-model work stays in the block; tenant-reading render runs outside:
+```python
+def _post_select(request, ...):
+    with with_public_schema():               # shared-model reads/writes ONLY
+        form = SelectForm(request.POST)
+        valid = form.is_valid()
+        if valid:
+            form.save()
+    if not valid:
+        return render_section(request, status=422)   # ambient tenant restored → correct status
+```
+
+**Rule**: a `with_public_schema()` / `schema_context("public")` block wraps **only the shared-schema reads/writes**, never the response/render path that resolves the current tenant. If you must read public data and render tenant-aware output, split the block so the render happens after it closes.
+
 ## DRF serializer context for request-less callers
 
 DRF serializers commonly read `self.context['request']` to build URLs that depend on the request domain — `SerializerMethodField` for presigned S3 / MinIO URLs, `FileField.to_representation` calling `request.build_absolute_uri(file.url)`, custom hyperlink fields. **When a non-HTTP caller invokes the same serializer (WebSocket consumer, Celery task, AI tool executor, management command), `request` is missing — and the URL silently falls back to an internal Docker hostname.**
@@ -992,3 +1022,61 @@ class TenantIsolationTest(TenantTestCase):
         articles = Article.objects.all()
         self.assertEqual(articles.count(), 0)  # Isolated!
 ```
+
+### Tearing down a real tenant in tests (cross-schema cascade trap)
+
+A test that exercises a **from-nothing** provision (a seed that creates the Org +
+its schema + runs migrations) can't use `TenantTestCase`'s rolled-back atomic
+block — the schema creation is real DDL. Use a non-atomic `TransactionTestCase`
+against a **throwaway uuid schema name**, and tear down explicitly.
+
+The trap: `org.delete()` (the ORM cascade) **fails** from the default/public
+connection. The deletion collector walks every reverse FK onto the tenant row and
+its public dependents — and some of those tables live in the *tenant* schema, not
+public. Two ways it bites:
+
+1. `admin` is typically a TENANT_APP, so `django_admin_log` (FK → `User`) lives in
+   the tenant schema. Deleting a public `User` from the public connection runs
+   `SELECT ... FROM django_admin_log ...`, which isn't on the public search-path →
+   `ProgrammingError: relation "django_admin_log" does not exist`.
+2. Public `Property`/`Scope`/`Org` have reverse FKs from tenant-schema content
+   (`Article.property`, `Event.scope`, …). The collector queries those tenant
+   tables from the public connection → same error.
+
+`schema_context(tenant)` doesn't save you — the ORM delete resets the connection
+schema mid-collection. The reliable teardown drops the schema first (raw DDL), then
+**raw-SQL-deletes** the public rows, bypassing the ORM collector entirely (this is
+also what a production org-deletion view does):
+
+```python
+class SeedProvisionTests(TransactionTestCase):   # NOT TestCase — real DDL
+    # imports elided: uuid, Org, schema_context, connection
+    def setUp(self):
+        self.schema = f"seedtest_{uuid.uuid4().hex[:12]}"  # throwaway, unique
+
+    def tearDown(self):
+        org = Org.objects.filter(schema_name=self.schema).first()
+        if org is None:
+            return
+        org._drop_schema(force_drop=True)        # drop tenant schema (DDL)
+        with schema_context("public"):
+            with connection.cursor() as c:        # raw deletes — no ORM cascade
+                # tbl/col below are a FIXED literal allowlist (not user input), so
+                # f-string identifier interpolation is safe here; never f-string an
+                # untrusted identifier into SQL. Replace <app> with your app_label.
+                for tbl, col in [("userscope", "org_id"), ("property", "org_id"),
+                                 ("scope", "org_id"), ("domain", "tenant_id")]:
+                    c.execute(f"DELETE FROM <app>_{tbl} WHERE {col} = %s", [org.id])
+                # synthetic global users created by the seed (after their FKs):
+                c.execute("DELETE FROM <app>_user WHERE username LIKE %s", ["seed-%"])
+                c.execute("DELETE FROM <app>_org WHERE id = %s", [org.id])
+```
+
+`auto_drop_schema` defaults to `True` on `TenantMixin` — but `org.delete()` (which
+would trigger it) is exactly the call that fails above, so call `_drop_schema(
+force_drop=True)` directly. For a foreign-org fixture you only need a Domain row
+(not a full schema), set `org.auto_create_schema = False` before `save()` to skip
+the migration cost.
+
+Pairs with [`IDEMPOTENT_SEED_COMMANDS.md`](IDEMPOTENT_SEED_COMMANDS.md) (the seed
+these tests exercise).

@@ -58,7 +58,7 @@ From the conversation that spawned this plan:
 - `skills/work/SKILL.md` — thin orchestrator; reads a plan, enforces `RULE_parallel-worktree-docker` + `RULE_git-safety`, dispatches to existing personas (`AGENT_backend`, `AGENT_frontend`, `AGENT_devops`, `AGENT_test-engineer`), checks off plan items as commits land.
 - **`skills/compound/SKILL.md`** — the router. Classifies a learning; writes to one of six destinations; when destination is mind-vault, stages a diff and prints a review hint (does not auto-commit).
 - `commands/compound.md` — `/compound` shortcut invoking the skill.
-- `docs/SPRINT_WORKFLOW.md` — the user-facing explainer; links the five skills and the handoff contract.
+- `docs/guides/SPRINT_WORKFLOW.md` — the user-facing explainer; links the five skills and the handoff contract.
 - README update: add a "Sprint workflow" section with the diagram and promotion-path story.
 
 **In scope (Phase 1.5, separate small PR on the same branch, immediately after Phase 1):**
@@ -93,7 +93,7 @@ From the conversation that spawned this plan:
 - **`RULE_i18n-workflow`** — enforced by `AGENT_backend` when translated strings change; compound promotions must not regress this.
 - **Auto-memory system** (`~/.claude/projects/-home-kestas-projects-mind-vault/memory/`) — destination for user-behavioural learnings from `/compound`. Types: `feedback_*`, `project_*`, `user_*`, `reference_*`. Already documented in global `CLAUDE.md`.
 - **`skills/skill-writer/`** — the meta-standard used when `/compound` proposes a new skill. Phase-1 `compound` reads this before emitting a skill scaffold.
-- **`docs/SKILL_SPECIFICATION.md`** — canonical SKILL.md schema (frontmatter, length budget, references layout). All four new skills conform.
+- **`docs/guides/SKILL_SPECIFICATION.md`** — canonical SKILL.md schema (frontmatter, length budget, references layout). All four new skills conform.
 
 ### CE patterns we adopt verbatim
 
@@ -170,7 +170,7 @@ These are the decisions we'll tune before executing Phase 1. Each has a suggeste
 
 **Resolved → Phase 1.5.** A real-project brownfield-backlog split executes downstream of this mind-vault work, most likely the day after mind-vault Phase 1 lands. The ingest skill is the execution vehicle for that split — not a nice-to-have follow-up. Placing it in Phase 2 would block the brownfield consumer; placing it in Phase 1 would bloat the first PR with a skill that isn't needed for ordinary per-feature cycles. Phase 1.5 (a second small PR on the same branch, landing immediately after Phase 1) is the right slot: it means the target-shape decision in Phase 1 fixes the schema once, then ingest reuses it without waiting on ideate.
 
-**Implication for Phase 1:** the `docs/ideas/IDEA-NNN-<slug>.md` frontmatter schema must be fixed and documented during Phase 1 (not deferred into ideate), because ingest in Phase 1.5 depends on it. The schema lives in `docs/SPRINT_WORKFLOW.md` as authoritative — ideate (Phase 2) and ingest (Phase 1.5) both consume it.
+**Implication for Phase 1:** the `docs/ideas/IDEA-NNN-<slug>.md` frontmatter schema must be fixed and documented during Phase 1 (not deferred into ideate), because ingest in Phase 1.5 depends on it. The schema lives in `docs/guides/SPRINT_WORKFLOW.md` as authoritative — ideate (Phase 2) and ingest (Phase 1.5) both consume it.
 
 ### Q6. The compound router — questionnaire shape?
 
@@ -201,7 +201,7 @@ Phase 1 (single PR, ~2–3 working days of curation/authoring):
 3. `skills/work/SKILL.md` + `skills/work/references/persona-dispatch.md`.
 4. `skills/compound/SKILL.md` + `skills/compound/references/routing-decision-tree.md` + `skills/compound/references/mind-vault-promotion.md` + `skills/compound/assets/solution-template.md` + `skills/compound/assets/skill-scaffold-template.md`.
 5. `commands/compound.md` (slash-command pointer).
-6. `docs/SPRINT_WORKFLOW.md` (user-facing explainer with the six-stage diagram + promotion-path story + **the authoritative `docs/ideas/IDEA-NNN-<slug>.md` frontmatter schema** so Phase 1.5 ingest has a fixed target).
+6. `docs/guides/SPRINT_WORKFLOW.md` (user-facing explainer with the six-stage diagram + promotion-path story + **the authoritative `docs/ideas/IDEA-NNN-<slug>.md` frontmatter schema** so Phase 1.5 ingest has a fixed target).
 7. README update: new "Sprint workflow" section.
 8. Register the four new skills in the setup scripts' target lists (`scripts/setup-*-symlinks.sh`) — zero change expected since the symlink pattern is `skills/*/SKILL.md` already.
 

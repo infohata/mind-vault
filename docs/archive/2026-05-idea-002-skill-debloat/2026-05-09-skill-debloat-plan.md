@@ -11,7 +11,7 @@ project: mind-vault
 
 ## Context
 
-Three SKILL.md bodies exceed the ~500-line soft budget set by `docs/SKILL_SPECIFICATION.md`. Every `Skill` tool invocation loads the full SKILL.md body into the consuming agent's context, so bloat is paid as a per-activation token cost. PR #106 established the rules-reorg precedent — domain-specific patterns moved from always-on `rules/` to load-on-demand `skills/<owner>/references/`. This IDEA extends the same discipline from `rules/` to over-budget SKILL.md bodies themselves: long inline patterns ship as load-on-demand references, the SKILL.md body keeps a one-paragraph stub + pointer.
+Three SKILL.md bodies exceed the ~500-line soft budget set by `docs/guides/SKILL_SPECIFICATION.md`. Every `Skill` tool invocation loads the full SKILL.md body into the consuming agent's context, so bloat is paid as a per-activation token cost. PR #106 established the rules-reorg precedent — domain-specific patterns moved from always-on `rules/` to load-on-demand `skills/<owner>/references/`. This IDEA extends the same discipline from `rules/` to over-budget SKILL.md bodies themselves: long inline patterns ship as load-on-demand references, the SKILL.md body keeps a one-paragraph stub + pointer.
 
 `/wrap` is the highest-leverage target — it gets invoked twice per IDEA under sprint-auto (S5 pre-merge eval-gate emission + S8 post-merge wrap). Trim there compounds across every sprint.
 
@@ -68,7 +68,7 @@ The cost manifests as: every `/wrap` invocation pulls 546 SKILL.md lines into co
 
 ### Institutional learnings
 
-- `docs/SKILL_SPECIFICATION.md` — soft budget ~500 lines, References list at bottom of every SKILL.md.
+- `docs/guides/SKILL_SPECIFICATION.md` — soft budget ~500 lines, References list at bottom of every SKILL.md.
 - `mind-vault/CHANGELOG.md` PR #106 entry — documents the rules-reorg pattern (always-on vs load-on-demand) that this IDEA extends.
 - `~/.claude/projects/-home-kestas-projects-mind-vault/memory/feedback_skill_references_outcome_not_plan.md` — References lists must point at outcome (live implementation), not plan (archived ROADMAPs). Apply when adding the three new entries to wrap/SKILL.md's References list — link to the new `references/*.md` files, NOT to this plan.
 - `~/.claude/projects/-home-kestas-projects-mind-vault/memory/project_rules_curation_principle.md` — the broadly-applicable-vs-domain-specific criterion. Wrap's Step 5/7/8 are intrinsically wrap-internal — they don't fire across multiple skills, only when wrap activates — so reference (load-on-demand) is the right home, not rule (always-on).

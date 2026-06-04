@@ -305,7 +305,3 @@ Three reasons:
 1. The integration step has no meaning outside sprint-auto's batch context. It needs `auto/<slug>` branches with `auto_safe` provenance, isolated worktrees with bootstrap-script-validated environments, and a known port-offset scheme. None of those preconditions exist for a manual "I have N feature branches, integrate them" use case.
 2. Promoting to `/integrate` would invite future use without sprint-auto's preconditions — manually-typed branch names, no `auto_safe` gate, host-port collision with a primary stack. We'd either re-implement the gates inside `/integrate` or ship a less-safe public surface.
 3. Splitting `/integrate` later (if usage demand surfaces) is a cheap refactor — extract S11.5–S11.13 logic + parameterise the branch-discovery step. Not pre-emptive worth.
-
----
-
-**Last Updated**: 2026-05-05

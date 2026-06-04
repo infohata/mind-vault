@@ -41,7 +41,7 @@ sensitive_paths_cleared_reason: "Touches skills/wrap/, skills/django-frontend/, 
 
 Twelve new `references/*.md` files emitted across the three phases, each carrying a self-contained body that loads on demand only when the consuming agent's task touches the relevant pattern. Token cost reclaimed per per-skill activation roughly proportional to the body savings — meaningful at sprint-auto-scale invocation rates.
 
-**Problem** (or opportunity): Three skills currently exceed the ~500-line soft body budget set by `docs/SKILL_SPECIFICATION.md`. Every `Skill` tool invocation loads the full SKILL.md body into the consuming agent's context, so bloat is paid as a per-activation token cost — and `wrap` is invoked twice per IDEA under sprint-auto, multiplying the cost.
+**Problem** (or opportunity): Three skills currently exceed the ~500-line soft body budget set by `docs/guides/SKILL_SPECIFICATION.md`. Every `Skill` tool invocation loads the full SKILL.md body into the consuming agent's context, so bloat is paid as a per-activation token cost — and `wrap` is invoked twice per IDEA under sprint-auto, multiplying the cost.
 
 Audit captured 2026-05-09 (post-PR-#106):
 

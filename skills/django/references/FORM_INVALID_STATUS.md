@@ -1,48 +1,14 @@
 # Django `form_invalid` returns 200, not 422 — status alone is insufficient for HTMX flows
 
-## The gotcha
+Django's `FormView` / `CreateView` / `UpdateView` default `form_invalid()` returns `render_to_response(...)` — status **200** with the re-rendered form-with-errors body. There's no 4xx/422 surface for validation failure.
 
-Django's `FormView` / `CreateView` / `UpdateView` default `form_invalid()` returns a response with status **200** and a re-rendered form-with-errors. The base class implementation is:
-
-```python
-def form_invalid(self, form):
-    return self.render_to_response(self.get_context_data(form=form))
-```
-
-That's `render_to_response`, which defaults to `HttpResponse(status=200)`. There's no 4xx / 422 status surface for validation failure.
-
-HTMX clients that gate on response status (e.g. "close the modal on 2xx") interpret this as success and act accordingly — closing modals that should stay open, refreshing lists that haven't been mutated, dispatching success toasts on rejected submissions.
-
-## When this bites
-
-- Modal flows that auto-close on successful save: a 2xx-only gate closes the modal on validation failure, the user loses their typed input.
-- HTMX listeners that key on `htmx:afterRequest` + `event.detail.successful` (`successful = xhr.status >= 200 && xhr.status < 300`): the listener fires its success path on a validation failure.
-- Walker/refresh modules that re-fetch lists on 2xx: they trigger spurious refreshes on rejected forms.
+HTMX clients that gate on response status (e.g. "close the modal on 2xx", listeners keying on `htmx:afterRequest` + `event.detail.successful`, walkers re-fetching lists on 2xx) interpret this as success: modals close on rejected submissions, the user loses their typed input, success toasts fire.
 
 ## Fix options
 
-### Option 1 — Override `form_invalid` to return 422
+### Option 1 — Override `form_invalid` to return 422 (mixin)
 
-Project-wide convention for HTMX views: explicitly set status 422 on validation failure.
-
-```python
-# views.py
-from django.views.generic import UpdateView
-from django.http import HttpResponse
-
-class ArticleUpdateView(UpdateView):
-    model = Article
-    form_class = ArticleForm
-
-    def form_invalid(self, form):
-        if self.request.headers.get('HX-Request'):
-            response = self.render_to_response(self.get_context_data(form=form))
-            response.status_code = 422
-            return response
-        return super().form_invalid(form)
-```
-
-A small mixin centralises it:
+Project-wide convention for HTMX views: a small mixin centralises it.
 
 ```python
 class HTMXFormStatusMixin:
@@ -55,22 +21,14 @@ class HTMXFormStatusMixin:
         return super().form_invalid(form)
 ```
 
-Pros: HTMX-side gating becomes `if (xhr.status >= 200 && xhr.status < 300)` — works exactly as expected.
+Pros: HTMX-side gating becomes `if (xhr.status >= 200 && xhr.status < 300)` — works as expected.
+Cons: every form view needs the mixin / override; legacy views without it produce confusing client behaviour. **Requires** the paired client-side `htmx:beforeSwap` listener below.
 
-Cons: every form view needs the mixin / override; legacy views that don't have it produce confusing client behaviour.
+### Option 2 — Gate on a canonical success `HX-Trigger` header (RECOMMENDED for HTMX flows)
 
-### Option 2 — Gate on response body content (empty = success, non-empty = form-with-errors)
-
-Some flows return an empty 200 on success (no body content to swap in) and a form-with-errors body on invalid. The client can distinguish by checking whether the response body is empty.
-
-Brittle: any future redirect, success toast, or canonical-response-body change at the view layer breaks the client gate.
-
-### Option 3 — Gate on a canonical success `HX-Trigger` header (RECOMMENDED for HTMX flows)
-
-The view emits an `HX-Trigger` header containing a canonical success signal (e.g. `entityChanged`) ONLY on `form_valid`. The client checks for the header's presence:
+The view emits `HX-Trigger` carrying a canonical success signal (e.g. `entityChanged`) ONLY on `form_valid`. The client checks for the header's presence:
 
 ```python
-# views.py
 class ArticleUpdateView(UpdateView):
     def form_valid(self, form):
         article = form.save()
@@ -83,43 +41,67 @@ class ArticleUpdateView(UpdateView):
 ```
 
 ```js
-// client-side modal close listener
 bodyEl.addEventListener('htmx:beforeSwap', (evt) => {
     const xhr = evt.detail && evt.detail.xhr;
-    if (!xhr) return;
-    if (xhr.status < 200 || xhr.status >= 300) return;   // hard errors
-
+    if (!xhr || xhr.status < 200 || xhr.status >= 300) return;
     const trigger = xhr.getResponseHeader('HX-Trigger') || '';
-    if (trigger.indexOf('"entityChanged"') === -1) return;   // form_invalid → no canonical signal → no close
-
+    if (trigger.indexOf('"entityChanged"') === -1) return;   // form_invalid → no signal → no close
     evt.detail.shouldSwap = false;
     closeModal();
 });
 ```
 
-Pros:
-- No view-level mixin required if you're already emitting `entityChanged`-style events as part of a state-refresh convention.
-- The same signal that drives the refresh walker also gates the modal close — single source of truth.
-- Status code stays canonical Django (200 + form-with-errors on invalid). No semantic divergence from Django defaults.
+Pros: no view-level mixin required if `entityChanged`-style events are already part of a state-refresh convention; same signal drives both the refresh walker and the modal close (single source of truth); status code stays canonical Django.
+Cons: client gate is slightly more elaborate than a status-code check; only works when the project has a canonical success signal.
 
-Cons:
-- Client gate is slightly more elaborate than a status-code check.
-- Only works when the project has a canonical success signal in `HX-Trigger`.
+## Which to pick
 
-## When to pick which
-
-| Project state | Recommended fix |
+| Project state | Fix |
 |---|---|
-| New project, all views HTMX-aware | Option 1 — `HTMXFormStatusMixin` at the base class level |
-| Existing project adding HTMX-aware modals piecemeal | Option 3 — gate on `HX-Trigger` header (Django defaults stay intact) |
-| Mixed project; some views adopted Option 1, some haven't | Option 3 — works regardless of view-side adoption |
+| New project, all views HTMX-aware | Option 1 — `HTMXFormStatusMixin` at the base class |
+| Existing project adding HTMX-aware modals piecemeal | Option 2 — `HX-Trigger` gate (Django defaults stay intact) |
+| Mixed adoption | Option 2 — works regardless of view-side mixin coverage |
+
+## Client side — HTMX won't swap 422 by default (pairs with Option 1)
+
+Once the server returns `HttpResponse(body, status=422)`, HTMX's default non-2xx handling does **not** swap the body — it dispatches `htmx:responseError`. Symptom: form silently fails, console fills with `POST … 422 (Unknown Status)`, the global error toast fires, field-level errors never render.
+
+Fix: one global `htmx:beforeSwap` listener registered at parse time alongside other htmx error globals.
+
+```javascript
+// .../static/<app>/js/htmx-error-handler.js
+function onBeforeSwap(event) {
+    if (!event.detail || !event.detail.xhr) return;
+    if (event.detail.xhr.status !== 422) return;
+    event.detail.shouldSwap = true;   // let HTMX put the form body in the target
+    event.detail.isError = false;     // suppress the global error toast for 422
+}
+document.addEventListener('htmx:beforeSwap', onBeforeSwap);
+```
+
+Other non-2xx (4xx/5xx) still flow through the `htmx:responseError` → toast path. The listener is one-time setup; once registered, every form-fragment endpoint inherits it.
+
+Wiring checklist for Option 1:
+
+1. Server returns `HttpResponse(body, status=422)` on `form_invalid`.
+2. Client has the global `htmx:beforeSwap` listener allowing 422 swap.
+3. Form templates use `hx-target=".form-region"` + `hx-swap="outerHTML"` (or `innerHTML` per layout).
+
+Any one missing produces silent-fail in a different way.
 
 ## Anti-patterns
 
-- ❌ **"Just check `event.detail.successful` on `htmx:afterRequest`"**. `successful` is computed from status code — same trap, different name.
-- ❌ **Override every view's `form_invalid` to return JSON `{"errors": ...}`**. Loses Django's form-rendering machinery; you'd be re-implementing it on the client.
-- ❌ **Detect form errors by parsing the response body's HTML**. Fragile; tied to template structure; breaks on every template refactor.
+- ❌ `event.detail.successful` on `htmx:afterRequest` — computed from status code; same trap, different name.
+- ❌ Override every view's `form_invalid` to return JSON `{"errors": …}` — loses Django's form-rendering machinery.
+- ❌ Detect form errors by parsing the response body's HTML — fragile; tied to template structure.
+- ❌ Gate on response body content (empty vs non-empty) — brittle to any future success-body change.
+- ❌ Per-form `hx-on::response-error="event.preventDefault(); …"` — works for one form, has to be remembered on every new form template.
+- ❌ `hx-target-422="…"` via `htmx-ext-response-targets` — more configuration than the 5-line global listener covers.
+- ❌ Return 200 instead of 422 to dodge client-side wiring — reintroduces the original modal-close-on-failure problem.
 
-See [`../../django-frontend/references/HTMX_PATTERNS.md`](../../django-frontend/references/HTMX_PATTERNS.md) § *Modal scoping* for the three-gate composition on the client side.
+## Related references
 
-**Last Updated**: 2026-05-14
+- [`FORMS_INDEX.md`](../../django-frontend/references/FORMS_INDEX.md) — cross-skill form discoverability index.
+- [`MODELFORM_POST_CLEAN_TRAP.md`](MODELFORM_POST_CLEAN_TRAP.md) — sibling Django form gotcha (instance mutation on `is_valid()` defeats change-detection).
+- [`../../django-frontend/references/HTMX_PATTERNS.md`](../../django-frontend/references/HTMX_PATTERNS.md) § *Modal scoping* — three-gate composition on the client side; `HX-Trigger` event vocabulary that Option 2 leans on.
+- [`../../django-frontend/references/FORM_RENDERING_PATTERNS.md`](../../django-frontend/references/FORM_RENDERING_PATTERNS.md) — form template rendering shapes; the templates that consume the 422 swap.

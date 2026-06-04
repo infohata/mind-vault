@@ -1,12 +1,12 @@
 # sprint-auto — escalation-resolution policy
 
-When the configured review loop (`/bugbot-loop` and/or `/copilot-loop`) hands back with unresolved Tier 2 or Tier 3 findings, the default interactive behaviour is "ask the user". Under sprint-auto the user is asleep. The policy below is what sprint-auto substitutes for the human decision.
+When the configured `/review-loop` session (carrying one or all engines per `SPRINT_AUTO_REVIEW_ENGINE`) hands back with unresolved Tier 2 or Tier 3 findings, the default interactive behaviour is "ask the user". Under sprint-auto the user is asleep. The policy below is what sprint-auto substitutes for the human decision.
 
 Two passes run per IDEA (deliverables, then docs), plus a separate pass per mind-vault compound PR at batch end. Each pass has its own independent escalation budget — see "Attempt caps per pass" below.
 
 ## Authority model — sprint-auto IS the caller
 
-The configured review loop (`/bugbot-loop` and/or `/copilot-loop`) treats its invoker as the decision-maker for Tier 2 (explicit fix-direction approval) and Tier 3 (human escalation). Under sprint-auto:
+The configured `/review-loop` session treats its invoker as the decision-maker for Tier 2 (explicit fix-direction approval) and Tier 3 (human escalation). Under sprint-auto:
 
 - **The whole run is pre-authorized.** The user explicitly typed `/sprint-auto <IDEA-list>` with the `auto_safe` frontmatter gate already cleared per IDEA. That authorization transitively covers the review-fix work downstream of `/work` AND the documentation sweep work downstream of `/wrap-docs`. If the user didn't want sprint-auto making fixes, they wouldn't have run sprint-auto.
 - **Tier 2 is auto-approved.** The skill applies review's suggested fix (or its own best interpretation) without asking.
@@ -47,15 +47,22 @@ git commit -m "fix(scope): attempt N+1 — <different approach> (review #M)"
 
 `--force-with-lease` is technically safer than `--force` but is still not appropriate during review escalation because it erases the attempt from the reviewer's view. Use `git revert`.
 
-## Attempt caps per pass — 20 / 5 / 5, each independent
+## Attempt caps per pass — 20 / 5 / 10 / 10 / 20 / 5, each independent
 
-Three distinct review passes happen under sprint-auto, each with its own independent escalation budget:
+Six escalation budgets run under sprint-auto — two per-IDEA passes, three integration-phase passes (batch-level, once per batch), and the mind-vault compound pass — each with its own independent budget:
 
 | Pass | Where | Cap | Counted against |
 |---|---|---|---|
-| Deliverables | Per IDEA, after `/work` (state S3+S4 in the state machine) | **20** attempts | `deliverables_escalation_attempts` in the per-IDEA log |
+| Deliverables | Per IDEA, after `/work` (state S3+S4) | **20** attempts | `deliverables_escalation_attempts` in the per-IDEA log |
 | Docs | Per IDEA, after `/wrap-docs` (state S6+S7) | **5** attempts | `docs_escalation_attempts` in the per-IDEA log |
+| Integration union tests | Batch, state S11.8 | **10** attempts | integration log |
+| Integration full suite | Batch, state S11.9 | **10** attempts | integration log |
+| Integration review | Batch, state S11.10 (non-draft [INTEGRATION] PR) | **20** attempts | integration log |
 | Mind-vault compound | Per compound PR at batch end (state S13+S14) | **5** attempts | attempt table in the mind-vault compound PR's summary block |
+
+(v3.2 deleted the v3.1 per-PR re-review pass S11.12 and its 5-attempt cap — per-IDEA branch tips don't change after S6, so re-running added zero signal.)
+
+Each cap counts **escalation attempts** (sprint-auto re-entries to resolve T2/T3 findings) for that pass — distinct from `/review-loop`'s own internal session bounds (`max_commits_per_session` etc.). With one multi-engine session per pass, the cap is a single shared budget, *not* multiplied by engine count.
 
 An IDEA may legitimately burn up to 25 escalation attempts (20 deliverables + 5 docs) and still produce a valid PR. That is the point of the budget being generous: overnight wall-clock is cheap, and the alternative (shipping non-clean when one more attempt would have landed) erases the value of automating the fix work at all.
 
@@ -127,7 +134,3 @@ docs_escalation_attempts: []   # cleared on first docs-pass review invocation; c
 ```
 
 Every attempt's commit is in git history; the log is just the human-readable narrative pointer.
-
----
-
-**Last Updated**: 2026-04-22

@@ -1,7 +1,7 @@
 ---
 name: dependabot-triage
 description: Triage and batch-merge accumulated Dependabot PRs in multi-requirements-file Python repos (web + lsp + dev + per-workspace) — diff-based duplicate detection across the root vs per-workspace ecosystems, risk-tier batching for git-bisect cleanliness, worktree-isolated verification, live-staging smoke, post-merge forward-sync of remaining branches. TRIGGER when the user says "review dependabot PRs", "merge dependabot batch", "dependabot sweep", "what to do with these dep PRs", "clean up the dep updates", or asks for a roadmap merging multiple `chore(deps)` PRs.
-license: MIT
+license: Apache-2.0
 metadata:
   author: mind-vault
   version: '1.0'
@@ -181,8 +181,4 @@ If only one isolated PR remains and its review window is short, fold the docs co
 - [`../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md`](../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — the worktree + override-file + sentinel-env mechanics this skill leans on for verification isolation.
 - [`rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — forward-sync is allowed; merge-into-main is HITL.
 - [`skills/wrap/SKILL.md`](../wrap/SKILL.md) — for the docs sweep at step 9 when the dep sweep was non-trivial enough to deserve a devlog entry.
-- [`commands/bugbot-loop.md`](../../commands/bugbot-loop.md) / [`commands/copilot-loop.md`](../../commands/copilot-loop.md) — when a bundle PR's review surfaces issues (rare for dep bumps, but the review-fix loop applies if invoked, on whichever engine the project has opted into).
-
----
-
-**Last Updated**: 2026-04-28
+- [`skills/review-loop/SKILL.md`](../review-loop/SKILL.md) — when a bundle PR's review surfaces issues (rare for dep bumps, but the review-fix loop applies if invoked, on whichever engine the project has opted into).

@@ -132,7 +132,3 @@ Example:
 ```
 
 Hand to step 4 for user selection.
-
----
-
-**Last Updated**: 2026-04-19

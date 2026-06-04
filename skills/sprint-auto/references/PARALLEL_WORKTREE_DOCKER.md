@@ -34,9 +34,9 @@ git worktree add ../<project>-<track> -b chore/<branch-name> <base-branch>
 cd ../<project>-<track>
 cp .env.template .env
 # Replace secrets with safe sentinels:
-#   - SECRET_KEY=test-$(openssl rand -hex 16)
+#   - SECRET_KEY=test-<random-hex>  (generate the literal value via `openssl rand -hex 16` and paste it — do NOT write `$(...)` into .env; most dotenv loaders don't evaluate shell substitution)
 #   - *_API_KEY / *_TOKEN / *_SECRET → test-not-a-real-key
-#   - HMAC/fernet salts → test-$(openssl rand -hex 16)
+#   - HMAC/fernet salts → test-<random-hex>  (generate the literal value via `openssl rand -hex 16` and paste it — do NOT write `$(...)` into .env; most dotenv loaders don't evaluate shell substitution)
 # Optional: scope DB_NAME / CACHE_URL / etc. to a distinct namespace if the
 # stack shares anything with the primary (rarely needed — separate compose
 # project gives its own DB volume).
@@ -104,6 +104,57 @@ networks:
 ```
 
 If the parent uses `172.20.0.0/16`, use a non-overlapping block like `172.30.0.0/16`. Docker rejects subnet overlap at network-create time with `invalid pool request: Pool overlaps with other one on this address space`.
+
+#### `networks: !reset` drops the custom network — and profile-gated services aren't covered
+
+An override generator that does **`networks: !reset` per service** (to strip the
+parent's pinned `ipv4_address`) can have a surprising effect: `!reset` nullifies
+the whole `networks:` key, not just the static-IP sub-field. With every service's
+custom-network attachment reset and the custom network no longer referenced, compose
+**prunes the custom network from the merged config** and the services fall back to
+the implicit `default` network. The worktree stack still works (everyone's together
+on `default`), just on a different network than the parent compose names. Confirm
+with:
+
+```bash
+docker compose config | grep -A2 networks:
+svc=web   # the service to inspect — edit to taste
+docker inspect "$(docker compose ps -q "$svc")" --format '{{range $k,$_ := .NetworkSettings.Networks}}{{$k}} {{end}}'
+```
+
+Look for `<project>_default`, not `<project>_<custom>`.
+
+The trap: a **profile-gated service** (e.g. an e2e `playwright` service under
+`profiles: [e2e]`) that the override generator didn't enumerate keeps the **parent
+compose's** network block — including a pinned `ipv4_address` from the parent's
+subnet. In a worktree that has remapped/dropped the subnet, that static IP is now
+outside any active subnet:
+
+```
+Error response from daemon: invalid config for network <project>_<custom>:
+  invalid endpoint settings: no configured subnet contains IP address 172.20.0.95
+```
+
+And if you only *remove* the static IP, the service joins the (now-empty, pruned-for-
+everyone-else) custom network alone and can't resolve sibling services:
+`could not translate host name "db" to address`.
+
+**Fix — attach the profile-gated service to BOTH networks** so it co-locates with
+the stack in either topology (parent: on `<custom>`; worktree: on `default`):
+
+```yaml
+  playwright:                 # e2e-profile only; never started in production
+    networks:
+      - project_network       # parent checkout puts the stack here
+      - default               # worktree override lands the stack here
+    # (no ipv4_address — it's a DNS client, reaches siblings by service name)
+```
+
+The deeper fix is in the override generator (reset profile services too), but a
+both-networks attachment in the base compose is a robust project-local guard that
+works whether or not the generator is fixed. Static IPs are usually vestigial anyway
+— if nginx upstreams and inter-service calls use **service DNS names** (`web:8000`,
+not `172.x`), the pinned IPs serve no purpose and dropping them is safe everywhere.
 
 ### Common Gotchas
 
@@ -281,7 +332,3 @@ The `<tenant_schema>` is `public` for non-multi-tenant projects, or the per-tena
 - Single-track work. The pattern adds ceremony; worth it only when two streams genuinely need to run concurrently.
 - Small repos / no container stack. If the project is just a Python venv with no Docker, a simple second worktree with its own venv is enough.
 - Repos whose compose project already sets `COMPOSE_PROJECT_NAME` explicitly and shares volumes by name — those override the directory-name defaults and the stacks may still collide.
-
----
-
-**Last Updated**: 2026-04-29
