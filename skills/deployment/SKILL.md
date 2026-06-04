@@ -453,6 +453,7 @@ The deploy shape is identical for Django, Rails, Express, FastAPI, Phoenix — o
 - [`scripts/README.md`](scripts/README.md) — per-script usage and customisation
 - [references/SCREEN_SESSIONS.md](references/SCREEN_SESSIONS.md) — mandatory reading for remote deploys; full screen recipes, monitoring, cleanup
 - [references/CICD.md](references/CICD.md) — GitHub Actions, GitLab CI, secrets, approval gates
+- [references/BARE_METAL_ATOMIC_RELEASES.md](references/BARE_METAL_ATOMIC_RELEASES.md) — the *non-containerised* shape: Ansible + PHP-FPM atomic releases (`current` symlink) on a shared/managed host. `mv -Tf` self-healing swap, symlink-depth/exclude model, host PHP-version mismatch, managed-DB backup without `RELOAD`, ansible-core/target-Python pinning, per-play connection user. Read when the target is bare `/var/www`, not Docker.
 - [references/MONITORING.md](references/MONITORING.md) — Prometheus, Grafana, ELK
 - [references/DJANGO_DEPLOYMENT.md](references/DJANGO_DEPLOYMENT.md) — Django-specific optimisations (migrations, collectstatic, ASGI)
 - [references/HARDENING.md](references/HARDENING.md) — SSH, UFW, fail2ban, unattended upgrades (run before first deploy)

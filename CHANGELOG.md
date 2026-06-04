@@ -12,6 +12,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.5 — compound: bare-metal atomic-release Ansible deploy traps
+
+Patch release (compound of a first-deploy-against-a-real-host hotfix series on a Laravel panel). One new reference in the deployment skill, capturing the modality the SKILL body doesn't cover — non-containerised `/var/www` deploys driven by Ansible with atomic releases.
+
+### Added
+
+- **`skills/deployment/references/BARE_METAL_ATOMIC_RELEASES.md`** (new) — the bare-metal / atomic-release deploy shape (Ansible + PHP-FPM + `current` symlink on a shared, managed host), complementary to the SKILL body's Docker-Compose pattern. Leads with the meta-lesson **local/CI green ≠ host green**: a first deploy against a real host surfaces a cascade of environment-mismatch bugs nothing local catches — budget for the hotfix series. Nine generalised traps in four buckets: atomic-swap mechanics (`ln -sfn` nests inside a real `current` dir → `mv -Tf` self-healing swap; cold-start ACME webroot as the trigger), the symlink/shared-state model (exclude all symlink targets from the rsync or `state: link` refuses a non-empty dir; relative-symlink `../` depth must match the link's nesting; Laravel `storage:link --relative` needs `symfony/filesystem`, absent under `--no-dev`), host environment mismatches (bare `php` resolves to the host default version not the app's; managed-DB user lacks global `RELOAD` so `--single-transaction` dies → `--skip-lock-tables --set-gtid-purged=OFF`, skip when tables absent, `MYSQL_PWD` over argv), and the Ansible controller/target contract (pin `ansible-core` to the target's Python floor; core-native `callback_result_format=yaml` over `community.general`; set `remote_user` per-play so inventory `ansible_user` doesn't silently override `-u`). Closes with a 9-point first-deploy checklist. SKILL.md References gains one pointer line.
+
 ## v4.6.4 — compound: claude-workflow anti-tampering generalization + stale-local-adapter fallback
 
 Patch release (compound of a downstream dependabot + claude-engine arc). Two review-loop operational learnings, both extending existing references (no new files):
