@@ -10,6 +10,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.6.5 — compound: shell shared-style "fails open on a new surface" trap
+
+Patch release (compound of a downstream app-shell surface migration). One frontend learning, extending an existing reference (no new file):
+
+### Added
+
+- **`skills/django-frontend/references/SCSS_RESPONSIVE_PATTERNS.md` § 4 — shared rule via enumerated selector list / per-pane inline copy FAILS OPEN on a new surface.** A visual rule that must apply to *every* shell surface but is wired as a hand-maintained `.surfaceA-role, .surfaceB-role, … { … }` selector list OR a per-pane inline copy silently mis-styles any new surface that's not in the list / didn't copy the block — no error, no failed build, only a human's eyes catch it. Surfaced **twice in one session** migrating a single new surface (workspace-filter selects collapsed to content width; a card table-bleed reset missed → table overflowed on mobile). Fix: ONE base class surfaces opt into (`class="<surface>-x shell-x"`) or ONE mixin they `@include` — adoption is one token, impossible to "forget the list" because there's no list. Includes the base-class-vs-mixin decision (class when you control the element's class list; mixin for attribute/structural selectors), the smell (comma-list of `.<surface>-<role>` / same block pasted under ≥2 scopes), and a "which shared conventions must a new surface adopt?" checklist item for shell-surface additions. Generalizes the same single-source instinct as patterns 1 (mixin mechanic) + 3 (gutter-owner). SKILL.md References pointer extended.
+
 ## v4.6.4 — compound: claude-workflow anti-tampering generalization + stale-local-adapter fallback
 
 Patch release (compound of a downstream dependabot + claude-engine arc). Two review-loop operational learnings, both extending existing references (no new files):
