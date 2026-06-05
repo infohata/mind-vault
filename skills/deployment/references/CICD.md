@@ -122,6 +122,53 @@ Minimum set for SSH-based deployment:
 - Use a dedicated deploy-only account on the server — not a developer account, not `root`.
 - Consider restricting the shell to `rrsync` or a wrapper that only accepts `./tools/deploy.sh`, to bound blast radius if the key leaks.
 
+### Setting a secret correctly (`gh secret set`)
+
+`gh secret set NAME --body -` does **NOT** read stdin — it sets the secret to the literal string
+`-`. To pass a value without it landing in shell history or the transcript, pipe to stdin with
+**no `--body`**: `printf '%s' "$VALUE" | gh secret set NAME`. Secrets can't be read back to
+verify, so a wrong-set value only surfaces later as a downstream auth failure — get the set
+command right the first time.
+
+### Consuming a secret with shell-special characters
+
+Never interpolate a secret **inline** into a `run:` command string:
+
+```yaml
+# ❌ WRONG — the value is substituted into the command TEXT before the shell parses it,
+#    so a token containing $ " ` \ etc. is mangled → silent empty/garbled value → 401/403.
+run: echo "//registry.example.com/:_authToken=${{ secrets.TOKEN }}" >> .npmrc
+```
+
+Pass it via `env:` and reference the shell variable in double quotes — the value lives in the
+environment, never in the command text, so any byte survives:
+
+```yaml
+- name: Write registry auth
+  env:
+    TOKEN: ${{ secrets.TOKEN }}
+  run: echo "//registry.example.com/:_authToken=${TOKEN}" >> .npmrc
+```
+
+## Private package registries (scoped npm, GitHub Packages, vendor registries)
+
+When the project pulls packages from a private/authed registry, CI needs **both** the
+scope→registry mapping **and** the auth token:
+
+- **Commit a token-LESS `.npmrc`** with the scope mapping only —
+  `@scope:registry=https://registry.example.com/`. Safe to commit (no secret); also helps local
+  devs, whose token stays in `~/.npmrc` (npm merges project + user `.npmrc`).
+- **Inject the token from a secret via `env:`** (see above), appending
+  `//registry.example.com/:_authToken=${TOKEN}` to `.npmrc` at runtime.
+- **Add a fork-PR guard** — fork PRs can't read secrets, so an authed install 403s. Gate the job:
+  `if: github.event.pull_request.head.repo.full_name == github.repository`.
+- If the repo gitignores its lockfile, CI can't `npm ci` (it requires a committed lockfile) — use
+  `npm install`.
+
+**Failure ladder when this is misconfigured**, in order: `404 Not Found` (no scope mapping → npm
+hit the public registry) → `403 … unregistered users` (mapping present, token missing/garbled) →
+install succeeds. The progression tells you which layer is still wrong.
+
 ## Approval gates
 
 ### GitHub Actions — manual approval for production
@@ -183,3 +230,5 @@ Slack on deploy result:
 - ❌ Embedding the deploy key in the repo (even encrypted) — use the CI secret store.
 - ❌ Silent rollback on failure — leaves the human unaware the state changed.
 - ❌ `chmod 777` anywhere in the pipeline — if permissions are wrong, fix the cause.
+- ❌ `gh secret set NAME --body -` expecting stdin — it stores the literal `-`; pipe to stdin with no `--body`.
+- ❌ Inlining `${{ secrets.X }}` into a `run:` command string — special chars mangle it; pass via `env:`.
