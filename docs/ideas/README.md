@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-_(none)_
+- [IDEA-014](IDEA-014-laravel-skill.md) — Laravel skill — backend + frontend dispatcher pair
 
 ## 💡 Low Priority (backlog)
 
