@@ -12,6 +12,10 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.6 — compound: CI secret-handling + private-registry gotchas
+
+- **Added** `skills/deployment/references/CICD.md` secret + private-registry sections (2026-06-06): `gh secret set NAME --body -` stores the literal `-` instead of reading stdin (pipe to stdin with no `--body`); a secret with shell-special chars must be injected via an `env:` block, never inline `${{ secrets.X }}` in a `run:` command (it enters the command text and mangles — silent empty/garbled value → 401/403); a private scoped registry in CI needs a committed token-less `.npmrc` scope-map + token-from-secret-via-`env` + a fork-PR guard, and `npm install` (not `npm ci`) when the lockfile is gitignored; documented the `404 → 403 unregistered → ok` failure ladder. Anti-pattern bullets added. Compounded from an ExtJS/Playwright project's GitHub Actions onboarding (the inline-secret + `--body -` traps each cost a CI iteration).
+
 ## v4.6.5 — compound: bare-metal atomic-release Ansible deploy traps
 
 Patch release (compound of a first-deploy-against-a-real-host hotfix series on a Laravel panel). One new reference in the deployment skill, capturing the modality the SKILL body doesn't cover — non-containerised `/var/www` deploys driven by Ansible with atomic releases.
