@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-- [IDEA-014](IDEA-014-laravel-skill.md) — Laravel skill — backend + frontend dispatcher pair
+- [IDEA-014](IDEA-014-stack-agnostic-agents.md) — Stack-agnostic agent architecture + Laravel proving stack
 
 ## 💡 Low Priority (backlog)
 
