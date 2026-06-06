@@ -94,7 +94,7 @@ misdetected as a Node backend.
 | --- | --- | --- |
 | django | `manage.py`, `settings.py` | Django templates + `django-cotton` / `templates/cotton/` |
 | laravel | `composer.json` + `artisan` | `resources/views/*.blade.php` |
-| node | a server entry (`server.js`, a framework dep in `package.json`) | `package.json` (frontend tooling) |
+| node | a server entry file (`server.js` / `app.js`) — NOT `package.json`, which stays frontend-only (A2); pin a Node *backend* via `dispatch.md` if the entry file is absent/ambiguous | `package.json` (frontend tooling) |
 
 If backend and frontend signals point at different stacks (Laravel backend + JS
 frontend), that is valid — resolve each independently. If signals are absent or
