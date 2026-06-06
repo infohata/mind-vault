@@ -214,11 +214,11 @@ When the integration phase completes (clean or with flags):
    ⚠️  skill:curator pass-3 addendum     → https://github.com/.../pull/79   (review: 1 T3 unresolved)
 
    Docker stacks: 1 stopped (integration; volumes retained). Per-IDEA worktrees preserved (code-surface only).
-   Integration branch: integration/sprint-auto-2026-04-20T23-47-12Z (open PR; cleaned up by /wrap --integration post-merge).
+   Integration branch: integration/sprint-auto-2026-04-20T23-47-12Z (open PR; cleaned up by /land --integration post-merge).
    Batch summary: docs/archive/auto-run-2026-04-20T23-47-12Z-summary.md
    ```
 
-6. **Worktree preservation discipline.** Containers on the integration stack are stopped at S11.13. Per-IDEA worktree filesystems stay (code-surface only; never had stacks). The integration worktree filesystem stays. Full teardown of the integration worktree is the human's chore via `/wrap --integration sprint-auto-<batch-iso>` post-merge of the `[INTEGRATION]` PR (see § 5 + `skills/wrap/SKILL.md` § `--integration` mode).
+6. **Worktree preservation discipline.** Containers on the integration stack are stopped at S11.13. Per-IDEA worktree filesystems stay (code-surface only; never had stacks). The integration worktree filesystem stays. Full teardown of the integration worktree is the human's chore via `/land --integration sprint-auto-<batch-iso>` post-merge of the `[INTEGRATION]` PR (see § 5 + `skills/land/SKILL.md` § `--integration` mode).
 
 ### 5. Post-merge reminders (still human) — v3.2 model
 
@@ -231,7 +231,7 @@ The post-merge `/wrap` invocation runs only the destructive teardown. With v3.2'
 ```markdown
 ## Next steps (post-merge of the [INTEGRATION] PR)
 
-Run `/wrap --integration sprint-auto-<batch-iso>` from the primary tree —
+Run `/land --integration sprint-auto-<batch-iso>` from the primary tree —
 it auto-detects post-merge mode and runs:
 - For each per-IDEA `auto/<slug>` from the batch manifest:
   - `git worktree remove ../<project>-auto-<slug>`
@@ -242,7 +242,7 @@ it auto-detects post-merge mode and runs:
   - `git branch -d integration/sprint-auto-<batch-iso>`
 
 If you merged any per-IDEA PR independently (atypical — splits the
-batch), run `/wrap NNN` per IDEA you merged, then `/wrap --integration`
+batch), run `/wrap NNN` per IDEA you merged, then `/land --integration`
 for the residual integration cleanup.
 
 The frontmatter flip + downstream docs scan already landed at S5; the
@@ -291,7 +291,7 @@ No `/compound` reminder here — compound ran in section 4 above.
 - [references/safety-gates.md](references/safety-gates.md) — opt-in criteria, automatic disqualifiers, halt conditions
 - [references/worktree-lifecycle.md](references/worktree-lifecycle.md) — per-IDEA code-surface mode + integration-worktree-as-runtime model
 - [references/post-pr-sequence.md](references/post-pr-sequence.md) — the S(-1) → S0–S15 state machine including the integration phase
-- [references/integration-stage.md](references/integration-stage.md) — integration phase mechanics: env var, sequential merge, batch wrap, non-draft [INTEGRATION] PR (the merge gate), `/wrap --integration` teardown
+- [references/integration-stage.md](references/integration-stage.md) — integration phase mechanics: env var, sequential merge, batch wrap, non-draft [INTEGRATION] PR (the merge gate), `/land --integration` teardown
 - [references/integration-conflict-resolutions.md](references/integration-conflict-resolutions.md) — **NEW** algorithm catalogue for S11.6 conflict resolution (devlog, index, .po, HTML, JS, Python, settings, tests)
 - [references/escalation-policy.md](references/escalation-policy.md) — T2/T3 resolution rules + per-pass attempt caps (20 per-IDEA review / 10 union / 10 full / 20 integration / 5 mind-vault compound)
 - [assets/auto-run-log-template.md](assets/auto-run-log-template.md) — per-IDEA + batch-summary log shape (now includes Integration check section)

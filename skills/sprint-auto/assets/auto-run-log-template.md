@@ -76,19 +76,13 @@ docker_teardown: skipped_v3_no_per_idea_stack  # v3.1 always | v1 also: stopped 
 - `jkl0123` — fix(ui): escalation attempt 1 — null-guard context-processor (review #M)
 - `mno4567` — docs(archive): IDEA-NNN pre-merge documentation sweep
 
-## Deliverables-pass escalation attempts (cap: 20)
+## Review-pass escalation attempts (cap: 20)
 
-(see [`references/escalation-policy.md`](../../skills/sprint-auto/references/escalation-policy.md))
+Single per-IDEA review pass over the wrapped PR (S6/S6a) — covers code + docs findings. (see [`references/escalation-policy.md`](../../skills/sprint-auto/references/escalation-policy.md))
 
 | # | SHA | Approach | Review outcome |
 |---|---|---|---|
 | 1 | jkl0123 | null-guard in context-processor | clean |
-
-## Docs-pass escalation attempts (cap: 5)
-
-| # | SHA | Approach | Review outcome |
-|---|---|---|---|
-| — | — | (no escalation needed — clean on first review pass after /wrap --scope=idea-only) | — |
 
 ## Diagnostic excerpt
 
@@ -104,10 +98,10 @@ docker_teardown: skipped_v3_no_per_idea_stack  # v3.1 always | v1 also: stopped 
 ```bash
 # Sprint-auto already stopped the containers; remaining chore after the
 # [INTEGRATION] PR merges (frontmatter was flipped at S5):
-/wrap --integration sprint-auto-<batch-iso>   # tears down integration worktree + branch + every per-IDEA worktree/branch
+/land --integration sprint-auto-<batch-iso>   # tears down integration worktree + branch + every per-IDEA worktree/branch
 ```
 
-Manual cleanup (if not running `/wrap`):
+Manual cleanup (if not running `/land`):
 
 ```bash
 cd ~/projects/<project>-auto-<slug>
@@ -159,12 +153,12 @@ Invocation: `/sprint-auto IDEA-050 IDEA-051 IDEA-052 IDEA-053`
 
 Escalation column shows per-IDEA review attempts against cap `20`.
 
-| IDEA | Slug | Outcome | PR | Deliverables review | Docs review | Escalation (D/d) | Worktree |
-|---|---|---|---|---|---|---|---|
-| 050 | sync-retry-backoff | ✅ PR open | #123 | clean | clean | 0/0 | `../<project>-auto-sync-retry-backoff` (code-surface only; nothing to tear down) |
-| 051 | modal-dismiss-focus | ⚠️ PR open, review unresolved | #124 | 2 T3 remaining | clean | 20 (review cap hit) | `../<project>-auto-modal-dismiss-focus` (code-surface only) |
-| 052 | alpine-event-bus | ⚠️ plan REJECTED | — | skipped (no PR) | skipped (no PR) | — | `../<project>-auto-alpine-event-bus` (code-surface only) |
-| 053 | cache-invalidation | ❌ verification fail | — | skipped (no PR) | skipped (no PR) | — | `../<project>-auto-cache-invalidation` (code-surface only) |
+| IDEA | Slug | Outcome | PR | Review (single pass) | Escalation | Worktree |
+|---|---|---|---|---|---|---|
+| 050 | sync-retry-backoff | ✅ PR open | #123 | clean | 0 | `../<project>-auto-sync-retry-backoff` (code-surface only; nothing to tear down) |
+| 051 | modal-dismiss-focus | ⚠️ PR open, review unresolved | #124 | 2 T3 remaining | 20 (review cap hit) | `../<project>-auto-modal-dismiss-focus` (code-surface only) |
+| 052 | alpine-event-bus | ⚠️ plan REJECTED | — | skipped (no PR) | — | `../<project>-auto-alpine-event-bus` (code-surface only) |
+| 053 | cache-invalidation | ❌ verification fail | — | skipped (no PR) | — | `../<project>-auto-cache-invalidation` (code-surface only) |
 
 ## Integration check (states S11.5–S11.13)
 
@@ -213,7 +207,7 @@ In v3.2 the per-IDEA PRs target the **integration branch**, not the parent. **Me
 2. **Merge the [INTEGRATION] PR (#1234)** to ship the batch (per-IDEA PRs auto-close). Review + merge (or close) mind-vault compound PRs #78, #79 — PR #79 has an unresolved review finding (cap hit at 5); decide merge-anyway / fix-forward / close.
 3. Read the per-IDEA log for IDEA-052 — architect's rejection is usually a plan-revision signal.
 4. Read the per-IDEA log for IDEA-053 — check which test failed; decide fix-forward / plan revision.
-5. After merging the [INTEGRATION] PR: run **`/wrap --integration sprint-auto-<batch-iso>`** once from the primary tree — it tears down the integration worktree + branch + every per-IDEA `auto/<slug>` worktree/branch (see `skills/wrap/SKILL.md` § `--integration` mode). The per-IDEA frontmatter flips + downstream docs scans already ran at S5; the devlog batch entry + ideas-index batch update already ran at S11.7 on the integration branch.
+5. After merging the [INTEGRATION] PR: run **`/land --integration sprint-auto-<batch-iso>`** once from the primary tree — it tears down the integration worktree + branch + every per-IDEA `auto/<slug>` worktree/branch (see `skills/land/SKILL.md` § `--integration` mode). The per-IDEA frontmatter flips + downstream docs scans already ran at S5; the devlog batch entry + ideas-index batch update already ran at S11.7 on the integration branch.
 
 ## Per-IDEA logs
 

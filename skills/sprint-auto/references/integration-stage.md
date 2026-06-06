@@ -36,7 +36,7 @@ The integration stage closes both. Surface conflicts are surfaced and resolved o
 - **v3.2: integration branch published to `origin` immediately at S(-1)** (`git push -u origin integration/sprint-auto-<batch-iso>`) so per-IDEA `/work` invocations in S2 can open PRs with `--base integration/sprint-auto-<batch-iso>`. GitHub requires the base ref to exist on the remote at PR-creation time. (v3.1 deferred this push to S11.10 because the branch was only used as a review anchor at that point.)
 - Stays up the entire batch. All per-IDEA verification (S2/S3/S6) routes here; all integration-phase work (S11.5–S11.13) happens here.
 - Containers stopped (NOT `down -v`) at S11.13. Volumes preserved for inspection. Worktree filesystem stays. **The `[INTEGRATION]` PR is left OPEN at teardown** (v3.2) — it's the merge gate, not auto-closed.
-- Branch + worktree + remote ref cleaned up by the human's post-merge `/wrap --integration <batch-iso>` after merging the integration PR (see `skills/wrap/SKILL.md` § `--integration` mode). The teardown removes the integration worktree, deletes the local + remote integration branch, and removes each per-IDEA worktree + branch (whose PRs auto-closed when the integration PR merged).
+- Branch + worktree + remote ref cleaned up by the human's post-merge `/land --integration <batch-iso>` after merging the integration PR (see `skills/land/SKILL.md` § `--integration` mode). The teardown removes the integration worktree, deletes the local + remote integration branch, and removes each per-IDEA worktree + branch (whose PRs auto-closed when the integration PR merged).
 
 If the integration worktree's bootstrap at S(-1) fails (worktree create OR `git push` of integration branch OR `tools/sprint-auto-bootstrap.sh`): abort the batch. No per-IDEA work proceeds. Record `integration_outcome: bootstrap_failed` in the batch summary; the human investigates the worktree directly.
 
@@ -246,7 +246,7 @@ What stays:
 What's gone:
 - Running containers
 
-The worktree + branch + volumes are cleaned up by the **human's `/wrap --integration <batch-iso>`** post-merge of the integration PR (v3.2). See `skills/wrap/SKILL.md` § `--integration` mode. The teardown:
+The worktree + branch + volumes are cleaned up by the **human's `/land --integration <batch-iso>`** post-merge of the integration PR (v3.2). See `skills/land/SKILL.md` § `--integration` mode. The teardown:
 
 ```bash
 cd "$SPRINT_AUTO_INTEGRATION_WORKTREE"
@@ -277,7 +277,7 @@ done
 | S11.10 | Review-loop via [INTEGRATION] non-draft PR (the merge gate) | Cap exceeded → log, ship with unresolved findings flagged; PR still left OPEN |
 | ~~S11.11~~ | ~~Forward-sync~~ — **deleted in v3.2** (per-IDEA PRs already target integration; no propagation needed) | n/a |
 | ~~S11.12~~ | ~~Re-review per-PR PRs~~ — **deleted in v3.2** (per-IDEA PR heads unchanged after S6; no new SHA to review) | n/a |
-| S11.13 | Stop containers; leave [INTEGRATION] PR OPEN as merge gate | Failure → log; the human's post-merge `/wrap --integration` cleanup will catch any leftover state |
+| S11.13 | Stop containers; leave [INTEGRATION] PR OPEN as merge gate | Failure → log; the human's post-merge `/land --integration` cleanup will catch any leftover state |
 
 ## Auto-run log fields
 

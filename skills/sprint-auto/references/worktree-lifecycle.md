@@ -171,9 +171,9 @@ A latent bug in v1: 6+ IDEAs at offsets `+10000, +20000, ..., +60000` push max r
 
 ### v3.2 (current)
 
-After the human merges the single `[INTEGRATION]` PR, one command from the primary tree — `/wrap --integration sprint-auto-<batch-iso>` — tears down the whole batch (see `skills/wrap/SKILL.md` § `--integration` mode).
+After the human merges the single `[INTEGRATION]` PR, one command from the primary tree — `/land --integration sprint-auto-<batch-iso>` — tears down the whole batch (see `skills/land/SKILL.md` § `--integration` mode).
 
-**Integration worktree**: stops the stack at S11.13 (`docker compose down`, NOT `-v`; volumes preserved for inspection until teardown). `/wrap --integration` then removes the rest:
+**Integration worktree**: stops the stack at S11.13 (`docker compose down`, NOT `-v`; volumes preserved for inspection until teardown). `/land --integration` then removes the rest:
 
 ```bash
 cd $integration_worktree
@@ -183,14 +183,14 @@ git worktree remove $integration_worktree
 git branch -d integration/sprint-auto-<batch-iso>
 ```
 
-**Per-IDEA worktrees**: nothing to tear down (no stack ever existed); the same `/wrap --integration` call removes each `auto/<slug>` worktree + branch (the per-IDEA PRs auto-closed as merged ancestors when the [INTEGRATION] PR merged):
+**Per-IDEA worktrees**: nothing to tear down (no stack ever existed); the same `/land --integration` call removes each `auto/<slug>` worktree + branch (the per-IDEA PRs auto-closed as merged ancestors when the [INTEGRATION] PR merged):
 
 ```bash
 git worktree remove ../<project>-auto-<slug>
 git branch -d auto/<slug>
 ```
 
-See [`integration-stage.md`](integration-stage.md) § "Integration teardown" and `skills/wrap/SKILL.md` § `--integration` mode.
+See [`integration-stage.md`](integration-stage.md) § "Integration teardown" and `skills/land/SKILL.md` § `--integration` mode.
 
 ### v1 (legacy)
 

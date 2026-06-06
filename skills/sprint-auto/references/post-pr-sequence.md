@@ -126,7 +126,7 @@ After all per-IDEA loops complete:
 │        - [INTEGRATION] PR LEFT OPEN as the merge gate — the human merges    │
 │          it; per-IDEA PRs auto-close as merged ancestors                    │
 │        - worktree filesystem stays; branch lingers locally                   │
-│        - human's /wrap --integration <batch-iso> does final cleanup          │
+│        - human's /land --integration <batch-iso> does final cleanup          │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -200,7 +200,7 @@ Concretely:
 | S11.6 per-merge resolution fails | continue with next branch | Failed branch's commits aren't reflected on the integration branch; its per-IDEA PR still ships (reviewed at its IDEA-isolated diff against integration). Log `merge_results: [{slug, outcome: failed, reason}]` |
 | S11.8/S11.9 cap exceeded | continue to next state | Ship integration-non-clean (flagged); reviewer decides at PR-merge time |
 | S11.10 review cap exceeded | continue to S11.13 | Integration ships flagged; the non-draft [INTEGRATION] PR is left OPEN for the human to merge or hold |
-| S11.13 teardown fails | log; the human's `/wrap --integration` catches leftover state | Worktree state stays; branch stays; human cleans up |
+| S11.13 teardown fails | log; the human's `/land --integration` catches leftover state | Worktree state stays; branch stays; human cleans up |
 
 ## Per-state contract
 
