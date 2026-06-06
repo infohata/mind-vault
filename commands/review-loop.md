@@ -32,7 +32,7 @@ This command invokes [`skills/review-loop/SKILL.md`](../skills/review-loop/SKILL
 - `max_commits_per_session = 20`
 - `max_active_work_minutes = 240`
 - `max_idle_polls = 20`
-- Retriggers fire only after a fix push or from the zero-activity bootstrap — never while an engine is RUNNING, so no inter-retrigger interval exists (claude is push-triggered, so its Phase-3 slot is a no-op — see [`multi-engine-sync.md`](../skills/review-loop/references/multi-engine-sync.md) § Retrigger discipline).
+- Retriggers fire only after a fix push or from the zero-activity bootstrap — never while an engine is RUNNING, so no inter-retrigger interval exists. **Every engine — claude included — is retriggered in Phase 3** after a fix push: claude's `synchronize` auto-run skip-no-ops once it has already reviewed the PR, so the explicit `claude_retrigger.sh` is the only thing that produces a fresh verdict on the fix (no double-run — the auto-run skips). See [`multi-engine-sync.md`](../skills/review-loop/references/multi-engine-sync.md) § Retrigger discipline.
 - Feature-branch sandbox (per `RULE_git-safety`); never main, never force-push to protected.
 
 ## Engine selection
@@ -41,7 +41,7 @@ The `ENGINES` argument is a comma-separated list. Currently supported:
 
 - `bugbot` — Cursor Bugbot (`tools/find_bugbot_comments.sh`, `tools/bugbot_retrigger.sh`)
 - `copilot` — GitHub Copilot (`tools/find_copilot_comments.sh`, `tools/copilot_retrigger.sh`)
-- `claude` — Claude Code Review, the `claude-code-action@v1` + `code-review` plugin (`tools/find_claude_comments.sh`, `tools/claude_retrigger.sh`). **Push-triggered** — the action auto-runs on every push, so Phase 3 does not explicitly retrigger it; `claude_retrigger.sh` is a bootstrap fallback. NOT Anthropic's managed Code Review App — see [`skills/review-loop/references/engine-claude.md`](../skills/review-loop/references/engine-claude.md).
+- `claude` — Claude Code Review, the `claude-code-action@v1` + `code-review` plugin (`tools/find_claude_comments.sh`, `tools/claude_retrigger.sh`). **Push-triggered for the FIRST review only** — the action auto-runs on push, but the `code-review` plugin **skip-no-ops once claude has already reviewed the PR**, so Phase 3 **does** fire `claude_retrigger.sh` after each fix push to force a fresh verdict (no double-run — the auto-run skips). NOT Anthropic's managed Code Review App — see [`skills/review-loop/references/engine-claude.md`](../skills/review-loop/references/engine-claude.md) § A7.
 
 To add a new engine, see [`skills/review-loop/references/engine-adapter-contract.md`](../skills/review-loop/references/engine-adapter-contract.md) § Adding a new engine.
 
