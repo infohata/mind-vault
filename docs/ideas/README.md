@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-_(none)_
+- [IDEA-015](IDEA-015-split-wrap-into-wrap-and-land.md) — Split /wrap into /wrap (docs) + /land (merge + teardown), reconcile full workflow
 
 ## 💡 Low Priority (backlog)
 
