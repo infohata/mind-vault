@@ -10,7 +10,7 @@ _(none)_
 
 ## 💡 High Priority (backlog)
 
-_(none)_
+- [IDEA-018](IDEA-018-scrub-prior-project-provenance-identifiers.md) — Scrub prior-project provenance identifiers (`teisutis`, ~90 refs incl. tool scripts) for public-repo-safety
 
 ## 💡 Medium Priority (backlog)
 
