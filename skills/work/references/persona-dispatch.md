@@ -57,6 +57,55 @@ If none of the available personas match the item, that's a signal the plan is ei
 
 Stop and ask the user rather than force-fitting.
 
+## Stack resolution
+
+A stack-agnostic persona's `## Stack adapter` points at "the active backend/frontend
+skill" rather than a concrete framework (see [`agents/SKILL_CONTRACT.md`](../../../agents/SKILL_CONTRACT.md)).
+Resolving *which* skill that is happens here, once per `/work` session, in this order —
+first hit wins:
+
+1. **`.claude/dispatch.md` `stack:` pin** (explicit, per-repo, highest authority).
+2. **`AGENTS.md` `stack:` pin** (repo root convention).
+3. **Auto-detect signals** (the table below).
+4. **Ask the user once**, then record the answer as a `stack:` pin so it never re-asks.
+
+### `stack:` pin convention
+
+In `.claude/dispatch.md` (or `AGENTS.md`), backend and frontend resolve independently —
+a repo may pair, e.g., a Laravel backend with a JS-tool frontend:
+
+```yaml
+stack:
+  backend: django            # → skills/django/
+  frontend: django-frontend  # → skills/django-frontend/
+```
+
+A single value (`stack: django`) is shorthand for `backend: django` with the frontend
+left to auto-detect.
+
+### Auto-detect signal table
+
+**Precedence rule (A2): backend and frontend are detected separately.** A backend marker
+resolves *only* the backend stack; `package.json` resolves *only* the frontend stack and
+NEVER the backend — so a Laravel repo shipping a Vite/Tailwind `package.json` is not
+misdetected as a Node backend.
+
+| Stack | Backend signal (resolves backend only) | Frontend signal (resolves frontend only) |
+| --- | --- | --- |
+| django | `manage.py`, `settings.py` | Django templates + `django-cotton` / `templates/cotton/` |
+| laravel | `composer.json` + `artisan` | `resources/views/*.blade.php` |
+| node | a server entry (`server.js`, a framework dep in `package.json`) | `package.json` (frontend tooling) |
+
+If backend and frontend signals point at different stacks (Laravel backend + JS
+frontend), that is valid — resolve each independently. If signals are absent or
+ambiguous, fall through to step 4 (ask once). Per the fail-open contract, an adapter
+whose stack never resolves enforces craft-only and **announces** the gap — it does not
+silently skip the stack rule.
+
+No executable detector ships in Phase 1 — these signals are read by the dispatcher /
+agent directly. A `tools/detect-stack.sh` is deferred until a real third stack justifies
+it.
+
 ## Parallel worktree setup
 
 When the plan flags parallel work streams — typically in the Execution Sequence's Phase structure — multiple work streams can proceed concurrently. Follow `RULE_parallel-worktree-docker` literally.
