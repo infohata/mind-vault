@@ -265,5 +265,6 @@ SKIP: <conditions>
 ## References
 
 - Adjacent examples in this repo: `skills/artefact-retrieval/SKILL.md`, `skills/surgical-tdd/SKILL.md` (lean), `skills/django/SKILL.md` (feature-dense)
+- [references/MARKDOWN_FORMATTER_GOTCHAS.md](references/MARKDOWN_FORMATTER_GOTCHAS.md) — constructs auto-formatters (mdformat / markdownlint) silently rewrite in a meaning-changing way (e.g. a literal `+`/`-`/`*` at the start of a wrapped prose line becoming a list item); author defensively + read the diff after formatting
 - [Git Safety Rule](../../rules/RULE_git-safety.md) — applies to commits produced while authoring skills
 - Anthropic's Claude Code Agent Skills documentation (`docs.claude.com`) — the official `SKILL.md` spec this skill aligns with

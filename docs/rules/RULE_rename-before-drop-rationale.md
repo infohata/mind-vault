@@ -35,4 +35,4 @@ in the (Python-general) module-split reference:
 ## Relationship To Other Rules
 
 - [`RULE_git-safety`](../../rules/RULE_git-safety.md) — every rename and drop commit lands on a feature branch; per-commit compilability makes `--force-with-lease` rebases safe inside the sequence.
-- [`RULE_self-sweep-before-push`](../../rules/RULE_self-sweep-before-push.md) — pyflakes after a rename catches leftover imports of the dropped symbol.
+- [`RULE_self-sweep-before-push`](../../rules/RULE_self-sweep-before-push.md) — pyflakes after a rename catches leftover imports of the dropped symbol. When the rename is a **file move** (`git mv`), its [§ *A file move / rename is a path-contract change*](RULE_self-sweep-before-push-rationale.md) recipe sweeps the OTHER direction: inbound links from sibling files to the moved file's OLD path (a one-directional "do the moved file's own links resolve?" audit misses them).
