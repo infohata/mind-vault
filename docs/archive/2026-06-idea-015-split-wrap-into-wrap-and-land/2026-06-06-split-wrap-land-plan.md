@@ -7,118 +7,135 @@ status: ready
 project: mind-vault
 ---
 
-# Split /wrap into /wrap (docs) + /land (merge + teardown)
+# Split /wrap into /wrap (docs) + /land (merge + teardown) + retire the double-review
 
 ## Context
 
-`/wrap` carries two structurally different jobs under one trigger: **documentation finalization** (Steps 1–4b, 6, 6b, 7) and **merge/teardown operations** (Step 5 teardown, Step 8 atomic merge, the `--integration` batch teardown). They differ in timing (pre-merge docs vs the destructive post-merge moment), in HITL gate (none vs the protected-branch merge boundary), and in blast radius. The coupling manifests as a ~900-word frontmatter `description` loaded every session, a `--scope=full` enum value whose only purpose is to glue merge onto the docs pass, and a 420-line SKILL.md mixing idempotent docs guards with destructive operations. Splitting along the seam gives two focused skills and lets the documented workflow name its final merge stage (`/land`) instead of hiding it behind a scope flag.
+The finish of the sprint workflow has two coupled problems. (1) `/wrap` fuses **documentation finalization** (Steps 1–4b, 6, 6b, 7) with **merge/teardown operations** (Step 5 teardown, Step 8 atomic merge, `--integration` batch teardown) under one trigger — different timing, different HITL gate, different blast radius, a ~900-word frontmatter, and a `--scope=full` value that exists only to glue merge onto the docs pass. (2) The canonical chain runs a **double review**: `work → review (deliverables) → wrap (docs) → review (docs) → compound` — a code-only review before docs are finalized, then a second review of the docs. Since review engines expect docs already in order and `/review-loop` already iterates on every fix push, the first pass is premature and the second is ceremony.
+
+This plan splits `/wrap` → `/wrap` (docs) + `/land` (merge+teardown), **collapses the double review into one post-wrap review**, and reconciles every workflow-chain depiction to the single canonical chain: `/idea → /plan → /work → /wrap (docs) → /review-loop → /land (merge) → /compound`.
 
 ## Problem Frame
 
-- A bare `/wrap` and `/wrap --scope=full` are the same skill doing very different things; the operator has to remember which scope merges. IDEA-008 already made `docs` the safe default, but merge is still a wrap responsibility.
-- The frontmatter description is the single largest always-loaded block among the skills; roughly half of it is merge/teardown/scope-enum prose.
-- The canonical workflow chain (`/idea → /plan → /work → review → /wrap → review → /compound`) has no named *merge* stage — merge is an implicit `--scope=full` re-run, which reads as a footnote rather than a step.
-- `sprint-auto/references/escalation-policy.md` already references a `/wrap-docs` name that does not exist (lines 11, 57) — a dangling pointer that confirms prior intent for this split.
+- A bare `/wrap` and `/wrap --scope=full` are the same skill doing very different things; merge is an implicit `--scope=full` re-run rather than a named stage.
+- The frontmatter description is the single largest always-loaded block among the skills; ~half is merge/teardown/scope-enum prose.
+- **The double-review ceremony is redundant.** Reviewing deliverables before docs are finalized means the engine sees an incomplete PR; the work then needs a second review after wrap. `/review-loop` already loops to clean on every push, so one review over the wrapped (complete) PR absorbs both code and doc findings. The two-pass model is encoded in `WRAP_BEFORE_REVIEW.md` (built entirely around it), wrap's pass-1/pass-2 language, and sprint-auto's S3–S7 state machine (separate deliverables/docs passes, split 20/5 caps).
+- The canonical chain has no named *merge* stage — merge hides behind `--scope=full`.
+- `sprint-auto/references/escalation-policy.md` references a `/wrap-docs` name that does not exist (L11, L57).
 
 ## Requirements Trace
 
-- **R1.** A new `/land` skill owns Step 8 atomic merge, Step 5 worktree/volume teardown, and the `--integration <batch-iso>` batch teardown, with the `ATOMIC_MERGE.md` + `WORKTREE_TEARDOWN.md` references relocated under it.
+- **R1.** A new `/land` skill owns Step 8 atomic merge, Step 5 worktree/volume teardown, and `--integration <batch-iso>` batch teardown, with `ATOMIC_MERGE.md` + `WORKTREE_TEARDOWN.md` relocated under it.
 - **R2.** `/land NNN` pre-merge performs the atomic merge (non-protected target) and, since the merge unblocks teardown, proceeds to teardown in the same pass; `/land NNN` post-merge does teardown only; `/land --integration <batch-iso>` does batch teardown only. Protected target → no merge, hand back PR URL (RULE_git-safety preserved).
-- **R2a. (post-merge handoff — architect finding 2).** The post-merge moment is split: `/wrap NNN` on an already-merged PR runs the **docs fallback only** (it no longer tears down — teardown left with `/land`), and MUST end its hand-back with the explicit line "now run `/land NNN` to tear down the worktree." Symmetric with R5's redirect. Commit 3 must also rewrite `skills/wrap/SKILL.md:82`'s load-bearing note ("Do not phrase `docs` as cannot reach teardown") — under the split, `docs` (and every `/wrap` mode) **never** reaches teardown, so that sentence inverts.
-- **R3.** `/land`'s **precondition guard** runs **only in the pre-merge merge branch** of `/land NNN`: verify IDEA frontmatter is `complete`, the devlog/CHANGELOG entry exists, and the ideas-index entry has moved — refuse to merge (pointing at `/wrap NNN`) when docs are not finalized. It replaces the old `--scope=full` idempotent docs re-run. **Post-merge teardown and `--integration` batch teardown SKIP the guard** (nothing to merge) — critically, `--integration` operates on a sprint-auto batch whose per-IDEA devlog entries are *deliberately deferred* to the S11.7 batch wrap, so a devlog-existence check there would false-refuse every batch (architect finding 3). This mirrors wrap's existing mode-gating (Step 5 was mode-gated, not scope-gated).
-- **R4.** `/wrap` retains only the docs steps (1, 2, 3, 4, 4b, 6, 6b, 7) + the post-merge docs fallback (per R2a, fallback no longer tears down); Step 5, Step 8, and the `--integration` mode are removed from it. Its References list drops the two relocated entries, and the stale `/wrap-docs` + missing-`/land` chain string at `skills/wrap/SKILL.md:419` is fixed in the same Commit-3 pass (architect finding 6).
-- **R5.** `--scope=full` is **deprecated, not removed**: invoking it emits a one-time deprecation notice, runs the docs steps as `docs`, and at the end (where Step 8 used to fire) prints guidance to run `/land NNN` — it never auto-merges. The notice MUST be loud and actionable: emit the exact `/land NNN` command string AND state explicitly "this did NOT merge (it did under the old `--scope=full`)" — a non-protected-target caller previously got an atomic merge here, so the no-merge is a real behavioral regression that must not be silent (architect finding 4). `--scope=docs` (default) and `--scope=idea-only` are unchanged.
-- **R6.** The canonical workflow chain is reconciled across every live surface to `/idea → /plan → /work → /review-loop (deliverables) → /wrap (docs) → /review-loop (docs) → /land (merge) → /compound`.
-- **R7.** sprint-auto call sites updated: S11.13 teardown `/wrap --integration` → `/land --integration`; the stale `/wrap-docs` refs fixed to `/wrap`. sprint-auto's own S11 integration-merge logic is untouched (it never used `/wrap --scope=full`).
-- **R8.** No `commands/land.md` wrapper (wrap has none; both resolve as skills). No edits to frozen `docs/archive/**` or `docs/plans/**`.
+- **R2a. (post-merge handoff — architect finding 2).** `/wrap NNN` on an already-merged PR runs the **docs fallback only** (no teardown — that moved to `/land`) and MUST end its hand-back with "now run `/land NNN` to tear down the worktree." Commit 3 must rewrite `skills/wrap/SKILL.md:82`'s note — under the split, no `/wrap` mode reaches teardown.
+- **R3.** `/land`'s **precondition guard** runs **only in the pre-merge merge branch**: verify IDEA frontmatter `complete`, devlog/CHANGELOG entry exists, ideas-index entry moved — refuse to merge (point at `/wrap NNN`) when docs aren't finalized. Replaces the old `--scope=full` idempotent docs re-run. Post-merge teardown and `--integration` SKIP the guard — `--integration` runs on a batch whose per-IDEA devlogs are *deliberately deferred* to S11.7, so a devlog check there would false-refuse every batch (architect finding 3).
+- **R4.** `/wrap` retains only docs steps (1, 2, 3, 4, 4b, 6, 6b, 7) + the post-merge docs fallback (no teardown, per R2a). Step 5, Step 8, `--integration` removed. References list drops the two relocated entries; the stale `/wrap-docs`+missing-`/land` chain at `SKILL.md:419` fixed in the same pass (architect finding 6).
+- **R5.** `--scope=full` is **deprecated, not removed**: emits a loud notice, runs docs as `docs`, prints the exact `/land NNN` command + "this did NOT merge (it did under the old `--scope=full`)", never auto-merges (architect finding 4). `--scope=docs` / `--scope=idea-only` unchanged.
+- **R6.** The canonical chain is reconciled across every live surface to the **single-review** form: `/idea → /plan → /work → /wrap (docs) → /review-loop → /land (merge) → /compound`. No review-before-wrap pass.
+- **R7.** sprint-auto teardown call `/wrap --integration` → `/land --integration`; stale `/wrap-docs` → `/wrap`. sprint-auto's S11 integration *merge* logic untouched (verified: S11.6 is bare `git merge --no-ff`, S11.7 is bespoke batch-wrap prose — neither used `/wrap --scope=full`).
+- **R8.** No `commands/land.md` wrapper. No edits to frozen `docs/archive/**` / `docs/plans/**`.
+- **R9. (retire double-review — manual path).** Collapse the manual chain from two review passes to one post-wrap review. Rewrite `WRAP_BEFORE_REVIEW.md` from the two-pass model (`work → review → wrap → review → full`) to single-pass (`work → wrap → review → land`). Update `review-loop`'s pre-flight (wrap-first guidance stays; "second docs pass" framing goes), wrap's pass-1/pass-2 language, and `ATOMIC_MERGE.md`'s two-pass framing. Reviewing more than once stays *allowed* (mid-`/work` Claude pass for early signal); only the mandatory ceremonial second pass is retired.
+- **R10. (retire double-review — sprint-auto, Phase B).** Collapse sprint-auto's per-IDEA S3–S7 into a single post-wrap review pass: today S3 (deliverables review) + S4 (deliverables escalation) run *before* S5 wrap, then S6 (docs review) + S7 (docs escalation) after. New order: S5 wrap (`--scope=idea-only`) FIRST, then ONE review+escalation pass over the wrapped per-IDEA PR. **Merged escalation cap = 20** (NOT 5, NOT 25 — architect finding 1): the single pass now reviews code+docs together, so it must be sized for the **code long tail** that the old "Why 20 deliverables" rationale documented (migration/model/test triads, type-refactor propagation = 4–6 attempts), not the doc-finding short tail; doc findings that won't converge are caught by `/review-loop`'s own `no_progress_map`, not by a tighter sprint-auto cap. Fold the deleted "Why 20"/"Why 5" sections of `escalation-policy.md` into a one-line rationale on the merged cap. The state-machine diagram in `post-pr-sequence.md` must **delete S3/S4** (not insert S5 before a surviving S3) so the flow reads S5 wrap → [single review+escalation] → S9 (architect finding 2). Integration-state review (S11.10) is unchanged (deliverables-class review of the integrated branch, its own cap 20, orthogonal to the per-IDEA cadence).
 
 ## Scope Boundaries
 
-**In scope:**
+**In scope (Phase A — wrap/land split + manual single-review):**
 
-- New `skills/land/SKILL.md` + `skills/land/references/{ATOMIC_MERGE.md,WORKTREE_TEARDOWN.md}` (relocated via `git mv`).
-- `skills/wrap/SKILL.md` — strip Step 5/8/`--integration`, collapse the scope table's `full` column to the deprecation redirect, trim frontmatter, fix References list.
-- Workflow-chain depictions: `README.md` (incl. the **distinct sprint-auto chain at L109** whose `teardown` token is now `/land`'s job — architect finding 1), `docs/guides/SPRINT_WORKFLOW.md` (incl. **L46** per-IDEA sprint-auto chain ending in `pre-merge container teardown`), `docs/guides/ONBOARDING.md`, `docs/ideas/README.md` (mermaid).
-- Skills naming the chain or wrap-merge: `work`, `review-loop` (+`references/engine-claude.md`), `sprint-auto` (SKILL + `integration-stage`, `post-pr-sequence`, `worktree-lifecycle`, `safety-gates`, `integration-conflict-resolutions`, `escalation-policy`, `assets/auto-run-log-template`), `plan` (specifically **`references/batching-for-sprint-auto.md:129`** — the chain lives in the reference, not the SKILL — architect finding 1), `ideate`, `idea/references/IDEAS_LOCATION_STATUS.md`, `django-frontend`, and `skills/wrap/SKILL.md:419` (its own stale `wrap-docs` chain string).
-- **Denominator-closing grep (run FIRST, before Commit 2):** `grep -rn "→ /wrap\|/wrap →\|wrap (docs)\|wrap (pre-merge)\|wrap-docs\|teardown\|--scope=full" skills/ docs/ README.md | grep -v archive` — pin every hit into a line-anchored edit list. The surface names above are the parents; the grep is the authoritative denominator (the Verification "every depiction identical" check is unenforceable until it's closed).
-- `CHANGELOG.md` + version bump at this IDEA's own `/wrap`.
+- New `skills/land/SKILL.md` + `skills/land/references/{ATOMIC_MERGE.md,WORKTREE_TEARDOWN.md}` (`git mv`).
+- `skills/wrap/SKILL.md` — strip Step 5/8/`--integration`, deprecation-shim the `full` scope, R2a hand-back, rewrite L82 + L419, trim frontmatter, fix References + pass-1/pass-2 language.
+- `skills/wrap/references/WRAP_BEFORE_REVIEW.md` — rewrite two-pass → single-pass (R9), WITH a one-line forward-pointer that sprint-auto stays two-pass until Phase B (architect finding 4 — converts the silent contradiction into a documented bridge state).
+- `skills/review-loop/SKILL.md` (+`references/engine-claude.md`) — pre-flight wrap-first guidance kept, second-docs-pass framing removed.
+- **Manual-path** chain depictions ONLY (sprint-auto chain surfaces are Phase B — architect finding 3): `README.md` **L19, L38** ("two review passes around the doc wrap" prose), `docs/guides/SPRINT_WORKFLOW.md` **L46 + the manual chain at ~L156**, `docs/guides/ONBOARDING.md` **L250** ("two-pass finish"), `docs/ideas/README.md` (mermaid), `skills/plan/references/batching-for-sprint-auto.md:129`, `skills/work/SKILL.md`, `skills/ideate`, `skills/idea/references/IDEAS_LOCATION_STATUS.md`, `skills/django-frontend`.
+- **NOT in Phase A:** `README.md` **L71** (sprint-auto table row, verbatim `/review-loop (deliverables) → /wrap → /review-loop (docs)`) and **L109** (`Automation:` sprint-auto chain) — these depict the *sprint-auto* per-IDEA cadence and MUST flip in lockstep with sprint-auto's behaviour in Phase B (PR2), else they describe a single-review sprint-auto that still-two-pass `sprint-auto/SKILL.md` contradicts on `main` between PRs.
+- **Denominator-closing grep (run FIRST, before any chain edit):** `grep -rn "→ /wrap\|/wrap →\|wrap (docs)\|wrap (pre-merge)\|wrap-docs\|teardown\|--scope=full\|two-pass\|two review\|review (deliverables)\|review (docs)\|deliverables pass\|docs pass\|pass 1\|pass 2" skills/ docs/ README.md | grep -v archive` — pin every hit into a line-anchored edit list, **tagged by phase**: a hit that describes the *manual single-IDEA* flow → Phase A; a hit that describes the *sprint-auto* per-IDEA cadence (anything under `skills/sprint-auto/`, plus README L71/L109) → Phase B. The grep WILL hit README L71 (`review (deliverables)`/`review (docs)`) — that hit is a Phase-B assignment, not a Phase-A leak (architect finding 3). This is the authoritative denominator.
+
+**In scope (Phase B — sprint-auto cadence collapse, R10):**
+
+- `skills/sprint-auto/SKILL.md` — S3–S7 state-machine collapse, caps tuple (`20/5/10/10/20/5` → merged-to-20 per-IDEA review budget, see R10), description chain, hand-back examples (`:204-205` "deliverables clean / docs clean" → single verdict).
+- `skills/sprint-auto/references/{post-pr-sequence.md,escalation-policy.md,integration-stage.md,safety-gates.md}` + `assets/auto-run-log-template.md` — sequence diagrams (delete S3/S4 per R10), cap definitions (fold "Why 20"/"Why 5" → merged-cap rationale), deliverables/docs-pass language.
+- **README L71 + L109** (the sprint-auto chain depictions, moved here from Phase A per architect finding 3) — rewrite to the single-review sprint-auto cadence in the SAME PR that lands the behaviour change.
 
 **Out of scope:**
 
-- Behavioural change to merge or teardown mechanics — this is a relocation + rename, not a redesign of how merge/teardown work.
-- sprint-auto's integration-stage merge logic (S11.x) — unchanged.
+- Merge/teardown *mechanics* — relocation + rename, not redesign.
+- sprint-auto integration-stage merge logic (S11.6/S11.7/S11.10).
 - Any `commands/` wrapper for `/land`.
 
 **Explicit non-goals:**
 
-- NOT renaming the docs skill — it stays `/wrap`.
-- NOT removing `--scope=full` outright — it deprecates gracefully for one cycle.
-- NOT editing historical archive/plan docs to rewrite their workflow chains.
+- NOT renaming the docs skill — stays `/wrap`.
+- NOT removing `--scope=full` outright — graceful deprecation for one cycle.
+- NOT removing the *option* to review more than once (mid-`/work` Claude pass stays) — only the mandatory ceremonial second pass is retired.
+- NOT editing historical archive/plan docs.
 
 ## Context & Research
 
 ### Existing code and patterns to reuse
 
-- `skills/wrap/SKILL.md:324-338` — Step 5 teardown + `--integration` mode prose (moves verbatim to `/land`).
-- `skills/wrap/SKILL.md:386-390` — Step 8 atomic merge prose (moves to `/land`).
-- `skills/wrap/SKILL.md:48-85` — the `--scope` detection block + per-scope step table (the `full` column collapses to the deprecation redirect).
-- `skills/wrap/references/ATOMIC_MERGE.md`, `skills/wrap/references/WORKTREE_TEARDOWN.md` — relocate under `skills/land/references/`; fix inbound links.
-- `skills/wrap/SKILL.md:87-115` — mode detection (pre-merge / post-merge / `--integration`); `/land` reuses the same mode-detection shape for its merge-vs-teardown branch.
-- `skills/sprint-auto/SKILL.md:173`, `references/worktree-lifecycle.md:176`, `references/post-pr-sequence.md:135,212` — the `/wrap --integration` teardown call sites → `/land --integration`.
+- `skills/wrap/SKILL.md` — L48-85 scope table; L87-115 mode detection (`/land` reuses the shape); L324-338 Step 5 + `--integration`; L386-390 Step 8; L82 teardown note; L178 two-pass idempotency guard; L411/413/419 References; L34 "S3+S4 … S6+S7" trigger bullet.
+- `skills/wrap/references/{ATOMIC_MERGE,WORKTREE_TEARDOWN,WRAP_BEFORE_REVIEW}.md` — first two relocate; WRAP_BEFORE_REVIEW rewrites.
+- `skills/sprint-auto/SKILL.md:118` (S3 deliverables review), `:135` (S6 docs review), `:269` (two-pass review-loop per IDEA), `:276` (caps tuple `20/5/10/10/20/5`), `:306` ("called twice per IDEA") — the S3–S7 collapse sites.
+- `skills/sprint-auto/references/integration-stage.md:90-122` — verifies S11.6/S11.7 use no `--scope=full` (R7).
 
 ### Institutional learnings
 
-- `rules/RULE_rename-before-drop.md` — this is a symbol-rename-then-drop refactor across many files; renames (add `/land`, rewire callers) land green before the drop (`--scope=full` behaviour + Step 5/8 prose) in its own commit, then re-verify. The "test pass" gate here is a consistency grep sweep (docs, no runtime tests).
-- `rules/RULE_self-sweep-before-push.md` trigger 5 (doc-consistency) — every commit is doc-heavy; sweep frontmatter/body symmetry, chain-string consistency, and link resolution each cycle.
-- `skills/idea/references/IDEAS_LOCATION_STATUS.md` — the in-progress move already performed for this IDEA.
-- IDEA-013 (`docs/ideas/README.md` ✅ section) — established the two-pass chain as canonical across the headline surfaces; this plan extends that same surface set with the `/land` stage.
+- `rules/RULE_rename-before-drop.md` — add `/land` + rewire (green) before dropping `--scope=full`/Step 5/8 (own commit), then re-verify. "Test pass" = consistency grep sweep.
+- `rules/RULE_self-sweep-before-push.md` trigger 5 — every commit doc-heavy; sweep symmetry, chain-string consistency, link resolution.
+- `feedback_version_bump_adopter_magnitude` (memory) — size the bump by adopter impact: this changes the review cadence every adopter runs, so it's a significant minor at least; coordinate with IDEA-014's claimed v5 if they land close (decide at `/wrap`).
+- README's sprint-auto **UNSTABLE** banner — reason Phase B (sprint-auto) phases behind Phase A; sprint-auto isn't battle-tested post-v3.2, so its cadence collapse should land as its own reviewable phase.
 
 ### External references
 
-- None — entirely internal skill/doc refactor.
+- None — internal skill/doc refactor.
 
 ## Key Technical Decisions
 
-- **`/land` is one skill spanning merge + teardown, mode-detected.** Pre-merge → merge (+ teardown if it unblocks); post-merge → teardown; `--integration` → batch teardown. Mirrors wrap's existing mode-detection so the mental model transfers.
-- **Precondition guard replaces the idempotent docs re-run.** `/land` checks docs are finalized and refuses otherwise, rather than silently re-running wrap's steps — cleaner separation, and surfaces a forgotten `/wrap` loudly.
-- **`--scope=full` deprecates via redirect, never auto-merges.** A deprecated flag silently performing a destructive merge is the wrong failure mode; notice + guidance is the graceful path (per user direction).
-- **Keep the three-value `--scope` spelling.** Avoids a hard break for muscle-memory/scripts; `full` becomes the deprecation shim.
-- **rename-before-drop commit sequence.** Add `/land` (additive) → rewire callers → consistency-verify → drop legacy from `/wrap` → re-verify → version/CHANGELOG.
+- **`/land` is one skill spanning merge + teardown, mode-detected** (pre-merge → merge[+teardown]; post-merge → teardown; `--integration` → batch teardown). Mirrors wrap's mode detection.
+- **Single review after wrap.** `work → wrap → review → land`. The review-loop's existing fix-iteration absorbs both code and doc findings, so a second ceremonial pass adds no signal. Reviewing more than once stays optional.
+- **Precondition guard replaces the idempotent docs re-run, scoped to the merge branch only.**
+- **`--scope=full` deprecates via loud redirect, never auto-merges.**
+- **Phase the work.** Phase A = manual path (split + single-review + WRAP_BEFORE_REVIEW). Phase B = sprint-auto S3–S7 collapse. Phase A is independently shippable and reviewable; Phase B carries the sprint-auto blast radius and lands behind it.
+- **rename-before-drop commit sequence** within each phase.
 
 ## Open Questions
 
-- **Q1. Does `/land NNN` pre-merge auto-proceed to teardown in the same pass, or stop after merge?**
-  - **Default:** Auto-proceed (merge then teardown), mirroring wrap's current "Step 8 unblocks Step 5 in the same pass" note.
-  - **Trade-off:** One-command convenience vs a brief window where a just-merged worktree is gone before the operator inspects it; `WRAP_KEEP_STACK=1`/`--keep-stack` already guards that, so default-proceed is safe.
-- **Q2. `--scope=full` deprecation: notice-and-stop, or notice-and-run-docs-then-stop?**
-  - **Default:** Run the docs steps (it IS a wrap), then stop with `/land` guidance — so an operator who typed the old two-pass command still gets docs finalized, just not the merge.
-  - **Trade-off:** Does the useful half of the old behaviour vs a stricter "do nothing, re-run correctly" stance. Default favours not punishing muscle-memory.
-- **Q3. Precondition-guard strictness — refuse vs warn-and-proceed when docs aren't finalized?**
-  - **Default:** Refuse (hard block, point at `/wrap NNN`), with no override flag in v1.
-  - **Trade-off:** Safety (never merge un-wrapped work) vs flexibility; refusing is reversible (run `/wrap`, re-run `/land`), so strict is the safe default.
+- **Q1. `/land NNN` pre-merge auto-proceeds to teardown in the same pass?** Default: yes (mirrors wrap's "Step 8 unblocks Step 5"); `--keep-stack`/`WRAP_KEEP_STACK=1` already guards inspection needs.
+- **Q2. `--scope=full` deprecation — run-docs-then-stop vs do-nothing?** Default: run docs, then stop with loud `/land` guidance (don't punish muscle-memory; still finalizes the useful half).
+- **Q3. Precondition-guard strictness — refuse vs warn?** Default: refuse (point at `/wrap NNN`), no override flag in v1; reversible (run `/wrap`, re-run `/land`).
+- **Q4. Phase A and Phase B — one PR or two?** Default: **two PRs** (Phase A then Phase B). Phase A touches the manual path + skill split; Phase B is sprint-auto-only and rides the UNSTABLE surface — separate PR keeps each independently reviewable and bisectable. Revisit if the chain-doc edits prove too entangled to split cleanly.
 
 ## Execution Sequence
 
-1. **Commit 1 — add `/land` (additive, non-breaking).** Create `skills/land/SKILL.md` (frontmatter + mode detection + **pre-merge-only** precondition guard per R3 + merge + teardown + `--integration`, References pointing at the relocated docs). `git mv skills/wrap/references/{ATOMIC_MERGE,WORKTREE_TEARDOWN}.md skills/land/references/`; in the SAME commit update `skills/wrap/SKILL.md`'s Step 5/8 inline links to the new `../../land/references/` paths so all links resolve. wrap still behaves as today (bridge state). Verify: every link in both skills resolves; `/land` reads coherently; **AND wrap still reads coherently at this HEAD** — Step 5/8 prose + References framing intact, just repointed (the RULE_rename-before-drop "intermediate commit is consistent" gate — architect finding 5).
-2. **Commit 2 — rewire callers to the new chain.** FIRST run the denominator-closing grep (Scope Boundaries) and build the line-anchored edit list. Then update every chain depiction to insert `/land`: README mermaid + glyphs **+ the L109 sprint-auto chain** (replace bare `teardown` with `/land`), SPRINT_WORKFLOW stages **+ L46**, ONBOARDING, ideas/README mermaid, `skills/plan/references/batching-for-sprint-auto.md:129`. Update `skills/work/SKILL.md` hand-off, `review-loop` + `engine-claude.md`, and the sprint-auto surfaces: S11.13 `/wrap --integration` → `/land --integration`; fix `/wrap-docs` → `/wrap` in `escalation-policy.md`. Verify: `grep -rn "/wrap --integration"` returns zero in live files; every `/land` reference resolves; the chain string is identical across all headline surfaces (denominator from the grep).
-3. **Commit 3 — drop legacy from `/wrap`.** Remove Step 5, Step 8, and the `--integration` mode prose; collapse the scope table's `full` column into the deprecation redirect (loud notice per R5 + run-docs + `/land` guidance); add the `--scope=full` deprecation branch to the scope-detection block; **add the post-merge-fallback "now run `/land NNN`" hand-back line (R2a)**; **rewrite the `SKILL.md:82` teardown note** (docs no longer "still tears down" — no `/wrap` mode reaches teardown); trim the frontmatter description (remove merge/teardown/scope=full sentences); fix wrap's References list (drop the two relocated entries, repoint/​drop the Step-8 sprint-auto derivation note) **and fix the stale `wrap-docs`+missing-`/land` chain string at `SKILL.md:419`**. Verify: `grep -rn "Step 8\|atomic merge\|scope=full"` in `skills/wrap/SKILL.md` only hits the deprecation shim; `grep -rn "/wrap-docs" skills/ docs/` returns zero; wrap SKILL.md line count dropped; frontmatter materially smaller.
-4. **Commit 4 — consistency re-sweep + fixups.** Full grep sweep for dangling `--scope=full` (non-deprecation), orphaned links, chain-string drift across all live surfaces. Fix any stragglers.
-5. **At `/wrap` of this IDEA (separate, post-review):** CHANGELOG entry + version bump (judge by adopter magnitude per the version-bump-adopter-magnitude learning — this is a workflow-surface change adopters will feel, likely a minor bump, not major).
+### Phase A — wrap/land split + manual single-review (PR 1)
+
+1. **A1 — add `/land` (additive, non-breaking).** Create `skills/land/SKILL.md` (mode detection + pre-merge-only precondition guard + merge + teardown + `--integration`; References → relocated docs). `git mv skills/wrap/references/{ATOMIC_MERGE,WORKTREE_TEARDOWN}.md skills/land/references/`; same commit repoints `skills/wrap/SKILL.md`'s Step 5/8 inline links. Verify: all links resolve; `/land` coherent; **wrap still reads coherently at this HEAD** (bridge state — Step 5/8 prose + References framing intact, just repointed; architect finding 5).
+2. **A2 — rewire chain + single-review (MANUAL surfaces only).** Run the denominator grep; build the phase-tagged list. Insert `/land` and collapse to single review across the **manual** surfaces: README (mermaid, glyphs, **L19**, **L38**), SPRINT_WORKFLOW (**L46** + manual chain ~L156), ONBOARDING (**L250**), ideas/README mermaid, `batching-for-sprint-auto.md:129`, `work/SKILL.md` hand-off, `review-loop/SKILL.md` + `engine-claude.md` pre-flight. Rewrite `WRAP_BEFORE_REVIEW.md` two-pass → single-pass (R9) **with the Phase-B forward-pointer** ("sprint-auto's per-IDEA cadence collapses to single-pass in IDEA-015 Phase B; until then `skills/sprint-auto/` still describes a deliverables+docs two-pass — that is the sprint-auto path, not this one"; architect finding 4). **Leave README L71/L109 and all `skills/sprint-auto/` chain prose untouched** — they truthfully still describe two-pass sprint-auto until Phase B. Verify: every *manual* chain depiction shows the single canonical chain; README L71/L109 still read two-pass and remain consistent with unmodified `sprint-auto/SKILL.md`.
+3. **A3 — drop legacy from `/wrap`.** Remove Step 5/8/`--integration`; deprecation-shim `--scope=full` (loud, R5); add R2a post-merge hand-back; rewrite L82 + L419 + L178 (two-pass idempotency rationale → single-run); trim frontmatter; fix References list. Verify: `grep "Step 8\|atomic merge\|scope=full" skills/wrap/SKILL.md` only hits the shim; `grep -rn "/wrap-docs" skills/ docs/` → zero; wrap line count + frontmatter materially smaller.
+4. **A4 — consistency re-sweep (manual-path-scoped).** Re-run the denominator grep; fix stragglers (dangling `--scope=full`, orphaned links, chain drift). The green gate asserts no *manual-path* surface describes the two-pass flow — README L71/L109 and `skills/sprint-auto/` are **expected** to still match the two-pass denominator at end of Phase A (they flip in Phase B); the gate explicitly excepts them (architect finding 3). This is the post-drop green gate for PR1.
+
+### Phase B — sprint-auto cadence collapse (PR 2, R10)
+
+5. **B1 — collapse S3–S7 → single post-wrap review.** Reorder sprint-auto's per-IDEA loop: S5 wrap (`--scope=idea-only`) first, then one review+escalation pass. Edit `sprint-auto/SKILL.md` state machine + `:118`/`:135`/`:269`/`:306` + hand-back examples `:204-205`; set the merged per-IDEA review cap to **20** at `:276` + `escalation-policy.md` (fold "Why 20"/"Why 5" → one merged-cap rationale, R10); **delete S3/S4 from** `post-pr-sequence.md`'s state diagram (lines ~54-77) so it reads S5 → [single review+escalation] → S9 (not S5-before-surviving-S3; architect finding 2); update `integration-stage.md` deliverables/docs-pass language + `auto-run-log-template.md`; **rewrite README L71 + L109** to the single-review sprint-auto cadence in this same PR; **remove the Phase-A forward-pointer note from `WRAP_BEFORE_REVIEW.md`** (the bridge state is now resolved). Leave S11.10 integration review untouched.
+6. **B2 — re-sweep sprint-auto.** Grep sprint-auto tree for residual "deliverables pass / docs pass / S3 / S6 / two-pass" language; reconcile. Verify the caps tuple and every diagram match the new single-pass cadence.
+
+### Closeout (at this IDEA's own `/wrap` + `/land`, post-review)
+
+7. CHANGELOG + version bump (size by adopter magnitude — review-cadence change is adopter-visible; likely a significant minor, coordinate with IDEA-014's v5).
 
 ## Verification
 
-- `grep -rn "/wrap --integration" skills/ docs/ README.md | grep -v archive` → zero hits (all migrated to `/land`).
-- `grep -rn "/wrap-docs" skills/ docs/` → zero hits (stale name fixed — incl. `skills/wrap/SKILL.md:419` and `escalation-policy.md:11,57`).
-- The denominator grep (`→ /wrap|wrap (docs)|wrap (pre-merge)|teardown|--scope=full`, archive-excluded) has every hit either edited to the new chain or confirmed irrelevant — no chain depiction left on the old ordering (closes architect finding 1).
-- Post-merge `/wrap NNN` fallback hand-back contains the literal "run `/land NNN`" teardown pointer (R2a); `/wrap` no longer claims to tear down anywhere (architect finding 2).
-- `--scope=full` deprecation notice contains the exact `/land NNN` string and the "did NOT merge" statement (R5 / architect finding 4); confirm no live caller invokes `--scope=full` expecting a merge (`grep -rn "scope=full" skills/sprint-auto/ skills/work/` → only doc mentions, no automation dependency).
-- `grep -rn "Step 8\|atomic-merge\|scope=full" skills/wrap/SKILL.md` → hits only inside the deprecation-shim paragraph.
-- `ls skills/land/references/` → `ATOMIC_MERGE.md`, `WORKTREE_TEARDOWN.md`; `ls skills/wrap/references/` → those two absent.
-- Every workflow-chain depiction (README ×N, SPRINT_WORKFLOW, ONBOARDING, ideas/README mermaid) shows the identical `… → /wrap (docs) → /review-loop (docs) → /land (merge) → /compound` ordering.
-- `wc -l skills/wrap/SKILL.md` materially lower than 420; wrap frontmatter description materially shorter.
-- Link-resolution sweep: no broken relative links in `skills/wrap/SKILL.md`, `skills/land/SKILL.md`, or the rewired sprint-auto refs.
-- Architect review verdict folded (mandatory for this large, cross-cutting plan).
+- `grep -rn "/wrap --integration" skills/ docs/ README.md | grep -v archive` → zero (migrated to `/land`).
+- `grep -rn "/wrap-docs" skills/ docs/` → zero (incl. `SKILL.md:419`, `escalation-policy.md:11,57`).
+- `grep -rn "Step 8\|atomic-merge\|scope=full" skills/wrap/SKILL.md` → hits only in the deprecation shim.
+- `ls skills/land/references/` → `ATOMIC_MERGE.md` + `WORKTREE_TEARDOWN.md`; absent from `skills/wrap/references/`.
+- **Single-review denominator — Phase A (PR1):** no *manual-path* surface describes the two-pass flow; `WRAP_BEFORE_REVIEW.md` describes `work → wrap → review → land` + carries the Phase-B forward-pointer. README L71/L109 + `skills/sprint-auto/` still read two-pass (expected — they flip in PR2) and stay consistent with unmodified `sprint-auto/SKILL.md` (no doc/behaviour contradiction window).
+- **Single-review denominator — Phase B (PR2):** `grep -rn "deliverables pass\|docs pass\|two-pass\|two review\|called twice\|20/5\|review (deliverables)\|review (docs)" skills/sprint-auto/ README.md | grep -v IDEA_integration_branch` → zero in live cadence-describing prose (IDEA_integration_branch.md is a frozen v3.1 design record, excepted); README L71/L109 now single-review; `escalation-policy.md` + SKILL `:276` show the merged cap **20** (not `20/5`); `post-pr-sequence.md` diagram has no S3/S4; the Phase-A forward-pointer is removed from `WRAP_BEFORE_REVIEW.md`.
+- Post-merge `/wrap NNN` fallback hand-back contains the literal "run `/land NNN`" pointer (R2a); `/wrap` no longer claims to tear down anywhere.
+- `--scope=full` deprecation notice contains the exact `/land NNN` string + "did NOT merge" statement; `grep -rn "scope=full" skills/sprint-auto/ skills/work/` → no automation dependency on its merge behavior.
+- `wc -l skills/wrap/SKILL.md` materially below 420; wrap frontmatter description materially shorter.
+- Link-resolution sweep clean across `wrap`, `land`, `WRAP_BEFORE_REVIEW.md`, rewired sprint-auto refs.
+- Architect re-review verdict folded (mandatory — scope expanded since first review).
 
 ---
 
-**Status:** ready — architect-reviewed 🟡 REQUIRES ABSTRACTION (6 findings, all folded: R2a post-merge handoff, R3 guard scoping, R5 loud deprecation, surface-map under-count + denominator grep, Commit-1 bridge-state check, `SKILL.md:419` + L109/L46/batching surfaces). Core split validated; R7 (sprint-auto S11 never used `--scope=full`) verified true.
+**Status:** ready — architect-reviewed twice (🟡 → 🟡, all findings folded). Round 1 (split): R2a post-merge handoff, R3 guard scoping, R5 loud deprecation, denominator/surface-map, A1 bridge-state, SKILL.md:419. Round 2 (double-review retirement): merged cap **20** sized for code long tail (R10), delete-S3/S4 diagram, README L71/L109 → Phase B (phase-boundary fix), WRAP_BEFORE_REVIEW forward-pointer bridge state. Single-review collapse + S5-first reorder validated SOUND; R7 (sprint-auto S11 never used `--scope=full`) verified true. Ships as two PRs (Phase A manual, Phase B sprint-auto).
