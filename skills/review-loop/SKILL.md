@@ -6,6 +6,7 @@ description: Drive a bounded-autonomy review-fix-rerun loop against one or more 
 Drive a review-fix-rerun cycle on the given PR using one or more review engines. The orchestrator is engine-agnostic — all engine-specific work routes through adapters described in `references/engine-adapter-contract.md`.
 
 **Inputs**:
+
 - `PR_NUMBER` (optional; defaults to PR for current branch).
 - `ENGINES` (one or more of: `bugbot`, `copilot`, `claude`; defaults to `bugbot,copilot,claude` — all engines whose adapter is present + retrigger tool is reachable. **Reachability caveat (A2):** `claude` is in the default set only on repos where its action workflow (`claude-code-review.yml`) is installed; where absent, `find_claude_comments.sh` emits `CLAUDE_NOT_INSTALLED=true` and claude **self-excludes from the default** so a bare `/review-loop` doesn't block to HUNG on an un-provisioned engine. An explicit `/review-loop <PR> claude` still attempts it and degrades **loudly** — see [`references/engine-claude.md`](references/engine-claude.md) § Tool invocations.)
 
@@ -155,9 +156,13 @@ When `SPRINT_AUTO_INTEGRATION_WORKTREE` is unset (standalone mode), step 3 runs 
 If at least one fix was applied:
 
 1. **One commit per cycle**, not per finding.
+
    - Format: `fix(scope): address review N (PR #M)` — under multi-engine mode the body lists all findings closed across engines.
+
 2. `git push origin HEAD`, then **update scratch `last_push_sha` to the new HEAD**. Phase 4's new-push detection compares against it — without this update the loop reads its *own* push as an out-of-band change next wake, resets every engine to `NOT_TRIGGERED`, and double-retriggers (wasting billed reviews).
+
 3. **Resolve the threads for the findings fixed this cycle** (forward auto-resolve — [`references/THREAD_AUTO_RESOLVE.md`](references/THREAD_AUTO_RESOLVE.md) Pattern 1). For each finding closed by this commit, map its `comment id` → thread node id (`PRRT_*`) via the `reviewThreads` query and call `resolveReviewThread`. **Leave Tier-3 / won't-fix / escalated-elsewhere threads OPEN** — they are the live tracker; resolving them loses the signal. For a won't-fix (false positive), post a one-line reply documenting the rationale *before* resolving. This step is NOT optional bookkeeping: skipping it accumulates stale "N unresolved conversations" that hide the real open findings and force a manual sweep at hand-back (the failure mode THREAD_AUTO_RESOLVE was written to prevent). Engine adapters should capture the thread id alongside the comment id at fetch time so this step needs no extra round-trip; until they do, the inline `gh api graphql` reviewThreads query is the fallback.
+
 4. **Retrigger** — for each `<engine>` in `ENGINES` (iterated **alphabetically** for reproducibility, matching [`references/multi-engine-sync.md`](references/multi-engine-sync.md) § Retrigger discipline): fire `./tools/<engine>_retrigger.sh [PR_NUMBER]` once and set `<engine>_review_state=TRIGGERED`. No interval, no defer — the push just created a new SHA, so there is no in-flight review for it to stack behind. (A retrigger is withheld in exactly one situation — Phase 4's `RUNNING` state — which Phase 3 never hits, because a fix push always supersedes any prior SHA's review.)
 
 5. Increment `commits_this_session`. If ≥ 20 → stop and hand back.
@@ -167,16 +172,19 @@ If at least one fix was applied:
 The wake-loop in this phase IS a watcher in the [`skills/work/references/WATCHER_HYGIENE.md`](../work/references/WATCHER_HYGIENE.md) sense: orchestrator-armed, supersede-able, never wall-clock-timeout-bound. Apply that reference's discipline.
 
 1. `ScheduleWakeup(delaySeconds=180, prompt="/review-loop <PR_NUMBER> <ENGINES>")` for the first poll on **any** Phase 4 entry (after a Phase 3 fix push OR a Phase 1 zero-activity trigger). Subsequent polls use a linear 270s cadence (cache-warm under the 300s prompt-cache TTL). **The `prompt` arg is mandatory** — it's what re-enters the loop — and **`<ENGINES>` MUST be the literal comma-separated engine list from the scratch file's `engines` field**, never the placeholder string (a bare `/review-loop <PR>` would default to all available engines, diverging from a subset run).
+
 2. On wake: re-fetch each engine via `./tools/find_<engine>_comments.sh` and recompute each `<engine>_review_state` from its check-run `STATUS` — `queued`/`in_progress` → `RUNNING`; `completed` → `DONE`; no check-run for head SHA → `TRIGGERED` if a trigger already fired this SHA, else `NOT_TRIGGERED`.
+
 3. **New-push detection (run BEFORE the decision tree)**: compare scratch's `last_push_sha` against `git rev-parse HEAD`. If they differ (out-of-band push by another process or the user), reset `idle_polls=0`, update `last_push_sha`, reset every `<engine>_review_state` to `NOT_TRIGGERED`, and re-enter Phase 1 for the new SHA. Without this the counter accumulates past a push the loop didn't initiate.
 
 4. **Decision tree — evaluate in order** (every `ScheduleWakeup(Ns)` below is shorthand for the full mandatory-prompt form from step 1 — `ScheduleWakeup(delaySeconds=N, prompt="/review-loop <PR_NUMBER> <ENGINES>")`; the `prompt` arg is never optional):
+
    - **Guard: `commits_this_session` ≥ 20 OR active-work minutes ≥ 240** → hand back.
    - **Guard: no-progress detector trips** — same finding category flagged 2× across cycles where a commit *attempted* that category (success-or-revert both count), namespaced per engine → hand back. Repeated same-category **cosmetic-prose** nits (changelog/doc/persona wording) count even when each cycle's exact text differs — the category recurrence is the signal. When the substance engine is clean while a prose-sensitive engine won't converge, adopt/codify the convention or hard-stop; see [`references/COSMETIC_NONCONVERGENCE.md`](references/COSMETIC_NONCONVERGENCE.md).
    - **Any engine `NOT_TRIGGERED`** → fire its retrigger (Phase 1 zero-activity path), set it `TRIGGERED`, `ScheduleWakeup(180s)`.
    - **Any engine `TRIGGERED` or `RUNNING`** (review requested but check-run not yet `completed`) → still in flight: do NOT retrigger, do NOT read a verdict. This is the multi-engine sync gate — **wait for the slowest engine to reach `DONE` before reading any verdict.** Increment `idle_polls`, `ScheduleWakeup(270s)`. `idle_polls ≥ 20` here = a check-run wedged in `queued`/`in_progress` → treat as HUNG, hand back. (This is the sole idle backstop — once every engine is `DONE` the verdict is final and the branches below terminate without further polling.)
-   - **[All engines `DONE`] New findings since `last_seen_<engine>_signal_id` (any engine)** → reset `idle_polls=0`, update each engine's `last_seen_<engine>_signal_id` to its newest finding id, reload triage state, return to Phase 1 (which batch-triages every engine's active findings into one fix cycle). Compare against `last_seen_<engine>_signal_id`, not `last_push_sha` — see references/engine-adapter-contract.md.
-   - **[All engines `DONE`] No new findings** → terminal hand back, no further polling:
+   - **\[All engines `DONE`\] New findings since `last_seen_<engine>_signal_id` (any engine)** → reset `idle_polls=0`, update each engine's `last_seen_<engine>_signal_id` to its newest finding id, reload triage state, return to Phase 1 (which batch-triages every engine's active findings into one fix cycle). Compare against `last_seen_<engine>_signal_id`, not `last_push_sha` — see references/engine-adapter-contract.md.
+   - **\[All engines `DONE`\] No new findings** → terminal hand back, no further polling:
      - **CLEAN** if every engine has zero active findings matching its `LATEST_REVIEW`. (Structural — never inferred from `CONCLUSION` or review-body prose.)
      - else surface the **residual active findings** (already-seen / Tier-3 escalations the loop chose not to fix) and hand back — the loop can't make further progress on this SHA.
 

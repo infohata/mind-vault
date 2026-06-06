@@ -41,6 +41,7 @@ git commit -m "fix(scope): attempt N+1 — <different approach> (review #M)"
 ```
 
 **Never**:
+
 - `git reset --hard <pre-attempt-sha>` on a pushed branch — rewrites history, invalidates review's comment anchors, and the reviewer can't see what was tried.
 - `git commit --amend` once a review cycle has posted comments on the previous head — same problem.
 - `git push --force` on a feature branch with an open review — forbidden per `RULE_git-safety` without explicit authorization.
@@ -51,13 +52,13 @@ git commit -m "fix(scope): attempt N+1 — <different approach> (review #M)"
 
 Five escalation budgets run under sprint-auto — one per-IDEA review pass, three integration-phase passes (batch-level, once per batch), and the mind-vault compound pass — each with its own independent budget:
 
-| Pass | Where | Cap | Counted against |
-|---|---|---|---|
-| Per-IDEA review | Per IDEA, after `/wrap --scope=idea-only` (state S6 — single pass over the wrapped PR) | **20** attempts | `review_escalation_attempts` in the per-IDEA log |
-| Integration union tests | Batch, state S11.8 | **10** attempts | integration log |
-| Integration full suite | Batch, state S11.9 | **10** attempts | integration log |
-| Integration review | Batch, state S11.10 (non-draft [INTEGRATION] PR) | **20** attempts | integration log |
-| Mind-vault compound | Per compound PR at batch end (state S13+S14) | **5** attempts | attempt table in the mind-vault compound PR's summary block |
+| Pass                    | Where                                                                                  | Cap             | Counted against                                             |
+| ----------------------- | -------------------------------------------------------------------------------------- | --------------- | ----------------------------------------------------------- |
+| Per-IDEA review         | Per IDEA, after `/wrap --scope=idea-only` (state S6 — single pass over the wrapped PR) | **20** attempts | `review_escalation_attempts` in the per-IDEA log            |
+| Integration union tests | Batch, state S11.8                                                                     | **10** attempts | integration log                                             |
+| Integration full suite  | Batch, state S11.9                                                                     | **10** attempts | integration log                                             |
+| Integration review      | Batch, state S11.10 (non-draft \[INTEGRATION\] PR)                                     | **20** attempts | integration log                                             |
+| Mind-vault compound     | Per compound PR at batch end (state S13+S14)                                           | **5** attempts  | attempt table in the mind-vault compound PR's summary block |
 
 (v3.2 deleted the v3.1 per-PR re-review pass S11.12. IDEA-015 collapsed the v3.1/v3.2 two-pass per-IDEA review — deliverables S3+S4 then docs S6+S7 — into the single S6 pass above, since `/review-loop` already iterates over the wrapped PR; the docs-pass 5-cap was retired and its budget folded into the single-pass 20.)
 

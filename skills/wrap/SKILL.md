@@ -65,16 +65,16 @@ done
 
 Per-scope step-set (the canonical table — each value names a coherent step subset):
 
-| Step | `docs` (default) | `idea-only` (sprint-auto S5) |
-| --- | --- | --- |
-| 1 Resolve idea | RUN | RUN |
-| 2 Frontmatter flip (+ body status sub-step) | RUN | RUN |
-| 3 Re-sort ideas index | RUN | **SKIP** — deferred to sprint-auto S11.7 batch wrap |
-| 4 Devlog entry | RUN | **SKIP** — deferred to S11.7 |
-| 4b Version-bump | conditional | **SKIP** — sprint-level, deferred to batch wrap |
-| 6 Downstream-docs scan | RUN | RUN |
-| 6b README currency audit | conditional (staleness-gated) | **SKIP** — cohort audit deferred to sprint-auto S11.7 batch wrap |
-| 7 Eval-gate emission | conditional (pre-merge + frontmatter) | conditional |
+| Step                                        | `docs` (default)                      | `idea-only` (sprint-auto S5)                                     |
+| ------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------- |
+| 1 Resolve idea                              | RUN                                   | RUN                                                              |
+| 2 Frontmatter flip (+ body status sub-step) | RUN                                   | RUN                                                              |
+| 3 Re-sort ideas index                       | RUN                                   | **SKIP** — deferred to sprint-auto S11.7 batch wrap              |
+| 4 Devlog entry                              | RUN                                   | **SKIP** — deferred to S11.7                                     |
+| 4b Version-bump                             | conditional                           | **SKIP** — sprint-level, deferred to batch wrap                  |
+| 6 Downstream-docs scan                      | RUN                                   | RUN                                                              |
+| 6b README currency audit                    | conditional (staleness-gated)         | **SKIP** — cohort audit deferred to sprint-auto S11.7 batch wrap |
+| 7 Eval-gate emission                        | conditional (pre-merge + frontmatter) | conditional                                                      |
 
 **Merge + teardown are no longer wrap steps.** The old Step 5 (worktree teardown) and Step 8 (atomic merge) moved to `/land` (its Teardown and Atomic-merge sections). `/wrap` — at any scope, any mode — never merges and never tears down.
 
@@ -164,7 +164,9 @@ Edit `docs/ideas/README.md`:
 **Idempotency guard (run first).** `/wrap` is safe to re-run (re-invoked after a review cycle touches docs, or as a post-merge fallback), so guard against double-insert: `grep -q "^### IDEA-NNN:" docs/ideas/README.md` — if the heading already sits under `## ✅ References — Implemented`, this step already ran; skip the insert (but still remove any lingering `## 🚧 In Progress` entry). Without the guard, a re-run inserts a duplicate Implemented entry.
 
 - Remove the entry from `## 🚧 In Progress`. If that section becomes empty, leave `_(none)_` as its body.
+
 - **Remove the originating breadcrumb from the old priority tier too.** When `/plan` moved the idea into In Progress it often left a stub in its former priority section — `_(IDEA-NNN moved to In Progress above — /plan …)_` or similar. Grep `grep -n "IDEA-NNN" docs/ideas/README.md` and delete that breadcrumb; if removing it empties a priority tier, leave `_(none)_` as its body (matching the In Progress handling above) — never drop the tier header, the index keeps the full tier skeleton. Skipping this is silent rot: the markers accumulate and falsely read as active backlog (a sprint can amass a dozen stale "moved to In Progress" stubs before anyone notices). Zero-cost to clear at wrap time.
+
 - Insert a new entry at the top of `## ✅ References — Implemented` with this shape:
 
   ```markdown
@@ -215,7 +217,7 @@ Living recap of the N-IDEA `<sprint-branch>` cohort (NNN→NNN). Read this first
 - `/wrap` for a completing IDEA: flip its row to ✅ with a one-line key decision; if any new cross-cutting decision was locked, append a numbered row to the architectural decisions block.
 - The recap **never duplicates** the per-topic artefacts — it indexes them. Each decision row points at the artefact where the full reasoning lives.
 
-**When to skip**: cohort < ~10 IDEAs, or the IDEAs don't share enough context that re-reading their plans is expensive (typical for opportunistic backlog clearing). The recap pays off when there's a coherent sprint where late-cohort IDEAs need to know what early-cohort IDEAs decided.
+**When to skip**: cohort \< ~10 IDEAs, or the IDEAs don't share enough context that re-reading their plans is expensive (typical for opportunistic backlog clearing). The recap pays off when there's a coherent sprint where late-cohort IDEAs need to know what early-cohort IDEAs decided.
 
 **Genesis**: introduced in 2026-05 during a 25-IDEA `sprint/ux-overhaul` cohort — the context cost of re-reading 25 plan docs to remember decisions had crossed a pain threshold. A small `auto-memory` reference entry pointing at the recap location makes the pattern survive across agent sessions.
 
@@ -290,10 +292,10 @@ If `VER_SOURCE=none`, skip this step entirely — the project doesn't publish a 
 
 1. **Confirm with the user** before editing the version source — show the proposed new version + headline rationale linking back to which bump-trigger criterion fired. The user picks the version number (`v4.1`, `v5`, named milestone like "Cross-platform-ready", semver `2.3.0`, etc.). **Never decide the number autonomously** — projects have policy on minor-vs-major calls that an outside agent doesn't know.
 2. **Update the version source** detected above:
-    - `VERSION` file → single-line replace
-    - `pyproject.toml` / `package.json` / `Cargo.toml` → in-place version-field edit
-    - `setup.py` → in-place version-arg edit
-    - `CHANGELOG.md` with `## v<N>` headers → insert a new section above the most recent dated/Unreleased block; move only entries that are *part of the new version's narrative*, leave unrelated rolling entries in place
+   - `VERSION` file → single-line replace
+   - `pyproject.toml` / `package.json` / `Cargo.toml` → in-place version-field edit
+   - `setup.py` → in-place version-arg edit
+   - `CHANGELOG.md` with `## v<N>` headers → insert a new section above the most recent dated/Unreleased block; move only entries that are *part of the new version's narrative*, leave unrelated rolling entries in place
 3. **Write a headline paragraph** — one paragraph describing what's new, how it relates to the prior version, and what adopter-facing change (if any) it implies. Goes in CHANGELOG, GitHub release notes draft, or the project's release artefact.
 4. **Update downstream version references** — README.md, ONBOARDING / docs callouts (`> You're reading the v<N> docs`), badge URLs that pin to `:latest` vs `:v4`, deploy manifests if the project releases container images, etc. The Step 6 grep pass catches these naturally; flag any that surface for explicit attention here.
 5. **Tag the commit** in the wrap branch's diff so the eventual GitHub release / `git tag` can fast-forward — but **don't `git tag` from the wrap commit itself** unless the project's CI requires it (the human is the tagger by default).
@@ -331,7 +333,9 @@ Concrete checklist — run each applicable probe, report findings:
 Each finding → one of three dispositions:
 
 - **Patch now — mechanical** (cheap, obvious — e.g. replace `GOOGLE_CLOUD_STT_KEY` with `nothing; STT removed 2026-04-20`). Single commit on the wrap branch.
+
 - **Patch now — documentation catch-up.** If the finding is that a project pattern exists in the code but has no documentation of how to use it (e.g. `PLURAL_TRANSLATIONS` used by seven msgid pairs in `tools/translation_maps/shared.py` but no section in the translation-workflow guide), **patch it in the wrap**. Documentation catching up to existing reality is `/wrap` scope. Do not escalate to a new IDEA, do not defer to a separate PR — a new-IDEA ticket for "document this existing pattern" is noise that never ships; the wrap is where it belongs. This class of finding often surfaces during the single `/<engine>-loop` pass over the wrapped PR, which is another reason the wrap commits ride on the feature branch — the review bot reviews the filled-in docs as part of the same PR cycle.
+
 - **Flag as follow-up** (larger rewrite — e.g. a reference doc section that needs rewriting for a new architecture, a full walkthrough for a genuinely new concept). Note in the PR description. Legitimate follow-ups: reference-doc *rewrites*, architecture-diagram updates, how-to *tutorials*. Illegitimate follow-ups that should be patched now: "this line is stale", "this pattern isn't documented anywhere", "this section describes a deprecated flow". The test: if one to three paragraphs of documentation would close the gap, it's a patch-now, not a follow-up.
 
   **A ⚠️-stale marker is NOT a disposition.** When the IDEA's own migration is what made a reference section describe a now-dead architecture, the correct wrap action is to **rewrite that section for the new architecture in this wrap** — not to drop a "⚠️ stale as of `<date>`, see IDEA-NNN" banner and move on. The banner leaves the reference *actively wrong* (a future reader still mis-learns the dead shape), defers the real work to an IDEA that may never run, and reads as "covered" when it isn't. The rewrite is bounded — you just shipped the new architecture, so you know its true shape — and it rides the same wrap commit the engines then review. Reserve the genuine follow-up flag for rewrites that depend on work not yet done (e.g. a section that can't be finalized until a *later* IDEA deletes the legacy template); even then, rewrite for the new architecture now and leave only a one-line "residual `<legacy>` pointer drops when IDEA-NNN deletes it" note, not a whole-section stale banner.

@@ -2,7 +2,7 @@
 
 Full state machine for the sprint-auto loop: pre-batch (S(-1)), per-IDEA (S0–S11), batch integration phase (S11.5–S11.13), batch compound (S12–S15). Normative expansion of `SKILL.md` §1–§4. Keep this diagrammatic — implementation detail lives in the referenced docs. This file and `SKILL.md` share a single state numbering; if they disagree, treat it as a defect in this file (the SKILL is the source of behaviour; this file is the source of structure).
 
-> **v3.1 vs v3.2 split.** The top-level state-machine diagrams reflect **v3.2 current** (integration branch is the merge gate; [INTEGRATION] PR is non-draft; per-IDEA PRs target the integration branch; S11.11 forward-sync + S11.12 re-review deleted). The detailed prose sections below (`### S11.10 — review via [INTEGRATION] draft PR`, `### S11.11 — forward-sync`, `### S11.12 — per-PR PR re-review + verification`) still describe **v3.1 historical behavior** and are retained as historical reference for compound provenance. **For current behavior, follow the diagrams + `SKILL.md`; ignore the v3.1 prose sections.** A future debloat pass should either remove the v3.1 prose entirely or rewrite each section in v3.2 form.
+> **v3.1 vs v3.2 split.** The top-level state-machine diagrams reflect **v3.2 current** (integration branch is the merge gate; \[INTEGRATION\] PR is non-draft; per-IDEA PRs target the integration branch; S11.11 forward-sync + S11.12 re-review deleted). The detailed prose sections below (`### S11.10 — review via [INTEGRATION] draft PR`, `### S11.11 — forward-sync`, `### S11.12 — per-PR PR re-review + verification`) still describe **v3.1 historical behavior** and are retained as historical reference for compound provenance. **For current behavior, follow the diagrams + `SKILL.md`; ignore the v3.1 prose sections.** A future debloat pass should either remove the v3.1 prose entirely or rewrite each section in v3.2 form.
 
 ## The state machine — pre-batch (S(-1))
 
@@ -157,13 +157,13 @@ After all per-IDEA loops complete:
 
 ## Escalation caps at a glance
 
-| State | Pass | Cap | Rationale |
-|---|---|---|---|
-| S6a | per-IDEA review (project PR) | **20** attempts | Single pass over the wrapped PR; sized for the code long tail (covers docs too) |
-| S11.8 | union tests (integration) | **10** attempts | Cross-cutting failures have shorter tails than per-IDEA |
-| S11.9 | full suite (integration) | **10** attempts | Same |
-| S11.10 | review (integration via non-draft [INTEGRATION] PR) | **20** attempts | Elephants — N-times-larger review surface; deliverables-class |
-| S14 | mind-vault compound PR | **5** attempts | Documentation by nature; doc-class convergence |
+| State  | Pass                                                  | Cap             | Rationale                                                                       |
+| ------ | ----------------------------------------------------- | --------------- | ------------------------------------------------------------------------------- |
+| S6a    | per-IDEA review (project PR)                          | **20** attempts | Single pass over the wrapped PR; sized for the code long tail (covers docs too) |
+| S11.8  | union tests (integration)                             | **10** attempts | Cross-cutting failures have shorter tails than per-IDEA                         |
+| S11.9  | full suite (integration)                              | **10** attempts | Same                                                                            |
+| S11.10 | review (integration via non-draft \[INTEGRATION\] PR) | **20** attempts | Elephants — N-times-larger review surface; deliverables-class                   |
+| S14    | mind-vault compound PR                                | **5** attempts  | Documentation by nature; doc-class convergence                                  |
 
 Each cap is **independent**. A single IDEA may use up to **20 attempts** on its single review pass. The integration phase adds **40 fixed** attempts (10 union + 10 full + 20 review). So a batch of N IDEAs plus M compound PRs has theoretical maximum `N × 20 + 40 + M × 5` attempts; real runs consume a small fraction. (v3.2 deleted the per-IDEA re-review pass S11.12; IDEA-015 collapsed the two-pass per-IDEA review — deliverables S4 + docs S7 — into the single S6/S6a pass, folding the docs 5-cap into the single-pass 20.)
 
@@ -175,15 +175,15 @@ See [`escalation-policy.md`](escalation-policy.md) for the rollback discipline a
 
 Concretely:
 
-| Where failure occurs | Re-entry point | What changes |
-|---|---|---|
-| S0 worktree-add failed | S9 → S10 → S11 | S9 may queue infra-gap candidates; S10 outcome: `bootstrap_failed`, `docker_teardown: skipped_v3_no_per_idea_stack` |
-| S1 architect REJECTED | S9 → S10 → S11 | S9 may queue architect blind-spot candidates; S10 outcome: `plan_rejected` |
-| S1.5 DB reset failed | S9 → S10 → S11 (skip rest of IDEA) | S10 outcome: `db_reset_failed`; the integration worktree's stack may need manual recovery before next IDEA — surface as abort-the-batch trigger candidate |
-| S2 /work failed, no PR | S9 → S10 → S11 | S9 may queue test-env fragility candidates; S10 outcome: `verification_failed` |
-| S2 /work crashed (rare in v3.1) | S9 → S10 → S11 | The integration stack is shared; preserving it would taint the next IDEA. Force-recreate the integration stack (`docker compose down -v && up -d`) before next IDEA. S10 outcome: `verification_failed`, note the recovery in the log. |
-| S6 review budget exhausted | (not failure) → S9 | Single review pass ends with `review_outcome: budget_exceeded` |
-| S6a cap hit on review | (not failure) → S9 | Ship-non-clean; the wrapped PR carries unresolved findings transparently |
+| Where failure occurs            | Re-entry point                     | What changes                                                                                                                                                                                                                           |
+| ------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S0 worktree-add failed          | S9 → S10 → S11                     | S9 may queue infra-gap candidates; S10 outcome: `bootstrap_failed`, `docker_teardown: skipped_v3_no_per_idea_stack`                                                                                                                    |
+| S1 architect REJECTED           | S9 → S10 → S11                     | S9 may queue architect blind-spot candidates; S10 outcome: `plan_rejected`                                                                                                                                                             |
+| S1.5 DB reset failed            | S9 → S10 → S11 (skip rest of IDEA) | S10 outcome: `db_reset_failed`; the integration worktree's stack may need manual recovery before next IDEA — surface as abort-the-batch trigger candidate                                                                              |
+| S2 /work failed, no PR          | S9 → S10 → S11                     | S9 may queue test-env fragility candidates; S10 outcome: `verification_failed`                                                                                                                                                         |
+| S2 /work crashed (rare in v3.1) | S9 → S10 → S11                     | The integration stack is shared; preserving it would taint the next IDEA. Force-recreate the integration stack (`docker compose down -v && up -d`) before next IDEA. S10 outcome: `verification_failed`, note the recovery in the log. |
+| S6 review budget exhausted      | (not failure) → S9                 | Single review pass ends with `review_outcome: budget_exceeded`                                                                                                                                                                         |
+| S6a cap hit on review           | (not failure) → S9                 | Ship-non-clean; the wrapped PR carries unresolved findings transparently                                                                                                                                                               |
 
 **Why S10 (log finalization) always runs:** the log IS the diagnostic artefact. Skipping it would silently drop the failure from the paper trail.
 
@@ -193,14 +193,14 @@ Concretely:
 
 ## Integration phase failure modes
 
-| Where | Re-entry / next | What changes |
-|---|---|---|
-| S(-1) bootstrap fails | ABORT BATCH | No per-IDEA work proceeds; record `integration_outcome: bootstrap_failed` in S15 summary |
-| S11.5 reset fails | jump to S15 | Skip integration phase entirely; per-PR PRs ship with their per-IDEA review states intact (no integration validation) |
-| S11.6 per-merge resolution fails | continue with next branch | Failed branch's commits aren't reflected on the integration branch; its per-IDEA PR still ships (reviewed at its IDEA-isolated diff against integration). Log `merge_results: [{slug, outcome: failed, reason}]` |
-| S11.8/S11.9 cap exceeded | continue to next state | Ship integration-non-clean (flagged); reviewer decides at PR-merge time |
-| S11.10 review cap exceeded | continue to S11.13 | Integration ships flagged; the non-draft [INTEGRATION] PR is left OPEN for the human to merge or hold |
-| S11.13 teardown fails | log; the human's `/land --integration` catches leftover state | Worktree state stays; branch stays; human cleans up |
+| Where                            | Re-entry / next                                               | What changes                                                                                                                                                                                                     |
+| -------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S(-1) bootstrap fails            | ABORT BATCH                                                   | No per-IDEA work proceeds; record `integration_outcome: bootstrap_failed` in S15 summary                                                                                                                         |
+| S11.5 reset fails                | jump to S15                                                   | Skip integration phase entirely; per-PR PRs ship with their per-IDEA review states intact (no integration validation)                                                                                            |
+| S11.6 per-merge resolution fails | continue with next branch                                     | Failed branch's commits aren't reflected on the integration branch; its per-IDEA PR still ships (reviewed at its IDEA-isolated diff against integration). Log `merge_results: [{slug, outcome: failed, reason}]` |
+| S11.8/S11.9 cap exceeded         | continue to next state                                        | Ship integration-non-clean (flagged); reviewer decides at PR-merge time                                                                                                                                          |
+| S11.10 review cap exceeded       | continue to S11.13                                            | Integration ships flagged; the non-draft \[INTEGRATION\] PR is left OPEN for the human to merge or hold                                                                                                          |
+| S11.13 teardown fails            | log; the human's `/land --integration` catches leftover state | Worktree state stays; branch stays; human cleans up                                                                                                                                                              |
 
 ## Per-state contract
 
@@ -366,7 +366,7 @@ Cap **10** attempts on failure. Reads each IDEA's plan-doc Verification section.
 
 Cap **10** attempts on failure. Sprint-end gate.
 
-### S11.10 — review via [INTEGRATION] draft PR
+### S11.10 — review via \[INTEGRATION\] draft PR
 
 ```bash
 gh pr create \

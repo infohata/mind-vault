@@ -55,11 +55,11 @@ Sprint-auto reads this at dispatch time: IDEA-128 won't be picked up until IDEA-
 
 **File-overlap detection during planning** — before opening the batch PR, do a quick mental file-touch matrix:
 
-| IDEA | Files modified |
-|------|----------------|
-| 124 | chat.html (lines 131-134, 221-231), `_chat.scss`, `_variables.scss` |
-| 126 | `attachments.js`, `_attachment_upload_form.html`, `attachment_types.py` |
-| 128 | `attachments.js`, `_attachment_upload_form.html` |
+| IDEA | Files modified                                                          |
+| ---- | ----------------------------------------------------------------------- |
+| 124  | chat.html (lines 131-134, 221-231), `_chat.scss`, `_variables.scss`     |
+| 126  | `attachments.js`, `_attachment_upload_form.html`, `attachment_types.py` |
+| 128  | `attachments.js`, `_attachment_upload_form.html`                        |
 
 Any two rows sharing a file are conflict-prone. Add `depends_on: [<earlier IDEA>]` to the later one. Cheap; one frontmatter edit + a one-paragraph note in the plan's Context section explaining the dependency rationale.
 

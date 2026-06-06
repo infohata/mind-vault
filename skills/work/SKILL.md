@@ -49,14 +49,14 @@ Walk the plan's Execution Sequence. For each step, pick the right persona via th
 
 Default matrix (projects can override in their own `AGENTS.md`). The right column is the dispatchable `subagent_type` — pass it verbatim to `Agent(subagent_type: …)`; the profile file backing each id is mapped in [`references/persona-dispatch.md`](references/persona-dispatch.md):
 
-| Plan-item domain | Subagent type |
-| --- | --- |
-| Models, views, signals, DRF, Channels, Celery, ORM | `mv-backend` |
-| Templates, Alpine, HTMX, Bulma, static assets, JS | `mv-frontend` |
-| Docker, compose, nginx, systemd, CI/CD, env config | `mv-devops` |
-| Test authoring, fixture design, coverage gates | `mv-test-engineer` |
-| Multi-domain or cross-cutting refactor | `mv-architect` (as author now, not reviewer — plan already reviewed) |
-| Documentation-only updates (README, CHANGELOG) | `mv-documentation` |
+| Plan-item domain                                   | Subagent type                                                        |
+| -------------------------------------------------- | -------------------------------------------------------------------- |
+| Models, views, signals, DRF, Channels, Celery, ORM | `mv-backend`                                                         |
+| Templates, Alpine, HTMX, Bulma, static assets, JS  | `mv-frontend`                                                        |
+| Docker, compose, nginx, systemd, CI/CD, env config | `mv-devops`                                                          |
+| Test authoring, fixture design, coverage gates     | `mv-test-engineer`                                                   |
+| Multi-domain or cross-cutting refactor             | `mv-architect` (as author now, not reviewer — plan already reviewed) |
+| Documentation-only updates (README, CHANGELOG)     | `mv-documentation`                                                   |
 
 Pass the persona the **plan path + the specific item index** — never inline the item's prose into the dispatch prompt (per the "pass paths not content to subagents" convention). The persona reads the plan file itself.
 
@@ -73,6 +73,7 @@ Commit per logical unit, not per file. One commit per completed Execution Sequen
   ```
 
 - **Never `--no-verify`, never plain `--force`.** `--force-with-lease` is allowed on feature branches the agent owns.
+
 - **After each commit**, update the plan file in place: mark the completed item with ✅ and the commit SHA short. Keeps the plan a living progress document.
 
 ### 5. Verification and handoff
@@ -146,6 +147,7 @@ fi
 ```
 
 When `SPRINT_AUTO_INTEGRATION_WORKTREE` is set:
+
 - The agent never runs `docker compose` against the per-IDEA worktree (there's no `.env`, no override file — would fail).
 - The agent never creates a `.env` in the per-IDEA worktree (the env-var contract guarantees verification happens elsewhere).
 - The DB state on the integration worktree is the **main-equivalent baseline** for this IDEA (sprint-auto reset it at S1.5 before invoking `/work`); the verification runs against that baseline.

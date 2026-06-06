@@ -33,12 +33,12 @@ A **cross-host configuration library** for AI coding agents. Skills, subagent pe
 
 The four artefact types in mind-vault answer four different questions. Internalising the distinction up front makes the rest of the system click.
 
-| Artefact | Loaded when? | Decided by? | Cost | Example |
-| --- | --- | --- | --- | --- |
-| **Rule** (`rules/RULE_*.md`) | Every session, unconditionally | Auto-loaded by harness | Permanent context budget | `RULE_git-safety` blocks pushes to `main` on every conversation |
-| **Skill** (`skills/<name>/SKILL.md`) | On demand, when description matches the task | The agent (probabilistic match against `description` field) | Per-invocation | `/wrap` for the pre-merge doc-finalization sweep; `django` skill loads when editing Django code |
-| **Agent profile** (`agents/AGENT_*.md`) | When dispatched as a subagent | The orchestrating agent (you or another skill) | Per-dispatch, runs in isolated context window | `AGENT_architect` invoked by `/plan`; `AGENT_curator` invoked by `/review-loop` |
-| **Slash command** (`commands/*.md`) | Explicit user invocation | The human typing `/<name>` | Per-invocation | `/idea`, `/work`, `/sprint-auto` |
+| Artefact                                | Loaded when?                                 | Decided by?                                                 | Cost                                          | Example                                                                                         |
+| --------------------------------------- | -------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Rule** (`rules/RULE_*.md`)            | Every session, unconditionally               | Auto-loaded by harness                                      | Permanent context budget                      | `RULE_git-safety` blocks pushes to `main` on every conversation                                 |
+| **Skill** (`skills/<name>/SKILL.md`)    | On demand, when description matches the task | The agent (probabilistic match against `description` field) | Per-invocation                                | `/wrap` for the pre-merge doc-finalization sweep; `django` skill loads when editing Django code |
+| **Agent profile** (`agents/AGENT_*.md`) | When dispatched as a subagent                | The orchestrating agent (you or another skill)              | Per-dispatch, runs in isolated context window | `AGENT_architect` invoked by `/plan`; `AGENT_curator` invoked by `/review-loop`                 |
+| **Slash command** (`commands/*.md`)     | Explicit user invocation                     | The human typing `/<name>`                                  | Per-invocation                                | `/idea`, `/work`, `/sprint-auto`                                                                |
 
 **Mental shortcuts:**
 
@@ -79,12 +79,12 @@ You'll be prompted to pick: Anthropic API key, Claude Pro/Max subscription, or A
 
 Mind-vault is host-agnostic. Pick one (or several — symlinks let them coexist):
 
-| Host | Setup script |
-| --- | --- |
-| Claude Code | `scripts/setup-claude-code-symlinks.sh` |
-| Cursor | `scripts/setup-cursor-symlinks.sh` |
-| Antigravity | `scripts/setup-antigravity-symlinks.sh` |
-| OpenCode | `scripts/setup-opencode-symlinks.sh` |
+| Host            | Setup script                               |
+| --------------- | ------------------------------------------ |
+| Claude Code     | `scripts/setup-claude-code-symlinks.sh`    |
+| Cursor          | `scripts/setup-cursor-symlinks.sh`         |
+| Antigravity     | `scripts/setup-antigravity-symlinks.sh`    |
+| OpenCode        | `scripts/setup-opencode-symlinks.sh`       |
 | VS Code Copilot | `scripts/setup-vscode-copilot-symlinks.sh` |
 
 Cursor has the richest skills + subagents support; Claude Code is the most polished CLI experience. See [CURSOR_SETUP.md](CURSOR_SETUP.md) for Cursor specifics.
@@ -141,13 +141,13 @@ If the project already has a `BACKLOG.md` / `IDEAS.md` / `ROADMAP.md`, run `/ing
 
 Stage 4 (review) supports several modes — pick whichever your repo has enabled (and combine the external engines freely). The choice only affects which engine(s) you pass to `/review-loop` at Stage 4 and what `/sprint-auto` does in unattended mode; everything else in mind-vault is engine-agnostic.
 
-| Mode | Command | What it needs | When to pick it |
-| --- | --- | --- | --- |
-| **Cursor Bugbot** | `/review-loop <PR> bugbot` | Cursor Bugbot enabled on the GitHub org/repo | Strongest catches in our experience; paid via Cursor subscription |
-| **GitHub Copilot** | `/review-loop <PR> copilot` | Copilot enabled on the org; `gh` CLI ≥ 2.88 | Native to GitHub; consumes Actions minutes from June 1, 2026 |
-| **Claude Code Review** | `/review-loop <PR> claude` | `claude-code-action@v1` installed via `/install-github-app` (drops `claude-code-review.yml` + wires `CLAUDE_CODE_OAUTH_TOKEN`) | Dogfoods our own stack, `CLAUDE.md`-convention-aware, OAuth/subscription-billed (no per-review SKU). Push-triggered + comment-anchored — NOT the managed Code Review App |
-| **Multiple engines** | `/review-loop <PR> bugbot,copilot,claude` (any subset) | Each engine's prerequisites above | High-stakes PRs; the engines have complementary blind spots. The loop syncs them per cycle |
-| **Internal curator (default fallback)** | Invoke `AGENT_curator` directly before push | Nothing — local Claude review only | No external bot; cheapest; **weaker than the above — known to miss edge cases** |
+| Mode                                    | Command                                                | What it needs                                                                                                                  | When to pick it                                                                                                                                                          |
+| --------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Cursor Bugbot**                       | `/review-loop <PR> bugbot`                             | Cursor Bugbot enabled on the GitHub org/repo                                                                                   | Strongest catches in our experience; paid via Cursor subscription                                                                                                        |
+| **GitHub Copilot**                      | `/review-loop <PR> copilot`                            | Copilot enabled on the org; `gh` CLI ≥ 2.88                                                                                    | Native to GitHub; consumes Actions minutes from June 1, 2026                                                                                                             |
+| **Claude Code Review**                  | `/review-loop <PR> claude`                             | `claude-code-action@v1` installed via `/install-github-app` (drops `claude-code-review.yml` + wires `CLAUDE_CODE_OAUTH_TOKEN`) | Dogfoods our own stack, `CLAUDE.md`-convention-aware, OAuth/subscription-billed (no per-review SKU). Push-triggered + comment-anchored — NOT the managed Code Review App |
+| **Multiple engines**                    | `/review-loop <PR> bugbot,copilot,claude` (any subset) | Each engine's prerequisites above                                                                                              | High-stakes PRs; the engines have complementary blind spots. The loop syncs them per cycle                                                                               |
+| **Internal curator (default fallback)** | Invoke `AGENT_curator` directly before push            | Nothing — local Claude review only                                                                                             | No external bot; cheapest; **weaker than the above — known to miss edge cases**                                                                                          |
 
 For `/sprint-auto` (unattended overnight runs), the review engine is declared per-project. Add this to your project's `CLAUDE.md` or a `.mind-vault.yml` at the repo root:
 
@@ -162,16 +162,16 @@ When `review_engine` is unset or `none`, `/sprint-auto` skips the external-revie
 
 Claude Code ships a set of built-in `/commands` for managing the session itself (distinct from mind-vault's workflow commands like `/idea` and `/wrap`). Knowing these makes long sessions cheaper and more productive.
 
-| Command | Purpose | When to reach for it |
-| --- | --- | --- |
-| `/context` | Show context-window usage breakdown by category (system prompt, tools, memory, skills, messages, free space) | Diagnose "why is the model slow / expensive?" — long-running sessions, before deciding whether to `/compact` |
-| `/usage` | Show your subscription quota / token-spend telemetry | Check how much of your daily/weekly Claude Pro/Max budget you've burned |
-| `/effort` | Set Sonnet's reasoning effort — `low` / `medium` / `high` | Trivial edits: `low`. Architecture decisions: `high`. Default is fine for everything in between |
-| `/compact` | Summarise the conversation so far, freeing context for continued work | When the bar hits ~70% and you want to keep going on the same task without losing the thread |
-| `/new` (or `Ctrl-C` then re-launch) | Start a fresh session with empty context | When the current task is **done** and the next task is unrelated — never `/compact` across topic shifts |
-| `/resume` | Pick up a previous session by id | Continue work from a session you left yesterday/last week |
-| `/init` | Bootstrap a `CLAUDE.md` for the current project | First contact with a brownfield codebase — gives you a starter; edit by hand to tighten |
-| `/help` | List all commands available in the current host | Always |
+| Command                             | Purpose                                                                                                      | When to reach for it                                                                                         |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `/context`                          | Show context-window usage breakdown by category (system prompt, tools, memory, skills, messages, free space) | Diagnose "why is the model slow / expensive?" — long-running sessions, before deciding whether to `/compact` |
+| `/usage`                            | Show your subscription quota / token-spend telemetry                                                         | Check how much of your daily/weekly Claude Pro/Max budget you've burned                                      |
+| `/effort`                           | Set Sonnet's reasoning effort — `low` / `medium` / `high`                                                    | Trivial edits: `low`. Architecture decisions: `high`. Default is fine for everything in between              |
+| `/compact`                          | Summarise the conversation so far, freeing context for continued work                                        | When the bar hits ~70% and you want to keep going on the same task without losing the thread                 |
+| `/new` (or `Ctrl-C` then re-launch) | Start a fresh session with empty context                                                                     | When the current task is **done** and the next task is unrelated — never `/compact` across topic shifts      |
+| `/resume`                           | Pick up a previous session by id                                                                             | Continue work from a session you left yesterday/last week                                                    |
+| `/init`                             | Bootstrap a `CLAUDE.md` for the current project                                                              | First contact with a brownfield codebase — gives you a starter; edit by hand to tighten                      |
+| `/help`                             | List all commands available in the current host                                                              | Always                                                                                                       |
 
 **`/compact` vs `/new` — the trap that costs you context budget:**
 

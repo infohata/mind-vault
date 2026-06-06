@@ -2,7 +2,7 @@
 
 Two files get written per batch: one per-IDEA log (lives inside the IDEA's archive dir), and one batch summary (lives in the primary tree's `docs/archive/`). The per-IDEA log is the morning-review unit of work; the batch summary is the at-a-glance index.
 
----
+______________________________________________________________________
 
 ## Per-IDEA log
 
@@ -10,7 +10,7 @@ Path: `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/auto-run-YYYY-MM-DD.md`
 
 Written inside the worktree (which is where the archive dir lives for this run), committed to the `auto/<slug>` branch, so the PR carries the log into review automatically.
 
-```markdown
+````markdown
 ---
 idea: IDEA-NNN
 slug: <slug>
@@ -99,7 +99,7 @@ Single per-IDEA review pass over the wrapped PR (S6/S6a) — covers code + docs 
 # Sprint-auto already stopped the containers; remaining chore after the
 # [INTEGRATION] PR merges (frontmatter was flipped at S5):
 /land --integration sprint-auto-<batch-iso>   # tears down integration worktree + branch + every per-IDEA worktree/branch
-```
+````
 
 Manual cleanup (if not running `/land`):
 
@@ -110,7 +110,8 @@ cd -
 git worktree remove ~/projects/<project>-auto-<slug>
 git branch -D auto/<slug>        # only after PR merged or explicitly abandoned
 ```
-```
+
+````
 
 ## Batch summary
 
@@ -224,4 +225,4 @@ In v3.2 the per-IDEA PRs target the **integration branch**, not the parent. **Me
 - Git HEAD (mind-vault): `<sha>` (`<message>`)
 - Disk free at start: <GB>
 - Disk free at end: <GB>
-```
+````
