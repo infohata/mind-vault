@@ -1,14 +1,14 @@
 ---
 id: 009
 title: Extract Python-general patterns from the django skill into a python skill
-status: in-progress   # idea | in-progress | complete | superseded
+status: complete   # idea | in-progress | complete | superseded
 priority: low   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by:
 depends_on: []       # list of IDEA ids required before starting, or []
 related: [IDEA-014]             # list of IDEA ids that share context, or []
 created: 2026-05-27
-completed:
+completed: 2026-06-06
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
@@ -20,7 +20,7 @@ sensitive_paths_cleared_reason: "Touches only skills/ and docs/ markdown (a new 
 
 # IDEA-009: Extract Python-general patterns from the django skill into a python skill
 
-**Status**: 🚧 In Progress
+**Status**: ✅ Complete (2026-06-06)
 **Priority**: Low
 
 **Problem** (or opportunity): The `django` skill's `references/` tree holds content that is

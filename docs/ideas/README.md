@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-- [IDEA-009](../archive/2026-06-idea-009-extract-python-general-from-django/IDEA-009-extract-python-general-from-django.md) — Extract Python-general patterns from the django skill into a python skill
+_(none)_
 
 ## 💡 High Priority (backlog)
 
@@ -27,6 +27,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-009: Extract Python-general patterns into a skills/python base layer ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-06-06 · **See**: [Archive](../archive/2026-06-idea-009-extract-python-general-from-django/IDEA-009-extract-python-general-from-django.md), [PR #164](https://github.com/infohata/mind-vault/pull/164).
+Stood up **`skills/python/`** as the deliberate language-base tier beneath the framework-stack skills (`django`/`django-frontend`), and lifted the two genuinely Python-general references — `MODULE_SPLIT_AST_EXTRACTION` (ast byte-exact flat-module→package split) and `ENV_DRIVEN_ALLOWLISTS` (`frozenset`+env pattern) — out of `skills/django/references/`. django-isms fenced as `Example (Django):`; django keeps discovery pointers, not copies; `RULE_rename-before-drop-rationale` repointed. The new skill's TRIGGER/SKIP hands off to the active framework skill (stack-resolution-aware), de-risking the tiering [IDEA-014](IDEA-014-stack-agnostic-agents.md) builds on (`craft agent → framework skill → language-base skill`). Single `git mv` (architect-cleared rename-before-drop collapse — markdown with static-only callers).
 
 ### IDEA-015: Split /wrap into /wrap (docs) + /land (merge + teardown) ✅ COMPLETE
 

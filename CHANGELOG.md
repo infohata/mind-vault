@@ -10,6 +10,20 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.8 — IDEA-009: skills/python base layer
+
+Minor release ([PR #164](https://github.com/infohata/mind-vault/pull/164), IDEA-009). Stands up a deliberate **language-base tier** beneath the framework-stack skills — adopter-facing: any Python project (django or not) now gets a `/python` skill for language-general engineering recipes, and the vault gains the correct home for future Python-general patterns instead of misfiling them under a framework skill by gravity. De-risks the `craft agent → framework skill → language-base skill` tiering that IDEA-014 ([PR #178](https://github.com/infohata/mind-vault/pull/178)) builds on. (2026-06-06)
+
+### Added
+
+- **`skills/python/` — new language-base skill.** Base-layer framing (the deliberate home for patterns true of any Python project, beneath `django`/`django-frontend`) + a stack-resolution-aware TRIGGER/SKIP block: SKIP hands off to the repo's active framework skill (`django` today; `laravel`/etc. once IDEA-014's stack detection lands), so the vault's broadest false-positive surface doesn't double-load on framework tasks. Section headings deliberately avoid IDEA-014's reserved backend-contract slots.
+- **Two Python-general references lifted into `skills/python/references/`** (via `git mv`, history preserved): `MODULE_SPLIT_AST_EXTRACTION.md` (byte-exact `ast`-driven flat-module → package split; owns the `RULE_rename-before-drop` forced-atomic-member sequencing) and `ENV_DRIVEN_ALLOWLISTS.md` (`frozenset`+env allowlist pattern). django-isms fenced as `Example (Django):` blocks; recipe mechanics unchanged.
+
+### Changed
+
+- **`skills/django/SKILL.md`** keeps discovery pointers (body env-stub + 2 References entries) now pointing at `../python/references/…` rather than copies — django consumers still find the recipes; the canonical home is `python`.
+- **`docs/rules/RULE_rename-before-drop-rationale.md`** repointed from the old django path to `skills/python/references/MODULE_SPLIT_AST_EXTRACTION.md` (dependency inversion: `rule → python ← django`, uni-directional).
+
 ## v4.7.2 — review-loop: propagate the claude Phase-3-retrigger correction (§ A7)
 
 Patch release — doc-consistency fix. The PR #169 self-dogfood correction (claude's `synchronize` auto-run skip-no-ops once it has already reviewed, so Phase 3 MUST explicitly fire `claude_retrigger.sh` for a fresh post-fix verdict) landed only in `engine-claude.md` § A7 and was never propagated to the two files an agent reads first — which still asserted the opposite ("claude Phase-3 slot is a no-op", "firing `claude_retrigger.sh` here would double-run"). An agent following the command doc or the sync contract therefore skipped the claude retrigger and read a stale verdict — surfaced by dogfooding `/review-loop` on PR #177. No IDEA (no planning cycle); provenance is the date + PR. (2026-06-06, [#180](https://github.com/infohata/mind-vault/pull/180))
@@ -46,6 +60,7 @@ Minor release ([PR #176](https://github.com/infohata/mind-vault/pull/176), IDEA-
 - **`/wrap --scope=full`** — finalizes docs then emits a loud notice ("did NOT merge") and redirects to `/land NNN`. It no longer merges; the merge moved to `/land`. `--scope=docs` (default) and `--scope=idea-only` are unchanged.
 
 Architect-reviewed twice (🟡→🟡, all findings folded — incl. the Phase-A/B boundary catch that drove the one-PR decision, and the merged-cap-=-20 code-long-tail sizing). Shipped as ONE PR with rename-before-drop commit ordering (C1 add /land → C2 sprint-auto cadence → C3 chain reconcile → C4 drop wrap legacy → C5 sweep). Supersedes [IDEA-013](docs/archive/2026-06-idea-013-wrap-readme-currency-backfill/IDEA-013-wrap-readme-currency-backfill.md)'s two-pass canonical chain; completes [IDEA-006](docs/archive/2026-05-idea-006-review-surface-collapse/IDEA-006-review-surface-collapse.md) (single review entry → single named merge entry) + [IDEA-008](docs/archive/2026-05-idea-008-wrap-doc-finalization-scope/IDEA-008-wrap-doc-finalization-scope.md) (`--scope` enum).
+
 ## v4.6.5 — compound: shell shared-style "fails open on a new surface" trap
 
 Patch release (compound of a downstream app-shell surface migration). One frontend learning, extending an existing reference (no new file):
