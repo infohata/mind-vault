@@ -25,7 +25,7 @@ sensitive_paths_cleared_reason: "Touches CI surface (.github/workflows/claude-co
 
 > ✅ **Validation COMPLETE (2026-06-03).** Clean path validated via the step-9 claude-solo dogfood on PR #167; **findings path validated on teisutis IDEA-214 (PR #515 onboarding merged first)** — once the PR was marked **ready-for-review**, claude posted a real review: a top-level "Code review" **summary comment + 2 inline findings**. Two calibration corrections fell out and are committed (`1009ea0`, `89690e5`, `c900109`, `0481dcf`): **(1) identity is `claude[bot]`, NOT `github-actions[bot]`** — the PR-#167 dogfood "confirmation" was wrong (it calibrated off a clean run that posted no claude content; never calibrate identity off a no-op run). **(2) DRAFT PRs get NO posted review** — the action runs + concludes `success` but posts nothing on a draft, which was the *actual* cause of every "ran but posted nothing" during bring-up (NOT #1087, which is a separate, rarer bug). This became a deliberate **draft-until-review cadence** (`/work` opens PRs draft to suppress per-WIP-commit claude billing; `/review-loop` pre-flight un-drafts before Phase 1). **Plan deviation:** step-10 (tri-engine on IDEA-009) dropped — doc-heavy, wouldn't draw findings.
 
-## Post-completion hardening — verified two-layer failure model (br-docs/teisutis session, 2026-06-02 → 03)
+## Post-completion hardening — verified two-layer failure model (external-project session, 2026-06-02 → 03)
 
 A downstream investigation on `infohata/teisutis` (Actions runs + primary-source `anthropics/claude-code-action` issues) surfaced **two distinct failure layers** the original adapter under-handled. Both are now integrated into PR #167 (commits on `idea/012`):
 
