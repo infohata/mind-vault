@@ -6,7 +6,7 @@ priority: medium
 supersedes: []
 superseded_by: null
 depends_on: []
-related: [IDEA-011]
+related: [IDEA-011, IDEA-009]
 created: 2026-05-20
 completed: null
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
@@ -134,6 +134,12 @@ Don't vendor any existing skill pack wholesale. Build a thin pair that anchors o
 ## Cohort fit
 
 Cross-cutting architectural refactor (Phase 1) + a standalone new stack (Phase 2). Phase 1 is the heavy lift and the gate; Phase 2 is additive once the contract exists. Likely 3+ PRs (extract-to-django, strip-profiles+detection, laravel pair) per `rename-before-drop` sequencing.
+
+**Version target: v5.** This is a major overhaul — a breaking reframe of the persona contract (craft core + stack-pointer) and the first multi-stack support in the vault. The implementing release bumps the major version to **v5**.
+
+## Relationship to IDEA-009
+
+[IDEA-009](IDEA-009-extract-python-general-from-django.md) extracts Python-general patterns out of the `django` skill into a standalone `skills/python/`. That is exactly the shape of stack skill this idea's generic agents resolve against — 009 produces a clean stack-layer skill while 014 builds the craft-core agents that *point at* such skills. 009 is a concrete, smaller instance of the same craft/stack separation principle; landing it first de-risks the skill-contract design here.
 
 ## Relationship to IDEA-011
 

@@ -6,7 +6,7 @@ priority: low   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
 depends_on: []       # list of IDEA ids required before starting, or []
-related: []             # list of IDEA ids that share context, or []
+related: [IDEA-014]             # list of IDEA ids that share context, or []
 created: 2026-05-27
 completed: null
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
@@ -59,4 +59,4 @@ then drop the django copies in a dedicated commit.
   accrete (decide in `/plan`).
 - No behavior change to the recipes; pure relocation + generalization.
 
-**Related**: _(none linked)_
+**Related**: [IDEA-014](IDEA-014-stack-agnostic-agents.md) — the stack-agnostic agent architecture resolves generic personas against per-stack skills; the `skills/python/` this idea extracts is exactly that kind of stack-layer skill. Same craft/stack separation principle at a smaller scope; landing this first de-risks 014's skill-contract design.
