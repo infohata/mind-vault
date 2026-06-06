@@ -10,6 +10,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.7.1 — Tools: install-aliases.sh (fresh-machine shell + git aliases)
+
+Patch release — a new `tools/install-*.sh` fresh-machine provisioner for Ubuntu-style shell convenience aliases (`ll`, `..`, `gs`, …) and a set of git aliases (`git st`, `git lg`, `git amend`, …). No IDEA (no planning cycle); provenance is the date + PR. (2026-06-06, [#177](https://github.com/infohata/mind-vault/pull/177))
+
+### Added
+
+- **`tools/install-aliases.sh`** — installs two alias layers in one idempotent pass: shell aliases into a `# BEGIN/END mind-vault-aliases` marker block in `~/.bash_aliases` (with orphan detection and `~/.bashrc` source-wiring only when nothing already sources it), and git aliases via `git config --global` into the target user's `~/.gitconfig`. Follows `skills/deployment/references/SHELL_INSTALLERS.md`: `set -eo pipefail`, target-user resolution honouring `$SUDO_USER`, `chown user:` (primary group), `--check` with exit-code semantics, and `--no-shell` / `--no-git` opt-outs gated across every code path. Documented in `tools/README.md`.
+
 ## v4.7 — IDEA-015: split /wrap into /wrap + /land, retire the double-review
 
 Minor release ([PR #176](https://github.com/infohata/mind-vault/pull/176), IDEA-015). A structural reframe of the sprint-workflow finish: the merge stage gets its own skill and the review ceremony collapses from two passes to one. Adopter-facing — the canonical chain every project runs changes shape. (v5 reserved for IDEA-014's stack-agnostic agent overhaul.)
@@ -29,7 +37,6 @@ Minor release ([PR #176](https://github.com/infohata/mind-vault/pull/176), IDEA-
 - **`/wrap --scope=full`** — finalizes docs then emits a loud notice ("did NOT merge") and redirects to `/land NNN`. It no longer merges; the merge moved to `/land`. `--scope=docs` (default) and `--scope=idea-only` are unchanged.
 
 Architect-reviewed twice (🟡→🟡, all findings folded — incl. the Phase-A/B boundary catch that drove the one-PR decision, and the merged-cap-=-20 code-long-tail sizing). Shipped as ONE PR with rename-before-drop commit ordering (C1 add /land → C2 sprint-auto cadence → C3 chain reconcile → C4 drop wrap legacy → C5 sweep). Supersedes [IDEA-013](docs/archive/2026-06-idea-013-wrap-readme-currency-backfill/IDEA-013-wrap-readme-currency-backfill.md)'s two-pass canonical chain; completes [IDEA-006](docs/archive/2026-05-idea-006-review-surface-collapse/IDEA-006-review-surface-collapse.md) (single review entry → single named merge entry) + [IDEA-008](docs/archive/2026-05-idea-008-wrap-doc-finalization-scope/IDEA-008-wrap-doc-finalization-scope.md) (`--scope` enum).
-
 ## v4.6.5 — compound: shell shared-style "fails open on a new surface" trap
 
 Patch release (compound of a downstream app-shell surface migration). One frontend learning, extending an existing reference (no new file):
