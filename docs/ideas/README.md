@@ -14,6 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
+- [IDEA-014](IDEA-014-stack-agnostic-agents.md) — Stack-agnostic agent architecture + Laravel proving stack
 - [IDEA-015](IDEA-015-split-wrap-into-wrap-and-land.md) — Split /wrap into /wrap (docs) + /land (merge + teardown), reconcile full workflow
 
 ## 💡 Low Priority (backlog)
