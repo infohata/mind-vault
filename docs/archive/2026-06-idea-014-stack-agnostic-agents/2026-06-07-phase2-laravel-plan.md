@@ -72,11 +72,29 @@ Today mind-vault supports exactly one stack (Django). The craft/stack split is *
 7. **Pest is the default testing reference; PHPUnit noted as coexisting.** Phrase Pest as "the conventional default (`laravel new` prompt / `--pest`)", not a docs-guaranteed absolute (research version-sensitivity flag).
 8. **Target Laravel 12 as the verified baseline; note 13 drift** on version-sensitive lines (queue defaults, Pest 4/PHPUnit 12, starter kits).
 
+## Real adopter — BookingRobot-M (survey 2026-06-07)
+
+A real proving ground exists: the **BookingRobot-M** org (`br-docs/INVENTORY.md` + composer.json histogram). It is a **ZF1 / legacy-PHP → modern-Laravel rework**, NOT a fleet of old Laravel apps:
+
+- 29 repos, single primary author (`andrbarss`, key-person risk), 10/11 audited Critical.
+- The **"ancient elephants" are the SOURCE, not the target**: `br-backend` (core) is **Zend Framework 1** (`application/.../controllers/*Controller.php`, `views/scripts/*.phtml`, `models/Db*.php`, no framework composer dep); many repos floor at PHP `>=5.4/5.6`. They rework **TO** modern Laravel — `br-internal-panel` is already **L12/PHP8.2**, `stuff-management-system` **L9/PHP8.0**.
+
+Implications folded into scope below: **target stays modern Laravel 12** (correct — that's the rework destination); the legacy axis is a **ZF1→Laravel migration/rework lens**, not old-Laravel-version support. See [[project_bookingrobot_m_laravel_rework]] (memory).
+
 ## Open Questions
 
-1. **Is the structural proof sufficient for v5, or does v5 gate on a live Laravel-repo run?** → **Default: structural proof suffices.** mind-vault has no Laravel app; blocking v5 on acquiring one stalls the release indefinitely. The zero-agent-diff + heading-resolution + dispatch dry-run demonstrate the contract holds. A real-repo dogfood becomes a post-v5 follow-up IDEA. *(Surfaced for user confirmation — it defines "done".)*
+1. **Is the structural proof sufficient for v5, or does v5 gate on a live Laravel-repo run?** → **RESOLVED (user, 2026-06-07): structural proof + fast-follow.** v5 ships on the structural proof (zero-agent-diff + non-stub heading-resolution + content-resolution dry-run). Then a **real BookingRobot-M repo is dogfooded** to validate content correctness, feeding corrections back as v5.x. The dogfood is no longer hypothetical (BookingRobot-M exists) but does not BLOCK v5 — it follows it.
 2. **How deep must each reference be for v5 — production-grade or proof-grade?** → **Default: proof-grade-plus.** Each of the 10 headings must be genuinely useful (mechanism + default + anti-pattern + a code sample), not a stub (R3), but exhaustive reference coverage (every superpowers-laravel taxonomy entry) is iterative post-v5. The floor: a reader could act on each heading today.
-3. **Include the optional `Translation workflow` extra in `skills/laravel`?** → **Default: yes — include it** (parity with django, cheap: `lang/`, `__()`, `trans_choice()`), marked optional. **Architect coverage note (PASS 2):** the "omit" branch leaves `AGENT_curator` PASS 3's "active backend skill's lazy-translation convention" anchor resolving to nothing on Laravel — a fail-open gap (R4-safe, the curator announces it, but a coverage hole). Prefer the include default to close it.
+3. **Include the optional `Translation workflow` extra in `skills/laravel`?** → **RESOLVED (user, 2026-06-07): yes — include it, AND ground it in the real adopter's needs.** `br-backend`'s current workflow is a **bespoke DB-backed system** (`DbTranslations`/`TranslateText` models, `Custom_View_Helper_Translate`, an admin `TranslationsController` with add/save/**Excel import-export**/clearcache/log). The section's spine is the **split-by-ownership** decision (the real question every ZF1→Laravel rework hits):
+- **Developer-owned UI strings** (labels, validation, errors) → static `lang/*.php` + `__()` — version-controlled, deployed with code, testable.
+- **Operator/business-owned content** (booking copy, email templates, **per-tenant customization** — cf. br-backend's `clients/<tenant>/` dirs) → DB-backed, runtime-editable, Excel-roundtrippable.
+- **The dissolving move:** don't reimplement a bespoke `DbTranslations`. Put the DB-backed editing on rails — a translation **manager on top of Laravel's `__()` API** (`barryvdh/laravel-translation-manager`: DB + web UI + import/export, keys still resolve through `__()`) and/or `spatie/laravel-translatable` for model-attribute (per-record) translations. Team keeps the admin-UI + Excel workflow; you get standard keys + file fallback + testability. The thing to kill is the *bespoke translation engine*, not the *DB-backed editing model*.
+
+Static lang files are the floor; the manager-on-`__()` + translatable pattern is the real replacement for `DbTranslations`.
+
+**Real anti-pattern to teach (codebase-grounded, BookingRobot-M):** *never serve UI translation strings via per-request API + a runtime cache.* br-backend's frontend fetches translation strings through API calls against the DB system, forcing a dedicated Redis cache just to survive the load — static data on a dynamic path. The fix the skill must teach: **compile UI strings to JSON and ship them with the frontend bundle** (vite / `laravel-vue-i18n` / `vue-i18n`), or for a Livewire/Blade rework resolve them server-side via `__()` so they never cross the wire as data. Strings then version with the bundle hash → zero translation API calls, zero translation-Redis, cache-invalidation becomes a non-problem. Only genuinely per-tenant/operator content stays a (small, versioned) runtime payload. **"If you're caching translations in Redis, that's the smell."** This anti-pattern belongs in BOTH `skills/laravel` (Translation workflow) and `skills/laravel-frontend` (it's a client-data-path decision).
+
+**Architect coverage note (PASS 2):** also closes the `AGENT_curator` PASS 3 lazy-translation anchor (the "omit" branch would have left it fail-open on Laravel).
 4. **Touch `persona-dispatch.md` for the frontend variant (Livewire/Inertia/Blade) signal?** → **Default: document the variant detection IN `skills/laravel-frontend` itself**; leave the existing `persona-dispatch.md` laravel row as-is. Touch it only if the dry-run reveals a resolution gap. (Either way it is a non-agent edit, R4-safe.)
 
 ## Execution Sequence
