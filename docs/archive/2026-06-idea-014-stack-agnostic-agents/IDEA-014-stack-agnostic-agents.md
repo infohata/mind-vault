@@ -1,15 +1,16 @@
 ---
 id: IDEA-014
 title: Stack-agnostic agent architecture + Laravel proving stack
-status: in-progress
+status: complete
 priority: medium
 supersedes: []
 superseded_by:
 depends_on: []
 related: [IDEA-011, IDEA-009]
 created: 2026-05-20
-completed:                # full close-out pending Phase 2 (Laravel proving stack)
+completed: 2026-06-07            # both phases shipped (Phase 2 = Laravel proving stack, PR #183, v5)
 phase_1_completed: 2026-06-06   # craft/stack split + 6/4 contract + detection (PR #178)
+phase_2_completed: 2026-06-07   # skills/laravel + laravel-frontend, zero-agent-edit proof (PR #183)
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
@@ -85,6 +86,8 @@ Add `skills/laravel` + `skills/laravel-frontend` conforming to the skill contrac
 ______________________________________________________________________
 
 ## Phase 2 detail — Laravel skill landscape (original research, preserved)
+
+> **⚠️ Superseded for planning by [`2026-06-07-phase2-laravel-research.md`](2026-06-07-phase2-laravel-research.md)** (deep-research refresh, 2026-06-07). This section predates Phase 1 and names backend headings (*Multi-tenancy*, *Translation workflow*) that are NOT the shipped `SKILL_CONTRACT.md` required floor. Retained as historical record; the research doc maps Laravel onto the **actually-shipped** contract and is the input to the Phase 2 plan.
 
 ### Approach — hybrid: defer to Laravel Boost, derive mind-vault conventions on top
 
