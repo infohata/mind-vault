@@ -42,7 +42,7 @@ Pushing the wrap commits invalidates any prior review clean signal because the h
 - **Wait for review re-clean** (cautious; recommended when the project rate-limits review per PR or when wrap touched code-adjacent files). Trigger via the project's `tools/bugbot_retrigger.sh` or `tools/copilot_retrigger.sh` (per the configured engine) after the wrap commits push, then `/<engine>-loop` until clean. THEN run merge.
 - **Merge without re-clearance** (faster; defensible when the wrap commits are pure docs — `docs/`, no code changes whatsoever). The pre-wrap clean signal already covered the substantive code; the wrap commits add only frontmatter, devlog, README, and grep-driven downstream-doc fixes. Review-loop has near-zero learnable signal on those.
 
-The wrap skill's default is **wait for re-clean**, because (a) it's the conservative path, (b) docs-only commits clear review in a single short cycle anyway, and (c) detecting "purely docs" mechanically is messier than just running the loop. **Future override hook** (not yet implemented in any wrap entry point): a project-level `WRAP_SKIP_REVIEW_RECLEAR=1` env var or `--no-review-reclear` flag for projects that prefer the faster path; the merge-sequence snippet below honors the env var, but no skill / command currently sets it or accepts the flag — adopters can wire it in when the cost calculus warrants.
+`/land`'s default is **wait for re-clean**, because (a) it's the conservative path, (b) docs-only commits clear review in a single short cycle anyway, and (c) detecting "purely docs" mechanically is messier than just running the loop. **Future override hook** (not yet implemented in any land entry point): a project-level `WRAP_SKIP_REVIEW_RECLEAR=1` env var or `--no-review-reclear` flag for projects that prefer the faster path; the merge-sequence snippet below honors the env var, but no skill / command currently sets it or accepts the flag — adopters can wire it in when the cost calculus warrants.
 
 ## Merge sequence
 
@@ -56,7 +56,7 @@ clean_sha=$(./tools/find_bugbot_comments.sh "$PR_NUMBER" 2>/dev/null \
 # For Copilot, swap to: ./tools/find_copilot_comments.sh + grep COPILOT_CLEAN_SIGNAL.
 head_sha=$(git rev-parse HEAD)
 if [[ "$clean_sha" != "$head_sha" && -z "${WRAP_SKIP_REVIEW_RECLEAR:-}" ]]; then
-    echo "Review-loop clean signal is at $clean_sha but HEAD is $head_sha — re-trigger + wait + merge in another wrap pass."
+    echo "Review-loop clean signal is at $clean_sha but HEAD is $head_sha — re-run /review-loop on the new HEAD, wait for clean, then re-run /land."
     exit 1
 fi
 

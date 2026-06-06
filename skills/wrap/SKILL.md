@@ -15,7 +15,7 @@ The sprint-workflow step that closes the loop from code-shipped back to docs-coh
 
 **`/wrap` finalizes docs; it never merges.** A `/wrap NNN` runs the doc-finalization steps and stops — the safe behaviour the wrap-before-review pass wants: finalize docs, then let the single `/review-loop` review them at shipped state, then `/land NNN` merges. Merge + teardown are the separate **`/land`** stage (split out in IDEA-015), which opens with a precondition guard verifying this wrap ran. This replaces the older "`/wrap --scope=full` auto-merges" model.
 
-**`--scope=full` is deprecated.** Invoking `/wrap --scope=full NNN` emits a one-time deprecation notice, runs the `docs` doc-finalization steps, and at the end — where the old Step 8 atomic merge used to fire — prints the exact next command (`/land NNN`) and **"this did NOT merge (it did under the old `--scope=full`)"**. It never merges. Use `/land` for the merge. See [`Scope detection`](#scope-detection-alongside-mode-detection).
+**`--scope=full` is deprecated.** Invoking `/wrap --scope=full NNN` emits a one-time deprecation notice, runs the `docs` doc-finalization steps, and at the end — where the old Step 8 atomic merge used to fire — prints the canonical next steps (run the single `/review-loop` over the wrapped PR, then `/land NNN`) and **"this did NOT merge (it did under the old `--scope=full`)"**. It never merges, and it never skips the review — `/land` is the merge. See [`Scope detection`](#scope-detection-alongside-mode-detection).
 
 **Post-merge is the fallback.** If a PR landed without a wrap pass (human merged directly, wrap was forgotten, a hotfix went in on the fly), invoking `/wrap NNN` after the fact creates a small `docs/idea-NNN-wrap` branch with the same doc outputs and opens a cleanup PR. The skill auto-detects PR state (`gh pr view <N> --json state`) and branches accordingly. **The post-merge fallback does docs only — it does not tear down.** If a parallel worktree still needs reclaiming, its hand-back points at `/land NNN` (post-merge teardown mode).
 
@@ -59,7 +59,7 @@ done
 
 **`--scope=full` is deprecated — it no longer merges** (merge moved to `/land`, IDEA-015). When `DEPRECATED_FULL=1`, run the `docs` steps normally, then at hand-back emit the loud notice:
 
-> ⚠️ `--scope=full` is deprecated and **did NOT merge** (it did under the old model). Docs are finalized; run **`/land NNN`** to merge + tear down.
+> ⚠️ `--scope=full` is deprecated and **did NOT merge** (it did under the old model). Docs are finalized; run the single **`/review-loop`** over the wrapped PR, then **`/land NNN`** to merge + tear down.
 
 **Why `docs` is the default.** A `/wrap NNN` finalizes docs and stops — it never merges. Merge is the separate, explicit `/land` stage (the destructive step that ships the IDEA and unblocks teardown), run after the single `/review-loop` clears. This makes the wrap-before-review pass a single clean invocation: `/wrap` before `/review-loop`, then `/land`. See [`references/WRAP_BEFORE_REVIEW.md`](references/WRAP_BEFORE_REVIEW.md).
 
