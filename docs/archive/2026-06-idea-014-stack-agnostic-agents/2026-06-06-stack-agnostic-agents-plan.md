@@ -124,9 +124,9 @@ Minimal **required** core (user decision) — the anchors the agent passes refer
 
 ## Execution Sequence
 
-**Phase 1A — define + expose the contract (skills green, no profile edits yet):**
+**Phase 1A — define + expose the contract (skills green, no profile edits yet):** ✅ DONE (Commit A)
 
-1. **Pre-flight + link audit (resolve-not-match, Q3/A4).** Grep inbound anchor links to the three sections being renamed — `ORM optimisation`, `Permission DRY-ness`, `Multi-tenancy vs ForeignKey` — across `skills/ rules/ docs/ agents/`; for each hit, resolve the anchor against the post-rename heading and `test` it lands; list any to repoint.
+1. ✅ **Pre-flight + link audit (resolve-not-match, Q3/A4).** Grep inbound anchor links to the three sections being renamed — `ORM optimisation`, `Permission DRY-ness`, `Multi-tenancy vs ForeignKey` — across `skills/ rules/ docs/ agents/`; for each hit, resolve the anchor against the post-rename heading and `test` it lands; list any to repoint.
 2. **Write the skill-contract doc `agents/SKILL_CONTRACT.md`** (Q1) — the **6** backend required headings + **4** frontend, the optional-extras rule, the reviewer-consumes-same-anchors note, the fail-open contract (unresolved stack → craft-only + announce), and the resolution pointer to persona-dispatch.md. This is R1, the central artifact.
 3. **Expose contract headings in `skills/django/SKILL.md`:** rename `ORM optimisation…`→`ORM eager-loading`, `Permission DRY-ness…`→`Permissions/authorization`; **create** an `Input-validation boundary` anchor consolidating the scattered DRF/form/model validation prose (pointer, not rewrite); **add** brief `Background jobs`→`references/CELERY.md` and `Testing conventions`→`references/TESTING.md` anchor stubs. Repoint any Q3 inbound links. No recipe content change.
 4. **Expose contract headings in `skills/django-frontend/SKILL.md`:** rename/umbrella `Reactivity model`; confirm `Partial/fragment response`, `Component system`, `Form-submission lock` anchors resolve.

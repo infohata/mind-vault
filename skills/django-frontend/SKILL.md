@@ -43,7 +43,7 @@ Three high-blast-radius traps that ship as user-visible regressions if you skim 
 
 ## Pattern
 
-### Partial-vs-full template dispatch
+### Partial/fragment response
 
 The foundational pattern: one view URL returns either the full page (normal navigation) or just the changed fragment (HTMX swap), dispatched on the `HX-Request` header.
 
@@ -88,7 +88,11 @@ HTMX requests to the same URL return only the partial; HTMX swaps it into `#arti
 ✅ DO: One URL, two templates, dispatched on `HX-Request`.
 ❌ DON'T: Separate `/articles/` and `/articles/partial/` endpoints — duplicates the queryset and permission logic.
 
-### Cotton components — see [references/COTTON.md](references/COTTON.md)
+### Component system
+
+This stack's component system is **django-cotton** (composition) paired with **Bulma
+standards** (styling — see `## Bulma template standards` below); full primitives in
+[references/COTTON.md](references/COTTON.md).
 
 **TRIGGER:** editing a `<c-*>` component or its slots; registering a new cotton component under `templates/cotton/`; passing `:prop` (Python expression) vs `prop` (literal string) attributes; configuring django-cotton in `TEMPLATES` settings; bootstrapping client state via `data-initial-*` from a cotton root.
 
@@ -106,7 +110,7 @@ The reference covers: file layout (`templates/cotton/`); settings (loader + buil
 
 Mechanics — `shell-html` / `shell-body` / `shell-main` / `shell-center` SCSS primitives, the load-bearing **"unstable child" rule** (`min-height: 0` at every flex chain link whose descendant has `overflow-y: auto`), where modals/toasts/sticky-within-pane elements live, the shared `scroll-utils.findScrollContainer` walk-up helper, the `scrollHeight > clientHeight` filter, regressions when migrating from document-scroll (window-scroll readers go quiescent, modal scroll-position snapshots become no-ops), and the render-and-assert test contract — are in [`references/APP_SHELL_LAYOUT.md`](references/APP_SHELL_LAYOUT.md). Read that reference when this section fires.
 
-### Alpine.js global state on `<html>`
+### Reactivity model
 
 Put long-lived UI state (theme, mobile-menu open, global flags) at the top element so any descendant can read it without prop drilling:
 
@@ -136,7 +140,7 @@ When `alpine.min.js` is loaded `<script defer>`, Alpine auto-starts via `queueMi
     <script src="{% static 'core/js/alpine.min.js' %}" defer></script>
 
     {# Theme.js is blocking because the root <html> x-data calls themeStore()
-       (see "Alpine.js global state on <html>" above). Same justification
+       (see "Reactivity model" above). Same justification
        applies to ANY shell-bundle JS that registers Alpine factories. #}
     <script src="{% static 'core/js/theme.js' %}"></script>
     <script src="{% static 'app_ui/js/nav-overflow.js' %}"></script>  {# blocking — Alpine.data #}
@@ -268,7 +272,7 @@ JSON.stringify({ X-CSRFToken: value })
 JSON.stringify({ "X-CSRFToken": value })
 ```
 
-### Global single-submit locking
+### Form-submission lock
 
 Prevent double-submits and rapid multi-clicks without sprinkling `onsubmit` JS across every form. Global listener + `.sync-submit-button` class + `data-sync-submit` attribute:
 

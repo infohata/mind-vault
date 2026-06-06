@@ -133,7 +133,11 @@ class IndexableSerializer(serializers.ModelSerializer):
 
 The user articulated the convention during code review: *"I'm always making fields nullable if blankable to avoid forcing empty string value, also if it's not nullable, field requires default value for additive migration."* That sentence is the rule.
 
-### Multi-tenancy vs. ForeignKey boundaries
+### Data isolation / scoping boundary
+
+The universal craft concern: never leak across the isolation boundary — scope every
+query to the caller's data. Every backend has *some* answer here (even "single-tenant,
+no scoping"). Django fills it with the schema-vs-FK decision below.
 
 For projects using schema-based isolation (`django-tenants`):
 
@@ -194,6 +198,24 @@ items = (
 
 Fixes: capture browser-supplied MIME at upload into a dedicated DB column (`mime_type`) by reading `self.file.file.content_type` (NOT `self.file.content_type`), strip `;codecs=…`/`;charset=…` suffixes, prefer the column on read; pair the canonical set + consumer dict with a module-scope `assert` that fires at import time so missing entries crash `python manage.py check` rather than the first user-facing upload. Mechanics — full save() override, backfill migration with `RunPython.noop` reverse, drift-guard assert example — are in [`references/FILEFIELD_MIME_CAPTURE.md`](references/FILEFIELD_MIME_CAPTURE.md). Read that reference when this section fires.
 
+### Input-validation boundary
+
+Untrusted input is validated **at the edge** — serializer, form, or consumer — never
+deeper. Django's validation surface is spread across several patterns; this anchor
+indexes them so a generic agent resolves one rule:
+
+- **Blankable CharField — `null=True` over `default=""`** above — model-contract
+  nullability + the DRF `allow_null`/`required` mirror that honours it.
+- **Formsets with `UniqueConstraint`** below — formset-level `clean()` + view-level
+  `try/except IntegrityError` belt-and-braces.
+- **Sensible-date validation** (see **Date / time / timezone** below) — shared min/max
+  constants + `validate_sensible_date`.
+- **Per-message resource caps** — enforce at the WebSocket consumer / view layer where
+  `request.user` and the org are visible (see [`references/ASYNC_WEBSOCKET.md`](references/ASYNC_WEBSOCKET.md)).
+
+The DRF serializer / Django form is the validation source of truth; do not re-validate
+(or skip validating) deeper in the call stack.
+
 ### DRF — base viewset and permissions
 
 ```python
@@ -217,7 +239,7 @@ class IsResourceOwner(BasePermission):
         return obj.author == request.user
 ```
 
-### Permission DRY-ness via probe pattern
+### Permissions/authorization
 
 **Never duplicate authorisation logic** between DRF `BasePermission` classes and plain Django views / forms / template tags. The DRF permission class is the single source of truth.
 
@@ -371,7 +393,7 @@ makemigrations:
 
 The contract: every static-file change requires `make static && make restart-web`. Same shape as env-var change-then-recreate (`docker compose restart` ≠ env reload; need `up -d --force-recreate`) — "the disk changed but the process is still on the old view." Mechanics — full settings.py STORAGES backend toggle for DEBUG vs not, ❌/✅ Makefile target shapes, four-step symptom-during-debug diagnostic, applicability scope (any post-processed asset; staging/prod-only) — are in [`references/MANIFEST_STATIC_FILES_STORAGE.md`](references/MANIFEST_STATIC_FILES_STORAGE.md). Read that reference when this section fires.
 
-### ORM optimisation — N+1 prevention
+### ORM eager-loading
 
 ```python
 # ❌ N+1 storm — one query per article to fetch author
@@ -414,6 +436,15 @@ class ArticleTest(TestCase):
             for article in articles:
                 list(article.tags.all())
 ```
+
+### Background jobs
+
+Deferred / async work runs on **Celery + Redis** — task definition, retries, and
+multi-tenant task routing live in [`references/CELERY.md`](references/CELERY.md) (+
+[`references/MULTI_TENANT_CELERY.md`](references/MULTI_TENANT_CELERY.md)). When a task
+mutates rows in bulk, mind the model-layer-bypass caveat under **ORM eager-loading**
+above (`.update()` skips `save()`/signals/`auto_now`). Django 6's native background
+workers are on the watch list but Celery is the current convention.
 
 ### Formsets with `UniqueConstraint`
 
@@ -480,6 +511,16 @@ def test_error_message(self):
 ```
 
 Without this, tests pass locally but fail in CI when the container locale differs, or when translations are incomplete. See [references/TESTING.md](references/TESTING.md).
+
+### Testing conventions
+
+Test discipline for this stack — query-count asserts (`assertNumQueries`, see **ORM
+eager-loading** above), locale enforcement (see **Testing UI strings under locale**
+above), state isolation, fixture design, and multi-tenant schema-pooled test cases —
+is detailed in [`references/TESTING.md`](references/TESTING.md). Multi-tenant test
+teardown (real-tenant schema drop, raw-SQL deletes not ORM cascade) is in
+[`references/MULTI_TENANT.md`](references/MULTI_TENANT.md). Run focused, fully-qualified
+test paths per the [`surgical-tdd`](../surgical-tdd/SKILL.md) skill, not the full suite.
 
 ### `verbose_name` discipline for AI-driven CRUD models
 
