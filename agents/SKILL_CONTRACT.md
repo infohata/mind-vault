@@ -44,6 +44,18 @@ a stack that has no answer is the over-abstraction failure this floor is sized t
 | **Permissions/authorization**     | The single source of truth for "is this caller allowed?"               | `### Permissions/authorization` (probe)    |
 | **Testing conventions**           | How tests are written, isolated, and kept fast                         | `### Testing conventions` → `references/TESTING.md` |
 
+**Fail-closed bar (Data isolation / scoping boundary).** The canonical scope
+sample a stack skill ships for this heading MUST **fail closed**: when there is no
+caller/tenant context, it returns **zero rows**, never an unscoped query. The naive
+`if ($ctx) { …add filter… }` (no `else`) fails *open* — in any context where the
+context resolver is empty (a background worker, a CLI command, a scheduler tick with
+no request/session), it adds no filter and leaks every tenant's rows. This bar is
+load-bearing because the same section invariably tells readers to *trust the scope*
+(don't re-add manual filters), which removes the manual fallback — and an
+implicit-rewrite scope hides the open-fail (reads look correct). Both voices enforce
+it: the author (`mv-backend`) fills the heading fail-closed; the reviewer
+(`mv-curator`) asserts it and flags any context-gated filter with no zero-rows else.
+
 ### Frontend — required floor (4)
 
 | Contract heading              | What it answers (stack-neutral)                          | Django-frontend section (worked example) |
