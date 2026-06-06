@@ -5,6 +5,7 @@
 **v1 architecture (deprecated)**: every per-IDEA worktree had its own docker stack with a per-IDEA port offset (`10000 + (idea_number % 100) * 100`). Hardware-infeasible at scale — the user explicitly redirected v3 plan toward the single-stack model because running N+1 stacks per batch was impossible on the available hardware.
 
 The bootstrap script itself supports both modes:
+
 - **v1 mode**: invoked as `tools/sprint-auto-bootstrap.sh <slug> <idea_number>` — the legacy formula derives the offset from the idea_number. Caps at `+19900`.
 - **v3.1 mode**: invoked as `tools/sprint-auto-bootstrap.sh integration-runner 0 --port-offset 30000` — explicit offset; the idea_number is a placeholder. This is what S(-1) in the v3.1 state machine uses.
 
@@ -58,7 +59,7 @@ git commit -m "chore: sprint-auto hooks for <project> (migrations + MinIO + smok
 docker-compose.override.yml
 ```
 
-Without this line, every `/sprint-auto` cycle leaves an untracked `docker-compose.override.yml` in the worktree that blocks `git worktree remove` at teardown time unless force-flagged — which (per `/wrap` step 5) hides real findings. It's an adoption-checklist item when onboarding a project to sprint-auto.
+Without this line, every `/sprint-auto` cycle leaves an untracked `docker-compose.override.yml` in the worktree that blocks `git worktree remove` at teardown time unless force-flagged — which (per `/land`'s teardown, [`WORKTREE_TEARDOWN.md`](../../land/references/WORKTREE_TEARDOWN.md)) hides real findings. It's an adoption-checklist item when onboarding a project to sprint-auto.
 
 ## The canonical script's responsibilities
 
@@ -158,12 +159,12 @@ Max remapped port: `9300 + 30000 = 39300` — in registered-port range, below ep
 
 Formula: `10000 + (idea_number % 100) * 100`. Caps at `+19900`. Collisions on modulo-100 alignment. v3.1's collapse to a single integration stack sidesteps the formula's cap entirely. Retained for backward compatibility — projects not yet adopting v3.1 still use this formula.
 
-| IDEA | offset (v1) | web (8000 →) | db (5432 →) |
-|---|---|---|---|
-| 050 | +15000 | 23000 | 20432 |
-| 099 | +19900 | 27900 | 25332 |
-| 100 | +10000 | 18000 | 15432 |
-| 150 | +15000 | 23000 | 20432 — **collides with 050** |
+| IDEA | offset (v1) | web (8000 →) | db (5432 →)                   |
+| ---- | ----------- | ------------ | ----------------------------- |
+| 050  | +15000      | 23000        | 20432                         |
+| 099  | +19900      | 27900        | 25332                         |
+| 100  | +10000      | 18000        | 15432                         |
+| 150  | +15000      | 23000        | 20432 — **collides with 050** |
 
 A latent bug in v1: 6+ IDEAs at offsets `+10000, +20000, ..., +60000` push max remapped port (9300+60000 = 69300) past the 16-bit hard ceiling. v3.1 sidesteps it; if anyone re-introduces a multi-stack scheme later, the formula needs a bound check.
 
@@ -171,9 +172,9 @@ A latent bug in v1: 6+ IDEAs at offsets `+10000, +20000, ..., +60000` push max r
 
 ### v3.2 (current)
 
-After the human merges the single `[INTEGRATION]` PR, one command from the primary tree — `/wrap --integration sprint-auto-<batch-iso>` — tears down the whole batch (see `skills/wrap/SKILL.md` § `--integration` mode).
+After the human merges the single `[INTEGRATION]` PR, one command from the primary tree — `/land --integration sprint-auto-<batch-iso>` — tears down the whole batch (see `skills/land/SKILL.md` § `--integration` mode).
 
-**Integration worktree**: stops the stack at S11.13 (`docker compose down`, NOT `-v`; volumes preserved for inspection until teardown). `/wrap --integration` then removes the rest:
+**Integration worktree**: stops the stack at S11.13 (`docker compose down`, NOT `-v`; volumes preserved for inspection until teardown). `/land --integration` then removes the rest:
 
 ```bash
 cd $integration_worktree
@@ -183,14 +184,14 @@ git worktree remove $integration_worktree
 git branch -d integration/sprint-auto-<batch-iso>
 ```
 
-**Per-IDEA worktrees**: nothing to tear down (no stack ever existed); the same `/wrap --integration` call removes each `auto/<slug>` worktree + branch (the per-IDEA PRs auto-closed as merged ancestors when the [INTEGRATION] PR merged):
+**Per-IDEA worktrees**: nothing to tear down (no stack ever existed); the same `/land --integration` call removes each `auto/<slug>` worktree + branch (the per-IDEA PRs auto-closed as merged ancestors when the \[INTEGRATION\] PR merged):
 
 ```bash
 git worktree remove ../<project>-auto-<slug>
 git branch -d auto/<slug>
 ```
 
-See [`integration-stage.md`](integration-stage.md) § "Integration teardown" and `skills/wrap/SKILL.md` § `--integration` mode.
+See [`integration-stage.md`](integration-stage.md) § "Integration teardown" and `skills/land/SKILL.md` § `--integration` mode.
 
 ### v1 (legacy)
 

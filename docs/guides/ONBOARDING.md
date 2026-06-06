@@ -25,7 +25,7 @@ A **cross-host configuration library** for AI coding agents. Skills, subagent pe
 - **Agents** (`agents/`) — subagent personas (`AGENT_architect`, `AGENT_backend`, `AGENT_curator`, …) with prime directives, multi-pass workflows, structured verdict formats.
 - **Commands** (`commands/`) — slash commands invoked as `/<name>` from any host that supports them.
 - **Rules** (`rules/`) — always-on guardrails auto-loaded every session (e.g. `RULE_git-safety` blocks pushes to `main`).
-- **Sprint workflow** — a compounding 5-stage loop (`/ideate → /idea → /plan → /work → /review-loop (deliverables) → /wrap → /review-loop (docs) → /compound`, where `/review-loop` carries the configured engine(s) — `bugbot`, `copilot`, `claude`, or any subset per project config) that makes the *next* sprint start with a higher floor via the final `/compound` stage. See [SPRINT_WORKFLOW.md](SPRINT_WORKFLOW.md).
+- **Sprint workflow** — a compounding 5-stage loop (`/ideate → /idea → /plan → /work → /wrap → /review-loop → /land → /compound`, where `/review-loop` is a single pass over the wrapped PR carrying the configured engine(s) — `bugbot`, `copilot`, `claude`, or any subset per project config) that makes the *next* sprint start with a higher floor via the final `/compound` stage. See [SPRINT_WORKFLOW.md](SPRINT_WORKFLOW.md).
 
 **The workflow principle** — every sprint should make the next sprint cheaper. `/compound` is the lever: any recurring fix-up becomes a new skill / rule / agent improvement.
 
@@ -33,12 +33,12 @@ A **cross-host configuration library** for AI coding agents. Skills, subagent pe
 
 The four artefact types in mind-vault answer four different questions. Internalising the distinction up front makes the rest of the system click.
 
-| Artefact | Loaded when? | Decided by? | Cost | Example |
-| --- | --- | --- | --- | --- |
-| **Rule** (`rules/RULE_*.md`) | Every session, unconditionally | Auto-loaded by harness | Permanent context budget | `RULE_git-safety` blocks pushes to `main` on every conversation |
-| **Skill** (`skills/<name>/SKILL.md`) | On demand, when description matches the task | The agent (probabilistic match against `description` field) | Per-invocation | `/wrap` for the pre-merge doc-finalization sweep; `django` skill loads when editing Django code |
-| **Agent profile** (`agents/AGENT_*.md`) | When dispatched as a subagent | The orchestrating agent (you or another skill) | Per-dispatch, runs in isolated context window | `AGENT_architect` invoked by `/plan`; `AGENT_curator` invoked by `/review-loop` |
-| **Slash command** (`commands/*.md`) | Explicit user invocation | The human typing `/<name>` | Per-invocation | `/idea`, `/work`, `/sprint-auto` |
+| Artefact                                | Loaded when?                                 | Decided by?                                                 | Cost                                          | Example                                                                                         |
+| --------------------------------------- | -------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Rule** (`rules/RULE_*.md`)            | Every session, unconditionally               | Auto-loaded by harness                                      | Permanent context budget                      | `RULE_git-safety` blocks pushes to `main` on every conversation                                 |
+| **Skill** (`skills/<name>/SKILL.md`)    | On demand, when description matches the task | The agent (probabilistic match against `description` field) | Per-invocation                                | `/wrap` for the pre-merge doc-finalization sweep; `django` skill loads when editing Django code |
+| **Agent profile** (`agents/AGENT_*.md`) | When dispatched as a subagent                | The orchestrating agent (you or another skill)              | Per-dispatch, runs in isolated context window | `AGENT_architect` invoked by `/plan`; `AGENT_curator` invoked by `/review-loop`                 |
+| **Slash command** (`commands/*.md`)     | Explicit user invocation                     | The human typing `/<name>`                                  | Per-invocation                                | `/idea`, `/work`, `/sprint-auto`                                                                |
 
 **Mental shortcuts:**
 
@@ -79,12 +79,12 @@ You'll be prompted to pick: Anthropic API key, Claude Pro/Max subscription, or A
 
 Mind-vault is host-agnostic. Pick one (or several — symlinks let them coexist):
 
-| Host | Setup script |
-| --- | --- |
-| Claude Code | `scripts/setup-claude-code-symlinks.sh` |
-| Cursor | `scripts/setup-cursor-symlinks.sh` |
-| Antigravity | `scripts/setup-antigravity-symlinks.sh` |
-| OpenCode | `scripts/setup-opencode-symlinks.sh` |
+| Host            | Setup script                               |
+| --------------- | ------------------------------------------ |
+| Claude Code     | `scripts/setup-claude-code-symlinks.sh`    |
+| Cursor          | `scripts/setup-cursor-symlinks.sh`         |
+| Antigravity     | `scripts/setup-antigravity-symlinks.sh`    |
+| OpenCode        | `scripts/setup-opencode-symlinks.sh`       |
 | VS Code Copilot | `scripts/setup-vscode-copilot-symlinks.sh` |
 
 Cursor has the richest skills + subagents support; Claude Code is the most polished CLI experience. See [CURSOR_SETUP.md](CURSOR_SETUP.md) for Cursor specifics.
@@ -141,13 +141,13 @@ If the project already has a `BACKLOG.md` / `IDEAS.md` / `ROADMAP.md`, run `/ing
 
 Stage 4 (review) supports several modes — pick whichever your repo has enabled (and combine the external engines freely). The choice only affects which engine(s) you pass to `/review-loop` at Stage 4 and what `/sprint-auto` does in unattended mode; everything else in mind-vault is engine-agnostic.
 
-| Mode | Command | What it needs | When to pick it |
-| --- | --- | --- | --- |
-| **Cursor Bugbot** | `/review-loop <PR> bugbot` | Cursor Bugbot enabled on the GitHub org/repo | Strongest catches in our experience; paid via Cursor subscription |
-| **GitHub Copilot** | `/review-loop <PR> copilot` | Copilot enabled on the org; `gh` CLI ≥ 2.88 | Native to GitHub; consumes Actions minutes from June 1, 2026 |
-| **Claude Code Review** | `/review-loop <PR> claude` | `claude-code-action@v1` installed via `/install-github-app` (drops `claude-code-review.yml` + wires `CLAUDE_CODE_OAUTH_TOKEN`) | Dogfoods our own stack, `CLAUDE.md`-convention-aware, OAuth/subscription-billed (no per-review SKU). Push-triggered + comment-anchored — NOT the managed Code Review App |
-| **Multiple engines** | `/review-loop <PR> bugbot,copilot,claude` (any subset) | Each engine's prerequisites above | High-stakes PRs; the engines have complementary blind spots. The loop syncs them per cycle |
-| **Internal curator (default fallback)** | Invoke `AGENT_curator` directly before push | Nothing — local Claude review only | No external bot; cheapest; **weaker than the above — known to miss edge cases** |
+| Mode                                    | Command                                                | What it needs                                                                                                                  | When to pick it                                                                                                                                                          |
+| --------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Cursor Bugbot**                       | `/review-loop <PR> bugbot`                             | Cursor Bugbot enabled on the GitHub org/repo                                                                                   | Strongest catches in our experience; paid via Cursor subscription                                                                                                        |
+| **GitHub Copilot**                      | `/review-loop <PR> copilot`                            | Copilot enabled on the org; `gh` CLI ≥ 2.88                                                                                    | Native to GitHub; consumes Actions minutes from June 1, 2026                                                                                                             |
+| **Claude Code Review**                  | `/review-loop <PR> claude`                             | `claude-code-action@v1` installed via `/install-github-app` (drops `claude-code-review.yml` + wires `CLAUDE_CODE_OAUTH_TOKEN`) | Dogfoods our own stack, `CLAUDE.md`-convention-aware, OAuth/subscription-billed (no per-review SKU). Push-triggered + comment-anchored — NOT the managed Code Review App |
+| **Multiple engines**                    | `/review-loop <PR> bugbot,copilot,claude` (any subset) | Each engine's prerequisites above                                                                                              | High-stakes PRs; the engines have complementary blind spots. The loop syncs them per cycle                                                                               |
+| **Internal curator (default fallback)** | Invoke `AGENT_curator` directly before push            | Nothing — local Claude review only                                                                                             | No external bot; cheapest; **weaker than the above — known to miss edge cases**                                                                                          |
 
 For `/sprint-auto` (unattended overnight runs), the review engine is declared per-project. Add this to your project's `CLAUDE.md` or a `.mind-vault.yml` at the repo root:
 
@@ -162,16 +162,16 @@ When `review_engine` is unset or `none`, `/sprint-auto` skips the external-revie
 
 Claude Code ships a set of built-in `/commands` for managing the session itself (distinct from mind-vault's workflow commands like `/idea` and `/wrap`). Knowing these makes long sessions cheaper and more productive.
 
-| Command | Purpose | When to reach for it |
-| --- | --- | --- |
-| `/context` | Show context-window usage breakdown by category (system prompt, tools, memory, skills, messages, free space) | Diagnose "why is the model slow / expensive?" — long-running sessions, before deciding whether to `/compact` |
-| `/usage` | Show your subscription quota / token-spend telemetry | Check how much of your daily/weekly Claude Pro/Max budget you've burned |
-| `/effort` | Set Sonnet's reasoning effort — `low` / `medium` / `high` | Trivial edits: `low`. Architecture decisions: `high`. Default is fine for everything in between |
-| `/compact` | Summarise the conversation so far, freeing context for continued work | When the bar hits ~70% and you want to keep going on the same task without losing the thread |
-| `/new` (or `Ctrl-C` then re-launch) | Start a fresh session with empty context | When the current task is **done** and the next task is unrelated — never `/compact` across topic shifts |
-| `/resume` | Pick up a previous session by id | Continue work from a session you left yesterday/last week |
-| `/init` | Bootstrap a `CLAUDE.md` for the current project | First contact with a brownfield codebase — gives you a starter; edit by hand to tighten |
-| `/help` | List all commands available in the current host | Always |
+| Command                             | Purpose                                                                                                      | When to reach for it                                                                                         |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `/context`                          | Show context-window usage breakdown by category (system prompt, tools, memory, skills, messages, free space) | Diagnose "why is the model slow / expensive?" — long-running sessions, before deciding whether to `/compact` |
+| `/usage`                            | Show your subscription quota / token-spend telemetry                                                         | Check how much of your daily/weekly Claude Pro/Max budget you've burned                                      |
+| `/effort`                           | Set Sonnet's reasoning effort — `low` / `medium` / `high`                                                    | Trivial edits: `low`. Architecture decisions: `high`. Default is fine for everything in between              |
+| `/compact`                          | Summarise the conversation so far, freeing context for continued work                                        | When the bar hits ~70% and you want to keep going on the same task without losing the thread                 |
+| `/new` (or `Ctrl-C` then re-launch) | Start a fresh session with empty context                                                                     | When the current task is **done** and the next task is unrelated — never `/compact` across topic shifts      |
+| `/resume`                           | Pick up a previous session by id                                                                             | Continue work from a session you left yesterday/last week                                                    |
+| `/init`                             | Bootstrap a `CLAUDE.md` for the current project                                                              | First contact with a brownfield codebase — gives you a starter; edit by hand to tighten                      |
+| `/help`                             | List all commands available in the current host                                                              | Always                                                                                                       |
 
 **`/compact` vs `/new` — the trap that costs you context budget:**
 
@@ -225,7 +225,15 @@ Reads the IDEA file (or interactively brainstorms if input is thin), invokes `AG
 
 Thin orchestrator: enforces `RULE_git-safety` + parallel-worktree-docker discipline, dispatches per-step to `AGENT_backend` / `AGENT_frontend` / `AGENT_devops` / `AGENT_test-engineer`, checks off plan items as commits land on a feature branch.
 
-### Stage 4 — review
+### Stage 4a — wrap (runs before the review)
+
+```text
+/wrap
+```
+
+**Pre-merge docs finalization** (the default, `--scope=docs`) — flips IDEA frontmatter to `complete`, re-sorts the index, appends a devlog entry, scans project docs for stale references (plus the staleness-gated whole-README currency audit). Runs on the feature branch **before** the single review pass, so engines see docs at their merged shape and the merge lands the final state in one shot. This is the front of the wrap-then-review-then-land finish the headline shows: **`/wrap` → `/review-loop` → `/land`**. `/wrap` never merges; `--scope=full` is a deprecated shim that redirects to `/land`. (The destructive per-IDEA worktree teardown is `/land`'s job, strictly post-merge.)
+
+### Stage 4b — review (single pass)
 
 Pick the command matching the review engine your repo has enabled (see § "Pick a code-review engine" above):
 
@@ -237,17 +245,17 @@ Pick the command matching the review engine your repo has enabled (see § "Pick 
 # or no external bot: invoke AGENT_curator directly before opening the PR
 ```
 
-`/review-loop` is a semi-autonomous review loop with bounded-autonomy policy: post a PR if needed, apply findings under the autonomy ladder (auto-fix / approve-then-fix / escalate), retrigger the engine(s), halt at the HITL merge gate. The phase structure, dual-signal enumeration, staleness rules, and hard bounds are identical across engines — only the bot identity, trigger mechanism (claude is push-triggered, not retriggered), review-state source (claude reads a GitHub Actions job, the others a named check-run), and clean signal differ per engine.
+`/review-loop` is a semi-autonomous review loop with bounded-autonomy policy: post a PR if needed, apply findings under the autonomy ladder (auto-fix / approve-then-fix / escalate), retrigger the engine(s), halt at the HITL merge gate. **One pass over the wrapped PR** reviews code + finalized docs together — the loop iterates to clean, so the old deliverables-then-docs two-pass was retired in IDEA-015. The phase structure, dual-signal enumeration, staleness rules, and hard bounds are identical across engines — only the bot identity, trigger mechanism (claude is push-triggered, not retriggered), review-state source (claude reads a GitHub Actions job, the others a named check-run), and clean signal differ per engine.
 
 If your repo has no external review bot, run `AGENT_curator` against the local diff before opening the PR. It's a Claude-driven reviewer with the same workflow the `/review-loop` engines run, but it's known to miss edge cases the external bots catch — treat it as the cheapest gate, not the best one.
 
-### Stage 4.5 — wrap
+### Stage 4c — land (merge + teardown)
 
 ```text
-/wrap
+/land <NNN>
 ```
 
-**Pre-merge docs finalization** (the default, `--scope=docs`) — flips IDEA frontmatter to `complete`, re-sorts the index, appends a devlog entry, scans project docs for stale references (plus the staleness-gated whole-README currency audit). Runs on the feature branch **before** the docs-review pass, so engines see docs at their merged shape and the merge lands the final state in one shot. This is the middle of the two-pass finish the headline shows: **`/review-loop` (deliverables) → `/wrap` → `/review-loop` (docs)** — after wrap, re-run `/review-loop` so the engines review the finalized docs (code-only PRs collapse this second pass). Only the destructive per-IDEA worktree teardown is strictly post-merge.
+After the single review clears, `/land` ships it: a precondition guard confirms docs are finalized (frontmatter `complete`, devlog present, index moved), then it squash-merges on non-protected targets — or hands back the PR URL on protected ones (`main` / `production` / `deployment`) per `RULE_git-safety` — and runs the strictly-post-merge worktree/volume teardown. Run `/land NNN` post-merge (or `/land --integration <batch-iso>` for a sprint-auto batch) when the merge was a human click and only teardown remains.
 
 ### Stage 5 — compound
 
@@ -259,7 +267,7 @@ The novel piece. Routes a just-learned lesson to one of six destinations: projec
 
 ### Sprint-auto (later, once you trust it)
 
-Once you've run a few sprints by hand and the workflow feels natural, `/sprint-auto` chains stages 2–5 unattended overnight for IDEAs you've opted in via frontmatter (`auto_safe: true`). It halts only at the HITL merge boundary. Project's `review_engine` declaration (see § "Pick a code-review engine" above) decides which `*-loop` runs during the deliverables and docs review passes; the default `none` skips both external-review passes and relies on `AGENT_curator`. See [`skills/sprint-auto/SKILL.md`](../../skills/sprint-auto/SKILL.md).
+Once you've run a few sprints by hand and the workflow feels natural, `/sprint-auto` chains stages 2–5 unattended overnight for IDEAs you've opted in via frontmatter (`auto_safe: true`). It halts only at the HITL merge boundary. Project's `review_engine` declaration (see § "Pick a code-review engine" above) decides which `*-loop` runs during the single per-IDEA review pass; the default `none` skips the external review and relies on `AGENT_curator`. See [`skills/sprint-auto/SKILL.md`](../../skills/sprint-auto/SKILL.md).
 
 ## 7. Deep dives — companion guides
 

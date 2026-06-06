@@ -2,13 +2,13 @@
 
 When the configured `/review-loop` session (carrying one or all engines per `SPRINT_AUTO_REVIEW_ENGINE`) hands back with unresolved Tier 2 or Tier 3 findings, the default interactive behaviour is "ask the user". Under sprint-auto the user is asleep. The policy below is what sprint-auto substitutes for the human decision.
 
-Two passes run per IDEA (deliverables, then docs), plus a separate pass per mind-vault compound PR at batch end. Each pass has its own independent escalation budget — see "Attempt caps per pass" below.
+One review pass runs per IDEA (over the wrapped PR — wrap-before-review, single-review cadence per IDEA-015), plus a separate pass per mind-vault compound PR at batch end. Each pass has its own independent escalation budget — see "Attempt caps per pass" below.
 
 ## Authority model — sprint-auto IS the caller
 
 The configured `/review-loop` session treats its invoker as the decision-maker for Tier 2 (explicit fix-direction approval) and Tier 3 (human escalation). Under sprint-auto:
 
-- **The whole run is pre-authorized.** The user explicitly typed `/sprint-auto <IDEA-list>` with the `auto_safe` frontmatter gate already cleared per IDEA. That authorization transitively covers the review-fix work downstream of `/work` AND the documentation sweep work downstream of `/wrap-docs`. If the user didn't want sprint-auto making fixes, they wouldn't have run sprint-auto.
+- **The whole run is pre-authorized.** The user explicitly typed `/sprint-auto <IDEA-list>` with the `auto_safe` frontmatter gate already cleared per IDEA. That authorization transitively covers the review-fix work downstream of `/work` AND the documentation sweep work downstream of `/wrap`. If the user didn't want sprint-auto making fixes, they wouldn't have run sprint-auto.
 - **Tier 2 is auto-approved.** The skill applies review's suggested fix (or its own best interpretation) without asking.
 - **Tier 3 is attempted, not escalated.** The fix is harder and less codified, but sprint-auto tries with maximum thinking effort rather than handing back. If no safe fix is found, the finding ships unresolved (see "Ship non-clean" below).
 - **Theoretical Tier 4+** — anything review flags that seems beyond its normal taxonomy (architectural, "this needs a refactor first", "the whole module is wrong") — same contract as T3: one attempt at max effort, then ship-unresolved.
@@ -41,34 +41,34 @@ git commit -m "fix(scope): attempt N+1 — <different approach> (review #M)"
 ```
 
 **Never**:
+
 - `git reset --hard <pre-attempt-sha>` on a pushed branch — rewrites history, invalidates review's comment anchors, and the reviewer can't see what was tried.
 - `git commit --amend` once a review cycle has posted comments on the previous head — same problem.
 - `git push --force` on a feature branch with an open review — forbidden per `RULE_git-safety` without explicit authorization.
 
 `--force-with-lease` is technically safer than `--force` but is still not appropriate during review escalation because it erases the attempt from the reviewer's view. Use `git revert`.
 
-## Attempt caps per pass — 20 / 5 / 10 / 10 / 20 / 5, each independent
+## Attempt caps per pass — 20 / 10 / 10 / 20 / 5, each independent
 
-Six escalation budgets run under sprint-auto — two per-IDEA passes, three integration-phase passes (batch-level, once per batch), and the mind-vault compound pass — each with its own independent budget:
+Five escalation budgets run under sprint-auto — one per-IDEA review pass, three integration-phase passes (batch-level, once per batch), and the mind-vault compound pass — each with its own independent budget:
 
-| Pass | Where | Cap | Counted against |
-|---|---|---|---|
-| Deliverables | Per IDEA, after `/work` (state S3+S4) | **20** attempts | `deliverables_escalation_attempts` in the per-IDEA log |
-| Docs | Per IDEA, after `/wrap-docs` (state S6+S7) | **5** attempts | `docs_escalation_attempts` in the per-IDEA log |
-| Integration union tests | Batch, state S11.8 | **10** attempts | integration log |
-| Integration full suite | Batch, state S11.9 | **10** attempts | integration log |
-| Integration review | Batch, state S11.10 (non-draft [INTEGRATION] PR) | **20** attempts | integration log |
-| Mind-vault compound | Per compound PR at batch end (state S13+S14) | **5** attempts | attempt table in the mind-vault compound PR's summary block |
+| Pass                    | Where                                                                                  | Cap             | Counted against                                             |
+| ----------------------- | -------------------------------------------------------------------------------------- | --------------- | ----------------------------------------------------------- |
+| Per-IDEA review         | Per IDEA, after `/wrap --scope=idea-only` (state S6 — single pass over the wrapped PR) | **20** attempts | `review_escalation_attempts` in the per-IDEA log            |
+| Integration union tests | Batch, state S11.8                                                                     | **10** attempts | integration log                                             |
+| Integration full suite  | Batch, state S11.9                                                                     | **10** attempts | integration log                                             |
+| Integration review      | Batch, state S11.10 (non-draft \[INTEGRATION\] PR)                                     | **20** attempts | integration log                                             |
+| Mind-vault compound     | Per compound PR at batch end (state S13+S14)                                           | **5** attempts  | attempt table in the mind-vault compound PR's summary block |
 
-(v3.2 deleted the v3.1 per-PR re-review pass S11.12 and its 5-attempt cap — per-IDEA branch tips don't change after S6, so re-running added zero signal.)
+(v3.2 deleted the v3.1 per-PR re-review pass S11.12. IDEA-015 collapsed the v3.1/v3.2 two-pass per-IDEA review — deliverables S3+S4 then docs S6+S7 — into the single S6 pass above, since `/review-loop` already iterates over the wrapped PR; the docs-pass 5-cap was retired and its budget folded into the single-pass 20.)
 
 Each cap counts **escalation attempts** (sprint-auto re-entries to resolve T2/T3 findings) for that pass — distinct from `/review-loop`'s own internal session bounds (`max_commits_per_session` etc.). With one multi-engine session per pass, the cap is a single shared budget, *not* multiplied by engine count.
 
-An IDEA may legitimately burn up to 25 escalation attempts (20 deliverables + 5 docs) and still produce a valid PR. That is the point of the budget being generous: overnight wall-clock is cheap, and the alternative (shipping non-clean when one more attempt would have landed) erases the value of automating the fix work at all.
+An IDEA may legitimately burn up to 20 escalation attempts on its single review pass and still produce a valid PR. That is the point of the budget being generous: overnight wall-clock is cheap, and the alternative (shipping non-clean when one more attempt would have landed) erases the value of automating the fix work at all.
 
-### Why 20 for deliverables
+### Why 20 for the per-IDEA review
 
-Deliverables are real code changes — the review findings that arise against them have a genuinely long tail. Common patterns that need more than 3 attempts to land:
+The single per-IDEA review pass covers code AND finalized docs, so it is sized for the **code long tail** (not the doc short tail) — code findings have genuinely long convergence. Common patterns that need more than 3 attempts to land:
 
 - **Subtle ordering / state-machine drift** — the kind of cross-file invariant this very PR (#62) kept generating. Each point-fix revealed a neighbouring contradiction the fixer hadn't loaded into context. The fix-and-retry shape *is* the solution; being stingy converts would-be resolutions into shipped-non-clean.
 - **Migration + model + test triad** — when a review finding touches model fields, the migration layer, and the test fixtures, getting all three aligned often takes 4–6 attempts because each attempt reveals the next adjacent constraint.
@@ -77,11 +77,11 @@ Deliverables are real code changes — the review findings that arise against th
 
 The failure mode "sprint-auto tried 4 times and kept failing so the cap was clearly right" is rare; the failure mode "sprint-auto tried 3 times, got stingy-capped, and the reviewer's first fix was a trivial variant of sprint-auto's third attempt" is common. The cap is there to prevent pathological divergence, not to gatekeep legitimate iteration.
 
-### Why 5 for docs + mind-vault compound
+**Doc findings within the single pass don't need a separate, tighter cap.** Documentation findings — stale references, broken anchors, contradicted devlog entries — converge in 1–3 attempts or are an ambiguous editorial call no number of attempts resolves; `/review-loop`'s own `no_progress_map` ships-unresolved a doc-finding category that keeps re-flagging, so a generous 20-cap for the combined pass never wastes attempts on a stuck doc nit (the tripwire stops it first) while leaving the long-tail code budget intact.
 
-Documentation findings — stale references, broken anchors, contradicted devlog entries, dead-end cross-links — have fundamentally different convergence behaviour. Either the fix is obvious within 1–3 attempts, or the finding is a genuinely ambiguous editorial call that no number of further attempts will resolve. 5 attempts is generous enough to try substantially different angles (rewrite from scratch, delete-and-restart, reorganize surrounding context) without burning budget on what should be a human judgement call.
+### Why 5 for mind-vault compound
 
-Mind-vault compound PRs (state S13+S14) are documentation by nature — they add/edit skills, rules, references, and agents — so the docs-pass 5-attempt budget applies there too.
+Mind-vault compound PRs (state S13+S14) are documentation by nature — they add/edit skills, rules, references, and agents. Doc-class findings converge fast (1–3 attempts) or are editorial judgement calls; 5 attempts is generous enough to try substantially different angles (rewrite from scratch, reorganize surrounding context) without burning budget on what should be a human call.
 
 ### Cap mechanics
 
@@ -91,7 +91,7 @@ The `no_progress_map` in review-loop's own scratch file already catches the path
 
 ## "Ship non-clean" — why an unresolved finding is not a failure
 
-A PR with transparent unresolved findings is a better outcome than a PR with hidden ones. When sprint-auto exhausts its attempt cap (on ANY pass — deliverables, docs, or mind-vault compound), it:
+A PR with transparent unresolved findings is a better outcome than a PR with hidden ones. When sprint-auto exhausts its attempt cap (on ANY pass — the single per-IDEA review or mind-vault compound), it:
 
 1. **Leaves the last-attempt SHA in the branch** (no revert of the final attempt, even if it didn't clear review — the reviewer may see it's close enough and merge as-is).
 2. **Annotates the auto-run log** with the attempt history — every SHA, every approach, every review outcome.
@@ -117,7 +117,7 @@ In each hard-skip case, annotate the log and ship as-is; the reviewer decides.
 Per-IDEA auto-run log gains an `escalation_attempts` section (see [`../assets/auto-run-log-template.md`](../assets/auto-run-log-template.md)):
 
 ```yaml
-deliverables_escalation_attempts:
+review_escalation_attempts:   # single per-IDEA review pass (S6); cap is 20
   - attempt: 1
     sha: abc1234
     approach: "Added null-check at UserView.get_context_data"
@@ -128,9 +128,7 @@ deliverables_escalation_attempts:
     approach: "Corrected annotation + made the field Optional"
     review_outcome: clean_for_this_finding
     reason_abandoned: null
-  # (cap is 20; further slots remain available if other findings need more attempts)
-
-docs_escalation_attempts: []   # cleared on first docs-pass review invocation; cap is 5
+  # (cap is 20; covers code + doc findings together — the wrapped PR is reviewed once)
 ```
 
 Every attempt's commit is in git history; the log is just the human-readable narrative pointer.

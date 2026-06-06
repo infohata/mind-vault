@@ -2,7 +2,7 @@
 
 Two files get written per batch: one per-IDEA log (lives inside the IDEA's archive dir), and one batch summary (lives in the primary tree's `docs/archive/`). The per-IDEA log is the morning-review unit of work; the batch summary is the at-a-glance index.
 
----
+______________________________________________________________________
 
 ## Per-IDEA log
 
@@ -10,7 +10,7 @@ Path: `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/auto-run-YYYY-MM-DD.md`
 
 Written inside the worktree (which is where the archive dir lives for this run), committed to the `auto/<slug>` branch, so the PR carries the log into review automatically.
 
-```markdown
+````markdown
 ---
 idea: IDEA-NNN
 slug: <slug>
@@ -22,13 +22,10 @@ worktree_path: ~/projects/<project>-auto-<slug>
 branch: auto/<slug>
 port_offset: +15000
 
-# Deliverables-pass review (state S3+S4 in post-pr-sequence.md)
-deliverables_review_outcome: clean     # clean | unresolved | budget_exceeded | skipped_no_pr
-deliverables_escalation_attempts: 1    # integer 0-20; cap is 20 per escalation-policy.md
-
-# Docs-pass review (state S6+S7; runs after /wrap --scope=idea-only commits docs to the same branch)
-docs_review_outcome: clean             # clean | unresolved | budget_exceeded | skipped_no_pr | skipped_failure_pre_pr
-docs_escalation_attempts: 0            # integer 0-5; cap is 5 per escalation-policy.md
+# Single per-IDEA review (state S6+S6a; runs over the WRAPPED PR — /wrap --scope=idea-only ran first at S5)
+review_outcome: clean                  # clean | unresolved | budget_exceeded | skipped_no_pr | skipped_failure_pre_pr
+review_escalation_attempts: 1          # integer 0-20; cap is 20 (covers code + docs) per escalation-policy.md
+docs_review: folded_into_single_review_s6   # marker: the v3.x separate docs pass was retired (IDEA-015)
 
 # v3.1 fields — verification routing + DB reset at IDEA entry
 verification_location: ~/projects/<project>-auto-integration-<batch-iso>   # MUST be the integration worktree path (flag if otherwise)
@@ -46,11 +43,11 @@ docker_teardown: skipped_v3_no_per_idea_stack  # v3.1 always | v1 also: stopped 
 
 # sprint-auto run — IDEA-NNN <slug>
 
-**Outcome**: ✅ PR opened at <pr_url> · review: deliverables clean (1 attempt) / docs clean (0 attempts)
+**Outcome**: ✅ PR opened at <pr_url> · review: clean (1 attempt, single pass over wrapped PR)
 
 ## Summary
 
-<one paragraph — what shipped, review outcome on each pass, how many escalation cycles per pass>
+<one paragraph — what shipped, single-review outcome, how many escalation cycles>
 
 ## Timeline
 
@@ -62,14 +59,12 @@ docker_teardown: skipped_v3_no_per_idea_stack  # v3.1 always | v1 also: stopped 
 - 22:21:10Z — /work invoked
 - 22:48:33Z — Verification passed
 - 22:51:40Z — PR opened at <pr_url>
-- 22:51:45Z — /<engine>-loop invoked (deliverables pass, state S3)
-- 22:58:12Z — review posted review, 1 T2 finding
-- 22:58:45Z — Deliverables escalation attempt 1 (sha jkl0123) — added null-check
-- 23:02:00Z — review re-triggered; ${ENGINE}_CLEAN_SIGNAL on deliverables pass
-- 23:02:10Z — /wrap --scope=idea-only started (state S5) — frontmatter flip + downstream docs scan + eval-checklist emission (if auto_safe_with_eval_gate); devlog + ideas-index deferred to S11.7 batch wrap
-- 23:04:30Z — docs commit pushed (sha mno4567)
-- 23:04:35Z — /<engine>-loop invoked (docs pass, state S6)
-- 23:11:20Z — ${ENGINE}_CLEAN_SIGNAL on docs pass
+- 22:51:45Z — /wrap --scope=idea-only started (state S5, BEFORE review) — frontmatter flip + downstream docs scan + eval-checklist emission (if auto_safe_with_eval_gate); devlog + ideas-index deferred to S11.7 batch wrap
+- 22:51:55Z — wrap commit pushed (sha mno4567)
+- 22:52:00Z — /<engine>-loop invoked (single pass over the WRAPPED PR, state S6)
+- 22:58:12Z — review posted, 1 T2 finding (code)
+- 22:58:45Z — Escalation attempt 1 (sha jkl0123) — added null-check (state S6a)
+- 23:02:00Z — review re-triggered; ${ENGINE}_CLEAN_SIGNAL (code + docs)
 - 23:11:30Z — S8 N/A in v3.1 (no per-IDEA stack); integration stack stays up for next IDEA
 - 23:11:45Z — compound candidates harvested (1 recurrence; state S9)
 
@@ -81,19 +76,13 @@ docker_teardown: skipped_v3_no_per_idea_stack  # v3.1 always | v1 also: stopped 
 - `jkl0123` — fix(ui): escalation attempt 1 — null-guard context-processor (review #M)
 - `mno4567` — docs(archive): IDEA-NNN pre-merge documentation sweep
 
-## Deliverables-pass escalation attempts (cap: 20)
+## Review-pass escalation attempts (cap: 20)
 
-(see [`references/escalation-policy.md`](../../skills/sprint-auto/references/escalation-policy.md))
+Single per-IDEA review pass over the wrapped PR (S6/S6a) — covers code + docs findings. (see [`references/escalation-policy.md`](../../skills/sprint-auto/references/escalation-policy.md))
 
 | # | SHA | Approach | Review outcome |
 |---|---|---|---|
 | 1 | jkl0123 | null-guard in context-processor | clean |
-
-## Docs-pass escalation attempts (cap: 5)
-
-| # | SHA | Approach | Review outcome |
-|---|---|---|---|
-| — | — | (no escalation needed — clean on first review pass after /wrap --scope=idea-only) | — |
 
 ## Diagnostic excerpt
 
@@ -109,10 +98,10 @@ docker_teardown: skipped_v3_no_per_idea_stack  # v3.1 always | v1 also: stopped 
 ```bash
 # Sprint-auto already stopped the containers; remaining chore after the
 # [INTEGRATION] PR merges (frontmatter was flipped at S5):
-/wrap --integration sprint-auto-<batch-iso>   # tears down integration worktree + branch + every per-IDEA worktree/branch
-```
+/land --integration sprint-auto-<batch-iso>   # tears down integration worktree + branch + every per-IDEA worktree/branch
+````
 
-Manual cleanup (if not running `/wrap`):
+Manual cleanup (if not running `/land`):
 
 ```bash
 cd ~/projects/<project>-auto-<slug>
@@ -121,7 +110,8 @@ cd -
 git worktree remove ~/projects/<project>-auto-<slug>
 git branch -D auto/<slug>        # only after PR merged or explicitly abandoned
 ```
-```
+
+````
 
 ## Batch summary
 
@@ -162,14 +152,14 @@ Invocation: `/sprint-auto IDEA-050 IDEA-051 IDEA-052 IDEA-053`
 
 ## IDEA results (project PRs)
 
-Escalation column shows `deliverables/docs` attempts against caps `20/5`.
+Escalation column shows per-IDEA review attempts against cap `20`.
 
-| IDEA | Slug | Outcome | PR | Deliverables review | Docs review | Escalation (D/d) | Worktree |
-|---|---|---|---|---|---|---|---|
-| 050 | sync-retry-backoff | ✅ PR open | #123 | clean | clean | 0/0 | `../<project>-auto-sync-retry-backoff` (code-surface only; nothing to tear down) |
-| 051 | modal-dismiss-focus | ⚠️ PR open, review unresolved | #124 | 2 T3 remaining | clean | 20/0 (deliverables cap hit) | `../<project>-auto-modal-dismiss-focus` (code-surface only) |
-| 052 | alpine-event-bus | ⚠️ plan REJECTED | — | skipped (no PR) | skipped (no PR) | — | `../<project>-auto-alpine-event-bus` (code-surface only) |
-| 053 | cache-invalidation | ❌ verification fail | — | skipped (no PR) | skipped (no PR) | — | `../<project>-auto-cache-invalidation` (code-surface only) |
+| IDEA | Slug | Outcome | PR | Review (single pass) | Escalation | Worktree |
+|---|---|---|---|---|---|---|
+| 050 | sync-retry-backoff | ✅ PR open | #123 | clean | 0 | `../<project>-auto-sync-retry-backoff` (code-surface only; nothing to tear down) |
+| 051 | modal-dismiss-focus | ⚠️ PR open, review unresolved | #124 | 2 T3 remaining | 20 (review cap hit) | `../<project>-auto-modal-dismiss-focus` (code-surface only) |
+| 052 | alpine-event-bus | ⚠️ plan REJECTED | — | skipped (no PR) | — | `../<project>-auto-alpine-event-bus` (code-surface only) |
+| 053 | cache-invalidation | ❌ verification fail | — | skipped (no PR) | — | `../<project>-auto-cache-invalidation` (code-surface only) |
 
 ## Integration check (states S11.5–S11.13)
 
@@ -195,7 +185,7 @@ Validates the integrated state of all `auto/<slug>` PRs that reached integration
 
 ## Compound (mind-vault PRs)
 
-Escalation cap for mind-vault compound PRs is 5 (same as docs pass — compound PRs are documentation by nature).
+Escalation cap for mind-vault compound PRs is 5 (doc-class convergence — compound PRs are documentation by nature).
 
 | Destination | PR | Review | Escalation | Branch |
 |---|---|---|---|---|
@@ -214,11 +204,11 @@ In v3.2 the per-IDEA PRs target the **integration branch**, not the parent. **Me
 
 ## Morning checklist
 
-1. Review the per-IDEA PRs #123, #124 at their IDEA-isolated diffs (against the integration base), plus the **[INTEGRATION] PR #1234** for integration-state findings. IDEA-051 has an unresolved T3 finding on deliverables (cap hit at 20 attempts) — check the auto-run log's deliverables-pass table.
+1. Review the per-IDEA PRs #123, #124 at their IDEA-isolated diffs (against the integration base), plus the **[INTEGRATION] PR #1234** for integration-state findings. IDEA-051 has an unresolved T3 finding (review cap hit at 20 attempts) — check the auto-run log's review-escalation table.
 2. **Merge the [INTEGRATION] PR (#1234)** to ship the batch (per-IDEA PRs auto-close). Review + merge (or close) mind-vault compound PRs #78, #79 — PR #79 has an unresolved review finding (cap hit at 5); decide merge-anyway / fix-forward / close.
 3. Read the per-IDEA log for IDEA-052 — architect's rejection is usually a plan-revision signal.
 4. Read the per-IDEA log for IDEA-053 — check which test failed; decide fix-forward / plan revision.
-5. After merging the [INTEGRATION] PR: run **`/wrap --integration sprint-auto-<batch-iso>`** once from the primary tree — it tears down the integration worktree + branch + every per-IDEA `auto/<slug>` worktree/branch (see `skills/wrap/SKILL.md` § `--integration` mode). The per-IDEA frontmatter flips + downstream docs scans already ran at S5; the devlog batch entry + ideas-index batch update already ran at S11.7 on the integration branch.
+5. After merging the [INTEGRATION] PR: run **`/land --integration sprint-auto-<batch-iso>`** once from the primary tree — it tears down the integration worktree + branch + every per-IDEA `auto/<slug>` worktree/branch (see `skills/land/SKILL.md` § `--integration` mode). The per-IDEA frontmatter flips + downstream docs scans already ran at S5; the devlog batch entry + ideas-index batch update already ran at S11.7 on the integration branch.
 
 ## Per-IDEA logs
 
@@ -235,4 +225,4 @@ In v3.2 the per-IDEA PRs target the **integration branch**, not the parent. **Me
 - Git HEAD (mind-vault): `<sha>` (`<message>`)
 - Disk free at start: <GB>
 - Disk free at end: <GB>
-```
+````

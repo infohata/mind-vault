@@ -55,11 +55,11 @@ Sprint-auto reads this at dispatch time: IDEA-128 won't be picked up until IDEA-
 
 **File-overlap detection during planning** — before opening the batch PR, do a quick mental file-touch matrix:
 
-| IDEA | Files modified |
-|------|----------------|
-| 124 | chat.html (lines 131-134, 221-231), `_chat.scss`, `_variables.scss` |
-| 126 | `attachments.js`, `_attachment_upload_form.html`, `attachment_types.py` |
-| 128 | `attachments.js`, `_attachment_upload_form.html` |
+| IDEA | Files modified                                                          |
+| ---- | ----------------------------------------------------------------------- |
+| 124  | chat.html (lines 131-134, 221-231), `_chat.scss`, `_variables.scss`     |
+| 126  | `attachments.js`, `_attachment_upload_form.html`, `attachment_types.py` |
+| 128  | `attachments.js`, `_attachment_upload_form.html`                        |
 
 Any two rows sharing a file are conflict-prone. Add `depends_on: [<earlier IDEA>]` to the later one. Cheap; one frontmatter edit + a one-paragraph note in the plan's Context section explaining the dependency rationale.
 
@@ -126,6 +126,6 @@ After merge:
 1. `/sprint-auto` (in a fresh session — sprint-auto reads from disk, doesn't need the planning context).
 2. It runs **only the IDEA slugs passed as explicit args** (`/sprint-auto IDEA-NNN IDEA-MMM ...`) — there is no scan / auto-discovery mode; if the human didn't type the slug, sprint-auto won't touch it. Each named IDEA must additionally have **`auto_safe: true` OR `auto_safe_with_eval_gate: true`** in frontmatter and a plan file present. `sensitive_paths_cleared: true` is a *conditional override* — required only when the IDEA touches auth/permission/schema/infra paths — not a blanket eligibility key. See [`../../sprint-auto/references/safety-gates.md`](../../sprint-auto/references/safety-gates.md).
 3. Dependencies in `depends_on:` arrays are honoured: dependents wait until their dependencies merge.
-4. Per-IDEA worktree spin-up runs through `/work → /<engine>-loop → /wrap → /compound`.
+4. Per-IDEA worktree spin-up runs through `/work → /wrap → /<engine>-loop → /compound` (single review over the wrapped PR; integration merge + `/land` batch teardown at batch end).
 
 Mixed-eligibility batches are fine — IDEAs in the same PR can be flagged sprint-auto-eligible OR human-driven (`auto_safe: false`). Sprint-auto skips the human-driven ones; you `/work` those manually.

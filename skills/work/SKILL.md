@@ -49,14 +49,14 @@ Walk the plan's Execution Sequence. For each step, pick the right persona via th
 
 Default matrix (projects can override in their own `AGENTS.md`). The right column is the dispatchable `subagent_type` — pass it verbatim to `Agent(subagent_type: …)`; the profile file backing each id is mapped in [`references/persona-dispatch.md`](references/persona-dispatch.md):
 
-| Plan-item domain | Subagent type |
-| --- | --- |
-| Models, views, signals, DRF, Channels, Celery, ORM | `mv-backend` |
-| Templates, Alpine, HTMX, Bulma, static assets, JS | `mv-frontend` |
-| Docker, compose, nginx, systemd, CI/CD, env config | `mv-devops` |
-| Test authoring, fixture design, coverage gates | `mv-test-engineer` |
-| Multi-domain or cross-cutting refactor | `mv-architect` (as author now, not reviewer — plan already reviewed) |
-| Documentation-only updates (README, CHANGELOG) | `mv-documentation` |
+| Plan-item domain                                   | Subagent type                                                        |
+| -------------------------------------------------- | -------------------------------------------------------------------- |
+| Models, views, signals, DRF, Channels, Celery, ORM | `mv-backend`                                                         |
+| Templates, Alpine, HTMX, Bulma, static assets, JS  | `mv-frontend`                                                        |
+| Docker, compose, nginx, systemd, CI/CD, env config | `mv-devops`                                                          |
+| Test authoring, fixture design, coverage gates     | `mv-test-engineer`                                                   |
+| Multi-domain or cross-cutting refactor             | `mv-architect` (as author now, not reviewer — plan already reviewed) |
+| Documentation-only updates (README, CHANGELOG)     | `mv-documentation`                                                   |
 
 Pass the persona the **plan path + the specific item index** — never inline the item's prose into the dispatch prompt (per the "pass paths not content to subagents" convention). The persona reads the plan file itself.
 
@@ -73,6 +73,7 @@ Commit per logical unit, not per file. One commit per completed Execution Sequen
   ```
 
 - **Never `--no-verify`, never plain `--force`.** `--force-with-lease` is allowed on feature branches the agent owns.
+
 - **After each commit**, update the plan file in place: mark the completed item with ✅ and the commit SHA short. Keeps the plan a living progress document.
 
 ### 5. Verification and handoff
@@ -80,23 +81,25 @@ Commit per logical unit, not per file. One commit per completed Execution Sequen
 After all Execution Sequence items land:
 
 1. Run the commands listed in the plan's Verification section. Capture output. **Verification routing — see § "Sprint-auto v3.1 verification routing" below for the env-var-driven mode.**
-2. If verification passes, open a PR **as a draft**: `gh pr create --draft --title "<type>(<scope>): <plan.slug>" --body <plan-derived-body>`. Include the plan path in the PR body so the reviewer has the full context. **Draft is deliberate:** the Claude review engine is push-triggered (auto-runs + bills a review on every push to a *non-draft* PR), so keeping the PR draft through `/work` + the `/wrap` docs pass suppresses per-commit reviews and SILENT-on-WIP noise. `/review-loop`'s pre-flight un-drafts it so engines review the finalized state once. (Bugbot/Copilot are on-demand and unaffected; un-draft early only if you want a mid-`/work` Claude pass.)
+2. If verification passes, open a PR **as a draft**: `gh pr create --draft --title "<type>(<scope>): <plan.slug>" --body <plan-derived-body>`. Include the plan path in the PR body so the reviewer has the full context. **Draft is deliberate:** the Claude review engine is push-triggered (auto-runs + bills a review on every push to a *non-draft* PR), so keeping the PR draft through `/work` + the `/wrap` docs-finalization step suppresses per-commit reviews and SILENT-on-WIP noise. `/review-loop`'s pre-flight un-drafts it so engines review the finalized (wrapped) state once. (Bugbot/Copilot are on-demand and unaffected; un-draft early only if you want a mid-`/work` Claude pass.)
 3. Mark the plan `status: shipped` in frontmatter.
-4. Print the PR URL and suggest the next-stage chain: `/<engine>-loop <pr-url>` → `/wrap NNN`.
+4. Print the PR URL and suggest the next-stage chain: `/wrap NNN` → `/<engine>-loop <pr-url>` → `/land NNN`.
 
-The full canonical chain after `/work` opens the PR:
+The full canonical chain after `/work` opens the PR (wrap-before-review, single review, then land):
 
 ```text
-/work        → opens PR, plan: shipped, code committed
-/<engine>-loop → clears review findings, retriggers until clean
+/work        → opens PR (draft), plan: shipped, code committed
 /wrap NNN    → docs commits ride the same PR (frontmatter flip,
                ideas-index, devlog, archive README, downstream scan).
-               If PR base is non-protected, wrap also squash-merges.
-               If PR base is protected, wrap hands back the PR URL
-               for human merge.
+               Finalizes docs; NEVER merges.
+/<engine>-loop → single review over the WRAPPED PR (code + docs);
+               clears findings, retriggers until clean.
+/land NNN    → precondition guard (docs finalized?), then:
+               non-protected base → squash-merge + post-merge teardown;
+               protected base → hand back the PR URL for human merge.
 ```
 
-The single-IDEA chain mirrors what sprint-auto already does at the multi-IDEA scale: code → review → docs → integration merge as ONE shipping moment. Don't split it into two operator turns when the merge target is non-protected per [`RULE_git-safety`](../../rules/RULE_git-safety.md).
+The single-IDEA chain mirrors what sprint-auto already does at the multi-IDEA scale: code → wrap → one review → merge as ONE shipping moment. `/land` is the merge stage; don't split the merge into a separate operator decision when the target is non-protected per [`RULE_git-safety`](../../rules/RULE_git-safety.md).
 
 If verification fails:
 
@@ -144,6 +147,7 @@ fi
 ```
 
 When `SPRINT_AUTO_INTEGRATION_WORKTREE` is set:
+
 - The agent never runs `docker compose` against the per-IDEA worktree (there's no `.env`, no override file — would fail).
 - The agent never creates a `.env` in the per-IDEA worktree (the env-var contract guarantees verification happens elsewhere).
 - The DB state on the integration worktree is the **main-equivalent baseline** for this IDEA (sprint-auto reset it at S1.5 before invoking `/work`); the verification runs against that baseline.
@@ -153,7 +157,7 @@ The full env-var contract is in [`../sprint-auto/references/integration-stage.md
 
 ### 6. Frontmatter flip — `/wrap` is the canonical owner; this section is the fallback
 
-**Primary path: `/wrap` does the frontmatter flip pre-merge.** `/wrap NNN` runs after `/<engine>-loop` clears, before merge — it flips IDEA frontmatter `in-progress → complete`, updates the ideas index, appends the devlog entry, scans downstream docs, and (when target is non-protected) squash-merges atomically. The `/work` skill does NOT duplicate that work in the normal flow — it hands off to `/wrap`.
+**Primary path: `/wrap` does the frontmatter flip pre-merge.** `/wrap NNN` runs before the single review — it flips IDEA frontmatter `in-progress → complete`, updates the ideas index, appends the devlog entry, scans downstream docs. It does NOT merge (merge is the separate `/land` stage after review clears). The `/work` skill does NOT duplicate that work in the normal flow — it hands off to `/wrap`, then `/review-loop`, then `/land`.
 
 **Fallback in this section fires only when `/wrap` was bypassed** — the user merged the PR directly without invoking `/wrap`, or a hotfix landed without ceremony. In that case, the next `/work` invocation that touches a merged-but-unflipped IDEA runs the steps below as a cleanup pass on a separate `chore/complete-idea-NNN` branch. The `/wrap` skill itself also has a "post-merge fallback" mode that does the same thing with full docs sweep — prefer `/wrap NNN` post-merge over the pared-down version below.
 

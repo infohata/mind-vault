@@ -10,7 +10,7 @@ staleness threshold and patches mechanical drift in-wrap.
 
 Step 6b runs **after** Step 6's per-identifier loop, gated three ways:
 
-1. **Scope** — eligible under `--scope=docs` / `--scope=full`; **skipped under
+1. **Scope** — eligible under `--scope=docs` (the default); **skipped under
    `--scope=idea-only`** (per-IDEA sprint-auto wraps; the batch wrap is the audit
    point — see *Sprint-auto asymmetry*).
 2. **Staleness** — count merged PRs on the base branch since the last
@@ -54,9 +54,9 @@ fi
 **Same-day idempotency guard:** the explicit `MARKER_DATE = today → skip` branch
 means a marker written today never re-fires the audit the same day — regardless of
 how `gh` interprets `merged:>today` (which can include same-day merges on an active
-base branch). So the `docs`→`full` two-pass re-run never double-audits: the `docs`
-pass writes today's marker, the `full` re-run hits the same-day branch and skips. No
-per-pass special-casing.
+base branch). So a same-day re-run (a review cycle touches docs, then `/wrap` runs
+again) never double-audits: the first run writes today's marker, the re-run hits the
+same-day branch and skips. No per-run special-casing.
 
 ## The marker
 
@@ -84,13 +84,13 @@ Each probe is **no-op-when-absent** (a project without that surface skips the
 probe cleanly) and maps its findings onto Step 6's existing dispositions —
 **patch-now-mechanical** vs **flag-as-follow-up**. No new disposition vocabulary.
 
-| # | Probe | How | Disposition |
-| --- | --- | --- | --- |
-| 1 | **Version framing** | README version banner / "vN highlights" vs Step 4b's detected `VER_SOURCE`. Derive `MAJOR.MINOR` from the topmost CHANGELOG header by stripping any `.PATCH` (headers are `## vMAJOR.MINOR[.PATCH]`, e.g. `v4.6.1` → compare as `v4.6`). | Stale string → **patch now**. No version framing in README → skip. |
-| 2 | **Counts** | Each "Skills (NN)" / "Agents (NN)" / table-row count vs its filesystem source (`ls skills/*/SKILL.md \| wc -l`, etc.). | Off-by-any → **patch now**. Source not auto-detectable → see fail-loud rule below. |
-| 3 | **Feature/capability tables** | Each shipped unit (skill, command, engine) has a table row; grep the table for every `ls`-discovered name. | Missing row for a shipped unit → **patch now** (one row). Whole new table needed → **follow-up**. |
-| 4 | **Stale ⚠️ / status flags** | For each ⚠️ / "UNSTABLE" / "experimental" flag, verify its cause still holds (grep CHANGELOG / devlog for a resolving entry). | Cause demonstrably resolved → **patch now** (remove). Cause unverifiable → **leave it** (a flag is a claim; don't drop it without evidence — RULE_self-sweep #3). |
-| 5 | **Quick-start / command surface** | Commands + slash-invocable skills in the quick-start vs the actual `commands/` + skill set. | Renamed/removed entry → **patch now**. New concept needing a tutorial → **follow-up**. |
+| #   | Probe                             | How                                                                                                                                                                                                                                      | Disposition                                                                                                                                                       |
+| --- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Version framing**               | README version banner / "vN highlights" vs Step 4b's detected `VER_SOURCE`. Derive `MAJOR.MINOR` from the topmost CHANGELOG header by stripping any `.PATCH` (headers are `## vMAJOR.MINOR[.PATCH]`, e.g. `v4.6.1` → compare as `v4.6`). | Stale string → **patch now**. No version framing in README → skip.                                                                                                |
+| 2   | **Counts**                        | Each "Skills (NN)" / "Agents (NN)" / table-row count vs its filesystem source (`ls skills/*/SKILL.md \| wc -l`, etc.).                                                                                                                   | Off-by-any → **patch now**. Source not auto-detectable → see fail-loud rule below.                                                                                |
+| 3   | **Feature/capability tables**     | Each shipped unit (skill, command, engine) has a table row; grep the table for every `ls`-discovered name.                                                                                                                               | Missing row for a shipped unit → **patch now** (one row). Whole new table needed → **follow-up**.                                                                 |
+| 4   | **Stale ⚠️ / status flags**       | For each ⚠️ / "UNSTABLE" / "experimental" flag, verify its cause still holds (grep CHANGELOG / devlog for a resolving entry).                                                                                                            | Cause demonstrably resolved → **patch now** (remove). Cause unverifiable → **leave it** (a flag is a claim; don't drop it without evidence — RULE_self-sweep #3). |
+| 5   | **Quick-start / command surface** | Commands + slash-invocable skills in the quick-start vs the actual `commands/` + skill set.                                                                                                                                              | Renamed/removed entry → **patch now**. New concept needing a tutorial → **follow-up**.                                                                            |
 
 **Probe 2 fails LOUD, never silent.** The `"Skills (NN)"`-style heading is a
 mind-vault artifact; a downstream project counts apps / endpoints / models in

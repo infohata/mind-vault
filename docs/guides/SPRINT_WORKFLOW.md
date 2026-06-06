@@ -7,10 +7,10 @@ flowchart LR
     I0(["/ideate — optional discovery"]) -.-> I1
     I1(["/idea — capture"]) --> P
     P(["/plan · /brainstorm — what + how"]) --> W
-    W(["/work — execute"]) --> RD
-    RD(["/review-loop — deliverables\n+ curator · architect"]) --> WR
+    W(["/work — execute"]) --> WR
     WR(["/wrap — finalize docs\n(pre-merge)"]) --> RR
-    RR(["/review-loop — docs"]) --> C
+    RR(["/review-loop — single pass\n+ curator · architect"]) --> L
+    L(["/land — merge + teardown"]) --> C
     C(["/compound — router"]) -.promotes.-> V[("mind-vault\nskills · rules · agents\ncommands · memory")]
     C -.next sprint.-> I1
 ```
@@ -28,39 +28,39 @@ The optional `/ideate` stage sits above `/idea` — use it between sprints to di
 
 ## The five stages (plus optional discovery)
 
-| Stage | Command | Input | Output |
-| --- | --- | --- | --- |
-| 0. Ideate (optional) | `/ideate` | Scoped area (project / app / layer) | Menu of ranked candidates; selected survivors promoted into `IDEA-NNN-<slug>.md` files |
-| 1. Idea | `/idea [slug]` | Title (new) or slug (update) | `<project>/docs/ideas/IDEA-NNN-<slug>.md` |
-| 2. Brainstorm / Plan | `/plan` or `/brainstorm` | IDEA file, or raw description | `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md` (co-located with the moved IDEA file per `RULE_ideas-location-status`) |
-| 3. Work | `/work` | Plan file | Code changes on a feature branch |
-| 4a. Review — deliverables | `/review-loop <PR> bugbot` (Cursor Bugbot), `/review-loop <PR> copilot` (GitHub Copilot), `/review-loop <PR> claude` (Claude Code Review), or any subset, per project config; curator-only fallback if no external bot | Open PR | Cleared code findings + loop output file |
-| 4b. Wrap — finalize docs | `/wrap` (default `--scope=docs`); `--scope=full` to also merge | Deliverables-cleared PR | IDEA frontmatter `complete` + re-sorted index + devlog entry + downstream docs patched. Runs **before** the docs review (wrap-before-review) so engines see docs at merged shape. Default `docs` scope stops before merge; `--scope=full` additionally squash-merges non-protected targets (then post-merge teardown). Protected targets always hand back for human merge. |
-| 4c. Review — docs | `/review-loop <PR> <engine>` (same engines as 4a) | Wrapped PR | Cleared doc findings; PR ready to merge. Code-only PRs collapse this pass. |
-| 5. Compound | `/compound` | Solved problem, or PR-review output file | Solution doc OR mind-vault skill/rule/agent/command/memory update |
+| Stage                       | Command                                                                                                                                                                                                                | Input                                    | Output                                                                                                                                                                                                                                                                                                    |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0. Ideate (optional)        | `/ideate`                                                                                                                                                                                                              | Scoped area (project / app / layer)      | Menu of ranked candidates; selected survivors promoted into `IDEA-NNN-<slug>.md` files                                                                                                                                                                                                                    |
+| 1. Idea                     | `/idea [slug]`                                                                                                                                                                                                         | Title (new) or slug (update)             | `<project>/docs/ideas/IDEA-NNN-<slug>.md`                                                                                                                                                                                                                                                                 |
+| 2. Brainstorm / Plan        | `/plan` or `/brainstorm`                                                                                                                                                                                               | IDEA file, or raw description            | `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md` (co-located with the moved IDEA file per `RULE_ideas-location-status`)                                                                                                                                                         |
+| 3. Work                     | `/work`                                                                                                                                                                                                                | Plan file                                | Code changes on a feature branch                                                                                                                                                                                                                                                                          |
+| 4a. Wrap — finalize docs    | `/wrap` (default `--scope=docs`)                                                                                                                                                                                       | Open PR (deliverables ready)             | IDEA frontmatter `complete` + re-sorted index + devlog entry + downstream docs patched. Runs **before** the review (wrap-before-review) so engines see docs at merged shape. Never merges (merge is stage 4c `/land`); `--scope=full` is a deprecated shim that finalizes docs then redirects to `/land`. |
+| 4b. Review — single pass    | `/review-loop <PR> bugbot` (Cursor Bugbot), `/review-loop <PR> copilot` (GitHub Copilot), `/review-loop <PR> claude` (Claude Code Review), or any subset, per project config; curator-only fallback if no external bot | Wrapped PR                               | Cleared findings (code + docs together) + loop output file. One pass — the loop iterates to clean; the old deliverables/docs two-pass was retired in IDEA-015.                                                                                                                                            |
+| 4c. Land — merge + teardown | `/land`                                                                                                                                                                                                                | Review-cleared PR                        | Squash-merge on non-protected targets (protected → hand back PR URL per `RULE_git-safety`), then strictly-post-merge worktree/volume teardown. Precondition guard refuses to merge un-wrapped work.                                                                                                       |
+| 5. Compound                 | `/compound`                                                                                                                                                                                                            | Solved problem, or PR-review output file | Solution doc OR mind-vault skill/rule/agent/command/memory update                                                                                                                                                                                                                                         |
 
 **Brainstorm folds into plan.** `/brainstorm` is an alias for `/plan`. When the IDEA file is thin or the description is under-specified, the plan skill interactively explores requirements (the brainstorm front-end) before emitting the plan artifact.
 
 ## Overnight unattended mode — `/sprint-auto`
 
-`/sprint-auto` is an optional wrapper around the **full sprint workflow** (stages 2–5) for unattended overnight execution on a VPS. Per IDEA it drives `/plan → /work → review-loop (deliverables) → escalation → /wrap (pre-merge, auto-detected) → review-loop (docs) → escalation → pre-merge container teardown`; at batch end it runs `/compound` per candidate and the review-loop on each mind-vault PR produced. The review-loop carries `bugbot`, `copilot`, `claude`, or any subset per project config (`SPRINT_AUTO_REVIEW_ENGINE`), or is skipped when engine is `none` (curator-only fallback). T2/T3 review findings resolve autonomously via rollback-able fresh commits; per-pass attempt caps are 20 (deliverables) / 5 (docs) / 5 (mind-vault compound), each an independent `/review-loop` session (budget spans all configured engines). The skill runs each IDEA in its own git worktree + docker-compose project, and stops at the HITL merge boundary per `RULE_git-safety`.
+`/sprint-auto` is an optional wrapper around the **full sprint workflow** (stages 2–5) for unattended overnight execution on a VPS. Per IDEA it drives `/plan → /work → /wrap (idea-only, pre-merge) → review-loop (single pass over the wrapped PR) → escalation`; at batch end the integration phase merges + tears down, then it runs `/compound` per candidate and the review-loop on each mind-vault PR produced. The review-loop carries `bugbot`, `copilot`, `claude`, or any subset per project config (`SPRINT_AUTO_REVIEW_ENGINE`), or is skipped when engine is `none` (curator-only fallback). T2/T3 review findings resolve autonomously via rollback-able fresh commits; per-pass attempt caps are 20 (per-IDEA review) / 5 (mind-vault compound), each an independent `/review-loop` session (budget spans all configured engines). The skill runs each IDEA in its own git worktree (code-surface only — no per-IDEA stack; a single shared integration docker stack at port offset `+30000` handles all verification), and stops at the HITL merge boundary per `RULE_git-safety`.
 
 Opt-in is belt-and-suspenders: every IDEA needs `auto_safe: true` + `auto_safe_reason` in frontmatter **and** explicit presence in the invocation args. Never scan-mode. IDEAs touching sensitive paths (`.env*`, base `docker-compose.yml`, CI workflows, destructive migrations, auth middleware) require `sensitive_paths_cleared: true`. Priority is queue order only (scheduling preference), not a safety dimension — `auto_safe: true` is the authoritative signal. See `skills/sprint-auto/references/safety-gates.md` for the full gate list.
 
-Worktrees are preserved after each run — success or failure — so the human can review PRs or diagnose failures in the morning. At pre-merge teardown (state S8) the skill runs `docker compose down` (containers + networks, volumes retained); it never runs `-v` (volume removal), never `git worktree remove`, never merges, never force-pushes. The post-merge cleanup (`-v` + worktree remove + frontmatter flip) is the human's `/wrap NNN` chore after merge. See `skills/sprint-auto/SKILL.md` for the full pattern, `references/post-pr-sequence.md` for the S0–S15 state machine, `references/escalation-policy.md` for the rollback + attempt-cap contract, and `references/worktree-lifecycle.md` for the project-local bootstrap-script contract (`tools/sprint-auto-bootstrap.sh`).
+Worktrees are preserved after each run — success or failure — so the human can review PRs or diagnose failures in the morning. Per-IDEA worktrees are code-surface only, so there is no per-IDEA stack to tear down (state S8 is a no-op); the single integration docker stack has its containers stopped (`docker compose down`, never `-v`) at S11.13, volumes + worktree filesystems retained for inspection. The skill never runs `git worktree remove`, never merges, never force-pushes. The post-merge cleanup (`-v` + worktree remove) is the human's `/land --integration <batch-iso>` chore after merge. See `skills/sprint-auto/SKILL.md` for the full pattern, `references/post-pr-sequence.md` for the S0–S15 state machine, `references/escalation-policy.md` for the rollback + attempt-cap contract, and `references/worktree-lifecycle.md` for the project-local bootstrap-script contract (`tools/sprint-auto-bootstrap.sh`).
 
 ## Compound routing (the novel piece)
 
 When you've just solved a problem — or a PR-review finding has been cleared — `/compound` classifies the learning through a hybrid narrative-probe + taxonomy-quiz and writes it to the right destination:
 
-| Shape of learning | Destination | Example |
-| --- | --- | --- |
-| Project-specific fix with domain detail | `<project>/docs/solutions/<topic>.md` | Webhook HMAC mismatch due to flat-payload edge case |
-| Cross-project pattern | mind-vault skill or `references/` file | "Async tenant context loss in Channels → wrap in `with tenant_context(tenant):`" |
-| Guardrail-worthy hard rule (always-on, cross-cutting) | `mind-vault/rules/RULE_<name>.md` | "Never push to main" / "Renames first, drops last" |
-| Reviewer-caught pattern | new pass appended to `agents/AGENT_<persona>.md` | "Dictionary key collisions silently swallow overrides" |
-| Tool-worthy repeatable action | `mind-vault/commands/<verb>.md` or `tools/<script>.sh` | Regex sweep for `format_html(_(...))` migration drift |
-| User-behavioural preference | auto-memory `feedback_*` / `project_*` / `user_*` / `reference_*` | "Prefer bundled PR over split for this kind of refactor" |
+| Shape of learning                                     | Destination                                                       | Example                                                                          |
+| ----------------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Project-specific fix with domain detail               | `<project>/docs/solutions/<topic>.md`                             | Webhook HMAC mismatch due to flat-payload edge case                              |
+| Cross-project pattern                                 | mind-vault skill or `references/` file                            | "Async tenant context loss in Channels → wrap in `with tenant_context(tenant):`" |
+| Guardrail-worthy hard rule (always-on, cross-cutting) | `mind-vault/rules/RULE_<name>.md`                                 | "Never push to main" / "Renames first, drops last"                               |
+| Reviewer-caught pattern                               | new pass appended to `agents/AGENT_<persona>.md`                  | "Dictionary key collisions silently swallow overrides"                           |
+| Tool-worthy repeatable action                         | `mind-vault/commands/<verb>.md` or `tools/<script>.sh`            | Regex sweep for `format_html(_(...))` migration drift                            |
+| User-behavioural preference                           | auto-memory `feedback_*` / `project_*` / `user_*` / `reference_*` | "Prefer bundled PR over split for this kind of refactor"                         |
 
 Mind-vault destinations land as commits on the active sprint branch (no new branch if one is in flight — no branch spam), with an open PR maintained by `/compound` itself. If mind-vault is on `main`, the skill creates a fresh `compound/YYYY-MM-DD-<slug>` branch first. `RULE_git-safety` is honoured: the agent never commits to `main`, never force-merges; the human merges the PR.
 
@@ -151,9 +151,9 @@ Typical invocation on a new feature:
 /plan <slug>               # or /brainstorm <slug> — produces plan doc
 /work <plan-path>          # dispatches to personas, commits as it goes
 # ... open PR ...
-/review-loop <pr-url> <engine>    # 4a deliverables — bugbot | copilot | claude | any subset, per project's review_engine
-/wrap                      # 4b finalize docs (pre-merge, --scope=docs default)
-/review-loop <pr-url> <engine>    # 4c docs pass — same engine(s); code-only PRs collapse this
+/wrap                      # 4a finalize docs (pre-merge, --scope=docs default)
+/review-loop <pr-url> <engine>    # 4b single review over the wrapped PR — bugbot | copilot | claude | any subset
+/land <NNN>                # 4c merge (non-protected) + teardown; protected → hands back PR URL
 /compound                  # routes what we learned
 ```
 
@@ -168,13 +168,13 @@ git checkout -b fix/typo
 
 ## Right-sizing
 
-| Work shape | Minimum ceremony |
-| --- | --- |
-| Typo / one-liner | skip idea + plan; do work + review |
-| Small bounded fix (< 30 min) | skip idea; plan is optional |
-| Feature with unknowns | full loop from idea |
-| Cross-cutting refactor | full loop; compound at end is non-optional |
-| Post-incident learning | stages 1–3 already done elsewhere; invoke `/compound` directly |
+| Work shape                    | Minimum ceremony                                               |
+| ----------------------------- | -------------------------------------------------------------- |
+| Typo / one-liner              | skip idea + plan; do work + review                             |
+| Small bounded fix (\< 30 min) | skip idea; plan is optional                                    |
+| Feature with unknowns         | full loop from idea                                            |
+| Cross-cutting refactor        | full loop; compound at end is non-optional                     |
+| Post-incident learning        | stages 1–3 already done elsewhere; invoke `/compound` directly |
 
 The loop's value scales with the work's ambiguity. Don't force ceremony onto work that doesn't need it.
 
@@ -190,6 +190,6 @@ The loop's value scales with the work's ambiguity. Don't force ceremony onto wor
 - [rules/RULE_git-safety.md](../../rules/RULE_git-safety.md) — what `/compound` honours when promoting to mind-vault
 - [skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md](../../skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — what `/work` cites for parallel execution
 
----
+______________________________________________________________________
 
 **Last Updated**: 2026-04-20 (stage-2 output path + directory-layout diagram synced with `RULE_ideas-location-status` two-location model)
