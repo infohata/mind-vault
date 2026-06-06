@@ -3,7 +3,7 @@ stage: plan
 slug: split-wrap-land
 created: 2026-06-06
 source: ./IDEA-015-split-wrap-into-wrap-and-land.md
-status: ready
+status: shipped
 project: mind-vault
 ---
 
