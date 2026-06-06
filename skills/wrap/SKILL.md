@@ -325,7 +325,7 @@ If `VER_SOURCE=none`, skip this step entirely — the project doesn't publish a 
 
 **Fires when** wrap is running post-merge AND the sprint ran in a parallel git worktree with its own docker-compose stack. **Skipped** when running from the primary checkout (`git rev-parse --git-common-dir` equals `.git`), when the PR is still open, when the user signalled keep-the-stack-up (`WRAP_KEEP_STACK=1` / `--keep-stack`), or when the worktree has uncommitted work. In `sprint-auto` mode, teardown remains **deferred** to morning review.
 
-Mechanics — destructive teardown sequence (`docker compose down -v` → `git worktree remove` → `git branch -d`), per-file evaluation when `git worktree remove` refuses (forgotten commits, missing gitignore rules, stale ephemera, container-as-root permission residue) — are in [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md). Read that reference when this step fires. For a sprint-auto **v3.2** batch, whole-batch teardown runs via the `--integration` mode below, not the per-IDEA path.
+Mechanics — destructive teardown sequence (`docker compose down -v` → `git worktree remove` → `git branch -d`), per-file evaluation when `git worktree remove` refuses (forgotten commits, missing gitignore rules, stale ephemera, container-as-root permission residue) — are in [`references/WORKTREE_TEARDOWN.md`](../land/references/WORKTREE_TEARDOWN.md). Read that reference when this step fires. For a sprint-auto **v3.2** batch, whole-batch teardown runs via the `--integration` mode below, not the per-IDEA path.
 
 ### `--integration <batch-iso>` mode (sprint-auto v3.2 batch teardown)
 
@@ -335,7 +335,7 @@ A distinct post-merge invocation — **not** a `--scope` value — that the huma
 2. **Tear down the integration worktree + branch** — `docker compose down -v` in the integration worktree (the batch's only docker stack, port offset +30000), then `git worktree remove`, then `git branch -d integration/sprint-auto-<batch-iso>` and delete the remote branch.
 3. **Tear down each per-IDEA worktree + branch** from the batch manifest — the `auto/<slug>` branches auto-closed as merged ancestors when the integration PR merged, so for each: `git worktree remove` + `git branch -d auto/<slug>`.
 
-This is the v3.2 teardown trigger. It **supersedes** the v3.1 last-of-batch `/wrap NNN` trigger (which fired when the last per-IDEA IDEA was wrapped post-merge) — a model that doesn't fit v3.2, where per-IDEA PRs target the integration branch and auto-close on its merge, so they never receive an individual post-merge `/wrap NNN` to act as the trigger. The destructive-sequence + refusal mechanics in [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md) apply per worktree.
+This is the v3.2 teardown trigger. It **supersedes** the v3.1 last-of-batch `/wrap NNN` trigger (which fired when the last per-IDEA IDEA was wrapped post-merge) — a model that doesn't fit v3.2, where per-IDEA PRs target the integration branch and auto-close on its merge, so they never receive an individual post-merge `/wrap NNN` to act as the trigger. The destructive-sequence + refusal mechanics in [`references/WORKTREE_TEARDOWN.md`](../land/references/WORKTREE_TEARDOWN.md) apply per worktree.
 
 ### Step 6 — Downstream docs scan
 
@@ -387,7 +387,7 @@ The gate exists for IDEAs whose behaviours render-and-assert tests cannot verify
 
 **Fires when** scope is `full` (NOT the `docs` default, NOT `idea-only`) AND the wrap is running in pre-merge mode AND the PR's target branch is **non-protected** per [`RULE_git-safety`](../../rules/RULE_git-safety.md). Under the `docs` default this step is structurally unreachable — a bare `/wrap` never merges. Protected branches (`main`, `production`, `deployment` — the project decides which) ALWAYS require a human merge even under `--scope=full`; the wrap stops at "docs are coherent on the feature branch" and hands the PR URL to the user. Non-protected branches (sprint cohort like `sprint/<topic>`, integration branches like `integration/sprint-auto-<batch>`, any feature branch) are agent-authority for `gh pr merge` and `--scope=full` concludes the IDEA atomically.
 
-The HITL gate is *protected-branch* merge, not *every* merge; the gate stays exactly where `RULE_git-safety` puts it. Mechanics — protected-branch detection, pre-merge review re-clearance options (default: wait for re-clean), squash-merge sequence, permission-denial handling, deployment-branch override — are in [`references/ATOMIC_MERGE.md`](references/ATOMIC_MERGE.md). Read that reference when this step fires.
+The HITL gate is *protected-branch* merge, not *every* merge; the gate stays exactly where `RULE_git-safety` puts it. Mechanics — protected-branch detection, pre-merge review re-clearance options (default: wait for re-clean), squash-merge sequence, permission-denial handling, deployment-branch override — are in [`references/ATOMIC_MERGE.md`](../land/references/ATOMIC_MERGE.md). Read that reference when this step fires.
 
 ## Interaction rules
 
@@ -408,9 +408,9 @@ The HITL gate is *protected-branch* merge, not *every* merge; the gate stays exa
 ## References
 
 - [`references/IDEA_COMPLETENESS_AUDIT.md`](references/IDEA_COMPLETENESS_AUDIT.md) — Step 2 pre-condition: walk plan acceptance criteria before flipping `status: complete`. ⚠️ marker for unmet criteria, phase-tracking frontmatter (`phase_N_completed:` + `completed:`), worked premature-wrap precedent.
-- [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md) — Step 5 mechanics: destructive teardown sequence, per-file evaluation when `git worktree remove` refuses, last-of-batch integration cleanup for sprint-auto v3.1 batches.
+- [`references/WORKTREE_TEARDOWN.md`](../land/references/WORKTREE_TEARDOWN.md) — Step 5 mechanics: destructive teardown sequence, per-file evaluation when `git worktree remove` refuses, last-of-batch integration cleanup for sprint-auto v3.1 batches.
 - [`references/EVAL_GATE_EMISSION.md`](references/EVAL_GATE_EMISSION.md) — Step 7 mechanics: emission shell + placeholder substitution, Playwright-coverage pre-fill algorithm for Direction-1 IDEAs, MANUAL_EVAL_TRACKER hand-off when the walk surfaces issues.
-- [`references/ATOMIC_MERGE.md`](references/ATOMIC_MERGE.md) — Step 8 mechanics: protected-branch detection, pre-merge review re-clearance, squash-merge sequence, permission-denial handling, deployment-branch override.
+- [`references/ATOMIC_MERGE.md`](../land/references/ATOMIC_MERGE.md) — Step 8 mechanics: protected-branch detection, pre-merge review re-clearance, squash-merge sequence, permission-denial handling, deployment-branch override.
 - [`references/WRAP_BEFORE_REVIEW.md`](references/WRAP_BEFORE_REVIEW.md) — ordering for doc-heavy PRs: run wrap's doc-finalization steps *before* `/review-loop` so the reviewer sees docs at shipped state (catches doc-consistency findings in the same pass, no post-review drift). Merge stays post-review-clear. Includes the Step 2 body-prose status-line sync rationale.
 - [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md) — the frontmatter-only transition this skill relies on.
 - [`RULE_parallel-worktree-docker`](../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — the worktree + compose-project contract Step 5 tears down.

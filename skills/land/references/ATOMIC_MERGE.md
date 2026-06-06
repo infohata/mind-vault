@@ -1,14 +1,14 @@
-# Atomic merge — wrap concludes the IDEA when the target is non-protected
+# Atomic merge — /land concludes the IDEA when the target is non-protected
 
-**When this fires**: pre-merge `/wrap` runs **under `--scope=full`** (the explicit merge opt-in — NOT the `docs` default, which structurally can't reach Step 8), when the PR's target branch is **non-protected** per [`RULE_git-safety`](../../../rules/RULE_git-safety.md). Protected branches (`main`, `production`, `deployment` — the project decides which) ALWAYS require a human merge even under `--scope=full`; the wrap stops at "docs are coherent on the feature branch" and hands the PR URL to the user. Non-protected branches (sprint cohort like `sprint/<topic>`, integration branches like `integration/sprint-auto-<batch>`, any feature branch) are agent-authority for `gh pr merge` and `--scope=full` concludes the IDEA atomically.
+**When this fires**: `/land NNN` runs pre-merge on an OPEN PR (the named merge stage of the workflow, after `/wrap` finalized docs and the single `/review-loop` cleared), when the PR's target branch is **non-protected** per [`RULE_git-safety`](../../../rules/RULE_git-safety.md). Protected branches (`main`, `production`, `deployment` — the project decides which) ALWAYS require a human merge; `/land` stops, hands the PR URL to the user. Non-protected branches (sprint cohort like `sprint/<topic>`, integration branches like `integration/sprint-auto-<batch>`, any feature branch) are agent-authority for `gh pr merge` and `/land` concludes the IDEA atomically.
 
-The wrap SKILL.md body's Step 8 holds the firing-conditions stub; this reference holds the mechanics.
+The land SKILL.md body's Atomic-merge section holds the firing-conditions stub; this reference holds the mechanics.
 
 ## Why this exists
 
-Sprint-auto already does atomic-merge at the multi-IDEA scale (S11.10 integration-PR creation + review → integration PR merge produces a single shipping moment for the batch). The single-IDEA wrap follows the same principle: when nothing about the merge target is protected, the wrap *can* be the deliverer in one shot — `--scope=full` collapses "wrap then click merge" into a single operator interaction. The HITL gate is *protected-branch* merge, not *every* merge; the gate stays exactly where `RULE_git-safety` puts it.
+Sprint-auto already does atomic-merge at the multi-IDEA scale (S11.10 integration-PR creation + review → integration PR merge produces a single shipping moment for the batch). The single-IDEA `/land` follows the same principle: when nothing about the merge target is protected, `/land` *is* the deliverer in one shot — it collapses "review-clear then click merge" into a single operator interaction. The HITL gate is *protected-branch* merge, not *every* merge; the gate stays exactly where `RULE_git-safety` puts it.
 
-**Why merge is opt-in, not the default.** Atomic merge lives behind `--scope=full` rather than the no-arg default because merge is the destructive, irreversible-ish step (it ships the IDEA and unblocks post-merge teardown). The safe default (`--scope=docs`) finalizes docs and stops short of Step 8 — which is exactly what the wrap-before-review pass-1 needs: docs reach shipped state for `/review-loop` to review, *then* the human (or a deliberate pass-2 `/wrap --scope=full`) merges. The two-pass model `docs → review → full` is the standard flow for doc-heavy PRs, not a workaround; `--scope=full` is how you ask for the atomic conclusion when you've decided it's time to merge. See [`WRAP_BEFORE_REVIEW.md`](WRAP_BEFORE_REVIEW.md).
+**Why merge is its own stage, not part of `/wrap`.** Merge is the destructive, irreversible-ish step (it ships the IDEA and unblocks post-merge teardown), so it is a separate, explicit operation — `/land`, run only after `/wrap` finalized docs and `/review-loop` cleared the wrapped PR. `/wrap` cannot merge; `/land`'s precondition guard (frontmatter `complete`, devlog present, index moved) verifies docs are finalized before touching `gh pr merge`. This is the single-review chain `work → wrap → review → land` — `/land` is how you ask for the atomic conclusion once review is clean. (Legacy: this merge used to live behind `/wrap --scope=full`; that scope is now a deprecated shim that redirects here.)
 
 ## Detection
 
@@ -71,10 +71,10 @@ default_branch=$(git symbolic-ref refs/remotes/origin/HEAD --short | sed 's|orig
 git checkout "$base_branch"
 git pull --ff-only origin "$base_branch"
 
-# 4. Run WORKTREE_TEARDOWN.md (the SKILL.md Step 5 reference) now that the
+# 4. Run WORKTREE_TEARDOWN.md (the /land teardown reference) now that the
 #    PR is in — `git branch -d` wouldn't have agreed before merge. If the
 #    work happened in a parallel worktree, the destructive teardown is
-#    finally safe at this point.
+#    finally safe at this point (the same /land pass continues into teardown).
 ```
 
 **Permission denials are not failures** — when `gh pr merge` is denied (the user's project-level permission settings declined the action despite the rule allowing it), this step surfaces the denial as "human-clicks-merge step required" and hands back the PR URL. The wrap commits are already pushed; the user can merge manually with no loss.
