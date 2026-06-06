@@ -64,7 +64,7 @@ proof.
 | ORM eager-loading | `with()` every relation traversed in a loop; `Model::preventLazyLoading(!isProduction())` so an accidental lazy-load *throws* in dev/CI (Laravel-native, no Django analog); `insert()`/`upsert()` for bulk, `chunkById()` while mutating. |
 | Input-validation boundary | Validate at the edge in a Form Request; controller sees only `$request->validated()` (never `$request->all()` post-validate); responses via `JsonResource`, never a raw Eloquent model. |
 | Background jobs | `ShouldQueue` on Redis + Horizon under a supervised `queue:work`; pass IDs not models; `->afterCommit()` on any dispatch inside a transaction; `ShouldBeUnique`/`WithoutOverlapping` for idempotency. |
-| Data isolation / scoping boundary | Global scope via `#[ScopedBy]` + a `BelongsToTenant` trait that filters reads **and** stamps `tenant_id` on create; trust the scope (don't re-add manual `where`), but close the create-path stamping gap. |
+| Data isolation / scoping boundary | A `BelongsToTenant` trait registers a **fail-closed** global scope (via `addGlobalScope`) that filters reads **and** stamps `tenant_id` on create; trust the scope (don't re-add manual `where`), but close the create-path stamping gap. (`#[ScopedBy]` is the opt-in declarative alternative to the trait's `addGlobalScope`, never both.) |
 | Permissions/authorization | Authorization lives in auto-discovered Policies (Gates for model-less); enforce structurally with `Gate::authorize()`/`$this->authorize()`; `spatie/laravel-permission` is RBAC storage only; never scatter `if ($user->role === 'admin')`. |
 | Testing conventions | Pest (conventional default) Feature tests at the HTTP boundary + `RefreshDatabase` + factories + `--parallel`; no DB-touching test without `RefreshDatabase`. |
 

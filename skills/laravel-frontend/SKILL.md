@@ -1,6 +1,6 @@
 ---
 name: laravel-frontend
-description: Apply Laravel 12 frontend conventions across the four client-surface concerns — where client state lives (server-rendered Blade baseline, with Livewire 4 and Inertia 2 as opt-in variant layers), how a server returns a fragment vs a full page (Blade @fragment + ->fragmentIf on HX-Request, the Django HTMXMixin twin), how reusable UI is composed (Blade components, CSS-framework-agnostic; Flux only as a license-gated Livewire UI kit), and how a form is guarded against double-submit (vanilla-JS in-flight lock baseline, automatic with wire:submit). Baseline is plain server-rendered Blade + Bootstrap-style CSS + Vite + minimal vanilla JS (axios); Livewire/Inertia/Flux/Tailwind/Alpine are documented variants, never assumed.
+description: Apply Laravel 12 frontend conventions across the four client-surface concerns — where client state lives (server-rendered Blade baseline, with Livewire 4 and Inertia 2 as opt-in variant layers), how a server returns a fragment vs a full page (Blade @fragment + ->fragmentIf on HX-Request, the Django HTMXMixin twin), how reusable UI is composed (Blade components, CSS-framework-agnostic; Flux only as a license-gated Livewire UI kit), and how a form is guarded against double-submit (vanilla-JS in-flight lock baseline, automatic with wire:submit). Baseline is plain server-rendered Blade + Bootstrap-style CSS + Vite + minimal vanilla JS (native fetch; axios is a drop-in alternative); Livewire/Inertia/Flux/Tailwind/Alpine are documented variants, never assumed.
 license: Apache-2.0
 metadata:
   author: mind-vault
@@ -9,7 +9,7 @@ metadata:
 
 # laravel-frontend
 
-Production frontend patterns for Laravel 12, organised around the four client-surface contract concerns. **The baseline is plain server-rendered Blade + a Bootstrap-style CSS framework + Vite + minimal vanilla JS (axios)** — the actual stack of a real Laravel 12 rework PoC (server-rendered Blade, Bootstrap 5, Vite, vanilla JS; NO Livewire / Inertia / Flux / Tailwind / Alpine). Philosophy: the server renders truth as HTML, the browser does the minimum to enhance it. Livewire 4 and Inertia 2 are presented as **opt-in variant layers**, clearly marked `[Variant: Livewire]` / `[Variant: Inertia]`; Flux is a **license-gated Livewire UI kit**, never the default.
+Production frontend patterns for Laravel 12, organised around the four client-surface contract concerns. **The baseline is plain server-rendered Blade + a Bootstrap-style CSS framework + Vite + minimal vanilla JS (native `fetch` — axios is a drop-in alternative the adopter happens to use)** — the actual stack of a real Laravel 12 rework PoC (server-rendered Blade, Bootstrap 5, Vite, vanilla JS; NO Livewire / Inertia / Flux / Tailwind / Alpine). Philosophy: the server renders truth as HTML, the browser does the minimum to enhance it. Livewire 4 and Inertia 2 are presented as **opt-in variant layers**, clearly marked `[Variant: Livewire]` / `[Variant: Inertia]`; Flux is a **license-gated Livewire UI kit**, never the default.
 
 **Pairs with:** [laravel](../laravel/SKILL.md) for backend conventions (Form Requests, Eloquent eager-loading, Policies, queues). Load both on full-stack feature work — e.g. a controller returning a Blade fragment on an `HX-Request` and the full page otherwise.
 
@@ -23,7 +23,7 @@ Production frontend patterns for Laravel 12, organised around the four client-su
 
 | Layer | What it is | When it applies |
 | --- | --- | --- |
-| **Baseline — plain Blade** | Server-rendered Blade + Bootstrap-style CSS + Vite + minimal vanilla JS (axios). No reactive framework. | Default. Assume this unless a variant is detected or pinned. |
+| **Baseline — plain Blade** | Server-rendered Blade + Bootstrap-style CSS + Vite + minimal vanilla JS (native `fetch`; axios optional). No reactive framework. | Default. Assume this unless a variant is detected or pinned. |
 | **[Variant: Livewire 4]** | PHP component classes; `wire:*` directives; bundled Alpine for local-only UI. Ships in L12 starter kits. | Project has `wire:*` in views / `app/Livewire/*`. |
 | **[Variant: Inertia 2]** | Vue 3 / React 19 / Svelte 5 SFCs; JSON props over the adapter; client-side routing. | Project has `@inertia` + `resources/js/Pages/*`. |
 | **Flux** (UI kit, not a variant) | Livewire's first-party `<flux:…>` component kit. **Free tier + Pro tier (license-gated).** | Livewire-only, and only when Tailwind + Flux are installed. Never baseline. |
@@ -36,7 +36,7 @@ The four sections below are the **required contract headings** (verbatim-identic
 
 ### Reactivity model
 
-**Baseline (plain Blade):** the server is the single source of truth. State changes go back to the server — a full-page navigation, or a server-rendered fragment swap (see *Partial/fragment response*). Local-only interactivity (toggling a menu, disabling a button) is a tiny scoped `<script>` that touches only the element it owns, or an `axios` call whose response replaces a region. No global function dumping, no framework store.
+**Baseline (plain Blade):** the server is the single source of truth. State changes go back to the server — a full-page navigation, or a server-rendered fragment swap (see *Partial/fragment response*). Local-only interactivity (toggling a menu, disabling a button) is a tiny scoped `<script>` that touches only the element it owns, or a `fetch` call whose response replaces a region. No global function dumping, no framework store.
 
 ```js
 // resources/js/menu.js — scoped, no globals leak
@@ -58,7 +58,7 @@ The closure boundary is the file: imported through Vite (`resources/js/app.js`),
 
 ### Partial/fragment response
 
-**Baseline (plain Blade) — the Django `HTMXMixin` twin:** one route returns either the full page (normal navigation) or just the changed fragment (an `HX-Request` / `axios` swap), dispatched on a request header. Blade's `@fragment` directive plus the response's `->fragmentIf(...)` is the mechanism — the server owns which slice ships.
+**Baseline (plain Blade) — the Django `HTMXMixin` twin:** one route returns either the full page (normal navigation) or just the changed fragment (an `HX-Request` / `fetch` swap), dispatched on a request header. Blade's `@fragment` directive plus the response's `->fragmentIf(...)` is the mechanism — the server owns which slice ships.
 
 ```php
 // resources/views/articles/index.blade.php
@@ -147,6 +147,11 @@ function unlockForm(form) {                              // for the axios/fetch 
 
 document.addEventListener('submit', (e) => {
     const form = e.target;
+    // Skip framework-managed forms. Livewire's wire:submit already locks the
+    // button + sets inputs readonly in-flight; stacking this vanilla lock on top
+    // desyncs the two (see the [Variant: Livewire] note below). Opt any other
+    // form out with data-no-lock. This keeps the baseline lock to plain forms.
+    if (form.hasAttribute('wire:submit') || form.dataset.noLock !== undefined) return;
     if (form.dataset.locked) { e.preventDefault(); return; }
     lockForm(form);                                      // navigating submit: stays locked until the page unloads
 });

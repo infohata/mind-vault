@@ -1,6 +1,6 @@
 # Blade fragments + HTMX — the Django `HTMXMixin` twin (baseline deep-dive)
 
-Deep-dive for the **Partial/fragment response** contract heading. This is the **plain-Blade baseline** mechanism — the structural twin of Django's `HTMXMixin`: one route returns the full page on a normal navigation, or just the changed fragment on an `HX-Request` (or any `axios`-driven swap). The server owns which slice ships over the wire.
+Deep-dive for the **Partial/fragment response** contract heading. This is the **plain-Blade baseline** mechanism — the structural twin of Django's `HTMXMixin`: one route returns the full page on a normal navigation, or just the changed fragment on an `HX-Request` (or any `fetch`-driven swap). The server owns which slice ships over the wire.
 
 ## The mechanism: `@fragment` + `->fragmentIf(...)`
 
@@ -45,7 +45,7 @@ public function index(Request $request)
 
 ## Header detection
 
-`HX-Request` is the header HTMX sends. With plain `axios` you set it yourself:
+`HX-Request` is the header HTMX sends. With plain `fetch` (the vanilla baseline) you set it yourself:
 
 ```js
 // resources/js/fragment.js
