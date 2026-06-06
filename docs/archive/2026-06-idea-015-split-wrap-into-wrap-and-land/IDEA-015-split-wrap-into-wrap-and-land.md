@@ -1,7 +1,7 @@
 ---
 id: 015
 title: "Split /wrap into /wrap (docs) + /land (merge + teardown)"
-status: idea          # idea | in-progress | complete | superseded
+status: in-progress          # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
