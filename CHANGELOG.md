@@ -10,6 +10,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.8.1 — compound: git-mv inbound-link audit + markdown-formatter gotchas
+
+Patch release — two learnings compounded from the IDEA-009 sprint (the `skills/python` extraction). No IDEA (no planning cycle); provenance is the date + PR. (2026-06-06, [#181](https://github.com/infohata/mind-vault/pull/181))
+
+### Changed
+
+- **`RULE_self-sweep-before-push` rationale** § Contract-Change Sweep gains *"A file move / rename is a path-contract change — sweep BOTH directions"*: a `git mv` is a contract change where the path is the contract and **inbound links from sibling files are the callers**. The IDEA-009 lift `git mv`-ed an IDEA file to the archive dir; the in-loop link audit checked links *out of* the moved file but a sibling (`IDEA-014`) still linked to its OLD path and silently dangled — caught by the claude review a cycle later, when a pre-push inbound grep would have caught it free. Recipe now mandates both the outbound (`test -f` from the NEW dir) and inbound (grep the OLD path repo-wide) passes. Cross-ref added from the `RULE_rename-before-drop` rationale's "Relationship To Other Rules".
+
+### Added
+
+- **`skills/skill-writer/references/MARKDOWN_FORMATTER_GOTCHAS.md`** — constructs auto-formatters silently rewrite in a meaning-changing way. First entry: a literal `+`/`-`/`*` at the start of a wrapped prose line is a CommonMark list marker, so mdformat "canonicalises" it into a real list item (blank line + `+`→`-`), splitting the sentence — and it survives the formatter's idempotency check, so only a diff-read catches it. Surfaced during the IDEA-009 lift. Pointer added to the skill-writer References list.
+
 ## v4.8 — IDEA-009: skills/python base layer
 
 Minor release ([PR #164](https://github.com/infohata/mind-vault/pull/164), IDEA-009). Stands up a deliberate **language-base tier** beneath the framework-stack skills — adopter-facing: any Python project (django or not) now gets a `/python` skill for language-general engineering recipes, and the vault gains the correct home for future Python-general patterns instead of misfiling them under a framework skill by gravity. De-risks the `craft agent → framework skill → language-base skill` tiering that IDEA-014 ([PR #178](https://github.com/infohata/mind-vault/pull/178)) builds on. (2026-06-06)

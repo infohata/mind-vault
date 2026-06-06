@@ -47,6 +47,23 @@ Run from the project root, not the file's directory — the bot's review scope i
 - **Async-ifying a sync function**: callers that ignored the return value silently complete out-of-order; races appear intermittently.
 - **Removing a side effect**: callers depending on DOM mutation, log emission, cache invalidation silently degrade.
 
+### A file move / rename is a path-contract change — sweep BOTH directions
+
+`git mv old/path.md new/path.md` (or any relocation) is a contract change where the **path itself is the contract** and **inbound links from other files are the callers**. The trap, surfaced on a real PR: a `git mv` relocated a doc, and an in-loop link audit confirmed every link *out of* the moved file resolved — but a sibling file that linked *to* the moved file's OLD path was never checked, so it silently dangled. A review bot caught it a cycle later; a pre-push grep would have caught it for free.
+
+The audit has two directions — do BOTH:
+
+1. **Outbound** — links *from* the moved file: resolve each relative target against the file's NEW directory (`cd new_dir && test -f`), since the `../` depth shifts when the file moves up or down the tree.
+2. **Inbound** — links *to* the moved file: grep the whole repo for the OLD path and repoint every live hit. This is the half a one-directional audit misses.
+
+```bash
+git mv docs/ideas/IDEA-009-foo.md docs/archive/2026-06-.../IDEA-009-foo.md
+# inbound: who still links to the path you just vacated?
+grep -rn 'IDEA-009-foo\.md' docs/ skills/ README.md   # repoint every live (non-archive) hit
+```
+
+Resolve-not-match: a string-match grep proves a link *names* the right file, not that its relative `../` depth resolves — always `test -f` the resolved path from the **linking** file's directory. Pairs with [`RULE_rename-before-drop`](RULE_rename-before-drop-rationale.md), the move-sequencing rule a relocation rides.
+
 ### What does NOT need the sweep
 
 - Pure additions: new optional kwarg, new return field on a dict. Callers ignoring the new surface are unaffected.
@@ -154,6 +171,7 @@ Doc-heavy commits (IDEA files, the ideas index/README, plan docs, dev logs) draw
 1. **Frontmatter ↔ body cross-ref symmetry.** Every id in a file's `related:` / `depends_on:` / `supersedes:` frontmatter should be discoverable in the body's prose, and every id discussed in the body's "Related" section should be in the frontmatter. When you *add* an edge in frontmatter (e.g. `related: [..., NNN]`), add the matching one-line backref in the body — bots flag the asymmetry. **Applies to every edge type, and to every id within a list** — a `depends_on: [A, B]` whose prose mentions only B is the exact asymmetry bots catch. Name all the ids the frontmatter lists, not just the one you were focused on.
 
 2. **Ordering-block ↔ index/table membership.** Every entity named in a locked-order / sequence / recap block must have a corresponding row in any progress/index table the same doc maintains. A reorder that introduces an id into the chain without a table row is the classic miss. Mechanical check:
+
    ```bash
    # ids named in the ordering line vs ids with a table row — the diff is the gap
    grep -oE 'IDEA-[0-9]+|[0-9]{3}' <ordering-block> | sort -u > /tmp/in_order
@@ -168,6 +186,7 @@ Doc-heavy commits (IDEA files, the ideas index/README, plan docs, dev logs) draw
 5. **PR-description ↔ final-diff drift.** After a mid-PR reorder or a dependency-edge flip, the PR body written for the first commit goes stale. Re-read the PR description against the *final* diff before the next trigger — bots compare the two resources and flag conflicting guidance. A one-line "earlier draft said X; reversed in a follow-up — the diff below is authoritative" note also resolves it.
 
 6. **Frontmatter formatting matches repo convention.** When a file is created from a template, strip the template's placeholder hint comments (`status: idea  # idea | in-progress | …`, gate-explanation comment blocks) before commit if the repo's existing files keep frontmatter comment-free. Mismatched frontmatter style is a low-cost bot nit. Quick check — compare the new file's comment count against a sibling:
+
    ```bash
    awk '/^---$/{c++;next} c==1 && /#/{n++} c==2{exit} END{print n+0}' <new-file>   # vs a sibling; should match
    ```
