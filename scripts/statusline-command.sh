@@ -122,26 +122,33 @@ fi
 # ── 4. 5-hour rolling rate limit ─────────────────────────────────────────────
 # Tier colors mirror ctx exactly: dim (<50) / yellow-bold (50-79) / red-bold (≥80).
 if [ -n "$five_hour" ]; then
-    fh_int=$(printf '%.0f' "$five_hour")
-    if [ "$fh_int" -ge 80 ]; then
-        parts+=("$(printf "${RED_BOLD}5h:%d%%${RESET}" "$fh_int")")
-    elif [ "$fh_int" -ge 50 ]; then
-        parts+=("$(printf "${YELLOW_BOLD}5h:%d%%${RESET}" "$fh_int")")
-    else
-        parts+=("$(printf "${DIM}5h:%d%%${RESET}" "$fh_int")")
+    fh_int=$(printf '%.0f' "$five_hour" 2>/dev/null)
+    # Only render for a plausible 0-100 percentage — a bogus non-percentage value
+    # (e.g. an epoch ts before the window has data) must not paint a red tier.
+    if [ -n "$fh_int" ] && [ "$fh_int" -ge 0 ] && [ "$fh_int" -le 100 ]; then
+        if [ "$fh_int" -ge 80 ]; then
+            parts+=("$(printf "${RED_BOLD}5h:%d%%${RESET}" "$fh_int")")
+        elif [ "$fh_int" -ge 50 ]; then
+            parts+=("$(printf "${YELLOW_BOLD}5h:%d%%${RESET}" "$fh_int")")
+        else
+            parts+=("$(printf "${DIM}5h:%d%%${RESET}" "$fh_int")")
+        fi
     fi
 fi
 
 # ── 5. 7-day rolling rate limit ──────────────────────────────────────────────
 # Tier colors mirror ctx exactly: dim (<50) / yellow-bold (50-79) / red-bold (≥80).
 if [ -n "$seven_day" ]; then
-    week_int=$(printf '%.0f' "$seven_day")
-    if [ "$week_int" -ge 80 ]; then
-        parts+=("$(printf "${RED_BOLD}7d:%d%%${RESET}" "$week_int")")
-    elif [ "$week_int" -ge 50 ]; then
-        parts+=("$(printf "${YELLOW_BOLD}7d:%d%%${RESET}" "$week_int")")
-    else
-        parts+=("$(printf "${DIM}7d:%d%%${RESET}" "$week_int")")
+    week_int=$(printf '%.0f' "$seven_day" 2>/dev/null)
+    # Parity with the 5h block: only render for a plausible 0-100 percentage.
+    if [ -n "$week_int" ] && [ "$week_int" -ge 0 ] && [ "$week_int" -le 100 ]; then
+        if [ "$week_int" -ge 80 ]; then
+            parts+=("$(printf "${RED_BOLD}7d:%d%%${RESET}" "$week_int")")
+        elif [ "$week_int" -ge 50 ]; then
+            parts+=("$(printf "${YELLOW_BOLD}7d:%d%%${RESET}" "$week_int")")
+        else
+            parts+=("$(printf "${DIM}7d:%d%%${RESET}" "$week_int")")
+        fi
     fi
 fi
 
