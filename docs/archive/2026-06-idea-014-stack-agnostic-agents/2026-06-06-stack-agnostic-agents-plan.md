@@ -3,7 +3,7 @@ stage: plan
 slug: stack-agnostic-agents
 created: 2026-06-06
 source: ./IDEA-014-stack-agnostic-agents.md
-status: ready                # draft | ready | shipped
+status: shipped              # draft | ready | shipped
 project: mind-vault
 phase_scope: "Phase 1 only (craft/stack split + contract + detection, Django green). Laravel proving stack = follow-on PR per user decision 2026-06-06."
 ---
@@ -132,17 +132,17 @@ Minimal **required** core (user decision) — the anchors the agent passes refer
 4. **Expose contract headings in `skills/django-frontend/SKILL.md`:** rename/umbrella `Reactivity model`; confirm `Partial/fragment response`, `Component system`, `Form-submission lock` anchors resolve.
 5. **Green gate:** `./tools/validate-skills.sh django django-frontend`; link-audit (resolve-not-match) on the contract doc + renamed anchors; self-sweep. Commit A: `feat(skills): IDEA-014 — define skill contract + expose contract headings in django skills`.
 
-**Phase 1B — split the profiles (craft core + stack adapter):**
+**Phase 1B — split the profiles (craft core + stack adapter):** ✅ DONE (Commits B, C1–C4 `bbd1a55`/`7fe99f1`/`4aa2959`/`76a5d22`, D `4f189b1`, E `ea8498e`)
 
 6. ✅ **Stack resolution docs first** (the adapter targets must exist to point at): extend `skills/work/references/persona-dispatch.md` with the `stack:` pin + auto-detect signal table; document `.claude/dispatch.md` `stack:` convention. **Signal precedence (A2):** backend markers (`artisan`, `manage.py`) resolve the *backend* stack; `package.json` resolves only the *frontend* stack, NEVER the backend — so a Laravel repo shipping a Vite/Tailwind `package.json` isn't misdetected as Node. Commit B: `docs(dispatch): IDEA-014 — stack resolution (dispatch pin + auto-detect signals)`.
-7. **Split the 4 heavy profiles** (`mv-backend`, `mv-frontend`, `mv-curator`, `mv-test-engineer`) — this step **replaces enforcement clauses with adapter pointers** (it does NOT delete the `Stack profile:` header lines — that's step 9, A1). For each: add a `## Stack adapter` section pointing at the contract heading of the active skill; rewrite each stack-mechanic clause to name the role+heading ("satisfies the active backend skill's **ORM eager-loading** rule"); keep craft passes intact. **Every adapter MUST carry the fail-open clause (MF4):** "if stack resolution yields no skill (no pin / no detect / ambiguous), enforce craft-only and **announce the unresolved-stack gap** — never silently skip a stack rule." `mv-curator` gets one `## Stack adapter` with `### Backend`+`### Frontend` subsections (Q2); `mv-test-engineer` adapter → backend skill's **Data isolation / scoping boundary** + **Testing conventions** (post-MF1 heading name). One commit per profile (C1–C4) for bisectability — each leaves Django green (the `Stack profile:` lines still physically present).
-8. **Light-touch the 4 generic profiles** (`mv-devops`, `mv-documentation`, `mv-researcher`, `mv-architect`): add a `## Stack adapter` section where relevant (e.g. devops compose/CI is partly stack-shaped), else a one-line "stack-agnostic; no adapter needed" marker for uniformity. Commit D.
-9. **Drop ONLY the now-orphaned `Stack profile:` header lines + any dead remnants** the step-7 rewrite left behind (the rename-before-drop *drop* step — only after 7–8 land green; step 7 already replaced the enforcement clauses, so this commit owns *only* the orphaned header lines, A1). Commit E: `refactor(agents): IDEA-014 — drop orphaned Django Stack-profile lines (craft cores remain)`.
+7. ✅ **Split the 4 heavy profiles** (`mv-backend`, `mv-frontend`, `mv-curator`, `mv-test-engineer`) — this step **replaces enforcement clauses with adapter pointers** (it does NOT delete the `Stack profile:` header lines — that's step 9, A1). For each: add a `## Stack adapter` section pointing at the contract heading of the active skill; rewrite each stack-mechanic clause to name the role+heading ("satisfies the active backend skill's **ORM eager-loading** rule"); keep craft passes intact. **Every adapter MUST carry the fail-open clause (MF4):** "if stack resolution yields no skill (no pin / no detect / ambiguous), enforce craft-only and **announce the unresolved-stack gap** — never silently skip a stack rule." `mv-curator` gets one `## Stack adapter` with `### Backend`+`### Frontend` subsections (Q2); `mv-test-engineer` adapter → backend skill's **Data isolation / scoping boundary** + **Testing conventions** (post-MF1 heading name). One commit per profile (C1–C4) for bisectability — each leaves Django green (the `Stack profile:` lines still physically present).
+8. ✅ **Light-touch the 4 generic profiles** (`mv-devops`, `mv-documentation`, `mv-researcher`, `mv-architect`): add a `## Stack adapter` section where relevant (e.g. devops compose/CI is partly stack-shaped), else a one-line "stack-agnostic; no adapter needed" marker for uniformity. Commit D.
+9. ✅ **Drop ONLY the now-orphaned `Stack profile:` header lines + any dead remnants** the step-7 rewrite left behind (the rename-before-drop *drop* step — only after 7–8 land green; step 7 already replaced the enforcement clauses, so this commit owns *only* the orphaned header lines, A1). Commit E: `refactor(agents): IDEA-014 — drop orphaned Django Stack-profile lines (craft cores remain)`.
 
-**Phase 1C — regression-guard + wrap:**
+**Phase 1C — regression-guard + wrap:** ✅ DONE
 
-10. **Django regression gate (R6, MF4) — deterministic primary.** Produce the line-conservation mapping table per heavy profile (`git diff` pre/post; every removed line → `Stack profile:` header OR a skill contract heading that now carries it; zero unaccounted removals). Verify each adapter's fail-open clause is present. A Django-diff reasoning dry-run is optional advisory color, NOT the gate. Document the mapping table + fail-open check in the plan's verification log.
-11. Architect re-clearance if any structural decision shifted during execution; then `/wrap` → `/review-loop` → `/land`.
+10. ✅ **Django regression gate (R6, MF4) — deterministic primary.** Line-conservation mapping table + fail-open check recorded in [`2026-06-06-phase1-verification-log.md`](2026-06-06-phase1-verification-log.md). All 8 deterministic checks (V1–V8) green; zero unaccounted enforcement removals.
+11. ✅ No architect re-clearance triggered (no architectural decision shifted — reconciliations logged in the verification log §). Next: `/wrap` → `/review-loop` → `/land`.
 
 ## Verification
 
