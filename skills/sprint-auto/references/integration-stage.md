@@ -34,7 +34,7 @@ The integration stage closes both. Surface conflicts are surfaced and resolved o
 **Lifecycle**:
 - Created at **S(-1)** (before any per-IDEA work). Bootstrapped via `tools/sprint-auto-bootstrap.sh` with no special flags (this is the canonical mode — full `.env` + docker stack + post-up init).
 - **v3.2: integration branch published to `origin` immediately at S(-1)** (`git push -u origin integration/sprint-auto-<batch-iso>`) so per-IDEA `/work` invocations in S2 can open PRs with `--base integration/sprint-auto-<batch-iso>`. GitHub requires the base ref to exist on the remote at PR-creation time. (v3.1 deferred this push to S11.10 because the branch was only used as a review anchor at that point.)
-- Stays up the entire batch. All per-IDEA verification (S2/S3/S6) routes here; all integration-phase work (S11.5–S11.13) happens here.
+- Stays up the entire batch. All per-IDEA verification (S2/S6) routes here; all integration-phase work (S11.5–S11.13) happens here.
 - Containers stopped (NOT `down -v`) at S11.13. Volumes preserved for inspection. Worktree filesystem stays. **The `[INTEGRATION]` PR is left OPEN at teardown** (v3.2) — it's the merge gate, not auto-closed.
 - Branch + worktree + remote ref cleaned up by the human's post-merge `/land --integration <batch-iso>` after merging the integration PR (see `skills/land/SKILL.md` § `--integration` mode). The teardown removes the integration worktree, deletes the local + remote integration branch, and removes each per-IDEA worktree + branch (whose PRs auto-closed when the integration PR merged).
 
@@ -56,7 +56,7 @@ Default behaviour: run `pytest` against the current worktree's stack. Sprint-aut
 
 The `--force-recreate web celery` refreshes the Python services with the per-IDEA branch's mounted code. Stateful services (db, redis, minio, elasticsearch) keep their state from the IDEA-entry reset — no need to recreate them.
 
-### `/<engine>-loop` (S3, S6)
+### `/<engine>-loop` (S6)
 
 Default behaviour: Phase 0 brings up the current worktree's stack (`.env` template-rewrite + `docker compose up`). Sprint-auto override: **skip Phase 0 entirely**. Per-IDEA worktrees are code-surface-only and have no `.env`. The review is performed remotely by the configured bot (Cursor Bugbot or GitHub Copilot reading the PR diff over the GitHub API); the local review-loop's role is reading findings + committing fixes — neither needs a runtime in the per-IDEA worktree.
 

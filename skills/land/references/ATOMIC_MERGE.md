@@ -29,7 +29,7 @@ for pb in "${protected_branches[@]}"; do
 done
 
 if $is_protected; then
-    echo "Target $base_branch is protected — wrap concludes; human merges."
+    echo "Target $base_branch is protected — land concludes; human merges."
     echo "PR ready: $(gh pr view "$PR_NUMBER" --json url --jq '.url')"
     exit 0
 fi
