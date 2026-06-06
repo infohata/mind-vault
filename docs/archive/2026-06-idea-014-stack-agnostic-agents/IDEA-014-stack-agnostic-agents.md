@@ -86,6 +86,8 @@ ______________________________________________________________________
 
 ## Phase 2 detail — Laravel skill landscape (original research, preserved)
 
+> **⚠️ Superseded for planning by [`2026-06-07-phase2-laravel-research.md`](2026-06-07-phase2-laravel-research.md)** (deep-research refresh, 2026-06-07). This section predates Phase 1 and names backend headings (*Multi-tenancy*, *Translation workflow*) that are NOT the shipped `SKILL_CONTRACT.md` required floor. Retained as historical record; the research doc maps Laravel onto the **actually-shipped** contract and is the input to the Phase 2 plan.
+
 ### Approach — hybrid: defer to Laravel Boost, derive mind-vault conventions on top
 
 Don't vendor any existing skill pack wholesale. Build a thin pair that anchors on the official ecosystem:
