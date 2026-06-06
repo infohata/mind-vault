@@ -4,7 +4,7 @@ slug: python-skill-extraction
 created: 2026-06-01
 refreshed: 2026-06-06   # rebased onto post-v4.7 main; deepened for IDEA-014 craft/stack alignment
 source: ./IDEA-009-extract-python-general-from-django.md
-status: ready
+status: shipped
 project: mind-vault
 ---
 
@@ -99,6 +99,8 @@ This section is **alignment, not new scope** — no Requirement or Execution ste
   - **Trade-off:** A near-empty body risks reading as a stub-skill; the base-layer intro paragraph + 2 firing stubs is enough to justify it without bloat. Resolved: default chosen.
 
 ## Execution Sequence
+
+**✅ Executed 2026-06-06 in a single commit `dc10368`** (steps 1–3 all landed together per the collapsed `git mv` decision): pre-flight Q1 resolved (no `docs/README.md` roster); `skills/python/SKILL.md` written; both refs `git mv`'d + django-isms fenced; 3 django pointers + rule-rationale repointed; green gate passed (validate-skills ✓, resolve-not-match link audit ✓, recipe parity ✓, mdformat idempotent ✓); symlink installer re-run registered `~/.claude/skills/python`.
 
 1. **Pre-flight.** `grep -rn 'skills/python\|MODULE_SPLIT\|ENV_DRIVEN' docs/README.md docs/guides/` + confirm no live (non-archive) ref to the two files beyond the 4 known sites. Resolve Q1.
 2. **Commit A — add + repoint (rename-before-drop "add new"):**
