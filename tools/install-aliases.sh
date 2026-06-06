@@ -139,6 +139,25 @@ strip_managed_block() {  # $1=file  $2=begin-marker  $3=end-marker
     fi
 }
 
+# Refuse early if a managed block is half-present (BEGIN without END, or END
+# without BEGIN) — a corrupted or interrupted prior edit. Running this BEFORE
+# the state check and BEFORE any write keeps `--check` consistent with install
+# (it no longer reports ✅ on a block install would refuse) and prevents a
+# mid-install abort that would leave ~/.bash_aliases rewritten but the git
+# aliases unset (a partial state). strip_managed_block keeps its own guard as
+# defense-in-depth; this just hoists the check ahead of all side effects.
+assert_no_orphan_block() {  # $1=file  $2=begin-marker  $3=end-marker
+    local file="$1" begin="$2" end="$3" has_begin=0 has_end=0
+    [ -f "$file" ] || return 0
+    grep -qF "$begin" "$file" && has_begin=1
+    grep -qF "$end" "$file" && has_end=1
+    if [ "$has_begin" != "$has_end" ]; then
+        echo "❌ Orphan managed block in $file (BEGIN/END marker mismatch)." >&2
+        echo "   Remove the stray marker line(s) by hand, then re-run." >&2
+        exit 1
+    fi
+}
+
 # True iff ~/.bashrc already sources ~/.bash_aliases — via our managed block OR
 # a real (non-comment) dot/source statement. A bare grep for the literal string
 # also matches a stray mention in a comment, which would wrongly skip the wiring
@@ -170,6 +189,15 @@ GIT_ALIASES=(
     'wip=!git add -A && git commit -m "WIP"'
     "lg=log --graph --abbrev-commit --decorate --all --format=format:'%C(bold blue)%h%C(reset) %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(auto)%d%C(reset)'"
 )
+
+# ---------------------------------------------------------------------------
+# Early orphan validation — before the state check reports and before any write
+# (findings E+F). Shell-only: these markers exist only when shell-install ran.
+# ---------------------------------------------------------------------------
+if [ "$DO_SHELL" = "1" ]; then
+    assert_no_orphan_block "$ALIASES_FILE" "$ALIAS_BEGIN" "$ALIAS_END"
+    assert_no_orphan_block "$BASHRC" "$SRC_BEGIN" "$SRC_END"
+fi
 
 # ---------------------------------------------------------------------------
 # State check
