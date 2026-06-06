@@ -126,28 +126,39 @@ When a UI element is rendered both server-side (Blade) and re-rendered client-si
 
 ### Form-submission lock
 
-**Baseline (plain Blade) — vanilla JS, the adopter's real pattern:** on `submit`, disable the submit button and set inputs `readonly`, flipping back when the request settles. A single delegated listener + an in-flight flag is enough; no per-form `onsubmit` sprinkling.
+**Baseline (plain Blade) — vanilla JS, the adopter's real pattern:** on `submit`, disable the submit button and set inputs `readonly`. A single delegated listener + an in-flight flag is enough; no per-form `onsubmit` sprinkling. **Lock vs unlock is a navigation question:** a full-page (navigating) submit *keeps* the lock until the new page replaces this one — that's the point, it blocks the double-submit during the in-flight navigation. Only a non-navigating (axios/fetch) submit clears the lock when the request settles, plus the one defensive clear for bfcache below.
 
 ```js
 // resources/js/submit-lock.js — one delegated listener, no globals
+function lockForm(form) {
+    form.dataset.locked = '1';
+    const btn = form.querySelector('[type="submit"]');
+    // flip a data-attr the CSS reads; do NOT overwrite innerHTML (destroys a spinner child).
+    if (btn) { btn.disabled = true; btn.dataset.loading = '1'; }
+    form.querySelectorAll('input, textarea, select').forEach((el) => { el.readOnly = true; });
+}
+
+function unlockForm(form) {                              // for the axios/fetch path + bfcache
+    delete form.dataset.locked;
+    const btn = form.querySelector('[type="submit"]');
+    if (btn) { btn.disabled = false; delete btn.dataset.loading; }
+    form.querySelectorAll('input, textarea, select').forEach((el) => { el.readOnly = false; });
+}
+
 document.addEventListener('submit', (e) => {
     const form = e.target;
     if (form.dataset.locked) { e.preventDefault(); return; }
-    form.dataset.locked = '1';
-    const btn = form.querySelector('[type="submit"]');
-    if (btn) {
-        btn.disabled = true;
-        // target the label span, do NOT overwrite the button's innerHTML
-        // (that would destroy a spinner child); flip a data-attr the CSS reads.
-        btn.dataset.loading = '1';
-    }
-    form.querySelectorAll('input, textarea, select').forEach((el) => {
-        el.readOnly = true;
-    });
+    lockForm(form);                                      // navigating submit: stays locked until the page unloads
+});
+
+// bfcache restores a navigated-away page on Back with the lock still set, freezing
+// the form. The persisted-pageshow clear is the one case a navigating submit needs.
+window.addEventListener('pageshow', (e) => {
+    if (e.persisted) document.querySelectorAll('form[data-locked]').forEach(unlockForm);
 });
 ```
 
-For an `axios`-driven submit, set the in-flight flag before the call and clear it in `.finally()`. **Flip state with a targeted query / data-attribute the CSS reads — never replace the whole button node's text**, which destroys an inner spinner element.
+For a non-navigating `axios`/fetch submit (the form does **not** reload the page), call `lockForm(form)` before the request and `unlockForm(form)` in `.finally()` so the form re-enables when it settles. **Flip state with a targeted query / data-attribute the CSS reads — never replace the whole button node's text**, which destroys an inner spinner element.
 
 `[Variant: Livewire]` the lock is **AUTOMATIC** — write bare `wire:submit="save"` (it self-prevents the native submit; do NOT write `wire:submit.prevent`). Livewire disables the submit button and sets inputs readonly while the action is in flight. Layer `wire:loading.delay` (spinner), `wire:target="save"` (scope the indicator to one action), and `wire:dirty.class` for unsaved-change affordance. **ANTI:** stacking a manual Alpine/vanilla lock on a `wire:submit` form — the two locks desync and the button can stick disabled. (See [references/LIVEWIRE_LOADING_STATES.md](references/LIVEWIRE_LOADING_STATES.md).)
 

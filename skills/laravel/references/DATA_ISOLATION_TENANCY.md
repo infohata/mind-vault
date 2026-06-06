@@ -15,9 +15,22 @@ class TenantScope implements Scope
 {
     public function apply(Builder $builder, Model $model): void
     {
-        if ($tenantId = auth()->user()?->tenant_id) {
-            $builder->where($model->getTable() . '.tenant_id', $tenantId);
+        $tenantId = auth()->user()?->tenant_id;
+
+        // FAIL CLOSED — this is the load-bearing line. Every queued job, artisan
+        // command, scheduler tick, and event listener runs with auth()->user()
+        // === null. A naive `if ($tenantId) { $builder->where(...) }` adds NO
+        // filter in those contexts, so `Invoice::all()` inside a worker returns
+        // EVERY tenant's rows — a silent cross-tenant leak, and the section below
+        // tells you to trust the scope, so there is no manual fallback. Return
+        // zero rows instead; use withoutGlobalScope(TenantScope::class) for a
+        // deliberate, reviewable system query.
+        if ($tenantId === null) {
+            $builder->whereRaw('1 = 0');
+            return;
         }
+
+        $builder->where($model->getTable() . '.tenant_id', $tenantId);
     }
 }
 ```
@@ -28,29 +41,43 @@ trait BelongsToTenant
 {
     protected static function bootBelongsToTenant(): void
     {
-        // READ side — every SELECT is tenant-filtered automatically.
+        // READ side — every SELECT is tenant-filtered automatically. This is the
+        // SINGLE registration of TenantScope; do NOT also put #[ScopedBy] on the
+        // model — Laravel keys class-based global scopes by class name, so a
+        // second registration silently overwrites this one (redundant, not
+        // additive, and muddies the bypass semantics).
         static::addGlobalScope(new TenantScope);
 
         // WRITE side — stamp tenant_id on insert so rows are never orphaned.
+        // Fail closed here too: in a queue/CLI context auth()->user() is null,
+        // so an unguarded `??=` would stamp null and create an orphan the read
+        // scope then hides from everyone. Demand an explicit tenant_id when there
+        // is no auth context rather than persisting a null.
         static::creating(function (Model $model) {
-            $model->tenant_id ??= auth()->user()?->tenant_id;
+            $tenantId = $model->tenant_id ?? auth()->user()?->tenant_id;
+            if ($tenantId === null) {
+                throw new \RuntimeException(
+                    'BelongsToTenant: no tenant context — set tenant_id explicitly '
+                    . 'in queue/CLI/system code before saving ' . $model::class . '.'
+                );
+            }
+            $model->tenant_id = $tenantId;
         });
     }
 }
 ```
 
 ```php
-// app/Models/Invoice.php — attach the scope declaratively (L >= 10.34)
-use Illuminate\Database\Eloquent\Attributes\ScopedBy;
-
-#[ScopedBy([TenantScope::class])]
+// app/Models/Invoice.php — the trait boots the scope; nothing else to wire.
 class Invoice extends Model
 {
-    use BelongsToTenant;
+    use BelongsToTenant; // registers TenantScope (read) + the tenant_id stamp (write)
 }
 ```
 
-With this, `Invoice::all()` returns only the current tenant's invoices and `Invoice::create([...])` auto-stamps `tenant_id` — no per-query `where` anywhere.
+With this, `Invoice::all()` returns only the current tenant's invoices in an HTTP request, **zero rows** in an unauthenticated context (fail-closed), and `Invoice::create([...])` auto-stamps `tenant_id` or throws if no tenant is resolvable — no per-query `where` anywhere.
+
+**Prefer the declarative `#[ScopedBy]` attribute (L ≥ 10.34)?** Use it *instead of* the trait's `addGlobalScope` call, never alongside it — put `#[ScopedBy([TenantScope::class])]` on the model and have the trait register only the `creating` stamp. One registration of the read scope, exactly.
 
 ## The cross-direction warning (load-bearing)
 

@@ -123,7 +123,19 @@ The **default to enforce:** Redis + Horizon under a supervised `queue:work` (nev
 
 ### Data isolation / scoping boundary
 
-Multi-tenant isolation is Laravel's idiom-stress point. The native answer is a **global scope** that silently rewrites every query plus a trait that *both* filters reads and stamps the `tenant_id` on writes. Attach with the `#[ScopedBy]` attribute (Laravel ≥ 10.34) so reads are tenant-filtered by default and no per-query `where` can be forgotten.
+Multi-tenant isolation is Laravel's idiom-stress point. The native answer is a **global scope** that silently rewrites every query plus a trait that *both* filters reads and stamps the `tenant_id` on writes. The scope must **fail closed** — return zero rows when there is no tenant context — and the trait registers it once (do not also add `#[ScopedBy]`; Laravel keys scopes by class name, so a second registration just overwrites the first).
+
+```php
+// app/Models/Scopes/TenantScope.php — FAIL CLOSED is the load-bearing line.
+public function apply(Builder $builder, Model $model): void
+{
+    $tenantId = auth()->user()?->tenant_id;
+    // No auth context — queue worker, artisan, scheduler. A naive
+    // `if ($tenantId)` adds no filter and leaks EVERY tenant's rows.
+    if ($tenantId === null) { $builder->whereRaw('1 = 0'); return; }
+    $builder->where($model->getTable() . '.tenant_id', $tenantId);
+}
+```
 
 ```php
 // app/Models/Concerns/BelongsToTenant.php
@@ -131,23 +143,21 @@ trait BelongsToTenant
 {
     protected static function bootBelongsToTenant(): void
     {
-        // READ side: every query is tenant-filtered automatically.
-        static::addGlobalScope(new TenantScope);
-        // WRITE side: stamp tenant_id on create so new rows are never orphaned.
-        static::creating(function ($model) {
-            $model->tenant_id ??= auth()->user()?->tenant_id;
+        static::addGlobalScope(new TenantScope);          // READ — single registration
+        static::creating(function ($model) {              // WRITE — stamp, fail closed
+            $tenantId = $model->tenant_id ?? auth()->user()?->tenant_id;
+            if ($tenantId === null) {
+                throw new \RuntimeException('No tenant context — set tenant_id explicitly in queue/CLI code.');
+            }
+            $model->tenant_id = $tenantId;                // null `??=` would orphan the row
         });
     }
 }
 
-#[ScopedBy([TenantScope::class])]
-class Invoice extends Model
-{
-    use BelongsToTenant;
-}
+class Invoice extends Model { use BelongsToTenant; }       // trait boots the scope; no #[ScopedBy]
 ```
 
-**Cross-direction warning (load-bearing).** This heading must warn *both* directions: (1) Django-trained devs **under-trust** Laravel's implicit global scope and re-add manual `->where('tenant_id', …)` everywhere — redundant, and one missed call is a leak; trust the scope. (2) The real hazard is the **create-path stamping gap** — a global scope filters *reads* but does nothing on *writes*, so a model with the scope but no `creating` stamp inserts rows with a null/foreign `tenant_id` that the scope then hides from everyone (orphans). A read-only guard that *skips* rows is itself a data-shape claim — same failure class as [`RULE_self-sweep §3`](../../rules/RULE_self-sweep-before-push.md): validate it against the producer's real data, not a mock. Reach for `stancl/tenancy` (full-stack: DB/cache/filesystem isolation, DB-per-tenant) or the leaner `spatie/laravel-multitenancy` only when single-column scoping is not enough. See [`references/DATA_ISOLATION_TENANCY.md`](references/DATA_ISOLATION_TENANCY.md).
+**Cross-direction warning (load-bearing).** This heading must warn *both* directions: (1) Django-trained devs **under-trust** Laravel's implicit global scope and re-add manual `->where('tenant_id', …)` everywhere — redundant, and one missed call is a leak; trust the scope (which is exactly why the scope **must fail closed** — a non-HTTP context with no `auth()->user()` would otherwise return every tenant's rows, and "trust the scope" leaves no manual fallback). (2) The real hazard is the **create-path stamping gap** — a global scope filters *reads* but does nothing on *writes*, so a model with the scope but no `creating` stamp inserts rows with a null/foreign `tenant_id` that the scope then hides from everyone (orphans). A read-only guard that *skips* rows is itself a data-shape claim — same failure class as [`RULE_self-sweep §3`](../../rules/RULE_self-sweep-before-push.md): validate it against the producer's real data, not a mock. Reach for `stancl/tenancy` (full-stack: DB/cache/filesystem isolation, DB-per-tenant) or the leaner `spatie/laravel-multitenancy` only when single-column scoping is not enough. See [`references/DATA_ISOLATION_TENANCY.md`](references/DATA_ISOLATION_TENANCY.md).
 
 ### Permissions/authorization
 
