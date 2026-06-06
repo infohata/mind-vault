@@ -10,9 +10,21 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.0.1 — compound: fail-closed bar for the data-isolation contract heading
+
+Patch release — one learning compounded from the IDEA-014 Phase 2 review loop. No IDEA (no planning cycle); provenance is the date + PR.
+
+### Security
+
+- **Scrubbed a client-identifier leak from the v5 (IDEA-014 Phase 2) docs.** The Phase-2 wrap/work named a private adopter's org, repo, and author identifiers in tracked files — `skills/laravel/SKILL.md` (body), `CHANGELOG.md`, `docs/ideas/README.md`, the Phase-2 plan doc, and an earlier IDEA archive line. All generalised to neutral framing ("a real ZF1→Laravel rework", "the legacy core", "the modern PoC repo") per the `/compound` customer-data scrub gate (mind-vault must be public-repo-safe). Real names remain only in local memory (`~/.claude`, never synced/tracked). _Known follow-up: a pervasive pre-existing prior-project provenance presence (~90 refs across CHANGELOG history, two SKILL bodies, and the review-loop tool scripts) is out of scope here — flagged for a dedicated scrub._
+
+### Changed
+
+- **`agents/SKILL_CONTRACT.md` — the "Data isolation / scoping boundary" heading gains a fail-closed bar.** During the Phase 2 review, **both** review engines independently converged on the same security flaw in the freshly-authored Laravel tenancy sample: the scope sample failed *open* (`if ($ctx) { …filter… }` with no `else` → no filter, every tenant's rows leaked) in any context where the context resolver is empty (queue worker, CLI, scheduler). The contract now states the bar for *every* stack that fills this heading: the canonical scope sample MUST fail closed (no caller/tenant context → zero rows, never an unscoped query). It's load-bearing because the same section always tells readers to *trust the scope* (removing the manual fallback) and an implicit-rewrite scope hides the open-fail. The contract is read in two voices, so one bar covers both: `mv-backend` fills the heading fail-closed; `mv-curator` asserts it and flags any context-gated filter with no zero-rows else. Cross-stack (Laravel global scopes, Django global managers, Rails default scopes) — and the two-engine convergence is itself the signal that a security-sensitive teaching sample is worth this bar.
+
 ## v5.0 — IDEA-014 Phase 2: demonstrated on a second stack (Laravel)
 
-Major milestone ([PR #183](https://github.com/infohata/mind-vault/pull/183), IDEA-014 Phase 2). Phase 1 (v4.9) *architected* the craft/stack split; **v5 proves it**. A second, structurally-different framework stack (Laravel) drops in by adding only `skills/` content — **with zero edits to any `agents/AGENT_*.md`**. The empty `agents/` diff is the deliverable: it distinguishes "genuinely stack-agnostic" from "Django with extra indirection". v5 now means *demonstrated on a second stack*, not merely designed. Content-correctness is closed by a fast-follow real-repo dogfood (the BookingRobot-M Laravel rework), shipping as v5.x — it follows v5, it doesn't gate it.
+Major milestone ([PR #183](https://github.com/infohata/mind-vault/pull/183), IDEA-014 Phase 2). Phase 1 (v4.9) *architected* the craft/stack split; **v5 proves it**. A second, structurally-different framework stack (Laravel) drops in by adding only `skills/` content — **with zero edits to any `agents/AGENT_*.md`**. The empty `agents/` diff is the deliverable: it distinguishes "genuinely stack-agnostic" from "Django with extra indirection". v5 now means *demonstrated on a second stack*, not merely designed. Content-correctness is closed by a fast-follow real-repo dogfood (a real ZF1→Laravel rework), shipping as v5.x — it follows v5, it doesn't gate it.
 
 ### Added
 

@@ -9,7 +9,7 @@ metadata:
 
 # laravel
 
-Core Laravel backend patterns organised around the six data-layer contract concerns: how relations are eager-loaded (no N+1, bulk writes), where untrusted input is validated, how deferred work is queued, how every query is scoped to the caller's tenant, who is allowed to act, and how tests stay fast and isolated. Target baseline is **Laravel 12 / PHP 8.2** (the `br-internal-panel` rework destination). Deep mechanics live in `references/`; the body leads cleanly with the contract headings so a generic agent resolves each one by its verbatim string.
+Core Laravel backend patterns organised around the six data-layer contract concerns: how relations are eager-loaded (no N+1, bulk writes), where untrusted input is validated, how deferred work is queued, how every query is scoped to the caller's tenant, who is allowed to act, and how tests stay fast and isolated. Target baseline is **Laravel 12 / PHP 8.2** (a real modern Laravel 12 rework PoC). Deep mechanics live in `references/`; the body leads cleanly with the contract headings so a generic agent resolves each one by its verbatim string.
 
 **Pairs with:** [laravel-frontend](../laravel-frontend/SKILL.md) for Blade / Livewire / Inertia template patterns. Load both on full-stack feature work (e.g. a controller that returns a Blade fragment on an `HX-Request`).
 
