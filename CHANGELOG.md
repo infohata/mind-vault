@@ -10,6 +10,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.9.1 — compound: branch-currency forward-sync pre-flight in /wrap
+
+Patch release — one learning compounded from the IDEA-014 Phase 1 sprint. No IDEA (no planning cycle); provenance is the date + PR.
+
+### Added
+
+- **`skills/wrap/references/BRANCH_CURRENCY_FORWARD_SYNC.md` + a Step-1 pre-flight stub** — a parked feature branch must be forward-synced (`git merge origin/main`, the `RULE_git-safety`-sanctioned direction) **before** `/wrap` runs Steps 3–4, which rewrite shared append-at-top files (`docs/ideas/README.md`, `CHANGELOG.md`/`DEVELOPMENT_LOG.md`). The IDEA-014 branch was cut 5 commits behind `main`; finalizing docs on it would have placed the version section in the wrong reverse-chronological slot, drifted the ideas-index, and silently carried a pre-sibling `skills/django/SKILL.md` (which a merged sibling IDEA also edited) — all of which would have surfaced as merge conflicts at `/land`. The reference documents the three conflict classes (version-section ordering, ideas-index drift, shared source files) + a `git rev-list --count HEAD..origin/main` detection recipe. Pointer added to the wrap References list.
+
 ## v4.9 — IDEA-014 Phase 1: stack-agnostic agent architecture
 
 Minor release ([PR #178](https://github.com/infohata/mind-vault/pull/178), IDEA-014 Phase 1). The agent profiles stop being hard-wired to Django: each persona splits into a stack-agnostic craft core + a `## Stack adapter` that resolves concrete framework rules against the *active* stack skill, with a new contract doc defining the agent↔skill interface. Adopter-facing — a generic `mv-backend`/`mv-frontend`/`mv-curator` now works any stack that exposes the contract headings. **v5 stays reserved** for Phase 2 (the Laravel proving stack — the zero-agent-edit drop-in proof; v5 then means *demonstrated on a second stack*, not just architected).

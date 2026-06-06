@@ -125,6 +125,10 @@ Self-mode's CHANGELOG handling is one application of the project-agnostic Step 4
 
 The load-bearing self-mode work is Step 6: catch `README.md` / `docs/guides/SPRINT_WORKFLOW.md` / `tools/README.md` / `AGENTS.md` / `CLAUDE.md` drift from newly-added skills, commands, rules, or agent passes. That is what `/wrap` is *for* on mind-vault — the paper trail of its own evolution, alongside the changelog.
 
+### Pre-flight — branch currency (forward-sync a parked branch)
+
+Before any doc-finalization step, check whether the feature branch is behind its base — if `git rev-list --count HEAD..origin/main` is `> 0`, `git merge origin/main` **first** (forward-sync is always allowed by `RULE_git-safety`; the feature tip moves, the protected tip doesn't). Steps 3–4 rewrite shared append-at-top files (`docs/ideas/README.md`, `CHANGELOG.md` / `DEVELOPMENT_LOG.md`); finalizing them on a stale branch writes the wrong neighbours and the drift surfaces as merge conflicts at `/land` — the most expensive moment to find it. Three conflict classes (version-section ordering, ideas-index drift, shared source files your IDEA and a merged sibling both touched) + the detection recipe live in [`references/BRANCH_CURRENCY_FORWARD_SYNC.md`](references/BRANCH_CURRENCY_FORWARD_SYNC.md). Read it when the branch is more than a commit or two behind base.
+
 ### Step 1 — Resolve the idea
 
 Derive the IDEA-NNN from one of (in order of precedence):
@@ -384,6 +388,7 @@ Atomic merge left `/wrap` in IDEA-015 — `/wrap` finalizes docs and **never mer
 - [`references/IDEA_COMPLETENESS_AUDIT.md`](references/IDEA_COMPLETENESS_AUDIT.md) — Step 2 pre-condition: walk plan acceptance criteria before flipping `status: complete`. ⚠️ marker for unmet criteria, phase-tracking frontmatter (`phase_N_completed:` + `completed:`), worked premature-wrap precedent.
 - [`references/EVAL_GATE_EMISSION.md`](references/EVAL_GATE_EMISSION.md) — Step 7 mechanics: emission shell + placeholder substitution, Playwright-coverage pre-fill algorithm for Direction-1 IDEAs, MANUAL_EVAL_TRACKER hand-off when the walk surfaces issues.
 - [`references/WRAP_BEFORE_REVIEW.md`](references/WRAP_BEFORE_REVIEW.md) — ordering for doc-heavy PRs: run wrap's doc-finalization steps *before* the single `/review-loop` so the reviewer sees docs at shipped state (catches doc-consistency findings in the same pass, no post-review drift). Merge is the separate post-review `/land` stage. Includes the Step 2 body-prose status-line sync rationale.
+- [`references/BRANCH_CURRENCY_FORWARD_SYNC.md`](references/BRANCH_CURRENCY_FORWARD_SYNC.md) — pre-flight (before Steps 3–4): forward-sync a parked feature branch (`git merge origin/main`) before finalizing the ideas-index + CHANGELOG/devlog, or version-ordering + index-drift + shared-source conflicts surface at `/land`. The three conflict classes + detection recipe.
 - [`/land`](../land/SKILL.md) — the stage AFTER the review: merge + teardown. `/wrap`'s old Step 5 (teardown) and Step 8 (atomic merge) live there now ([`ATOMIC_MERGE.md`](../land/references/ATOMIC_MERGE.md), [`WORKTREE_TEARDOWN.md`](../land/references/WORKTREE_TEARDOWN.md)); `/land`'s precondition guard verifies this wrap ran.
 - [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md) — the frontmatter-only transition this skill relies on.
 - [`/work`](../work/SKILL.md) — the stage before; its output (a PR on a feature branch, deliverables committed) is `/wrap`'s input.
