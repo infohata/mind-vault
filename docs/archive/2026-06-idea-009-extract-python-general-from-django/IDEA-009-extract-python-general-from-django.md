@@ -4,11 +4,11 @@ title: Extract Python-general patterns from the django skill into a python skill
 status: in-progress   # idea | in-progress | complete | superseded
 priority: low   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
-superseded_by: null
+superseded_by:
 depends_on: []       # list of IDEA ids required before starting, or []
 related: [IDEA-014]             # list of IDEA ids that share context, or []
 created: 2026-05-27
-completed: null
+completed:
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
@@ -20,7 +20,7 @@ sensitive_paths_cleared_reason: "Touches only skills/ and docs/ markdown (a new 
 
 # IDEA-009: Extract Python-general patterns from the django skill into a python skill
 
-**Status**: 💡 Idea
+**Status**: 🚧 In Progress
 **Priority**: Low
 
 **Problem** (or opportunity): The `django` skill's `references/` tree holds content that is
@@ -45,6 +45,7 @@ path. Sequence as rename-before-drop: move + repoint all references, green gate 
 then drop the django copies in a dedicated commit.
 
 **Why now**:
+
 - The v4.3.7 forced-atomic dedup surfaced the misfile concretely and left a general-rule →
   django-ref cross-link that reads as the wrong home.
 - Cheapest while only one reference needs lifting — the move cost grows with every new
@@ -53,10 +54,11 @@ then drop the django copies in a dedicated commit.
   (references-block consolidation): right-sizing where vault content lives.
 
 **Non-goals**:
+
 - Not splitting or merging the `django` / `django-frontend` skills themselves.
 - Not creating a thin one-reference skill that never grows — only proceed if the audit finds
   enough Python-general surface, or commit to `python` deliberately as a base layer that will
   accrete (decide in `/plan`).
 - No behavior change to the recipes; pure relocation + generalization.
 
-**Related**: [IDEA-014](IDEA-014-stack-agnostic-agents.md) — the stack-agnostic agent architecture resolves generic personas against per-stack skills; the `skills/python/` this idea extracts is exactly that kind of stack-layer skill. Same craft/stack separation principle at a smaller scope; landing this first de-risks 014's skill-contract design.
+**Related**: [IDEA-014](../../ideas/IDEA-014-stack-agnostic-agents.md) — the stack-agnostic agent architecture resolves generic personas against per-stack skills; the `skills/python/` this idea extracts is exactly that kind of stack-layer skill. Same craft/stack separation principle at a smaller scope; landing this first de-risks 014's skill-contract design.
