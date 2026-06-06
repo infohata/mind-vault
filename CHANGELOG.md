@@ -10,6 +10,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.7.2 — review-loop: propagate the claude Phase-3-retrigger correction (§ A7)
+
+Patch release — doc-consistency fix. The PR #169 self-dogfood correction (claude's `synchronize` auto-run skip-no-ops once it has already reviewed, so Phase 3 MUST explicitly fire `claude_retrigger.sh` for a fresh post-fix verdict) landed only in `engine-claude.md` § A7 and was never propagated to the two files an agent reads first — which still asserted the opposite ("claude Phase-3 slot is a no-op", "firing `claude_retrigger.sh` here would double-run"). An agent following the command doc or the sync contract therefore skipped the claude retrigger and read a stale verdict — surfaced by dogfooding `/review-loop` on PR #177. No IDEA (no planning cycle); provenance is the date + PR. (2026-06-06, [#180](https://github.com/infohata/mind-vault/pull/180))
+
+### Fixed
+
+- **`commands/review-loop.md`** (2 sites) + **`skills/review-loop/references/multi-engine-sync.md`** (4 sites: the Claude-stalled escape-hatch row, the § Retrigger-discipline claude bullet + its closing summary line, and the add-a-new-engine note) now state the § A7 behaviour: claude IS retriggered in Phase 3 after a fix push (the auto-run skips post-first-review, so the explicit `@claude review` is the sole fresh verdict — no double-run race).
+- **`skills/review-loop/SKILL.md`** Phase 3 step 4 gains an explicit "push-triggered engines (claude) are retriggered here too, not skipped" clause, removing the contradiction with the `multi-engine-sync.md § Retrigger discipline` section it cites.
+
 ## v4.7.1 — Tools: install-aliases.sh (fresh-machine shell + git aliases)
 
 Patch release — a new `tools/install-*.sh` fresh-machine provisioner for Ubuntu-style shell convenience aliases (`ll`, `..`, `gs`, …) and a set of git aliases (`git st`, `git lg`, `git amend`, …). No IDEA (no planning cycle); provenance is the date + PR. (2026-06-06, [#177](https://github.com/infohata/mind-vault/pull/177))
