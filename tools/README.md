@@ -128,6 +128,38 @@ sudo ./tools/install-gcloud-cli.sh --with-components gke-gcloud-auth-plugin,clou
 **Interactive menu** (current curated list):
 `atomic` (default), `jandedobbeleer`, `agnoster`, `paradox`, `powerlevel10k_classic`, `powerlevel10k_lean`, `robbyrussell`, `star`, `tokyonight_storm`, `zash`. Any theme name from the [official theme gallery](https://ohmyposh.dev/docs/themes) also works via `--theme NAME`.
 
+### install-aliases.sh
+**Purpose**: Install Ubuntu-style shell convenience aliases (`ll`, `la`, `..`, `gs`, `gl`, …) plus a set of git aliases (`git st`, `git lg`, `git amend`, …) for a user. Idempotent, user-scope (no sudo for the invoking user).
+
+**Problem Solved**:
+- A fresh machine has none of the muscle-memory shortcuts — `ll`, `..`, `gs`, `git lg` — and re-creating them by hand on every new box is error-prone
+- Copy-pasting a half-remembered dotfile tends to clobber existing `~/.bash_aliases` content or duplicate lines on re-run
+- Two layers (shell + git) usually means two different mechanisms; this does both in one pass
+
+**Usage**:
+```bash
+# Install both layers for the invoking user
+./tools/install-aliases.sh
+
+# Report current state only — no writes
+./tools/install-aliases.sh --check
+
+# One layer only
+./tools/install-aliases.sh --no-git      # shell aliases only
+./tools/install-aliases.sh --no-shell    # git aliases only
+
+# Set up a different account (run with sudo for another user)
+sudo ./tools/install-aliases.sh --target-user someuser
+```
+
+**Features**:
+- ✅ Idempotent: shell aliases live in a `# BEGIN/END mind-vault-aliases` marker block in `~/.bash_aliases`; re-runs strip and re-append, never duplicate (with orphan detection)
+- ✅ Wires `~/.bashrc` to source `~/.bash_aliases` only if nothing already does (stock Debian/Ubuntu already does — no-op there)
+- ✅ Git aliases set via `git config --global` in the target user's `~/.gitconfig` — live immediately, any shell
+- ✅ `--check` reports state with exit code (0 = fully installed, 1 = partial/missing); `--no-shell` / `--no-git` gate every code path (state, check, install, hints)
+- ✅ Target-user resolution honours `$SUDO_USER`; `chown user:` (primary group) keeps written files owned correctly
+- ✅ Portable: any system with bash + git (Debian/Ubuntu/Fedora/Arch/macOS bash)
+
 ### install-mosh-tmux.sh
 **Purpose**: Install and configure `mosh` + `tmux` for resilient SSH sessions on Debian/Ubuntu — survives spotty networks, laptop sleep, cell-tower handoffs, and long-running agentic CLI sessions (Claude Code, the review loop's `ScheduleWakeup` cycles) without losing context.
 
