@@ -214,7 +214,7 @@ EOF
 
 If the batch contains no eval-gate IDEAs, `eval_section` stays empty and the PR body is identical to a v3.2 batch with only `auto_safe: true` IDEAs — the section is purely additive.
 
-Then run `/<engine>-loop` against the PR's number. Cap **20 attempts** — integration branches are elephants (N-times-larger review surface than any per-PR PR). Symmetric with the S4 deliverables-pass cap because integration is deliverables-class review of the integrated state, not docs-class.
+Then run `/<engine>-loop` against the PR's number. Cap **20 attempts** — integration branches are elephants (N-times-larger review surface than any per-PR PR). Symmetric with the S6a per-IDEA review cap (20): both are sized for the code long tail.
 
 (v3.1 used `--draft` because the PR was solely a review anchor; v3.2 drops `--draft` because it's the actual merge gate. The PR is left OPEN at S11.13; the human merges it.)
 
@@ -224,7 +224,7 @@ Two cases — both fix directly on the integration branch:
 
 1. **Finding is integration-state-specific** (only surfaces because of the cross-IDEA combination): fix on the integration branch. The fix becomes part of the integrated diff visible on the [INTEGRATION] PR. Per-IDEA PRs are not touched (they target integration; their diff doesn't include the integrated state).
 
-2. **Finding is per-PR-specific that review missed during the deliverables/docs passes**: also fix on the integration branch. Don't back-port to the per-IDEA branch — the per-IDEA PR's review surface is "what the IDEA introduced *before* integration", and re-opening it after S6 would require another review pass on a SHA that's no longer the per-IDEA boundary. The fix on integration is the right surface; the morning reviewer sees it on the [INTEGRATION] PR's combined diff alongside the IDEA's content.
+2. **Finding is per-PR-specific that review missed during the per-IDEA review pass**: also fix on the integration branch. Don't back-port to the per-IDEA branch — the per-IDEA PR's review surface is "what the IDEA introduced *before* integration", and re-opening it after S6 would require another review pass on a SHA that's no longer the per-IDEA boundary. The fix on integration is the right surface; the morning reviewer sees it on the [INTEGRATION] PR's combined diff alongside the IDEA's content.
 
 (v3.1 had this same fix-on-integration discipline but the fix then forward-synced into per-IDEA PRs at S11.11 + re-reviewed at S11.12. v3.2 deletes both — the fix lives only on integration, and the morning reviewer reads it there as part of the merge-gate diff.)
 
