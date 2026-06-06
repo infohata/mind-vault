@@ -1,14 +1,14 @@
 ---
 id: IDEA-014
 title: Stack-agnostic agent architecture + Laravel proving stack
-status: idea
+status: in-progress
 priority: medium
 supersedes: []
-superseded_by: null
+superseded_by:
 depends_on: []
 related: [IDEA-011, IDEA-009]
 created: 2026-05-20
-completed: null
+completed:
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
@@ -41,13 +41,13 @@ A generic `mv-backend` then works *any* backend stack by loading that repo's act
 
 ### The craft / stack cut
 
-| Stays in agent (craft) | Moves to skill (stack) |
-|---|---|
-| No fat controllers/views; service-layer extraction | `select_related`/`prefetch_related` vs Eloquent `with()`/`load()` |
-| Eager-load relations / zero N+1 **as a concept** | DRF serializers vs Form Requests + Resources |
-| Never trust raw strings; parameterized boundaries | Celery vs Horizon / queues |
-| Bulk operations at volume | django-tenants vs Laravel multi-tenancy package |
-| Server-driven UI preference; defend global scope; idempotent submissions; accessibility | HTMX / Alpine / Bulma vs Livewire / Inertia / Blade |
+| Stays in agent (craft)                                                                  | Moves to skill (stack)                                            |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| No fat controllers/views; service-layer extraction                                      | `select_related`/`prefetch_related` vs Eloquent `with()`/`load()` |
+| Eager-load relations / zero N+1 **as a concept**                                        | DRF serializers vs Form Requests + Resources                      |
+| Never trust raw strings; parameterized boundaries                                       | Celery vs Horizon / queues                                        |
+| Bulk operations at volume                                                               | django-tenants vs Laravel multi-tenancy package                   |
+| Server-driven UI preference; defend global scope; idempotent submissions; accessibility | HTMX / Alpine / Bulma vs Livewire / Inertia / Blade               |
 
 ## Skill contract — the interface
 
@@ -81,7 +81,7 @@ Stack-heavy profiles needing surgery: **`mv-backend`, `mv-frontend`, `mv-curator
 
 Add `skills/laravel` + `skills/laravel-frontend` conforming to the skill contract. Detection picks up `composer.json`; **no agent profile is touched** — that is the proof the architecture holds. This phase absorbs the original Laravel landscape research intact (below).
 
----
+______________________________________________________________________
 
 ## Phase 2 detail — Laravel skill landscape (original research, preserved)
 
@@ -120,16 +120,16 @@ Don't vendor any existing skill pack wholesale. Build a thin pair that anchors o
 
 ### Adoption signal — top candidates surveyed (all MIT)
 
-| Repo | Stars | Shape | Decision |
-|------|-------|-------|----------|
-| `laravel/boost` | 3.5k | MCP + auto-detect guidelines | **Anchor — defer to it** |
-| `laravel/agent-skills` | 622 | Meta-pack | Thin on Eloquent/Pest/Filament — skip |
-| `jpcaparas/superpowers-laravel` | 131 | Per-skill SKILL.md | **Mine for references/** |
-| `iSerter/laravel-claude-agents` | 37 | Role-based agents | Wrong shape — skip |
-| `JustSteveKing/laravel-api-skill` | 22 | REST-only | Too narrow — skip |
-| `PatrickJS/awesome-cursorrules` Laravel entries | n/a | Monolithic `.cursorrules` | Content reference only |
+| Repo                                            | Stars | Shape                        | Decision                              |
+| ----------------------------------------------- | ----- | ---------------------------- | ------------------------------------- |
+| `laravel/boost`                                 | 3.5k  | MCP + auto-detect guidelines | **Anchor — defer to it**              |
+| `laravel/agent-skills`                          | 622   | Meta-pack                    | Thin on Eloquent/Pest/Filament — skip |
+| `jpcaparas/superpowers-laravel`                 | 131   | Per-skill SKILL.md           | **Mine for references/**              |
+| `iSerter/laravel-claude-agents`                 | 37    | Role-based agents            | Wrong shape — skip                    |
+| `JustSteveKing/laravel-api-skill`               | 22    | REST-only                    | Too narrow — skip                     |
+| `PatrickJS/awesome-cursorrules` Laravel entries | n/a   | Monolithic `.cursorrules`    | Content reference only                |
 
----
+______________________________________________________________________
 
 ## Cohort fit
 

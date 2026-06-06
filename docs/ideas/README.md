@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-014](../archive/2026-06-idea-014-stack-agnostic-agents/IDEA-014-stack-agnostic-agents.md) — Stack-agnostic agent architecture + Laravel proving stack
 
 ## 💡 High Priority (backlog)
 
@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-- [IDEA-014](IDEA-014-stack-agnostic-agents.md) — Stack-agnostic agent architecture + Laravel proving stack
+_(none)_
 
 ## 💡 Low Priority (backlog)
 
