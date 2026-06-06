@@ -15,6 +15,8 @@ _(none)_
 ## 💡 Medium Priority (backlog)
 
 - [IDEA-014](IDEA-014-stack-agnostic-agents.md) — Stack-agnostic agent architecture + Laravel proving stack
+- [IDEA-016](IDEA-016-reorganize-scripts-tools-by-concern.md) — Reorganize scripts/ and tools/ by concern
+- [IDEA-017](IDEA-017-mind-vault-as-claude-code-plugin.md) — mind-vault as a Claude Code plugin
 
 ## 💡 Low Priority (backlog)
 
