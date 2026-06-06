@@ -35,8 +35,8 @@ project: mind-vault
 
 - New `skills/python/SKILL.md` + `skills/python/references/{MODULE_SPLIT_AST_EXTRACTION,ENV_DRIVEN_ALLOWLISTS}.md`.
 - Repoint: `skills/django/SKILL.md` (body stub + 2 References entries — grep `ENV_DRIVEN_ALLOWLISTS`/`MODULE_SPLIT_AST_EXTRACTION`, currently ~L349/L566/L571) + `docs/rules/RULE_rename-before-drop-rationale.md` (L25).
-- `docs/README.md` skills inventory if it enumerates skills (verify in step 1).
-- The `~/.claude/skills` symlink already exposes `skills/*` — new skill is picked up automatically, no symlink change.
+- `docs/README.md` skills inventory if it enumerates skills (verify in step 1). **Resolved 2026-06-06: no per-skill roster in `docs/README.md` — nothing to add.**
+- **No symlink *code* change** — `~/.claude/skills/` is a dir of per-skill symlinks (`scripts/_symlink-lib.sh:mv_link_skills_per_dir` loops `skills/*/`), so the existing idempotent installer already absorbs a new `skills/python/` with zero edits. But a brand-new skill dir is **not** live until that loop is re-run: `bash scripts/setup-claude-code-symlinks.sh` + restart the session. (Corrects the earlier "picked up automatically" phrasing + the architect "auto-registers" non-issue — auto only *after* the re-run.) This is the verification step, not a code change.
 
 **Out of scope:**
 
@@ -116,7 +116,7 @@ This section is **alignment, not new scope** — no Requirement or Execution ste
 - **Skill lint (named green gate).** `./tools/validate-skills.sh python` passes — enforces `name: python` = folder, name-format regex, frontmatter + description presence. This is the repo's own validator; invoke it by name rather than restating its checks by hand.
 - **Link integrity, resolved-not-just-matched (green gate, R4/R5).** For every link to the two moved refs, **resolve the relative path against its source file's directory and `test -f` the result** — a string-match grep would pass a `../../skills/python/references/…` link even if the `../../` depth is wrong (the rule-rationale link at `docs/rules/` is two-up). Per-source resolution catches a greps-clean-but-renders-broken link. Then confirm zero links still point at the old `skills/django/references/` location.
 - **No dangling django pointer.** `grep -rn 'django/references/\(MODULE_SPLIT\|ENV_DRIVEN\)' skills/ rules/ docs/` returns only archive docs (historical), no live skill/rule.
-- **Skill registration.** Fresh-session `/python` (or `Skill python`) loads it; the TRIGGER/SKIP block hands off to the active framework skill on framework context (django today; no double-load on a django task).
+- **Skill registration.** Re-run `bash scripts/setup-claude-code-symlinks.sh` (idempotent — creates the missing `python` symlink, skips the rest) so `~/.claude/skills/python` exists, then in a fresh session `/python` (or `Skill python`) loads it; the TRIGGER/SKIP block hands off to the active framework skill on framework context (django today; no double-load on a django task). Without the re-run a brand-new skill dir stays dark (the `/land` precedent).
 - **Recipe parity.** `git diff` of the two moved refs shows only example-fencing + prose generalization — no change to the `ast`/`autopep8`/`pyflakes` or `frozenset` mechanics (R3 / non-goal).
 - **django discovery intact.** From `skills/django/SKILL.md`, the env-driven body stub + both References entries resolve to the `python` refs.
 

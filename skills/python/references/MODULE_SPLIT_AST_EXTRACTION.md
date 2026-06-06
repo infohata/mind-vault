@@ -28,6 +28,7 @@ blank-line-only formatter pass so the diff stays a clean move.
    domain submodule import from a sibling (keeps the dependency graph a star, not a mesh).
 
 2. **Slice by line span — but extend for two things `ast` omits:**
+
    - **Leading comment blocks.** `node.lineno` starts at the `def`/assignment, *not* the
      `# ...` block above it. Walk backwards from the node, across one blank-line separator,
      over a contiguous `#` run, bounded by the previous consumed symbol's `end_lineno` so a
@@ -50,8 +51,7 @@ blank-line-only formatter pass so the diff stays a clean move.
    not dead). Cross-module **private** helpers that external callers import stay on the
    submodule path (`from app.views.api import _validate_x`), not the package surface.
 
-6. **Blank-line normalization — formatter, not reflow.** Run `autopep8 --in-place
-   --select=E301,E302,E303,E305,E306 <files>` (blank-line checks **only**). This fixes the
+6. **Blank-line normalization — formatter, not reflow.** Run `autopep8 --in-place --select=E301,E302,E303,E305,E306 <files>` (blank-line checks **only**). This fixes the
    glued-def spacing from step 4 without touching quotes, line length, or import order — so
    the diff still reads as a move. Do **not** run `black` / full `autopep8` (they reformat
    bodies and destroy the move-ness + `git log --follow` value).
@@ -79,7 +79,7 @@ drop for it.** The re-export bridge is atomic, permanent, and invisible.
 
 The *other* flat modules the package absorbs (`app/x_kb.py`, `app/x_orgs.py` → `app/x/kb.py`,
 `app/x/orgs.py`) ride the normal rename-before-drop bridge: one-commit shims (`from app.x import *`
-+ explicit re-export of any cross-module privates) so every old import path resolves at the green
+plus explicit re-export of any cross-module privates) so every old import path resolves at the green
 gate, then dropped in the dedicated drop commit.
 
 So a flat→package split has a **mixed bridge**: the colliding name on the permanent `__init__`
@@ -90,14 +90,11 @@ submodule path.
 
 ## Verification checklist
 
-- `python -c "import app.views as v; print(all(hasattr(v, n) for n in (...)))"` — package
-  public surface (run inside the framework context, e.g. `manage.py shell`, so app registry
-  is configured; a bare `python -c` import of model-touching modules raises
-  `ImproperlyConfigured`).
-- `manage.py check` — the authoritative import-graph validation (loads every urlconf →
-  imports every view). Green here means the package resolves in the real runtime.
-- `grep -rn "from .sibling import" app/views/<domain>.py` returns nothing — no sibling-entity
-  imports crept in (only `from .helpers import ...`).
+- **Smoke-import the package surface** — `python -c "import pkg as v; print(all(hasattr(v, n) for n in (...)))"` confirms the re-exporting `__init__` exposes every public name. If the modules are coupled to a framework runtime (app registry, settings), run it inside that runtime's shell rather than a bare interpreter — a cold import of framework-bound modules typically raises a "not configured" error.
+- **Run your framework's import-graph / smoke check** — whatever loads every entrypoint and transitively imports the package. Green here means the package resolves in the real runtime, not just in isolation.
+- `grep -rn "from .sibling import" <pkg>/<domain>.py` returns nothing — no sibling-entity imports crept in (only `from .helpers import ...`).
 - Full targeted test suite green at the bridge commit, the repoint commit, AND the drop commit.
 - `git show --stat` on the move commit reads 1→1 renames where possible (`git mv` the
   single-target moves; a 1→N split is necessarily new-files + a shim, history is best-effort).
+
+> **Example (Django).** For the two import checks above: run the smoke-import inside `manage.py shell` (a bare `python -c` import of model-touching modules raises `ImproperlyConfigured`), and use `manage.py check` as the authoritative import-graph validation (loads every urlconf → imports every view). For a non-framework package, a plain `python -c "import pkg.x"` is the equivalent smoke check.
