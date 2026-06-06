@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-- [IDEA-014](../archive/2026-06-idea-014-stack-agnostic-agents/IDEA-014-stack-agnostic-agents.md) — Stack-agnostic agent architecture + Laravel proving stack · **Phase 1 ✅ shipped** ([PR #178](https://github.com/infohata/mind-vault/pull/178): craft/stack split + 6/4 skill contract + documented detection); **Phase 2 (Laravel proving stack) pending** — the zero-agent-edit drop-in proof.
+_(none)_
 
 ## 💡 High Priority (backlog)
 
@@ -26,6 +26,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-014: Stack-agnostic agent architecture + Laravel proving stack ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-06-07 · **See**: [Archive](../archive/2026-06-idea-014-stack-agnostic-agents/IDEA-014-stack-agnostic-agents.md), [PR #178](https://github.com/infohata/mind-vault/pull/178) (Phase 1), [PR #183](https://github.com/infohata/mind-vault/pull/183) (Phase 2).
+Two phases. **Phase 1 (v4.9)** split all 8 `AGENT_*.md` personas into a craft core + `## Stack adapter` resolving against the active stack skill, and shipped `agents/SKILL_CONTRACT.md` (6 backend + 4 frontend contract-heading floor). **Phase 2 (v5)** proved the architecture portable: added `skills/laravel` + `skills/laravel-frontend` filling all 10 contract headings with **zero edits to any agent profile** — the empty `agents/` diff is the proof (see the [verification log](../archive/2026-06-idea-014-stack-agnostic-agents/2026-06-07-phase2-verification-log.md)). v5 = *demonstrated on a second stack*, not merely architected. Real-repo dogfood (BookingRobot-M Laravel rework) follows as v5.x. Built on the [IDEA-009](IDEA-009-extract-python-general-from-django.md) `python` language-base tier.
 
 ### IDEA-009: Extract Python-general patterns into a skills/python base layer ✅ COMPLETE
 

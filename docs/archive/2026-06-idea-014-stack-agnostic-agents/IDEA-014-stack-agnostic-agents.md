@@ -1,15 +1,16 @@
 ---
 id: IDEA-014
 title: Stack-agnostic agent architecture + Laravel proving stack
-status: in-progress
+status: complete
 priority: medium
 supersedes: []
 superseded_by:
 depends_on: []
 related: [IDEA-011, IDEA-009]
 created: 2026-05-20
-completed:                # full close-out pending Phase 2 (Laravel proving stack)
+completed: 2026-06-07            # both phases shipped (Phase 2 = Laravel proving stack, PR #183, v5)
 phase_1_completed: 2026-06-06   # craft/stack split + 6/4 contract + detection (PR #178)
+phase_2_completed: 2026-06-07   # skills/laravel + laravel-frontend, zero-agent-edit proof (PR #183)
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.

@@ -8,7 +8,7 @@
 
 ______________________________________________________________________
 
-**v4.9 — stack-agnostic agent architecture (IDEA-014 Phase 1): all 8 personas split into a craft core + `## Stack adapter` that resolves concrete framework rules against the active stack skill via [`agents/SKILL_CONTRACT.md`](agents/SKILL_CONTRACT.md) (6 backend + 4 frontend contract-heading floor). Recent line: new `skills/python` language-base tier beneath the framework skills (v4.8, IDEA-009), split `/wrap` into `/wrap` (docs) + `/land` (merge + teardown) and retire the double-review — canonical chain `/work → /wrap → /review-loop → /land` (v4.7), Claude Code Review as a third `/review-loop` engine (v4.6). (v5 reserved for IDEA-014 Phase 2 — the Laravel proving stack / zero-agent-edit drop-in proof.)**
+**v5 — demonstrated on a second stack (IDEA-014 Phase 2): `skills/laravel` + `skills/laravel-frontend` fill all 10 [`agents/SKILL_CONTRACT.md`](agents/SKILL_CONTRACT.md) contract headings with ZERO edits to any `agents/AGENT_*.md` — the empty `agents/` diff is the proof that the craft/stack split (v4.9, Phase 1: all 8 personas split into a craft core + `## Stack adapter`) is genuinely stack-agnostic, not Django with indirection. A real-repo Laravel dogfood follows as a v5.x fast-follow. Recent line: new `skills/python` language-base tier beneath the framework skills (v4.8, IDEA-009), split `/wrap` into `/wrap` (docs) + `/land` (merge + teardown) and retire the double-review — canonical chain `/work → /wrap → /review-loop → /land` (v4.7), Claude Code Review as a third `/review-loop` engine (v4.6).**
 
 Cross-host configuration library for AI coding agents — skills, commands, subagent personas, and shared rules, authored once and symlinked into every agent-aware tool.
 
@@ -52,7 +52,7 @@ mind-vault/
 └── tools/         Utilities (review-loop helpers, emoji support, etc.)
 ```
 
-## Skills (19)
+## Skills (21)
 
 Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each skill has frontmatter `name` + `description` (the probabilistic trigger), stays under ~500 lines, and pushes deep-dive content to `references/`.
 
@@ -78,6 +78,8 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | **python**             | Language-base tier beneath the framework skills — `ast` byte-exact flat-module→package splits, env-driven `frozenset` allowlists. Language-general recipes for any Python project; SKIP hands off to the active framework skill.   |
 | **django**             | Backend conventions: BaseModel, soft-delete, DRF viewsets, multi-tenancy boundaries, generic-FK pattern, permission probes, translation workflow.                                                                                  |
 | **django-frontend**    | HTMX + Alpine + Bulma + Crispy Forms — partial dispatch, modal/formset JS contracts, safe query-string generation. Pairs with `django`.                                                                                            |
+| **laravel**            | Laravel 12 backend conventions across the 6 contract concerns — Eloquent eager-loading (`with()`/`preventLazyLoading`), Form-Request + API-Resource input boundary, queued jobs on Redis/Horizon, tenant data-isolation via global scopes, Policy/Gate authz, Pest testing + split-by-ownership translations. The second stack (IDEA-014 Phase 2). |
+| **laravel-frontend**   | Laravel 12 frontend conventions across the 4 contract concerns — plain server-rendered Blade baseline (+ Livewire 4 / Inertia 2 opt-in variants), `@fragment`/`->fragmentIf` partials (the django-frontend twin), Blade components (Flux as a license-gated UI kit), vanilla-JS/`wire:submit` form lock. Pairs with `laravel`. |
 | **deployment**         | Docker Compose production deploys — change-aware scripts, pre/post-migration backups, screen-session remote execution, Let's Encrypt SSL.                                                                                          |
 | **surgical-tdd**       | Targeted test execution for large Python monoliths (Django runner + pytest nodeids + `--lf` / `-k` / `pytest-xdist` levers).                                                                                                       |
 | **artefact-retrieval** | Sweep IDE workspaces (Cursor / Antigravity / Claude Code) for plans and analyses; import into `docs/artefacts/`.                                                                                                                   |
@@ -104,7 +106,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 
 ## Commands
 
-Slash commands surface from two sources via the host's symlink: `commands/` (6 commands) and `skills/` (every skill with a `name:` frontmatter is invocable as `/<name>` per the skill-writer convention). The two groups below list the **sprint-workflow** + **automation** + **review/PR** entries — the most common surfaces. Engineering-pattern skills (`python`, `django`, `django-frontend`, `deployment`, `surgical-tdd`, `dependabot-triage`, `mobile-ux-polish`, `skill-writer`, `artefact-retrieval`) are also slash-invocable but typically activate via trigger-phrase rather than direct slash; see each skill's frontmatter.
+Slash commands surface from two sources via the host's symlink: `commands/` (6 commands) and `skills/` (every skill with a `name:` frontmatter is invocable as `/<name>` per the skill-writer convention). The two groups below list the **sprint-workflow** + **automation** + **review/PR** entries — the most common surfaces. Engineering-pattern skills (`python`, `django`, `django-frontend`, `laravel`, `laravel-frontend`, `deployment`, `surgical-tdd`, `dependabot-triage`, `mobile-ux-polish`, `skill-writer`, `artefact-retrieval`) are also slash-invocable but typically activate via trigger-phrase rather than direct slash; see each skill's frontmatter.
 
 **Sprint workflow:** `/ideate`, `/idea`, `/plan` (alias `/brainstorm`), `/work`, `/wrap`, `/land`, `/compound`, `/ingest-backlog`.
 
