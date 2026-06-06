@@ -140,7 +140,7 @@ Cross-cutting architectural refactor (Phase 1) + a standalone new stack (Phase 2
 
 ## Relationship to IDEA-009
 
-[IDEA-009](IDEA-009-extract-python-general-from-django.md) extracts Python-general patterns out of the `django` skill into a standalone `skills/python/`. That is exactly the shape of stack skill this idea's generic agents resolve against — 009 produces a clean stack-layer skill while 014 builds the craft-core agents that *point at* such skills. 009 is a concrete, smaller instance of the same craft/stack separation principle; landing it first de-risks the skill-contract design here.
+[IDEA-009](../archive/2026-06-idea-009-extract-python-general-from-django/IDEA-009-extract-python-general-from-django.md) extracts Python-general patterns out of the `django` skill into a standalone `skills/python/`. That is exactly the shape of stack skill this idea's generic agents resolve against — 009 produces a clean stack-layer skill while 014 builds the craft-core agents that *point at* such skills. 009 is a concrete, smaller instance of the same craft/stack separation principle; landing it first de-risks the skill-contract design here.
 
 ## Relationship to IDEA-011
 

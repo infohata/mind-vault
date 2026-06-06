@@ -26,6 +26,48 @@ Minor release ([PR #178](https://github.com/infohata/mind-vault/pull/178), IDEA-
 - **`skills/django/SKILL.md` + `skills/django-frontend/SKILL.md` expose all 10 contract headings verbatim** (renames + 3 anchor stubs — Background jobs, Testing conventions, Input-validation boundary). No recipe content changed; Django behaviour is unchanged (the deterministic regression guard).
 
 Deterministically verified by a line-conservation diff (every dropped stack-mechanic line maps to a contract heading; zero unaccounted removals — see `docs/archive/2026-06-idea-014-stack-agnostic-agents/2026-06-06-phase1-verification-log.md`). Architect-reviewed (🟡 → all 4 must-fixes folded). Shipped with rename-before-drop commit ordering (A contract+headings → B detection → C1–C4 per-profile splits → D generic light-touch → E drop orphaned lines).
+## v4.8.1 — compound: git-mv inbound-link audit + markdown-formatter gotchas
+
+Patch release — two learnings compounded from the IDEA-009 sprint (the `skills/python` extraction). No IDEA (no planning cycle); provenance is the date + PR. (2026-06-06, [#181](https://github.com/infohata/mind-vault/pull/181))
+
+### Changed
+
+- **`RULE_self-sweep-before-push` rationale** § Contract-Change Sweep gains *"A file move / rename is a path-contract change — sweep BOTH directions"*: a `git mv` is a contract change where the path is the contract and **inbound links from sibling files are the callers**. The IDEA-009 lift `git mv`-ed an IDEA file to the archive dir; the in-loop link audit checked links *out of* the moved file but a sibling (`IDEA-014`) still linked to its OLD path and silently dangled — caught by the claude review a cycle later, when a pre-push inbound grep would have caught it free. Recipe now mandates both the outbound (`test -f` from the NEW dir) and inbound (grep the OLD path repo-wide) passes. Cross-ref added from the `RULE_rename-before-drop` rationale's "Relationship To Other Rules".
+
+### Added
+
+- **`skills/skill-writer/references/MARKDOWN_FORMATTER_GOTCHAS.md`** — constructs auto-formatters silently rewrite in a meaning-changing way. First entry: a literal `+`/`-`/`*` at the start of a wrapped prose line is a CommonMark list marker, so mdformat "canonicalises" it into a real list item (blank line + `+`→`-`), splitting the sentence — and it survives the formatter's idempotency check, so only a diff-read catches it. Surfaced during the IDEA-009 lift. Pointer added to the skill-writer References list.
+
+## v4.8 — IDEA-009: skills/python base layer
+
+Minor release ([PR #164](https://github.com/infohata/mind-vault/pull/164), IDEA-009). Stands up a deliberate **language-base tier** beneath the framework-stack skills — adopter-facing: any Python project (django or not) now gets a `/python` skill for language-general engineering recipes, and the vault gains the correct home for future Python-general patterns instead of misfiling them under a framework skill by gravity. De-risks the `craft agent → framework skill → language-base skill` tiering that IDEA-014 ([PR #178](https://github.com/infohata/mind-vault/pull/178)) builds on. (2026-06-06)
+
+### Added
+
+- **`skills/python/` — new language-base skill.** Base-layer framing (the deliberate home for patterns true of any Python project, beneath `django`/`django-frontend`) + a stack-resolution-aware TRIGGER/SKIP block: SKIP hands off to the repo's active framework skill (`django` today; `laravel`/etc. once IDEA-014's stack detection lands), so the vault's broadest false-positive surface doesn't double-load on framework tasks. Section headings deliberately avoid IDEA-014's reserved backend-contract slots.
+- **Two Python-general references lifted into `skills/python/references/`** (via `git mv`, history preserved): `MODULE_SPLIT_AST_EXTRACTION.md` (byte-exact `ast`-driven flat-module → package split; owns the `RULE_rename-before-drop` forced-atomic-member sequencing) and `ENV_DRIVEN_ALLOWLISTS.md` (`frozenset`+env allowlist pattern). django-isms fenced as `Example (Django):` blocks; recipe mechanics unchanged.
+
+### Changed
+
+- **`skills/django/SKILL.md`** keeps discovery pointers (body env-stub + 2 References entries) now pointing at `../python/references/…` rather than copies — django consumers still find the recipes; the canonical home is `python`.
+- **`docs/rules/RULE_rename-before-drop-rationale.md`** repointed from the old django path to `skills/python/references/MODULE_SPLIT_AST_EXTRACTION.md` (dependency inversion: `rule → python ← django`, uni-directional).
+
+## v4.7.2 — review-loop: propagate the claude Phase-3-retrigger correction (§ A7)
+
+Patch release — doc-consistency fix. The PR #169 self-dogfood correction (claude's `synchronize` auto-run skip-no-ops once it has already reviewed, so Phase 3 MUST explicitly fire `claude_retrigger.sh` for a fresh post-fix verdict) landed only in `engine-claude.md` § A7 and was never propagated to the two files an agent reads first — which still asserted the opposite ("claude Phase-3 slot is a no-op", "firing `claude_retrigger.sh` here would double-run"). An agent following the command doc or the sync contract therefore skipped the claude retrigger and read a stale verdict — surfaced by dogfooding `/review-loop` on PR #177. No IDEA (no planning cycle); provenance is the date + PR. (2026-06-06, [#180](https://github.com/infohata/mind-vault/pull/180))
+
+### Fixed
+
+- **`commands/review-loop.md`** (2 sites) + **`skills/review-loop/references/multi-engine-sync.md`** (4 sites: the Claude-stalled escape-hatch row, the § Retrigger-discipline claude bullet + its closing summary line, and the add-a-new-engine note) now state the § A7 behaviour: claude IS retriggered in Phase 3 after a fix push (the auto-run skips post-first-review, so the explicit `@claude review` is the sole fresh verdict — no double-run race).
+- **`skills/review-loop/SKILL.md`** Phase 3 step 4 gains an explicit "push-triggered engines (claude) are retriggered here too, not skipped" clause, removing the contradiction with the `multi-engine-sync.md § Retrigger discipline` section it cites.
+
+## v4.7.1 — Tools: install-aliases.sh (fresh-machine shell + git aliases)
+
+Patch release — a new `tools/install-*.sh` fresh-machine provisioner for Ubuntu-style shell convenience aliases (`ll`, `..`, `gs`, …) and a set of git aliases (`git st`, `git lg`, `git amend`, …). No IDEA (no planning cycle); provenance is the date + PR. (2026-06-06, [#177](https://github.com/infohata/mind-vault/pull/177))
+
+### Added
+
+- **`tools/install-aliases.sh`** — installs two alias layers in one idempotent pass: shell aliases into a `# BEGIN/END mind-vault-aliases` marker block in `~/.bash_aliases` (with orphan detection and `~/.bashrc` source-wiring only when nothing already sources it), and git aliases via `git config --global` into the target user's `~/.gitconfig`. Follows `skills/deployment/references/SHELL_INSTALLERS.md`: `set -eo pipefail`, target-user resolution honouring `$SUDO_USER`, `chown user:` (primary group), `--check` with exit-code semantics, and `--no-shell` / `--no-git` opt-outs gated across every code path. Documented in `tools/README.md`.
 
 ## v4.7 — IDEA-015: split /wrap into /wrap + /land, retire the double-review
 

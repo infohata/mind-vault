@@ -1,6 +1,8 @@
 # Env-driven allowlists / denylists as `frozenset`
 
-**When this fires**: needing a list (blocked MIME types, blocked file extensions, IP allowlists, feature flags keyed by tenant) that wants three properties at once: per-deployment override without code change, O(1) membership lookup at hot paths, immutability so request handlers can't mutate global state. The django SKILL.md body's env-driven-allowlists section holds the firing-conditions stub; this reference holds the full pattern + earn-their-keep notes + when-not-to-use.
+**When this fires**: needing a list (blocked MIME types, blocked file extensions, IP allowlists, feature flags keyed by tenant) that wants three properties at once: per-deployment override without code change, O(1) membership lookup at hot paths, immutability so request handlers can't mutate global state. The consuming framework skill's body holds the firing-conditions stub (django's env-driven-allowlists section today); this reference holds the full pattern + earn-their-keep notes + when-not-to-use.
+
+> **Python-general, not framework-specific.** The mechanic is stdlib only — `os.getenv` + `frozenset` + `str` methods. The examples below put the parsed constants in Django's `settings.py` and read them off `settings.…`, but that's just *where Django keeps startup config*; the pattern lives wherever your project parses config at import time (a `config.py`, a settings object, a module-level constant). Framework-specific lines are fenced as `# settings.py` / `settings.X` below — swap them for your project's config module.
 
 ## Three properties, one shape
 
