@@ -4,6 +4,8 @@
 
 **Priority**: Claude Code. When compatibility breaks, the profile stays CC-correct and you fork a harness-specific copy per the recipes below — we do **not** degrade the canonical file to chase a lowest-common-denominator that satisfies no harness well.
 
+**Stack-adapter dependency (since IDEA-014)**: each profile's body carries a `## Stack adapter` section whose pointers resolve against [`agents/SKILL_CONTRACT.md`](../../agents/SKILL_CONTRACT.md) + the repo's active framework-stack skill. A fork to another harness must carry the contract doc (and the resolved skill) alongside the profile, or the adapter fails open to craft-only — which is the documented safe degradation, not a break.
+
 ## Canonical schema (Claude Code)
 
 ```yaml

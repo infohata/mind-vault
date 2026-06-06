@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-014](../archive/2026-06-idea-014-stack-agnostic-agents/IDEA-014-stack-agnostic-agents.md) — Stack-agnostic agent architecture + Laravel proving stack · **Phase 1 ✅ shipped** ([PR #178](https://github.com/infohata/mind-vault/pull/178): craft/stack split + 6/4 skill contract + documented detection); **Phase 2 (Laravel proving stack) pending** — the zero-agent-edit drop-in proof.
 
 ## 💡 High Priority (backlog)
 
@@ -14,7 +14,6 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-- [IDEA-014](IDEA-014-stack-agnostic-agents.md) — Stack-agnostic agent architecture + Laravel proving stack
 - [IDEA-016](IDEA-016-reorganize-scripts-tools-by-concern.md) — Reorganize scripts/ and tools/ by concern
 - [IDEA-017](IDEA-017-mind-vault-as-claude-code-plugin.md) — mind-vault as a Claude Code plugin
 

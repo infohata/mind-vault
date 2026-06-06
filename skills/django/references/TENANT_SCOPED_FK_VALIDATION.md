@@ -74,7 +74,7 @@ Three failure modes:
 
 ## Related Rules / Skills
 
-- [`skills/django/SKILL.md` § Multi-tenancy vs. ForeignKey boundaries](../SKILL.md) — the schema-home decision (which models get `org_id`, which don't); this reference extends the operational discipline for the validate-and-prune side of the same boundary.
+- [`skills/django/SKILL.md` § Data isolation / scoping boundary](../SKILL.md) — the schema-home decision (which models get `org_id`, which don't); this reference extends the operational discipline for the validate-and-prune side of the same boundary.
 - [`skills/django/references/MULTI_TENANT.md`](MULTI_TENANT.md) — full multi-tenant patterns reference.
 - [`RULE_self-sweep-before-push`](../../../rules/RULE_self-sweep-before-push.md) — the `tenant_scope_required` flag is exactly the kind of boolean a self-sweep contract-change check should grep for when a new FK kind is added to an `fk_specs` tuple; missing the flag silently regresses isolation.
 

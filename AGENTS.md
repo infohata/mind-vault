@@ -89,8 +89,8 @@ docs/            # Documentation, analysis, patterns
 **Agents** (in `agents/`)
 
 - Format: `AGENT_{NAME}.md`
-- Example: `AGENT_django-specialist.md`
-- Names: kebab-case, role-based
+- Example: `AGENT_backend.md`
+- Names: kebab-case, **role-based, stack-agnostic** (the persona's stack rules resolve via `agents/SKILL_CONTRACT.md`, not the filename — don't name profiles after a framework)
 
 **Documentation** (in `docs/`)
 
