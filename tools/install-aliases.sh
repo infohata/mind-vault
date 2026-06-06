@@ -71,8 +71,14 @@ if ! id -u "$TARGET_USER" >/dev/null 2>&1; then
     echo "   Pass --target-user NAME with an existing account." >&2
     exit 1
 fi
-# Pipeline-in-assignment is safe here: existence pre-validated above (pattern 2).
-TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
+# Resolve the home dir. Pipeline-in-assignment is safe: existence pre-validated
+# above (pattern 2). getent is glibc-only (absent on macOS / BSD) — fall back to
+# tilde expansion, which resolves any user already present in passwd.
+if command -v getent >/dev/null 2>&1; then
+    TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
+else
+    TARGET_HOME=$(eval echo "~$TARGET_USER")
+fi
 if [ -z "$TARGET_HOME" ] || [ ! -d "$TARGET_HOME" ]; then
     echo "❌ Could not resolve a home directory for '$TARGET_USER'." >&2
     exit 1
@@ -89,10 +95,13 @@ SRC_BEGIN="# BEGIN mind-vault-aliases-source (managed by install-aliases.sh)"
 SRC_END="# END mind-vault-aliases-source"
 
 # Run a git command AS the target user so --global hits their ~/.gitconfig.
-# -H sets HOME to the target user's home, making --global deterministic.
+# HOME is pinned to TARGET_HOME on BOTH paths so `git config --global` writes
+# the exact file the script reports — even if the caller's own $HOME differs
+# from TARGET_HOME (-H does this for the sudo path; explicit HOME= for the
+# same-user path, which would otherwise inherit the process $HOME).
 run_git() {
     if [ "$TARGET_USER" = "$CURRENT_USER" ]; then
-        git "$@"
+        HOME="$TARGET_HOME" git "$@"
     else
         sudo -H -u "$TARGET_USER" git "$@"
     fi
@@ -119,8 +128,28 @@ strip_managed_block() {  # $1=file  $2=begin-marker  $3=end-marker
     if grep -qF "$begin" "$file" && grep -qF "$end" "$file"; then
         begin_re=$(printf '%s' "$begin" | sed -e 's/[][\/.*^$]/\\&/g')
         end_re=$(printf '%s' "$end" | sed -e 's/[][\/.*^$]/\\&/g')
-        sed -i "/$begin_re/,/$end_re/d" "$file"
+        # GNU sed: `-i` takes no suffix; BSD/macOS sed: `-i ''` for no backup.
+        # Without the split, BSD sed reads the range as the backup suffix and
+        # errors — under `set -eo pipefail` that aborts every re-run (pattern 3).
+        if sed --version >/dev/null 2>&1; then
+            sed -i "/$begin_re/,/$end_re/d" "$file"
+        else
+            sed -i '' "/$begin_re/,/$end_re/d" "$file"
+        fi
     fi
+}
+
+# True iff ~/.bashrc already sources ~/.bash_aliases — via our managed block OR
+# a real (non-comment) dot/source statement. A bare grep for the literal string
+# also matches a stray mention in a comment, which would wrongly skip the wiring
+# (aliases written but never loaded) and report a false `--check` pass. We can't
+# match SRC_BEGIN alone: stock Debian/Ubuntu sources via its own line, not our
+# block, and would then get a redundant duplicate guard appended.
+bashrc_sources_aliases() {
+    [ -f "$BASHRC" ] || return 1
+    grep -qsF "$SRC_BEGIN" "$BASHRC" && return 0
+    grep -vE '^[[:space:]]*#' "$BASHRC" \
+        | grep -qE '(^|[[:space:]])(\.|source)[[:space:]]+[^[:space:]]*\.bash_aliases'
 }
 
 # The git aliases. Split on the FIRST '=': alias names never contain '=', so
@@ -152,8 +181,8 @@ GIT_TOTAL=${#GIT_ALIASES[@]}
 
 if [ "$DO_SHELL" = "1" ]; then
     if [ -f "$ALIASES_FILE" ] && grep -qF "$ALIAS_BEGIN" "$ALIASES_FILE" 2>/dev/null; then
-        # block present AND .bashrc sources .bash_aliases somehow
-        if grep -qsF '.bash_aliases' "$BASHRC"; then
+        # block present AND .bashrc actually sources .bash_aliases
+        if bashrc_sources_aliases; then
             SHELL_OK=1
         fi
     fi
@@ -264,7 +293,7 @@ ALIASBODY
     # it. Strip our old guard first so the detection below is accurate.
     [ -f "$BASHRC" ] || { : > "$BASHRC"; chown_if_needed "$BASHRC"; }
     strip_managed_block "$BASHRC" "$SRC_BEGIN" "$SRC_END"
-    if ! grep -qsF '.bash_aliases' "$BASHRC"; then
+    if ! bashrc_sources_aliases; then
         {
             printf '%s\n' "$SRC_BEGIN"
             printf '%s\n' 'if [ -f ~/.bash_aliases ]; then . ~/.bash_aliases; fi'
