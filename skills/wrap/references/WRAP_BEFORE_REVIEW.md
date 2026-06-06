@@ -1,6 +1,6 @@
 # Wrap before review — finalize docs to shipped state *before* the review-loop runs
 
-**When this fires**: a doc-heavy PR (substantial IDEA-file / plan / index / devlog / guide changes alongside code) headed for `/review-loop` (single- or multi-engine) — which is **every sprint IDEA** (IDEA file + plan + devlog), so this is the canonical chain, not an exception. The chain is two review passes around the doc wrap: `work → review-loop (deliverables) → wrap (/wrap, scope=docs default) → review-loop (docs) → /wrap --scope=full | human merge`. Doc-finalization runs **before** the docs review, never after. (Code-only PRs with no doc churn collapse to `work → review-loop → wrap`.) Pass 1 is a bare `/wrap NNN` — the `docs` default finalizes docs and **structurally cannot reach Step 8 (merge)**, so there is nothing to "remember to stop." Pass 2 is `/wrap --scope=full NNN`, the explicit merge opt-in that runs Step 8 on non-protected targets — or, on protected targets, Step 8 auto-skips and the human merges. See *The two-pass model* below.
+**When this fires**: a doc-heavy PR (substantial IDEA-file / plan / index / devlog / guide changes alongside code) headed for `/review-loop` (single- or multi-engine) — which is **every sprint IDEA** (IDEA file + plan + devlog), so this is the canonical chain, not an exception. The chain is a **single** review pass, after the doc wrap: `work → /wrap (docs) → review-loop → /land (merge)`. Doc-finalization runs **before** the one review, never after — so the reviewer sees the PR at its merged shape. (Code-only PRs with no doc churn collapse to `work → review-loop → land`; the wrap is a near-no-op.) Merge is a separate, named stage — `/land` — run after the single review clears; it is no longer a `--scope` of wrap. See *Why one review pass* below.
 
 ## Why
 
@@ -11,12 +11,15 @@ Modern review engines review **docs, not just code** — Copilot in particular c
 
 Wrapping first collapses both: the reviewer sees docs in their merge shape, doc findings land alongside code findings, no post-review drift.
 
-**The merge doesn't move — and the default scope can't reach it.** This is a **two-pass** model, enforced by the `--scope` enum:
+## Why one review pass, not two
 
-1. **Pre-review pass (pass 1) — bare `/wrap NNN` (`--scope=docs`, the default).** Runs the doc-finalization steps (frontmatter flip, ideas-index move, devlog entry, downstream-docs scan — wrap Steps 1–4 and 6; plus the *conditional* Step 6b whole-README currency audit, which is staleness-gated and often skips, and the conditional Step 7 eval-gate emission when it fires) and **structurally cannot reach Step 8 (atomic merge)**. No "remember to stop" — the default scope makes the stop a property of the tool, not operator discipline. (`--scope=idea-only` also skips Step 8 but *additionally* skips the devlog/index steps you want pre-review, so it's the sprint-auto tool, not this one.)
-2. **Post-review pass (pass 2) — `/wrap --scope=full NNN`.** Re-run after the **docs** `/review-loop` (the second review pass) clears — *not* after the deliverables review; the merge gate is docs-review-clear, since pass 1 finalized the docs the second review then clears. The doc-finalization steps are idempotent guards (Step 2 short-circuits on `status: complete`; Steps 3/4 detect their existing entries), so pass 2 effectively just re-audits docs (Step 6) and runs Step 8 — atomic-merges on non-protected targets, or hands back on protected targets (where Step 8 auto-skips). `ATOMIC_MERGE.md`'s `clean_sha == head_sha` gate handles the HEAD that review-loop moved.
+The earlier model ran **two** review passes — a deliverables (code) pass *before* the wrap, then a docs pass *after*. IDEA-015 retired it: if wrap always precedes review, there is no reason to review twice.
 
-Mentally split wrap: **doc-finalization is pre-review (`docs`); merge is post-review-clear (`full`).** The scope enum makes the split structural, not a discipline you have to remember.
+- `/review-loop` already **iterates to clean** — it re-reviews on every fix push (Phase 4 wake-loop), and its Phase-1 triage is **finding-class-agnostic** (it tiers every finding, code or doc, the same way). So one pass over the *wrapped* PR absorbs both code and doc findings; the loop's own fix-cycles do what the second pass used to do.
+- The deliverables-first pass was *premature* — it reviewed an incomplete PR (docs not yet finalized), guaranteeing a second look. Front-loading the wrap makes the first look the only look needed.
+- **Reviewing more than once is still allowed** — a mid-`/work` Claude pass for early code signal is fine. What's retired is the *mandatory ceremonial* second pass, not the option.
+
+**Merge is its own stage.** `/wrap` finalizes docs and **never merges**. After the single `/review-loop` clears, run `/land NNN` — it verifies docs are finalized (its precondition guard), then squash-merges on non-protected targets or hands back the PR URL on protected ones. (Legacy: merge used to be `/wrap --scope=full`; that scope is now a deprecated shim that redirects to `/land`.) See [`../../land/references/ATOMIC_MERGE.md`](../../land/references/ATOMIC_MERGE.md).
 
 ## The tension this creates, and how to handle it
 

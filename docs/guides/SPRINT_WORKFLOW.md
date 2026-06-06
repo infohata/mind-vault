@@ -7,10 +7,10 @@ flowchart LR
     I0(["/ideate — optional discovery"]) -.-> I1
     I1(["/idea — capture"]) --> P
     P(["/plan · /brainstorm — what + how"]) --> W
-    W(["/work — execute"]) --> RD
-    RD(["/review-loop — deliverables\n+ curator · architect"]) --> WR
+    W(["/work — execute"]) --> WR
     WR(["/wrap — finalize docs\n(pre-merge)"]) --> RR
-    RR(["/review-loop — docs"]) --> C
+    RR(["/review-loop — single pass\n+ curator · architect"]) --> L
+    L(["/land — merge + teardown"]) --> C
     C(["/compound — router"]) -.promotes.-> V[("mind-vault\nskills · rules · agents\ncommands · memory")]
     C -.next sprint.-> I1
 ```
@@ -34,20 +34,20 @@ The optional `/ideate` stage sits above `/idea` — use it between sprints to di
 | 1. Idea | `/idea [slug]` | Title (new) or slug (update) | `<project>/docs/ideas/IDEA-NNN-<slug>.md` |
 | 2. Brainstorm / Plan | `/plan` or `/brainstorm` | IDEA file, or raw description | `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md` (co-located with the moved IDEA file per `RULE_ideas-location-status`) |
 | 3. Work | `/work` | Plan file | Code changes on a feature branch |
-| 4a. Review — deliverables | `/review-loop <PR> bugbot` (Cursor Bugbot), `/review-loop <PR> copilot` (GitHub Copilot), `/review-loop <PR> claude` (Claude Code Review), or any subset, per project config; curator-only fallback if no external bot | Open PR | Cleared code findings + loop output file |
-| 4b. Wrap — finalize docs | `/wrap` (default `--scope=docs`); `--scope=full` to also merge | Deliverables-cleared PR | IDEA frontmatter `complete` + re-sorted index + devlog entry + downstream docs patched. Runs **before** the docs review (wrap-before-review) so engines see docs at merged shape. Default `docs` scope stops before merge; `--scope=full` additionally squash-merges non-protected targets (then post-merge teardown). Protected targets always hand back for human merge. |
-| 4c. Review — docs | `/review-loop <PR> <engine>` (same engines as 4a) | Wrapped PR | Cleared doc findings; PR ready to merge. Code-only PRs collapse this pass. |
+| 4a. Wrap — finalize docs | `/wrap` (default `--scope=docs`) | Open PR (deliverables ready) | IDEA frontmatter `complete` + re-sorted index + devlog entry + downstream docs patched. Runs **before** the review (wrap-before-review) so engines see docs at merged shape. Never merges (merge is stage 4c `/land`); `--scope=full` is a deprecated shim that finalizes docs then redirects to `/land`. |
+| 4b. Review — single pass | `/review-loop <PR> bugbot` (Cursor Bugbot), `/review-loop <PR> copilot` (GitHub Copilot), `/review-loop <PR> claude` (Claude Code Review), or any subset, per project config; curator-only fallback if no external bot | Wrapped PR | Cleared findings (code + docs together) + loop output file. One pass — the loop iterates to clean; the old deliverables/docs two-pass was retired in IDEA-015. |
+| 4c. Land — merge + teardown | `/land` | Review-cleared PR | Squash-merge on non-protected targets (protected → hand back PR URL per `RULE_git-safety`), then strictly-post-merge worktree/volume teardown. Precondition guard refuses to merge un-wrapped work. |
 | 5. Compound | `/compound` | Solved problem, or PR-review output file | Solution doc OR mind-vault skill/rule/agent/command/memory update |
 
 **Brainstorm folds into plan.** `/brainstorm` is an alias for `/plan`. When the IDEA file is thin or the description is under-specified, the plan skill interactively explores requirements (the brainstorm front-end) before emitting the plan artifact.
 
 ## Overnight unattended mode — `/sprint-auto`
 
-`/sprint-auto` is an optional wrapper around the **full sprint workflow** (stages 2–5) for unattended overnight execution on a VPS. Per IDEA it drives `/plan → /work → review-loop (deliverables) → escalation → /wrap (pre-merge, auto-detected) → review-loop (docs) → escalation → pre-merge container teardown`; at batch end it runs `/compound` per candidate and the review-loop on each mind-vault PR produced. The review-loop carries `bugbot`, `copilot`, `claude`, or any subset per project config (`SPRINT_AUTO_REVIEW_ENGINE`), or is skipped when engine is `none` (curator-only fallback). T2/T3 review findings resolve autonomously via rollback-able fresh commits; per-pass attempt caps are 20 (deliverables) / 5 (docs) / 5 (mind-vault compound), each an independent `/review-loop` session (budget spans all configured engines). The skill runs each IDEA in its own git worktree + docker-compose project, and stops at the HITL merge boundary per `RULE_git-safety`.
+`/sprint-auto` is an optional wrapper around the **full sprint workflow** (stages 2–5) for unattended overnight execution on a VPS. Per IDEA it drives `/plan → /work → /wrap (idea-only, pre-merge) → review-loop (single pass over the wrapped PR) → escalation → pre-merge container teardown`; at batch end it runs `/compound` per candidate and the review-loop on each mind-vault PR produced. The review-loop carries `bugbot`, `copilot`, `claude`, or any subset per project config (`SPRINT_AUTO_REVIEW_ENGINE`), or is skipped when engine is `none` (curator-only fallback). T2/T3 review findings resolve autonomously via rollback-able fresh commits; per-pass attempt caps are 20 (per-IDEA review) / 5 (mind-vault compound), each an independent `/review-loop` session (budget spans all configured engines). The skill runs each IDEA in its own git worktree + docker-compose project, and stops at the HITL merge boundary per `RULE_git-safety`.
 
 Opt-in is belt-and-suspenders: every IDEA needs `auto_safe: true` + `auto_safe_reason` in frontmatter **and** explicit presence in the invocation args. Never scan-mode. IDEAs touching sensitive paths (`.env*`, base `docker-compose.yml`, CI workflows, destructive migrations, auth middleware) require `sensitive_paths_cleared: true`. Priority is queue order only (scheduling preference), not a safety dimension — `auto_safe: true` is the authoritative signal. See `skills/sprint-auto/references/safety-gates.md` for the full gate list.
 
-Worktrees are preserved after each run — success or failure — so the human can review PRs or diagnose failures in the morning. At pre-merge teardown (state S8) the skill runs `docker compose down` (containers + networks, volumes retained); it never runs `-v` (volume removal), never `git worktree remove`, never merges, never force-pushes. The post-merge cleanup (`-v` + worktree remove + frontmatter flip) is the human's `/wrap NNN` chore after merge. See `skills/sprint-auto/SKILL.md` for the full pattern, `references/post-pr-sequence.md` for the S0–S15 state machine, `references/escalation-policy.md` for the rollback + attempt-cap contract, and `references/worktree-lifecycle.md` for the project-local bootstrap-script contract (`tools/sprint-auto-bootstrap.sh`).
+Worktrees are preserved after each run — success or failure — so the human can review PRs or diagnose failures in the morning. At pre-merge teardown (state S8) the skill runs `docker compose down` (containers + networks, volumes retained); it never runs `-v` (volume removal), never `git worktree remove`, never merges, never force-pushes. The post-merge cleanup (`-v` + worktree remove) is the human's `/land --integration <batch-iso>` chore after merge. See `skills/sprint-auto/SKILL.md` for the full pattern, `references/post-pr-sequence.md` for the S0–S15 state machine, `references/escalation-policy.md` for the rollback + attempt-cap contract, and `references/worktree-lifecycle.md` for the project-local bootstrap-script contract (`tools/sprint-auto-bootstrap.sh`).
 
 ## Compound routing (the novel piece)
 
@@ -151,9 +151,9 @@ Typical invocation on a new feature:
 /plan <slug>               # or /brainstorm <slug> — produces plan doc
 /work <plan-path>          # dispatches to personas, commits as it goes
 # ... open PR ...
-/review-loop <pr-url> <engine>    # 4a deliverables — bugbot | copilot | claude | any subset, per project's review_engine
-/wrap                      # 4b finalize docs (pre-merge, --scope=docs default)
-/review-loop <pr-url> <engine>    # 4c docs pass — same engine(s); code-only PRs collapse this
+/wrap                      # 4a finalize docs (pre-merge, --scope=docs default)
+/review-loop <pr-url> <engine>    # 4b single review over the wrapped PR — bugbot | copilot | claude | any subset
+/land <NNN>                # 4c merge (non-protected) + teardown; protected → hands back PR URL
 /compound                  # routes what we learned
 ```
 
