@@ -10,7 +10,7 @@ staleness threshold and patches mechanical drift in-wrap.
 
 Step 6b runs **after** Step 6's per-identifier loop, gated three ways:
 
-1. **Scope** — eligible under `--scope=docs` / `--scope=full`; **skipped under
+1. **Scope** — eligible under `--scope=docs` (the default); **skipped under
    `--scope=idea-only`** (per-IDEA sprint-auto wraps; the batch wrap is the audit
    point — see *Sprint-auto asymmetry*).
 2. **Staleness** — count merged PRs on the base branch since the last
@@ -54,9 +54,9 @@ fi
 **Same-day idempotency guard:** the explicit `MARKER_DATE = today → skip` branch
 means a marker written today never re-fires the audit the same day — regardless of
 how `gh` interprets `merged:>today` (which can include same-day merges on an active
-base branch). So the `docs`→`full` two-pass re-run never double-audits: the `docs`
-pass writes today's marker, the `full` re-run hits the same-day branch and skips. No
-per-pass special-casing.
+base branch). So a same-day re-run (a review cycle touches docs, then `/wrap` runs
+again) never double-audits: the first run writes today's marker, the re-run hits the
+same-day branch and skips. No per-run special-casing.
 
 ## The marker
 
