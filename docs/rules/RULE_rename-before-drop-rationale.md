@@ -22,7 +22,7 @@ shim: a module and a package can't share a dotted name, so the colliding name is
 bridged transparently by the package `__init__` re-export instead of a shim, while the *other*
 absorbed flat modules ride normal one-commit shims. Full mechanics + mixed-bridge sequencing live
 in the (Python-general) module-split reference:
-[`skills/django/references/MODULE_SPLIT_AST_EXTRACTION.md`](../../skills/django/references/MODULE_SPLIT_AST_EXTRACTION.md)
+[`skills/python/references/MODULE_SPLIT_AST_EXTRACTION.md`](../../skills/python/references/MODULE_SPLIT_AST_EXTRACTION.md)
 § *Sequencing — the forced-atomic member*.
 
 ## Anti-Patterns

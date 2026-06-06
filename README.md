@@ -8,7 +8,7 @@
 
 ______________________________________________________________________
 
-**v4.7 — split `/wrap` into `/wrap` (docs) + `/land` (merge + teardown) and retire the double-review ceremony: the canonical chain is now `/work → /wrap → /review-loop → /land`, a single post-wrap review. Recent line: Claude Code Review as a third `/review-loop` engine (v4.6), agent profiles → recognized Claude Code subagent schema (v4.5), sprint-auto v3.2 integration-as-merge-gate (v4.4). (v5 reserved for the stack-agnostic agent overhaul, IDEA-014.)**
+**v4.8 — new `skills/python` language-base tier beneath the framework skills: the `ast` byte-exact module-split and env-driven `frozenset` allowlist recipes lifted out of `django` into a deliberate base layer, de-risking the `craft agent → framework skill → language-base skill` tiering (IDEA-009). Recent line: split `/wrap` into `/wrap` (docs) + `/land` (merge + teardown) and retire the double-review ceremony — canonical chain `/work → /wrap → /review-loop → /land` (v4.7), Claude Code Review as a third `/review-loop` engine (v4.6), agent profiles → recognized Claude Code subagent schema (v4.5). (v5 reserved for the stack-agnostic agent overhaul, IDEA-014.)**
 
 Cross-host configuration library for AI coding agents — skills, commands, subagent personas, and shared rules, authored once and symlinked into every agent-aware tool.
 
@@ -52,7 +52,7 @@ mind-vault/
 └── tools/         Utilities (review-loop helpers, emoji support, etc.)
 ```
 
-## Skills (18)
+## Skills (19)
 
 Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each skill has frontmatter `name` + `description` (the probabilistic trigger), stays under ~500 lines, and pushes deep-dive content to `references/`.
 
@@ -75,6 +75,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 
 | Skill                  | Purpose                                                                                                                                                                                                                            |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **python**             | Language-base tier beneath the framework skills — `ast` byte-exact flat-module→package splits, env-driven `frozenset` allowlists. Language-general recipes for any Python project; SKIP hands off to the active framework skill.   |
 | **django**             | Backend conventions: BaseModel, soft-delete, DRF viewsets, multi-tenancy boundaries, generic-FK pattern, permission probes, translation workflow.                                                                                  |
 | **django-frontend**    | HTMX + Alpine + Bulma + Crispy Forms — partial dispatch, modal/formset JS contracts, safe query-string generation. Pairs with `django`.                                                                                            |
 | **deployment**         | Docker Compose production deploys — change-aware scripts, pre/post-migration backups, screen-session remote execution, Let's Encrypt SSL.                                                                                          |
@@ -103,7 +104,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 
 ## Commands
 
-Slash commands surface from two sources via the host's symlink: `commands/` (6 commands) and `skills/` (every skill with a `name:` frontmatter is invocable as `/<name>` per the skill-writer convention). The two groups below list the **sprint-workflow** + **automation** + **review/PR** entries — the most common surfaces. Engineering-pattern skills (`django`, `django-frontend`, `deployment`, `surgical-tdd`, `dependabot-triage`, `mobile-ux-polish`, `skill-writer`, `artefact-retrieval`) are also slash-invocable but typically activate via trigger-phrase rather than direct slash; see each skill's frontmatter.
+Slash commands surface from two sources via the host's symlink: `commands/` (6 commands) and `skills/` (every skill with a `name:` frontmatter is invocable as `/<name>` per the skill-writer convention). The two groups below list the **sprint-workflow** + **automation** + **review/PR** entries — the most common surfaces. Engineering-pattern skills (`python`, `django`, `django-frontend`, `deployment`, `surgical-tdd`, `dependabot-triage`, `mobile-ux-polish`, `skill-writer`, `artefact-retrieval`) are also slash-invocable but typically activate via trigger-phrase rather than direct slash; see each skill's frontmatter.
 
 **Sprint workflow:** `/ideate`, `/idea`, `/plan` (alias `/brainstorm`), `/work`, `/wrap`, `/land`, `/compound`, `/ingest-backlog`.
 
