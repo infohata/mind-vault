@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-- [IDEA-015](../archive/2026-06-idea-015-split-wrap-into-wrap-and-land/IDEA-015-split-wrap-into-wrap-and-land.md) ⏳ — Split /wrap into /wrap (docs) + /land (merge + teardown), reconcile full workflow
+_(none)_
 
 ## 💡 High Priority (backlog)
 
@@ -25,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-015: Split /wrap into /wrap (docs) + /land (merge + teardown) ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-06-06 · **See**: [Archive](../archive/2026-06-idea-015-split-wrap-into-wrap-and-land/IDEA-015-split-wrap-into-wrap-and-land.md), [PR #176](https://github.com/infohata/mind-vault/pull/176).
+Split `/wrap` (now docs-only, never merges) from a new **`/land`** skill that owns merge + teardown (the old Step 8 atomic merge, Step 5 worktree teardown, and `--integration` batch teardown; `ATOMIC_MERGE.md` + `WORKTREE_TEARDOWN.md` relocated under `skills/land/`). `/land` opens with a pre-merge-only precondition guard that refuses to merge un-wrapped work. **Retired the double-review ceremony** to a single post-wrap review — new canonical chain `/idea → /plan → /work → /wrap (docs) → /review-loop → /land (merge) → /compound` — collapsing sprint-auto's per-IDEA S3–S7 two-pass into one S6 pass (split 20/5 escalation caps merged to 20, sized for the code long tail) and reconciling every chain depiction (README mermaid + table, SPRINT_WORKFLOW, ONBOARDING, work/review-loop/plan). `--scope=full` is now a deprecated shim that finalizes docs then redirects to `/land` (never merges). Architect-reviewed twice (🟡→🟡, all findings folded incl. the phase-boundary + cap-semantics catches). Shipped as ONE PR (rename-before-drop commit ordering C1–C5). Supersedes the [IDEA-013](../archive/2026-06-idea-013-wrap-readme-currency-backfill/IDEA-013-wrap-readme-currency-backfill.md) two-pass canonical chain; completes the [IDEA-006](../archive/2026-05-idea-006-review-surface-collapse/IDEA-006-review-surface-collapse.md) single-review-entry direction (now a single, named *merge* entry too) and the [IDEA-008](../archive/2026-05-idea-008-wrap-doc-finalization-scope/IDEA-008-wrap-doc-finalization-scope.md) `--scope` enum.
 
 ### IDEA-013: Amend /wrap docs pass to audit + backfill the project's main README ✅ COMPLETE
 

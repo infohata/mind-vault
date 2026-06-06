@@ -10,6 +10,26 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.7 — IDEA-015: split /wrap into /wrap + /land, retire the double-review
+
+Minor release ([PR #176](https://github.com/infohata/mind-vault/pull/176), IDEA-015). A structural reframe of the sprint-workflow finish: the merge stage gets its own skill and the review ceremony collapses from two passes to one. Adopter-facing — the canonical chain every project runs changes shape. (v5 reserved for IDEA-014's stack-agnostic agent overhaul.)
+
+### Added
+
+- **`skills/land/` — new merge + teardown skill.** Owns what `/wrap` used to do at its tail: Step 8 atomic squash-merge (non-protected targets; protected → hand back PR URL per `RULE_git-safety`), Step 5 post-merge worktree/volume teardown, and the `--integration <batch-iso>` sprint-auto batch teardown. Three auto-detected modes (`/land NNN` pre-merge = merge→teardown; `/land NNN` post-merge = teardown only; `/land --integration` = batch teardown). Opens with a **pre-merge-only precondition guard** that refuses to merge un-wrapped work (frontmatter `complete`? devlog present? index moved?). `ATOMIC_MERGE.md` + `WORKTREE_TEARDOWN.md` relocated here from `skills/wrap/references/`.
+
+### Changed
+
+- **Canonical workflow chain → single review:** `/idea → /plan → /work → /wrap (docs) → /review-loop → /land (merge) → /compound`. The double-review ceremony (deliverables pass before wrap, docs pass after) is retired — `/review-loop` already iterates to clean and triages code+doc findings identically, so one pass over the wrapped PR absorbs both. Reconciled across every chain depiction (README mermaid + skills table + sprint-auto row, SPRINT_WORKFLOW stage table, ONBOARDING stages, work/review-loop/plan skills + references).
+- **`/wrap` is now docs-only** — finalizes docs and never merges/tears down (those moved to `/land`). Frontmatter description trimmed; SKILL.md 420→388L.
+- **sprint-auto per-IDEA cadence collapsed** — S3–S7 two-pass (deliverables S3/S4 + docs S6/S7) → single S6 review pass after the S5 wrap; split 20/5 escalation caps merged to a single **20** (sized for the code long tail; doc findings caught by review-loop's own `no_progress_map`). Batch teardown call `/wrap --integration` → `/land --integration`. Integration-state review (S11.10) unchanged.
+
+### Deprecated
+
+- **`/wrap --scope=full`** — finalizes docs then emits a loud notice ("did NOT merge") and redirects to `/land NNN`. It no longer merges; the merge moved to `/land`. `--scope=docs` (default) and `--scope=idea-only` are unchanged.
+
+Architect-reviewed twice (🟡→🟡, all findings folded — incl. the Phase-A/B boundary catch that drove the one-PR decision, and the merged-cap-=-20 code-long-tail sizing). Shipped as ONE PR with rename-before-drop commit ordering (C1 add /land → C2 sprint-auto cadence → C3 chain reconcile → C4 drop wrap legacy → C5 sweep). Supersedes [IDEA-013](docs/archive/2026-06-idea-013-wrap-readme-currency-backfill/IDEA-013-wrap-readme-currency-backfill.md)'s two-pass canonical chain; completes [IDEA-006](docs/archive/2026-05-idea-006-review-surface-collapse/IDEA-006-review-surface-collapse.md) (single review entry → single named merge entry) + [IDEA-008](docs/archive/2026-05-idea-008-wrap-doc-finalization-scope/IDEA-008-wrap-doc-finalization-scope.md) (`--scope` enum).
+
 ## v4.6.5 — compound: shell shared-style "fails open on a new surface" trap
 
 Patch release (compound of a downstream app-shell surface migration). One frontend learning, extending an existing reference (no new file):

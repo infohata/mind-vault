@@ -8,7 +8,7 @@
 
 ---
 
-**v4.6 — Claude Code Review as a third `/review-loop` engine (auto-trigger / comment-anchored adapter alongside Cursor Bugbot + GitHub Copilot; the review sync contract generalized 2→N). Recent line: agent profiles → recognized Claude Code subagent schema (v4.5), sprint-auto v3.2 integration-as-merge-gate (v4.4).**
+**v4.7 — split `/wrap` into `/wrap` (docs) + `/land` (merge + teardown) and retire the double-review ceremony: the canonical chain is now `/work → /wrap → /review-loop → /land`, a single post-wrap review. Recent line: Claude Code Review as a third `/review-loop` engine (v4.6), agent profiles → recognized Claude Code subagent schema (v4.5), sprint-auto v3.2 integration-as-merge-gate (v4.4). (v5 reserved for the stack-agnostic agent overhaul, IDEA-014.)**
 
 Cross-host configuration library for AI coding agents — skills, commands, subagent personas, and shared rules, authored once and symlinked into every agent-aware tool.
 
@@ -52,7 +52,7 @@ mind-vault/
 └── tools/         Utilities (review-loop helpers, emoji support, etc.)
 ```
 
-## Skills (17)
+## Skills (18)
 
 Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each skill has frontmatter `name` + `description` (the probabilistic trigger), stays under ~500 lines, and pushes deep-dive content to `references/`.
 
@@ -232,7 +232,7 @@ Commit all non-sensitive configuration to git.
 
 Licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Kestutis Januskevicius.
 
-<!-- wrap:readme-currency-audited 2026-06-03 -->
+<!-- wrap:readme-currency-audited 2026-06-06 -->
 <!-- wrap:readme-currency
 N: 5
 counts:

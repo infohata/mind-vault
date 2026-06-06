@@ -1,14 +1,14 @@
 ---
 id: 015
 title: "Split /wrap into /wrap (docs) + /land (merge + teardown)"
-status: in-progress          # idea | in-progress | complete | superseded
+status: complete          # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
 depends_on: []       # list of IDEA ids required before starting, or []
 related: [6, 8, 13, 2]             # list of IDEA ids that share context, or []
 created: 2026-06-06
-completed: null
+completed: 2026-06-06
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
@@ -20,7 +20,7 @@ sensitive_paths_cleared_reason: "The new /land skill owns the atomic-merge HITL 
 
 # IDEA-015: Split /wrap into /wrap (docs) + /land (merge + teardown)
 
-**Status**: 💡 Idea
+**Status**: ✅ Complete (2026-06-06)
 **Priority**: Medium
 
 **Problem** (or opportunity): Two coupled problems in the finish of the sprint workflow.
