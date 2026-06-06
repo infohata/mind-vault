@@ -8,7 +8,7 @@
 
 ______________________________________________________________________
 
-**v4.7 — split `/wrap` into `/wrap` (docs) + `/land` (merge + teardown) and retire the double-review ceremony: the canonical chain is now `/work → /wrap → /review-loop → /land`, a single post-wrap review. Recent line: Claude Code Review as a third `/review-loop` engine (v4.6), agent profiles → recognized Claude Code subagent schema (v4.5), sprint-auto v3.2 integration-as-merge-gate (v4.4). (v5 reserved for the stack-agnostic agent overhaul, IDEA-014.)**
+**v4.9 — stack-agnostic agent architecture (IDEA-014 Phase 1): all 8 personas split into a craft core + `## Stack adapter` that resolves concrete framework rules against the active stack skill via [`agents/SKILL_CONTRACT.md`](agents/SKILL_CONTRACT.md) (6 backend + 4 frontend contract-heading floor). Recent line: split `/wrap` into `/wrap` (docs) + `/land` (merge + teardown) and retire the double-review (v4.7), Claude Code Review as a third `/review-loop` engine (v4.6), agent profiles → recognized Claude Code subagent schema (v4.5). (v5 reserved for IDEA-014 Phase 2 — the Laravel proving stack / zero-agent-edit drop-in proof.)**
 
 Cross-host configuration library for AI coding agents — skills, commands, subagent personas, and shared rules, authored once and symlinked into every agent-aware tool.
 
@@ -91,7 +91,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 
 ## Agents (8 subagent personas)
 
-`AGENT_*.md` files registered as recognized Claude Code subagents (dispatchable as `mv-<persona>`) and consumed unchanged by Cursor 2.4+ (`.cursor/agents/` symlink). Each persona has Prime Directives, an N-pass workflow, and a structured verdict format. Cross-harness portability — Cursor = straight copy, OpenCode + Antigravity = fork recipes — is documented in [`docs/guides/AGENT_PORTABILITY.md`](docs/guides/AGENT_PORTABILITY.md).
+`AGENT_*.md` files registered as recognized Claude Code subagents (dispatchable as `mv-<persona>`) and consumed unchanged by Cursor 2.4+ (`.cursor/agents/` symlink). Each persona has Prime Directives, an N-pass workflow, a `## Stack adapter`, and a structured verdict format. Since IDEA-014 the personas are **stack-agnostic**: the craft core stays in the profile while concrete framework rules resolve against the *active* framework-stack skill via the contract-heading interface in [`agents/SKILL_CONTRACT.md`](agents/SKILL_CONTRACT.md) (stack resolved per [`skills/work/references/persona-dispatch.md`](skills/work/references/persona-dispatch.md)). Cross-harness portability — Cursor = straight copy, OpenCode + Antigravity = fork recipes — is documented in [`docs/guides/AGENT_PORTABILITY.md`](docs/guides/AGENT_PORTABILITY.md).
 
 | Persona                                         | Covers                                                                                                                                           | Stage                                                   |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |

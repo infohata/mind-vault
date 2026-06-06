@@ -8,7 +8,8 @@ superseded_by:
 depends_on: []
 related: [IDEA-011, IDEA-009]
 created: 2026-05-20
-completed:
+completed:                # full close-out pending Phase 2 (Laravel proving stack)
+phase_1_completed: 2026-06-06   # craft/stack split + 6/4 contract + detection (PR #178)
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.

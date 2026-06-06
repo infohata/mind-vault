@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-- [IDEA-014](../archive/2026-06-idea-014-stack-agnostic-agents/IDEA-014-stack-agnostic-agents.md) — Stack-agnostic agent architecture + Laravel proving stack
+- [IDEA-014](../archive/2026-06-idea-014-stack-agnostic-agents/IDEA-014-stack-agnostic-agents.md) — Stack-agnostic agent architecture + Laravel proving stack · **Phase 1 ✅ shipped** ([PR #178](https://github.com/infohata/mind-vault/pull/178): craft/stack split + 6/4 skill contract + documented detection); **Phase 2 (Laravel proving stack) pending** — the zero-agent-edit drop-in proof.
 
 ## 💡 High Priority (backlog)
 
@@ -18,7 +18,7 @@ _(none)_
 
 ## 💡 Low Priority (backlog)
 
-- [IDEA-009](IDEA-009-extract-python-general-from-django.md) — Extract Python-general patterns from the django skill into a python skill
+_(none)_
 
 ## 🗃 Superseded / Rejected (archive)
 

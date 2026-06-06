@@ -10,9 +10,26 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.9 — IDEA-014 Phase 1: stack-agnostic agent architecture
+
+Minor release ([PR #178](https://github.com/infohata/mind-vault/pull/178), IDEA-014 Phase 1). The agent profiles stop being hard-wired to Django: each persona splits into a stack-agnostic craft core + a `## Stack adapter` that resolves concrete framework rules against the *active* stack skill, with a new contract doc defining the agent↔skill interface. Adopter-facing — a generic `mv-backend`/`mv-frontend`/`mv-curator` now works any stack that exposes the contract headings. **v5 stays reserved** for Phase 2 (the Laravel proving stack — the zero-agent-edit drop-in proof; v5 then means *demonstrated on a second stack*, not just architected).
+
+### Added
+
+- **`agents/SKILL_CONTRACT.md` — the agent↔framework-skill interface.** A required **6 backend + 4 frontend** contract-heading floor (ORM eager-loading · Input-validation boundary · Background jobs · Data isolation / scoping boundary · Permissions/authorization · Testing conventions; Reactivity model · Partial/fragment response · Component system · Form-submission lock), the optional-extras rule, the reviewers-consume-the-same-anchors note, a **fail-open contract** (unresolved stack → craft-only + announce the gap, never silently skip), and the `craft agent → framework-stack skill → language-base (python)` tiering invariant.
+- **Stack resolution** in `skills/work/references/persona-dispatch.md` — `.claude/dispatch.md` `stack:` pin → `AGENTS.md` → auto-detect signals (django/laravel/node, with the `package.json`-resolves-frontend-only precedence rule) → ask once. No executable detector ships in Phase 1.
+- **`scripts/statusline-command.sh` — 5-hour rolling rate-limit segment** (folded-in). Surfaces the 5h rate-limit window beside the existing 7d segment (same dim / yellow / red tier thresholds); also drops the 📌 prefix from the topic segment.
+
+### Changed
+
+- **All 8 `agents/AGENT_*.md` personas split into craft core + `## Stack adapter`.** The 4 stack-heavy profiles (`mv-backend`, `mv-frontend`, `mv-curator` — dual backend+frontend adapter, `mv-test-engineer`) had every Django/HTMX/Alpine mechanic replaced by a contract-heading pointer (`mv-curator` asserts the same anchors the authors fill); the 4 generic profiles (`mv-devops`, `mv-documentation`, `mv-researcher`, `mv-architect`) got a light adapter or a "stack-agnostic; no adapter needed" marker. The orphaned `**Stack profile:**` declaration lines were dropped (rename-before-drop sequencing).
+- **`skills/django/SKILL.md` + `skills/django-frontend/SKILL.md` expose all 10 contract headings verbatim** (renames + 3 anchor stubs — Background jobs, Testing conventions, Input-validation boundary). No recipe content changed; Django behaviour is unchanged (the deterministic regression guard).
+
+Deterministically verified by a line-conservation diff (every dropped stack-mechanic line maps to a contract heading; zero unaccounted removals — see `docs/archive/2026-06-idea-014-stack-agnostic-agents/2026-06-06-phase1-verification-log.md`). Architect-reviewed (🟡 → all 4 must-fixes folded). Shipped with rename-before-drop commit ordering (A contract+headings → B detection → C1–C4 per-profile splits → D generic light-touch → E drop orphaned lines).
+
 ## v4.7 — IDEA-015: split /wrap into /wrap + /land, retire the double-review
 
-Minor release ([PR #176](https://github.com/infohata/mind-vault/pull/176), IDEA-015). A structural reframe of the sprint-workflow finish: the merge stage gets its own skill and the review ceremony collapses from two passes to one. Adopter-facing — the canonical chain every project runs changes shape. (v5 reserved for IDEA-014's stack-agnostic agent overhaul.)
+Minor release ([PR #176](https://github.com/infohata/mind-vault/pull/176), IDEA-015). A structural reframe of the sprint-workflow finish: the merge stage gets its own skill and the review ceremony collapses from two passes to one. Adopter-facing — the canonical chain every project runs changes shape. (The stack-agnostic agent overhaul shipped as v4.9, IDEA-014 Phase 1; v5 now reserved for its Phase 2 Laravel proof.)
 
 ### Added
 
