@@ -90,7 +90,7 @@ The `no_progress_map` in review-loop's own scratch file already catches the path
 
 ## "Ship non-clean" — why an unresolved finding is not a failure
 
-A PR with transparent unresolved findings is a better outcome than a PR with hidden ones. When sprint-auto exhausts its attempt cap (on ANY pass — deliverables, docs, or mind-vault compound), it:
+A PR with transparent unresolved findings is a better outcome than a PR with hidden ones. When sprint-auto exhausts its attempt cap (on ANY pass — the single per-IDEA review or mind-vault compound), it:
 
 1. **Leaves the last-attempt SHA in the branch** (no revert of the final attempt, even if it didn't clear review — the reviewer may see it's close enough and merge as-is).
 2. **Annotates the auto-run log** with the attempt history — every SHA, every approach, every review outcome.
