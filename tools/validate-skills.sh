@@ -105,17 +105,30 @@ validate_skill() {
         echo -e "${RED}❌ Missing 'description' in frontmatter${NC}"
         HAS_ERRORS=1
     else
-        # Handle both single-line and multiline descriptions
+        # Handle both single-line and multiline descriptions. The description
+        # spans from its line to the next frontmatter field — but that search
+        # MUST be bounded by the closing `---` fence. Without the bound, a
+        # description that is the last frontmatter field over-reads into the
+        # body until the first `word:` line there (e.g. `status: complete`
+        # inside a fenced YAML example), inflating the count by thousands of
+        # chars and producing false "description too long" failures.
         local desc_start=$(grep -n "^description:" "$SKILL_FILE" | head -n1 | cut -d: -f1)
-        local next_field=$(grep -n "^[a-zA-Z_][a-zA-Z0-9_]*:" "$SKILL_FILE" | awk -F: -v start="$desc_start" '$1 > start {print $1; exit}')
-        local desc_end=$((next_field - 1))
-        
-        if [ -z "$next_field" ]; then
-            # Last field in frontmatter
-            desc_end=$(grep -n "^---$" "$SKILL_FILE" | sed -n '2p' | cut -d: -f1)
-            desc_end=$((desc_end - 1))
+        # Closing frontmatter fence = the 2nd `^---$`.
+        local fm_end=$(grep -n "^---$" "$SKILL_FILE" | sed -n '2p' | cut -d: -f1)
+        local desc_end
+        if [ -n "$fm_end" ]; then
+            # Next frontmatter field after description, WITHIN the frontmatter only.
+            local next_field=$(grep -n "^[a-zA-Z_][a-zA-Z0-9_]*:" "$SKILL_FILE" | awk -F: -v start="$desc_start" -v end="$fm_end" '$1 > start && $1 < end {print $1; exit}')
+            if [ -n "$next_field" ]; then
+                desc_end=$((next_field - 1))
+            else
+                desc_end=$((fm_end - 1))
+            fi
+        else
+            # Malformed frontmatter (no closing fence) — treat description as 1 line.
+            desc_end=$desc_start
         fi
-        
+
         if [ $desc_end -ge $desc_start ]; then
             DESCRIPTION=$(sed -n "${desc_start},${desc_end}p" "$SKILL_FILE" | sed '1s/^description: //' | sed '/^$/d')
             DESC_LENGTH=$(echo -n "$DESCRIPTION" | wc -c)
