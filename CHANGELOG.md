@@ -10,6 +10,22 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.0.2 — IDEA-018: prior-project provenance scrub + instruction-only scrub-gate guard
+
+Patch release ([PR #186](https://github.com/infohata/mind-vault/pull/186), IDEA-018). Closes the v5.0.1 known-follow-up: the pervasive pre-existing prior-project provenance presence is purged repo-wide (94 outside-archive hits → 0), and the gate that let it accumulate is hardened so it can't recur.
+
+### Security
+
+- **Purged a pervasive prior-project provenance identifier from all tracked files** — ~94 references across `CHANGELOG.md` (47), two SKILL bodies (`skills/compound`, `skills/idea`), the review-loop tool-script comments (`tools/find_{copilot,claude}_comments.sh`), `docs/guides/` (×2), `README.md` (×2), `docs/ideas/README.md`, and 11 archive IDEA/plan/session-note docs — generalised to neutral framing (foreign IDEA/PR numbers dropped; a bare `IDEA-149` would misread as a mind-vault IDEA). Compounded lessons and all mind-vault-own refs / module names preserved verbatim. Verified by a positive count-assertion gate (outside the IDEA-018 archive, zero remaining). Key finding: all 3 tool-script hits were **comments**, not functional defaults — `bash -n` clean. Real project names live only in local memory (`~/.claude`, never tracked).
+
+### Changed
+
+- **The `/compound` scrub gate (`skills/compound/SKILL.md` step 5) is now an instruction-only forcing function.** Rather than a hand-maintained regex/name-blacklist (whose false-positive cost outweighs its value and which ages badly), the gate makes the agent **emit a proper-noun classification** before commit — every token sorted `mind-vault-own | foreign→scrub | generic`. A gate satisfiable without emitting the classification is decorative. The gate's own example token was generalised to a `project-x` placeholder (with a note never to re-concretise it — the gate's own example is the highest-traffic re-leak vector). The regex is demoted to an optional cheap aid, explicitly not the enforcement mechanism.
+
+### Added
+
+- **`docs/archive/2026-06-idea-018-provenance-scrub/PROVENANCE_SCRUB_RUNBOOK.md`** — an archive-homed, *maintained* runbook for mind-vault's recurring provenance tidy-up: the inventory → categorise → generalise → verify procedure + a dated **run-log** (this scrub = run #1). Future drift = run the runbook and append a log entry, not a fresh IDEA per cleanup. The scrub gate points at it (by IDEA id) for the recurring-drift case. Architect-reviewed plan (🟡 → all 5 findings folded: positive-count gate, exact-count run-log, forcing-function guard, id-based pointer, mandatory blocking gate).
+
 ## v5.0.1 — compound: fail-closed bar for the data-isolation contract heading
 
 Patch release — one learning compounded from the IDEA-014 Phase 2 review loop. No IDEA (no planning cycle); provenance is the date + PR.

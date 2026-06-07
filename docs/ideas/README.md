@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-- [IDEA-018](../archive/2026-06-idea-018-provenance-scrub/IDEA-018-scrub-prior-project-provenance-identifiers.md) ⏳ — Scrub prior-project provenance identifiers (`teisutis`, ~90 refs incl. tool scripts) for public-repo-safety + establish a repeatable scrub runbook
+_(none)_
 
 ## 💡 High Priority (backlog)
 
@@ -26,6 +26,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-018: Scrub prior-project provenance identifiers + repeatable scrub runbook ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-06-07 · **See**: [Archive](../archive/2026-06-idea-018-provenance-scrub/IDEA-018-scrub-prior-project-provenance-identifiers.md), [PR #186](https://github.com/infohata/mind-vault/pull/186).
+Purged a pervasive prior-project provenance identifier from tracked files (94 outside-archive hits → 0) for public-repo-safety, and hardened the `/compound` scrub gate against re-accumulation. The guard is **instruction-only** — a forcing-function classification (`mind-vault-own | foreign→scrub | generic`) emitted before commit, **no name denylist** (false-positive cost outweighs value; a well-written instruction wins long-term as models improve). Established a maintained, archive-homed [`PROVENANCE_SCRUB_RUNBOOK.md`](../archive/2026-06-idea-018-provenance-scrub/PROVENANCE_SCRUB_RUNBOOK.md) with a dated run-log — recurring drift is a logged routine, not a fresh IDEA. Key finding: all review-loop tool-script hits were comments (no functional default). Architect-reviewed (🟡 → all 5 findings folded, incl. the positive-count verification gate).
 
 ### IDEA-014: Stack-agnostic agent architecture + Laravel proving stack ✅ COMPLETE
 
