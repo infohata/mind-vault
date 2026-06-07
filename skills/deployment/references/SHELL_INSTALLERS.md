@@ -403,7 +403,7 @@ When authoring a new `install-X.sh`, start by copying the closest existing insta
 ```bash
 #!/bin/bash
 # Description: What this tool does (one line — shown by --help).
-# Usage: sudo ./tools/install-X.sh [--check] [--flag VALUE]
+# Usage: sudo ./install/install-X.sh [--check] [--flag VALUE]
 # Supports: Debian 11+, Ubuntu 20.04+
 
 set -eo pipefail
