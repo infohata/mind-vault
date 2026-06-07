@@ -10,6 +10,20 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.0.4 — IDEA-016: scripts/ + tools/ taxonomy (scoped re-partition)
+
+Patch release ([PR #187](https://github.com/infohata/mind-vault/pull/187), IDEA-016). Resolves the long-ambiguous `scripts/` vs `tools/` split (both held `install`/`setup`-named scripts) into three single-concern dirs, without churning the symlink wiring that IDEA-017 may dissolve.
+
+### Changed
+
+- **`tools/` is now runtime skill helpers + maintenance utilities only.** The review-loop adapters (`find_*`, `*_retrigger`), `sprint-auto-bootstrap.sh`, and `validate-skills.sh` stay; `statusline-command.sh` **moved in** from `scripts/` (it's invoked by Claude Code at runtime, not installation); `cleanup-contamination.sh` remains, honestly labelled a one-shot maintenance utility (not a runtime helper). Rewritten `tools/README.md` states the two-genre boundary. Runtime helpers deliberately did **not** move — zero reference repointing for the high-ref-count group.
+- **`scripts/` is now host config-wiring only** (`setup-*-symlinks.sh` + `_symlink-lib.sh`). The `scripts/` → `link/` rename + `setup-*-symlinks.sh` renaming are **deferred to [IDEA-017](docs/ideas/IDEA-017-mind-vault-as-claude-code-plugin.md)** — a research spike (in the IDEA-016 archive) confirmed the CC plugin only **partially** dissolves `setup-claude-code-symlinks.sh` (`rules/`, `docs/rules/`, and the statusline + `settings.json` wiring have no plugin home → a residual CC script survives). New `scripts/README.md` documents the deferral.
+- **Repointed the load-bearing statusline cross-wire** — `scripts/setup-claude-code-symlinks.sh:47` now links `mind-vault/tools/statusline-command.sh`. Plus README tree diagram, statusline prose, `skills/deployment/{SKILL.md,references/SHELL_INSTALLERS.md}`, `skills/review-loop/references/common-review-findings.md`, and `docs/guides/ONBOARDING.md`. Idempotency markers (`BEGIN mind-vault-aliases`, `disabled by install-cursor.sh`) left byte-identical; historical CHANGELOG entries + bare illustrative names left per convention.
+
+### Added
+
+- **`install/` (new dir) — machine provisioning.** The 7 `install-*.sh` (from `tools/`) + `install-wsl.ps1` (from `scripts/`), with a new `install/README.md`. Named `install/` (not `setup/`) to avoid colliding with the `setup-*-symlinks.sh` prefix that stays in `scripts/`. Every command example flipped `./tools/install-` → `./install/install-`. Migration followed [`RULE_rename-before-drop`](rules/RULE_rename-before-drop.md) (move+shim → repoint → green gate → drop shims → re-verify); dead-path gate = 0, `bash -n` clean. Architect-reviewed plan (🟡 → all 8 findings folded: broadened verification gate, statusline L47 cross-wire, honest `tools/` genre, refreshed IDEA frontmatter, Q4/Q5 added).
+
 ## v5.0.3 — validate-skills.sh CC-first + description-parser fix + progressive-disclosure guidance
 
 Patch release ([PR #188](https://github.com/infohata/mind-vault/pull/188)). Surfaced during IDEA-016 review when the OpenCode-era validator reported 6 skills "failing" — which proved to be a parser bug, not skill instability. Fixes the tool and compounds the lesson into the skill-authoring guide.

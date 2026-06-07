@@ -1,6 +1,6 @@
 #!/bin/bash
 # Description: Install Oh My Posh prompt theme engine for the current user + wire it into the shell rc
-# Usage: ./tools/install-oh-my-posh.sh [flags]
+# Usage: ./install/install-oh-my-posh.sh [flags]
 # Supports: Linux / macOS, bash / zsh (pwsh init line emitted but rc edit not attempted)
 #
 # Why: Fresh servers don't ship Oh My Posh, and the getting-started docs assume
@@ -65,7 +65,7 @@ while [ $# -gt 0 ]; do
         -h|--help)
             # Print only the contiguous top-of-file comment header (skip the
             # shebang, stop at the first non-`#` line). Preemptive fix of the
-            # same issue bugbot flagged on tools/install-docker.sh in PR #52 —
+            # same issue bugbot flagged on install/install-docker.sh in PR #52 —
             # a body-scoped `grep '^# '` would mix section dividers and inline
             # comments into the help output and drop `#`-only paragraph lines.
             awk '

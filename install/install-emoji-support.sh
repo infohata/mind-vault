@@ -1,6 +1,6 @@
 #!/bin/bash
 # Description: Install color emoji font support on Linux terminals
-# Usage: ./tools/install-emoji-support.sh [--check]
+# Usage: ./install/install-emoji-support.sh [--check]
 # Supports: Debian/Ubuntu (apt), Fedora/RHEL (dnf), Arch (pacman), openSUSE (zypper)
 #
 # Why: Many Linux installs ship without a color emoji font, so terminals render

@@ -44,17 +44,17 @@ echo ""
 # `_symlink-lib.sh:mv_link_tree`'s `$(cd "$MV/$subdir" && pwd)` pattern for the
 # directory case) — otherwise a relative MIND_VAULT env var produces a relative
 # symlink target that fails to resolve from ~/.claude/.
-statusline_src="$(cd "$MV/scripts" && pwd)/statusline-command.sh"
+statusline_src="$(cd "$MV/tools" && pwd)/statusline-command.sh"
 statusline_dst="$CLAUDE/statusline-command.sh"
 if [[ -f "$statusline_src" ]]; then
     if [[ -L "$statusline_dst" ]]; then
         ln -sfn "$statusline_src" "$statusline_dst"
-        echo "statusline: $statusline_dst -> mind-vault/scripts/statusline-command.sh (updated)"
+        echo "statusline: $statusline_dst -> mind-vault/tools/statusline-command.sh (updated)"
     elif [[ -e "$statusline_dst" ]]; then
         echo "statusline: $statusline_dst exists as non-symlink (skip — rm and re-run to adopt the mind-vault version)"
     else
         ln -s "$statusline_src" "$statusline_dst"
-        echo "statusline: $statusline_dst -> mind-vault/scripts/statusline-command.sh (linked)"
+        echo "statusline: $statusline_dst -> mind-vault/tools/statusline-command.sh (linked)"
     fi
 fi
 echo ""

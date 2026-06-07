@@ -1,6 +1,6 @@
 #!/bin/bash
 # Description: Install Docker Engine + Compose plugin on a fresh Debian/Ubuntu host
-# Usage: sudo ./tools/install-docker.sh [--check] [--no-group] [--no-test-run]
+# Usage: sudo ./install/install-docker.sh [--check] [--no-group] [--no-test-run]
 # Supports: Debian 12+ (bookworm, trixie), Ubuntu 22.04+ (jammy, noble, etc.)
 #
 # Why: mind-vault's RULE_parallel-worktree-docker and the sprint-auto / deployment

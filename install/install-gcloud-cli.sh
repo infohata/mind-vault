@@ -1,6 +1,6 @@
 #!/bin/bash
 # Description: Install Google Cloud CLI (gcloud) on Debian/Ubuntu from Google's official apt repo
-# Usage: sudo ./tools/install-gcloud-cli.sh [--check] [--with-components COMP[,COMP...]]
+# Usage: sudo ./install/install-gcloud-cli.sh [--check] [--with-components COMP[,COMP...]]
 # Supports: Debian 11+ (bullseye, bookworm, trixie), Ubuntu 20.04+ (focal, jammy, noble, etc.)
 #
 # Why: Projects that talk to Google Cloud (GCP APIs, Cloud Storage, Pub/Sub, Cloud Run,

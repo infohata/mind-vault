@@ -1,6 +1,6 @@
-# Shell Installer Conventions (`tools/install-*.sh`)
+# Shell Installer Conventions (`install/install-*.sh`)
 
-Canonical reference for authoring and reviewing shell installer scripts under `tools/install-*.sh`. Consolidates patterns surfaced across PR reviews of PRs #55 (install-gcloud-cli), #58 (wrap skill chown fallback), and #59 (install-mosh-tmux) — and the meta-disciplines that would have prevented most of them.
+Canonical reference for authoring and reviewing shell installer scripts under `install/install-*.sh`. Consolidates patterns surfaced across PR reviews of PRs #55 (install-gcloud-cli), #58 (wrap skill chown fallback), and #59 (install-mosh-tmux) — and the meta-disciplines that would have prevented most of them.
 
 **When to consult:** before authoring a new `install-X.sh`, and when reviewing one (your own drill or the configured PR-review bot). This file is both the author-side checklist and the review-side pattern catalog — kept in one place so the two sides can't drift apart.
 
@@ -391,10 +391,10 @@ Locale generation, new terminfo entries, updated `$PATH` from `.bashrc` edits �
 
 The following scripts implement this reference correctly (most recent first — later scripts have the densest coverage):
 
-- **`tools/install-mosh-tmux.sh`** — covers patterns 1-14 after 11 review cycles on PR #59. The most complete example of what this reference is distilled from.
-- **`tools/install-gcloud-cli.sh`** — canonical `--with-components` arg validation (pattern 5), early-exit respects flags (pattern 6), `curl | gpg` with pipefail (pattern 1).
-- **`tools/install-docker.sh`** — canonical `id -u` pre-validation (patterns 2, 13), conflict-package removal, clean prerequisite install.
-- **`tools/install-oh-my-posh.sh`** — managed-block idempotency (pattern 14), target-user resolution (pattern 13), user-scope install (no sudo required).
+- **`install/install-mosh-tmux.sh`** — covers patterns 1-14 after 11 review cycles on PR #59. The most complete example of what this reference is distilled from.
+- **`install/install-gcloud-cli.sh`** — canonical `--with-components` arg validation (pattern 5), early-exit respects flags (pattern 6), `curl | gpg` with pipefail (pattern 1).
+- **`install/install-docker.sh`** — canonical `id -u` pre-validation (patterns 2, 13), conflict-package removal, clean prerequisite install.
+- **`install/install-oh-my-posh.sh`** — managed-block idempotency (pattern 14), target-user resolution (pattern 13), user-scope install (no sudo required).
 
 When authoring a new `install-X.sh`, start by copying the closest existing installer and swapping out the product-specific install steps. The pattern coverage comes for free.
 
@@ -403,7 +403,7 @@ When authoring a new `install-X.sh`, start by copying the closest existing insta
 ```bash
 #!/bin/bash
 # Description: What this tool does (one line — shown by --help).
-# Usage: sudo ./tools/install-X.sh [--check] [--flag VALUE]
+# Usage: sudo ./install/install-X.sh [--check] [--flag VALUE]
 # Supports: Debian 11+, Ubuntu 20.04+
 
 set -eo pipefail

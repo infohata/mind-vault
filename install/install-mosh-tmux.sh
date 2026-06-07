@@ -1,6 +1,6 @@
 #!/bin/bash
 # Description: Install + configure mosh and tmux for resilient SSH sessions on Debian/Ubuntu
-# Usage: sudo ./tools/install-mosh-tmux.sh [flags]
+# Usage: sudo ./install/install-mosh-tmux.sh [flags]
 # Supports: Debian 11+ (bullseye, bookworm, trixie), Ubuntu 20.04+ (focal, jammy, noble, etc.)
 #
 # Why: Spotty networks + long-running Claude Code / CLI sessions = constant

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Description: Install Ubuntu-style shell convenience aliases + a set of git aliases for a user.
-# Usage: ./tools/install-aliases.sh [--check] [--no-shell] [--no-git] [--target-user USER]
+# Usage: ./install/install-aliases.sh [--check] [--no-shell] [--no-git] [--target-user USER]
 # Supports: any system with bash + git (Debian/Ubuntu/Fedora/Arch/macOS bash).
 #
 # Why: A fresh machine ships with none of the muscle-memory shortcuts — `ll`,
@@ -265,7 +265,7 @@ if [ "$DO_SHELL" = "1" ]; then
         printf '%s\n\n' "$ALIAS_BEGIN"
         cat <<'ALIASBODY'
 # Ubuntu-style convenience aliases. Managed block — edit the installer
-# (tools/install-aliases.sh), not these lines: re-running overwrites them.
+# (install/install-aliases.sh), not these lines: re-running overwrites them.
 
 # --- ls family ---
 alias ll='ls -alF'      # long listing, all files, type indicators

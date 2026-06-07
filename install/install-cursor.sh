@@ -1,6 +1,6 @@
 #!/bin/bash
 # Description: Install Cursor IDE (apt) + Cursor Agent CLI (user-scope) on Debian/Ubuntu
-# Usage: sudo ./tools/install-cursor.sh [--check] [--no-cli]
+# Usage: sudo ./install/install-cursor.sh [--check] [--no-cli]
 # Supports: Debian 11+ (bullseye, bookworm, trixie), Ubuntu 20.04+ (focal, jammy, noble, etc.); amd64 + arm64
 #
 # Why: Cursor ships TWO different products with different install shapes:
@@ -343,7 +343,7 @@ if [ "$DO_CLI" = "1" ]; then
         echo ""
         echo "⚠️  Skipping CLI install — refusing to install user-scope CLI as root."
         echo "   The CLI lives in ~/.local/bin and would land in /root, not the user's home."
-        echo "   Re-run as a regular user via sudo (e.g. \`sudo ./tools/install-cursor.sh\`)" \
+        echo "   Re-run as a regular user via sudo (e.g. \`sudo ./install/install-cursor.sh\`)" \
              "or run the vendor installer yourself: \`curl https://cursor.com/install -fsS | bash\`"
         # Flip the flag so the verify + Next-steps blocks below don't print
         # CLI usage/upgrade hints for a command that wasn't actually installed.
