@@ -100,13 +100,13 @@ Two things make this more than a one-off `sed`:
 
 ## Execution Sequence
 
-1. **Guard + runbook (commit 1).**
+1. ✅ `6c1cce9` **Guard + runbook (commit 1).**
    - Rewrite `skills/compound/SKILL.md` step 5 scrub-gate instruction per R3 (define class / why / transform + examples; demote the grep to an optional aid; point at the runbook). This commit also generalises that file's own `teisutis` example (`:143`).
-   - Create `docs/archive/2026-06-idea-018-provenance-scrub/PROVENANCE_SCRUB_RUNBOOK.md`: procedure (inventory `git grep` → categorise by risk → generalise per conventions → verify gate) + a "Run log" section with this scrub as entry #1 (date, ~90 refs / 21 files, PR ref).
-2. **Tool scripts (commit 2).** Generalise the 3 comments in `tools/find_copilot_comments.sh` + `tools/find_claude_comments.sh`; run `bash -n` on both (must stay clean).
-3. **SKILL bodies + guides + READMEs (commit 3).** `skills/idea/SKILL.md:135`; `docs/guides/AGENT_PORTABILITY.md:43`; `docs/guides/SKILL_AUTHORING_WALKTHROUGH.md:68`; `README.md:64,224`; `docs/ideas/README.md:53` (Q3). *(The IDEA-018 In-Progress index line at the top is whitelisted — leave it.)*
-4. **CHANGELOG + archive bulk (commit 4).** `CHANGELOG.md` (47) + the 10 archive IDEA/plan/session-note docs — uniform drop-the-tag generalisation per conventions. *(Leave the IDEA-018 archive dir untouched — whitelisted.)*
-5. **Final verify + self-sweep (gate is mandatory + merge-blocking — architect F5).** Run the F1 verification gate **unconditionally** (never skipped, even if commits 2–4 looked clean); merge is gated on count == 1 (the index line). Run `RULE_self-sweep` doc-consistency pass; opportunistic stray-name grep (`BookingRobot-M`, `br-`). Fix any stragglers (this may legitimately produce zero commits — but the *check* always runs).
+   - Create `docs/archive/2026-06-idea-018-provenance-scrub/PROVENANCE_SCRUB_RUNBOOK.md`: procedure (inventory `git grep` → categorise by risk → generalise per conventions → verify gate) + a "Run log" section with this scrub as entry #1 (date, exact counts, PR ref).
+2. ✅ `829d5fa` **Tool scripts (commit 2).** Generalised the 3 comments in `tools/find_copilot_comments.sh` + `tools/find_claude_comments.sh`; `bash -n` clean on both. *(Confirmed all 3 were comments — no functional default.)*
+3. ✅ `7f5f187` **SKILL bodies + guides + READMEs (commit 3).** `skills/idea/SKILL.md`; `docs/guides/AGENT_PORTABILITY.md`; `docs/guides/SKILL_AUTHORING_WALKTHROUGH.md`; `README.md` ×2; `docs/ideas/README.md` IDEA-012 entry (Q3). *(The IDEA-018 In-Progress index line is whitelisted — left in place.)*
+4. ✅ `0abca11` **CHANGELOG + archive bulk (commit 4).** `CHANGELOG.md` (47) + 11 archive IDEA/plan/session-note docs (83 hits total) — uniform drop-the-tag generalisation via `mv-documentation`. *(IDEA-018 archive dir whitelisted.)*
+5. ✅ **Final verify + self-sweep — GATE PASS.** F1 positive-count gate ran: outside-whitelist count == **1** (the index line). `bash -n` clean; stray-name grep (`bookingrobot|br-internal`) clean. Zero stragglers → this step produced no scrub commit (only this progress-marker commit).
 
 ## Verification
 

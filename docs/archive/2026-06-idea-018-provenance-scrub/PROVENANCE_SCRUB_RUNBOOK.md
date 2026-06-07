@@ -87,5 +87,9 @@ state, PR.
   instruction-only forcing function (emit a proper-noun classification before
   commit) — no denylist (false-positive cost > value; instruction wins
   long-term). Replaced the gate's own `teisutis` example with `project-x`.
-- **End state target:** outside-whitelist count == 1 (the ideas-index
-  In-Progress line, itself an IDEA-018 self-reference).
+- **End state ACHIEVED:** outside-whitelist count == 1 (the ideas-index
+  In-Progress line, itself an IDEA-018 self-reference) — gate pass. 83 narrative
+  hits + 11 in SKILL/guide/README/tool-comment surfaces scrubbed; `bash -n`
+  clean; no stray client names.
+- **Commits:** `6c1cce9` (guard+runbook) · `829d5fa` (tool scripts) ·
+  `7f5f187` (SKILL/guides/READMEs) · `0abca11` (CHANGELOG+archive bulk).
