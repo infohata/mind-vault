@@ -143,12 +143,29 @@ Same caution for any `# disabled by install-cursor.sh`-style generated markers.
   — skills must not hardcode project paths; the runtime-helper refs we keep are
   mind-vault-internal, which is correct.
 
-### IDEA-017 interaction (bidirectional)
+### IDEA-017 interaction (bidirectional) — settled by research spike 2026-06-07
 
 IDEA-017 (mind-vault as a CC plugin) is the long-term supersede for concern #3.
-This plan **deliberately leaves `scripts/` config-wiring untouched** so 017 can
-own that dir's fate. On `/wrap`, append a backref to IDEA-017's file noting that
-016 deferred the `scripts/` → `link/` rename to it.
+A research spike ([`2026-06-07-idea-017-plugin-research-spike.md`](./2026-06-07-idea-017-plugin-research-spike.md))
+ran before finalizing this plan and **confirms the deferral is correct**:
+
+- **The CC plugin only PARTIALLY dissolves `scripts/setup-claude-code-symlinks.sh`.**
+  The plugin format (components at repo root: `skills/`, `commands/`, `agents/`,
+  `hooks/`) absorbs the skills/commands/agents thirds — but **`rules/`,
+  `docs/rules/`, and the statusline + `settings.json` wiring have no plugin home**,
+  so a residual CC symlink script survives. Renaming/dissolving `scripts/` now
+  would be premature.
+- **`tools/` / `scripts/` / `install/` are NOT plugin components** — the plugin
+  format is blind to them. This plan's tools/install split is therefore provably
+  orthogonal to plugin packaging; the two efforts do not share a work surface
+  beyond the single `setup-claude-code-symlinks.sh` file this plan already leaves
+  untouched.
+
+So this plan **deliberately leaves `scripts/` config-wiring untouched** and defers
+the `scripts/` → `link/` rename (and any slimming of the CC symlink script) to 017.
+On `/wrap`, append a backref to IDEA-017's file. The research spike note lives in
+this archive dir for now (it rode this branch to settle the decision) and migrates
+to 017's archive dir at `/plan 017`.
 
 ## Key Technical Decisions
 
@@ -183,7 +200,7 @@ own that dir's fate. On `/wrap`, append a backref to IDEA-017's file noting that
   - **Default:** split — each dir documents its single concern (R7). The install-* sections move verbatim to `install/README.md`.
   - **Trade-off:** split is more files but matches the whole point (one concern per dir); combined would re-pool the ambiguity in docs.
 - **Q4. Is leaving config-wiring in a generically-named `scripts/` acceptable for the IDEA-017 window?** Post-refactor, the genuinely "script-like" provisioners move out to `install/` while `scripts/` holds *only* `setup-*-symlinks.sh` — a reader landing in `scripts/` finds the opposite of what the name implies.
-  - **Default:** defer the `scripts/` → `link/` rename to IDEA-017 (it may dissolve the dir for the CC host); mitigate now with an explicit `scripts/README.md` stating the deferral.
+  - **Default:** defer the `scripts/` → `link/` rename to IDEA-017; mitigate now with an explicit `scripts/README.md` stating the deferral. **Now research-backed (2026-06-07): the plugin only PARTIALLY dissolves the CC symlink script — `rules/`/`docs/rules/`/statusline wiring survive — so a residual `scripts/` script stays regardless; deferring is the correct call, not just the cautious one.**
   - **Trade-off:** deferring keeps blast radius minimal and avoids redoing the dir if 017 lands, but ships a transient name/content mismatch. Renaming now is cleaner immediately but risks churn 017 would undo.
 - **Q5. Where does `cleanup-contamination.sh` belong?** It's a one-shot repo-repair utility, not a runtime skill-helper (zero skill refs) — neither provisioning nor config-wiring.
   - **Default:** keep in `tools/`, and have `tools/README.md` honestly frame the dir as "skill machinery + dev/maintenance utilities" (R1) rather than mislabel it a runtime helper.
