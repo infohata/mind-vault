@@ -85,6 +85,13 @@ have no plugin home; non-CC hosts have no plugin system at all).
   just the first match. A version-consistency check (`plugin.json.version` == top
   CHANGELOG `## v`) is the stricter review gate. Design the wrap change **generically**
   (a project may declare N sync-required version files), not mind-vault-special-cased.
+- **R12. Rules load on the plugin path (Q5).** Ship (a) a `/mv:load-rules` command
+  that resolves `RULE_*.md` from `${CLAUDE_PLUGIN_ROOT}/rules/` (plugin) or repo
+  (symlink) with a detect-and-warn, and (b) a `hooks/hooks.json` `SessionStart`
+  **welcome note** that fires when the plugin is active, telling the user to run
+  `/mv:load-rules`. Rules themselves remain out-of-band (no always-on channel), but
+  the plugin path is now self-announcing and one command from loaded — not silently
+  rule-less. (Stretch: auto-inject via `SessionStart` if supported — verify in `/work`.)
 
 ## Scope Boundaries
 
@@ -94,8 +101,10 @@ have no plugin home; non-CC hosts have no plugin system at all).
 - `agents/SKILL_CONTRACT.md` relocation + all reference repoints (R4).
 - Plugin-readiness audit of the 8 `AGENT_*.md` frontmatter (no `hooks`/`mcpServers`/
   `permissionMode` — disallowed for plugin agents, research §1).
-- **`commands/load-rules.md` fix** so it resolves `rules/` from the repo on the
-  plugin path (architect F1).
+- **Rule-loading on the plugin path (R12, Q5):** `/mv:load-rules` resolving
+  `${CLAUDE_PLUGIN_ROOT}/rules/` (plugin) or repo (symlink) + a `hooks/hooks.json`
+  `SessionStart` welcome note prompting it. (Stretch: auto-inject if `SessionStart`
+  supports it.)
 - Install + dev-loop + coexist docs; the **canonical namespacing note** (architect
   F3); best-effort double-load guard in the CC script.
 - **`skills/wrap/SKILL.md` Step 4b update (R11)** — multi-location version sync
@@ -171,8 +180,10 @@ have no plugin home; non-CC hosts have no plugin system at all).
   cross-links. (Q2.)
 - **rules/ stays out-of-band.** Surfaced via `~/.claude/CLAUDE.md` references, as
   today. The plugin cannot carry always-on rules.
-- **Plugin `name: mind-vault`** → commands namespace to `/mind-vault:<cmd>`. Skills
-  are description-invoked (unaffected); only slash-commands gain the prefix. (Q3.)
+- **Plugin `name: "mv"` + `displayName: "Mind-Vault"`** → commands namespace to
+  `/mv:<cmd>` (coherent with the `mv-` subagent prefix; research-verified clash-free),
+  UI shows "Mind-Vault". Skills are description-invoked (unaffected); only
+  slash-commands gain the prefix. (Q3.)
 
 ## Open Questions
 
@@ -187,23 +198,24 @@ have no plugin home; non-CC hosts have no plugin system at all).
 - **Q2. `SKILL_CONTRACT.md` destination? — ✅ RESOLVED (user, 2026-06-07):**
   `skills/work/references/SKILL_CONTRACT.md` (beside `persona-dispatch.md`). The
   phantom-agent gets a proper home.
-- **Q3. Command namespacing — accept `/mind-vault:<cmd>`, or pick a short plugin
-  name (e.g. `mv` → `/mv:wrap`)?** **Blast radius (architect F3):** the workflow
-  chain and dozens of skill/command bodies reference siblings by **bare** slash name
-  (`/plan`, `/compound`, `/wrap`, `/review-loop`, `/land`, `/work`, "`/plan` alias"
-  in `commands/brainstorm.md`, etc.). Under the **plugin** path *every* bare in-prose
-  invocation is the wrong thing to type — it's `/mind-vault:wrap`. Skills still
-  *fire* (description-invoked, channel-agnostic); only literal slash-command typing
-  breaks. The 6 commands affected: `brainstorm, create-pr, git-status, load-rules,
-  review-loop, test` (+ the skill-hybrids `/wrap /plan /work /land /compound /idea`).
-  - **Default:** `mind-vault`, and **do NOT rewrite skill bodies channel-aware**
-    (reject the specific for the generic). Instead add **one prominent canonical
-    note** — "On the plugin path, prefix every mind-vault slash command with
-    `mind-vault:` (`/mind-vault:wrap`); skill triggers are unaffected" — in README +
-    ONBOARDING, and leave bodies as-is.
-  - **Trade-off:** `mv` (`/mv:wrap`) is terser typing but less self-evident in the
-    `/plugin` UI list. Rewriting 20+ bodies to be channel-aware is rejected outright
-    (un-maintainable; the symlink path is still canonical for existing machines).
+- **Q3. Command namespacing — ✅ RESOLVED (user + research, 2026-06-07): `name: "mv"`
+  + `displayName: "Mind-Vault"`.** → commands are `/mv:wrap`, `/mv:idea`, etc.;
+  the `/plugin` UI still shows "Mind-Vault" (`displayName` is UI-only, doesn't affect
+  namespacing — confirmed). `mv` is **coherent with the existing `mv-` subagent
+  prefix** (`mv-backend`, `mv-curator` …) and terse. Research verdict **`mv` SAFE**:
+  no collision in the official catalog, no installed-plugin collision, no built-in
+  shadowing (plugin commands are *always* namespaced), 2-char kebab is valid.
+  - **Blast radius (architect F3) stands:** the workflow chain + dozens of skill/
+    command bodies reference siblings by **bare** slash name (`/plan`, `/compound`,
+    `/wrap`, `/review-loop`, `/land`, `/work`; "`/plan` alias" in `commands/brainstorm.md`).
+    Under the plugin path the literal is `/mv:wrap`. Skills still *fire*
+    (description-invoked); only literal slash-typing changes. **Do NOT rewrite skill
+    bodies channel-aware** — add **one canonical note** ("plugin path: prefix slash
+    commands with `mv:`, e.g. `/mv:wrap`; skill triggers unaffected") in README +
+    ONBOARDING; leave bodies as-is.
+  - **Known caveat (research, CC issue #11328):** *subagents* can be flaky discovering
+    plugin-namespaced commands (`/mv:foo`) — name-agnostic, affects agent
+    self-invocation only, not human typing. Note it; not a blocker.
 - **Q4. Double-load guard — script-side warning, or docs-only?** **Architect F5:**
   the guard is inherently **one-directional and best-effort** — `setup-claude-code-symlinks.sh`
   can warn *if the plugin is already installed* (plugin-then-script order), but the
@@ -216,17 +228,24 @@ have no plugin home; non-CC hosts have no plugin system at all).
     running both knows what they're doing).
   - **Trade-off:** a fuller guard is impossible from the script side; over-promising
     it would be worse than the honest docs rule.
-- **Q5. `commands/load-rules.md` under the plugin path (architect F1).** It globs
-  `rules/RULE_*.md` — but the plugin path does **not** carry `rules/` (no plugin
-  home; R6/§C). So `/mind-vault:load-rules` on a plugin-only machine finds zero
-  rules. A rules-loader shipping in a channel that omits rules is a real contradiction.
-  - **Default:** make `load-rules` **resolve `rules/` from the mind-vault repo
-    location** (it already needs the repo on disk) rather than the plugin's
-    component tree, and have it **detect + warn** when no rules resolve — so it works
-    on both paths. Document that rules themselves remain out-of-band regardless.
-  - **Trade-off:** alternatively mark `load-rules` symlink-path-only and have it
-    no-op-with-warning under the plugin — simpler but leaves a dead command in the
-    plugin's command list. Resolve-from-repo is preferred (keeps the command useful).
+- **Q5. Rule-loading on the plugin path — ✅ RESOLVED (user, 2026-06-07): rules MUST
+  load. Wire a loader command + an install/session welcome note.** The plugin has no
+  always-on rules channel (§C), so make rule-loading explicit and self-announcing:
+  1. **Loader command** — `commands/load-rules.md` (`/mv:load-rules`) resolves
+     `RULE_*.md` from **`${CLAUDE_PLUGIN_ROOT}/rules/`** when set (the plugin-root env
+     var CC exposes; `rules/` lives inside the plugin root so it IS copied to the
+     install cache — verify this in §Verification), falling back to repo-relative on
+     the symlink path. Detect + warn if none resolve. Works on both channels.
+  2. **Welcome note on install (`hooks/hooks.json`, `SessionStart`)** — on a session
+     where the plugin is active, surface a one-time note: *"Mind-Vault plugin active.
+     Behavioural rules aren't auto-loaded on the plugin channel — run `/mv:load-rules`
+     to load them."* (The hook only fires on the plugin path; symlink-path machines
+     auto-load rules via `~/.claude/CLAUDE.md` refs and never see it — correct.)
+  - **Stretch / verify in `/work`:** check whether a `SessionStart` hook can inject
+    rule *content* directly (`additionalContext`) — if supported, **auto-load** the
+    rules and demote the note to a confirmation (research §C said `InstructionsLoaded`
+    only *observes*; `SessionStart` injection is the open question). If not supported,
+    the loader-command + welcome-note is the reliable design.
 
 ## Execution Sequence
 
@@ -259,14 +278,17 @@ have no plugin home; non-CC hosts have no plugin system at all).
    - `git grep -n 'agents/SKILL_CONTRACT' -- ':!CHANGELOG.md' ':!docs/archive/'` = 0.
    - **Link-resolution check:** for every file linking `SKILL_CONTRACT.md`, resolve
      the relative path from that file's dir and confirm it lands on the moved file.
-3. **Add `.claude-plugin/plugin.json` (R2, R11).** `name: mind-vault`, `description`,
-   `author`, `homepage`/`repository`, `keywords`, and **`version` SET to the release's
-   CHANGELOG version** (the v5.1 number at ship — Q1). No `skills`/`commands`/`agents`
-   keys (defaults auto-discover at root).
-4. **Add `.claude-plugin/marketplace.json` (R3).** `name` (kebab public-facing),
-   `owner`, `plugins: [{ name: "mind-vault", source: "./", description }]`. Use
-   `"./"` (not `"."`) — the verified in-the-wild form from the `superpowers`
-   marketplace (plugin-at-repo-root pattern; no self-reference/recursion — architect F6).
+3. **Add `.claude-plugin/plugin.json` (R2, R11).** `name: "mv"`,
+   `displayName: "Mind-Vault"` (Q3), `description`, `author`, `homepage`/`repository`,
+   `keywords`, and **`version` SET to the release's CHANGELOG version** (the v5.1
+   number at ship — Q1). No `skills`/`commands`/`agents` keys (defaults auto-discover
+   at root).
+4. **Add `.claude-plugin/marketplace.json` (R3).** Marketplace top-level `name`
+   stays descriptive (`mind-vault`), `owner`, `plugins: [{ name: "mv", source: "./",
+   description }]` — **plugin id is `mv`** (matches plugin.json `name`), so install is
+   `/plugin install mv@mind-vault`. Use `"./"` (not `"."`) — the verified in-the-wild
+   form from the `superpowers` marketplace (plugin-at-repo-root; no self-reference —
+   architect F6).
 4b. **Update `skills/wrap/SKILL.md` Step 4b for multi-location version sync (R11).**
    Generalise the first-match-single-source detection so a project can declare
    **multiple sync-required version locations**, and a bump updates **all** of them.
@@ -277,16 +299,22 @@ have no plugin home; non-CC hosts have no plugin system at all).
    wrap hand-back and as a self-sweep item. Keep it **generic** (the mechanism is
    "N sync-required sources," mind-vault is just the first user). Self-mode CHANGELOG
    handling already exists; this extends it to the paired plugin.json.
-5. **Fix `commands/load-rules.md` for the plugin path (Q5, F1).** Make it resolve
-   `rules/RULE_*.md` from the mind-vault **repo** location (not the plugin component
-   tree) and **warn + no-op** if no rules resolve — so it works on both channels.
+5. **Rule-loading on the plugin path (R12, Q5, F1).**
+   a. **`commands/load-rules.md`** (`/mv:load-rules`): resolve `RULE_*.md` from
+      `${CLAUDE_PLUGIN_ROOT}/rules/` when that env var is set (plugin path), else
+      repo-relative (symlink path); **detect + warn** if none resolve. Works on both.
+   b. **`hooks/hooks.json`** — a `SessionStart` hook that prints the welcome note
+      ("Mind-Vault plugin active — run `/mv:load-rules` to load behavioural rules").
+      This adds `hooks/` as a shipped plugin component.
+   c. **Investigate** whether `SessionStart` can inject rule *content* directly
+      (`additionalContext`); if yes, auto-load and demote the note to a confirmation.
 6. **Docs (R9).** README + AGENTS.md + `docs/guides/ONBOARDING.md`: add the "Install
    as a Claude Code plugin" path (`/plugin marketplace add infohata/mind-vault`),
    the `--plugin-dir` dev-loop, the **coexist note** ("CC: plugin OR symlink script,
    not both — best-effort guard only, see Q4"), the **one canonical namespacing note**
-   (Q3 — "plugin path: prefix slash commands with `mind-vault:`; skill triggers
-   unaffected"), and the statement that `rules/`/`docs/rules/`/statusline stay
-   script-wired regardless.
+   (Q3 — "plugin path: prefix slash commands with `mv:`, e.g. `/mv:wrap`; skill
+   triggers unaffected"), and the statement that `rules/`/`docs/rules/`/statusline
+   stay script-wired regardless.
 7. **Best-effort double-load guard (R7, Q4).** Light non-fatal *plugin-then-script*
    warning in `setup-claude-code-symlinks.sh`; label it best-effort; exempt the
    `--plugin-dir`/`@skills-dir` dev-loop.
@@ -295,14 +323,22 @@ have no plugin home; non-CC hosts have no plugin system at all).
 
 ## Verification
 
+- **Manifest lint:** `claude plugin validate ./ --strict` (the real CLI — research)
+  passes with no stray/misspelled fields. Run before declaring done.
 - **Plugin loads from working tree:** `claude --plugin-dir ~/projects/mind-vault`
-  (or the session-equivalent) → skills discoverable, `/reload-plugins` works. **All 6
-  commands appear namespaced (F4):** `/mind-vault:{brainstorm,create-pr,git-status,
-  load-rules,review-loop,test}` — confirm each is present and none shadows a built-in
-  CC slash command. (Manual — record in a verification log in this archive dir.)
-- **`load-rules` works on the plugin path (Q5):** invoke `/mind-vault:load-rules`
-  under `--plugin-dir` and confirm it resolves rules from the repo (or warns cleanly),
-  not silently zero.
+  (or the session-equivalent) → skills discoverable, `/reload-plugins` works, UI shows
+  "Mind-Vault". **All 6 commands appear namespaced (F4):** `/mv:{brainstorm,create-pr,
+  git-status,load-rules,review-loop,test}` — confirm each is present. (Manual — record
+  in a verification log in this archive dir.)
+- **Rule-loading on the plugin path (R12, Q5):**
+  - The **welcome note fires** — start a session with the plugin active and confirm
+    the `SessionStart` hook surfaces the "run `/mv:load-rules`" note.
+  - **`/mv:load-rules` resolves rules** under `--plugin-dir` (via `${CLAUDE_PLUGIN_ROOT}/rules/`),
+    not silently zero; warns cleanly if absent.
+  - **Cache actually carries `rules/`** — after a real `/plugin install`, confirm
+    `rules/RULE_*.md` exists under the cached plugin root (it's inside the plugin root,
+    so it should copy; if the install prunes non-component dirs, fall back to the
+    note-points-at-repo approach — record which holds).
 - **plugin.json valid:** `jq -e '.name' .claude-plugin/plugin.json` = `"mind-vault"`.
 - **Version sync (R11, the stricter gate):** `jq -r '.version' .claude-plugin/plugin.json`
   equals the top `## vX.Y.Z` in `CHANGELOG.md`. Plus: dry-run `/wrap` Step 4b on a
@@ -319,5 +355,7 @@ have no plugin home; non-CC hosts have no plugin system at all).
 **Status:** ready — architect-reviewed (🟡 → all 7 findings folded). **Q1 resolved**
 (set plugin.json `version`, mirror CHANGELOG, `/wrap` keeps both in sync → R11 + the
 wrap Step-4b update). **Q2 resolved** (`SKILL_CONTRACT.md` → `skills/work/references/`).
-Q3 (namespacing note), Q4 (best-effort guard), Q5 (load-rules resolve-from-repo)
-carry defaults — surface at `/work` start. Next: `/work docs/archive/2026-06-idea-017-mind-vault-cc-plugin/2026-06-07-mind-vault-cc-plugin-plan.md`.
+**Q3 resolved** (`name: mv` + `displayName: Mind-Vault` → `/mv:<cmd>`; research-verified
+clash-free). **Q5 resolved** (loader command `/mv:load-rules` + `SessionStart`
+welcome-note hook; rules load on the plugin path). Only **Q4** (best-effort guard
+scope) carries its default — surface at `/work` start. Next: `/work docs/archive/2026-06-idea-017-mind-vault-cc-plugin/2026-06-07-mind-vault-cc-plugin-plan.md`.
