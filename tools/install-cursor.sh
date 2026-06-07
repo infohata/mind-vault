@@ -1,1 +1,0 @@
-../install/install-cursor.sh

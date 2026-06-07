@@ -1,1 +1,0 @@
-../install/install-mosh-tmux.sh

@@ -1,1 +1,0 @@
-../install/install-oh-my-posh.sh

@@ -1,1 +1,0 @@
-../install/install-gcloud-cli.sh
