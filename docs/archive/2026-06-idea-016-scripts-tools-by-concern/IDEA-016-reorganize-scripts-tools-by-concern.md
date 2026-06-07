@@ -1,7 +1,7 @@
 ---
 id: 016
 title: Reorganize scripts/ and tools/ by concern
-status: idea          # idea | in-progress | complete | superseded
+status: in-progress   # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by:
@@ -13,14 +13,14 @@ completed:
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
 auto_safe: false                                     # true | false
-auto_safe_reason: "Partition scheme is an unresolved design judgment (which dirs, what names) and the ~190-site path-ref migration touches runtime-critical paths (review-loop adapters, sprint-auto bootstrap) — a wrong move silently breaks skill machinery. Symlink-shim reversibility is known, but the target taxonomy is not."                     # why safe, or what blocks — 1-2 sentences
+auto_safe_reason: "Scheme resolved at /plan (scoped re-partition); still needs the human Q1/Q4/Q5 confirmations (install/ vs setup/, defer the scripts/ rename, cleanup-contamination genre). Measured surface is small (~10 files moved, ~6 live-ref files, NOT the ~190 first estimated — most were consuming-project convention paths) but the statusline cross-wire in setup-claude-code-symlinks.sh is load-bearing, so not unattended-overnight safe."                     # why safe, or what blocks — 1-2 sentences
 sensitive_paths_cleared: false         # true | false
-sensitive_paths_cleared_reason: "Moves files that CI workflows (.github review actions) and skills reference by literal path; a stale reference is an infra-class break, not a code bug. Human should eyeball the final reference sweep before the legacy-shim drop."       # any auth/permission/schema/infra touch? — 1-2 sentences
+sensitive_paths_cleared_reason: "/plan confirmed ZERO .github/ workflow refs (the CI-break worry was void). The one genuinely load-bearing path is the statusline link source in scripts/setup-claude-code-symlinks.sh:47 — repointed under a shim + green gate. Human should eyeball the broadened reference sweep before the shim drop."       # any auth/permission/schema/infra touch? — 1-2 sentences
 ---
 
 # IDEA-016: Reorganize scripts/ and tools/ by concern
 
-**Status**: 💡 Idea
+**Status**: 🚧 In Progress (plan: `2026-06-07-scripts-tools-taxonomy-plan.md`)
 **Priority**: Medium
 
 **Problem** (or opportunity): `scripts/` and `tools/` have drifted into an ambiguous split — both hold `install`/`setup`-named routines, so it's no longer obvious where a given script belongs or lives. The real boundary isn't two dirs; it's **three distinct concerns mixed across them**:
