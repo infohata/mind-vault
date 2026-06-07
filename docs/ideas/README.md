@@ -6,11 +6,11 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-018](../archive/2026-06-idea-018-provenance-scrub/IDEA-018-scrub-prior-project-provenance-identifiers.md) ⏳ — Scrub prior-project provenance identifiers (`teisutis`, ~90 refs incl. tool scripts) for public-repo-safety + establish a repeatable scrub runbook
 
 ## 💡 High Priority (backlog)
 
-- [IDEA-018](IDEA-018-scrub-prior-project-provenance-identifiers.md) — Scrub prior-project provenance identifiers (`teisutis`, ~90 refs incl. tool scripts) for public-repo-safety
+_(none)_
 
 ## 💡 Medium Priority (backlog)
 

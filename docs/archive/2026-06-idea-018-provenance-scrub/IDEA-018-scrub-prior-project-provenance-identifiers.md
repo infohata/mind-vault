@@ -1,7 +1,7 @@
 ---
 id: 018
 title: Scrub prior-project provenance identifiers from tracked files
-status: idea
+status: in-progress
 priority: high
 supersedes: []
 superseded_by: null
@@ -13,9 +13,9 @@ completed: null
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
 auto_safe: false
-auto_safe_reason: "Some occurrences are in the review-loop tool scripts (find_claude_comments.sh / find_copilot_comments.sh) where the identifier may be a functional example/default, not just narrative — each hit needs a human narrative-vs-functional judgment + a behavioural test pass, not a blind sed. Also a presentation call on how to generalise provenance (drop vs neutral phrase) per the scrub gate."
+auto_safe_reason: "/plan research (2026-06-07) DISPROVED the functional-default worry: all 3 tool-script hits are pure comments (`bash -n` clean, no REPO=/owner= defaults). Remaining judgment is generalisation phrasing (drop tag vs neutral descriptor) + the scrub-gate instruction rewrite — model-judgment work, not a blind sed. Still human-reviewed (public-safety stakes), so left false."
 sensitive_paths_cleared: false
-sensitive_paths_cleared_reason: "Touches executable review-loop tool scripts (tools/find_*_comments.sh) — infra-adjacent automation that must still run after the edits. A human eyeballs the script diffs before merge."
+sensitive_paths_cleared_reason: "Touches the review-loop tool scripts (tools/find_*_comments.sh) — but only their comments; scripts re-parse clean (`bash -n`). Human eyeballs the script + scrub-gate diffs before merge."
 ---
 
 # IDEA-018: Scrub prior-project provenance identifiers from tracked files
