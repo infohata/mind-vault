@@ -58,7 +58,7 @@ Mind-vault is Linux/macOS-native. Windows users should work inside WSL2 (Ubuntu 
 ```powershell
 # Elevated PowerShell on the Windows host (one-time):
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\scripts\install-wsl.ps1
+.\install\install-wsl.ps1
 ```
 
 It checks Windows build + virtualization, enables the WSL + VirtualMachinePlatform optional features, installs the WSL2 kernel where needed, and lets you pick a distro interactively or via `-Distro <name>`. Once WSL is up, run everything below from inside WSL.
