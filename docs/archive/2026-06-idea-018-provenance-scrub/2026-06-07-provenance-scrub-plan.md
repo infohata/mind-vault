@@ -3,7 +3,7 @@ stage: plan
 slug: provenance-scrub
 created: 2026-06-07
 source: ./IDEA-018-scrub-prior-project-provenance-identifiers.md
-status: ready
+status: shipped
 project: mind-vault
 ---
 
