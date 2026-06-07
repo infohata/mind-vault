@@ -15,6 +15,7 @@ _(none)_
 ## 💡 Medium Priority (backlog)
 
 - [IDEA-017](IDEA-017-mind-vault-as-claude-code-plugin.md) — mind-vault as a Claude Code plugin
+- [IDEA-019](IDEA-019-research-gstack-patterns.md) — Research gstack — mine sprint-workflow patterns for mind-vault
 
 ## 💡 Low Priority (backlog)
 
