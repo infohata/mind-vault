@@ -77,6 +77,14 @@ have no plugin home; non-CC hosts have no plugin system at all).
 - **R9.** Docs (README, AGENTS.md, ONBOARDING) gain a "Install as a Claude Code
   plugin" path alongside the existing symlink path, and state the namespacing
   consequence (R-note below).
+- **R11. `plugin.json` `version` mirrors the CHANGELOG, kept in sync by `/wrap`
+  (Q1).** `plugin.json` carries an explicit `version` equal to the top CHANGELOG
+  `## vX.Y.Z`. `/wrap` Step 4b — today **first-match-single-source** — must be
+  generalised to recognise `.claude-plugin/plugin.json` as a version source **and to
+  bump *all* sync-required locations together** (here: CHANGELOG + plugin.json), not
+  just the first match. A version-consistency check (`plugin.json.version` == top
+  CHANGELOG `## v`) is the stricter review gate. Design the wrap change **generically**
+  (a project may declare N sync-required version files), not mind-vault-special-cased.
 
 ## Scope Boundaries
 
@@ -90,6 +98,9 @@ have no plugin home; non-CC hosts have no plugin system at all).
   plugin path (architect F1).
 - Install + dev-loop + coexist docs; the **canonical namespacing note** (architect
   F3); best-effort double-load guard in the CC script.
+- **`skills/wrap/SKILL.md` Step 4b update (R11)** — multi-location version sync
+  (recognise `.claude-plugin/plugin.json`; bump all sync-required sources together;
+  add a CHANGELOG↔plugin.json consistency check). Generic, not mind-vault-special.
 
 **Out of scope (deliberate, coexist):**
 
@@ -165,17 +176,14 @@ have no plugin home; non-CC hosts have no plugin system at all).
 
 ## Open Questions
 
-- **Q1. `version` in `plugin.json` — mirror the CHANGELOG (`5.1.0`) or omit?**
-  - **Default:** **omit** — on a git source, every commit counts as an update
-    (research §1), which matches mind-vault's rolling-library nature and adds no
-    per-release bump discipline. (Downside: no pinnable plugin version; acceptable
-    for a private single-consumer lib.)
-  - **Trade-off:** setting `5.1.0` gives pinning + explicit updates but means every
-    release MUST bump `plugin.json` too (a new `/wrap` Step-4b obligation).
-  - **Consequence either way (architect F7):** with auto-update on, plugin-path
-    machines track `main` *per-commit*; symlink-path machines update only on manual
-    `git pull`. The two channels have **different update latency by design** —
-    acceptable for a single-consumer private lib, stated so it's not a surprise.
+- **Q1. `version` in `plugin.json` — ✅ RESOLVED (user, 2026-06-07): SET it, mirror
+  the CHANGELOG.** The plugin.json `version` is the plugin-compliance mirror of the
+  top CHANGELOG `## vX.Y.Z`. This gives proper pinning + explicit updates (no
+  per-commit auto-bump surprise — addresses architect F7's cadence concern by making
+  both channels release-gated, not per-commit). The accepted cost: **one more wrap
+  ceremony step + a stricter review gate** — `/wrap` must bump plugin.json in lockstep
+  with CHANGELOG, and a consistency check flags drift. User: "little downside, one
+  more ceremony step." See R11 + the wrap-skill update in Execution.
 - **Q2. `SKILL_CONTRACT.md` destination? — ✅ RESOLVED (user, 2026-06-07):**
   `skills/work/references/SKILL_CONTRACT.md` (beside `persona-dispatch.md`). The
   phantom-agent gets a proper home.
@@ -251,13 +259,24 @@ have no plugin home; non-CC hosts have no plugin system at all).
    - `git grep -n 'agents/SKILL_CONTRACT' -- ':!CHANGELOG.md' ':!docs/archive/'` = 0.
    - **Link-resolution check:** for every file linking `SKILL_CONTRACT.md`, resolve
      the relative path from that file's dir and confirm it lands on the moved file.
-3. **Add `.claude-plugin/plugin.json` (R2).** `name: mind-vault`, `description`,
-   `author`, `homepage`/`repository`, `keywords`; `version` per Q1 (default omit).
-   No `skills`/`commands`/`agents` keys needed (defaults auto-discover at root).
+3. **Add `.claude-plugin/plugin.json` (R2, R11).** `name: mind-vault`, `description`,
+   `author`, `homepage`/`repository`, `keywords`, and **`version` SET to the release's
+   CHANGELOG version** (the v5.1 number at ship — Q1). No `skills`/`commands`/`agents`
+   keys (defaults auto-discover at root).
 4. **Add `.claude-plugin/marketplace.json` (R3).** `name` (kebab public-facing),
    `owner`, `plugins: [{ name: "mind-vault", source: "./", description }]`. Use
    `"./"` (not `"."`) — the verified in-the-wild form from the `superpowers`
    marketplace (plugin-at-repo-root pattern; no self-reference/recursion — architect F6).
+4b. **Update `skills/wrap/SKILL.md` Step 4b for multi-location version sync (R11).**
+   Generalise the first-match-single-source detection so a project can declare
+   **multiple sync-required version locations**, and a bump updates **all** of them.
+   Add `.claude-plugin/plugin.json` (`jq -e '.version'`) to the recognised sources.
+   For mind-vault: a release bumps `CHANGELOG.md` (`## vX.Y.Z`) **and**
+   `plugin.json.version` together. Add a **consistency check** (the stricter gate):
+   `plugin.json.version` must equal the top CHANGELOG `## v` — surface drift in the
+   wrap hand-back and as a self-sweep item. Keep it **generic** (the mechanism is
+   "N sync-required sources," mind-vault is just the first user). Self-mode CHANGELOG
+   handling already exists; this extends it to the paired plugin.json.
 5. **Fix `commands/load-rules.md` for the plugin path (Q5, F1).** Make it resolve
    `rules/RULE_*.md` from the mind-vault **repo** location (not the plugin component
    tree) and **warn + no-op** if no rules resolve — so it works on both channels.
@@ -285,6 +304,9 @@ have no plugin home; non-CC hosts have no plugin system at all).
   under `--plugin-dir` and confirm it resolves rules from the repo (or warns cleanly),
   not silently zero.
 - **plugin.json valid:** `jq -e '.name' .claude-plugin/plugin.json` = `"mind-vault"`.
+- **Version sync (R11, the stricter gate):** `jq -r '.version' .claude-plugin/plugin.json`
+  equals the top `## vX.Y.Z` in `CHANGELOG.md`. Plus: dry-run `/wrap` Step 4b on a
+  mock bump and confirm it updates *both* files (not just the first match).
 - **marketplace.json valid:** `jq -e '.plugins[0].source' .claude-plugin/marketplace.json`.
 - **agents/ is plugin-clean:** `ls agents/*.md | wc -l` = 8; `ls agents/SKILL_CONTRACT.md` → absent.
 - **No stale contract path:** `git grep -n 'agents/SKILL_CONTRACT' -- ':!CHANGELOG.md' ':!docs/archive/'` = 0.
@@ -294,7 +316,8 @@ have no plugin home; non-CC hosts have no plugin system at all).
 
 ---
 
-**Status:** ready — architect-reviewed (🟡 → all 7 findings folded). Q2 resolved
-(`SKILL_CONTRACT.md` → `skills/work/references/`). Q1 (version omit), Q3 (namespacing
-note), Q4 (best-effort guard), Q5 (load-rules resolve-from-repo) carry defaults —
-surface at `/work` start for yes/no. Next: `/work docs/archive/2026-06-idea-017-mind-vault-cc-plugin/2026-06-07-mind-vault-cc-plugin-plan.md`.
+**Status:** ready — architect-reviewed (🟡 → all 7 findings folded). **Q1 resolved**
+(set plugin.json `version`, mirror CHANGELOG, `/wrap` keeps both in sync → R11 + the
+wrap Step-4b update). **Q2 resolved** (`SKILL_CONTRACT.md` → `skills/work/references/`).
+Q3 (namespacing note), Q4 (best-effort guard), Q5 (load-rules resolve-from-repo)
+carry defaults — surface at `/work` start. Next: `/work docs/archive/2026-06-idea-017-mind-vault-cc-plugin/2026-06-07-mind-vault-cc-plugin-plan.md`.
