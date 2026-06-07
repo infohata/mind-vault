@@ -22,7 +22,7 @@ sensitive_paths_cleared_reason: "Edits skills that gate sprint-auto execution (S
 
 **Problem**: `skills/sprint-auto/ROADMAP.md` (PR #105) describes Direction-1 (Playwright-driven browser tests in the dev image) at near-plan depth — bootstrap script shape, IDEA-level gate semantics, cross-reference contract — but none of the assets exist yet. Until the assets land, every forward-looking pointer in the ROADMAP is a dangling reference, the IDEA-level `requires_playwright` gate is documented behaviour with no implementation, and the first project to adopt Direction-1 has no `setup_playwright.sh.template` to copy.
 
-**Proposal**: Land the mind-vault-side plumbing for Direction 1 in one IDEA — no first-pilot Playwright tests, no project-side adoption. Just the assets, the gate, the preflight, and the cross-reference contract, all wired together so a downstream "first project to adopt" IDEA (filed in a real consumer like teisutis) has a working surface to copy from.
+**Proposal**: Land the mind-vault-side plumbing for Direction 1 in one IDEA — no first-pilot Playwright tests, no project-side adoption. Just the assets, the gate, the preflight, and the cross-reference contract, all wired together so a downstream "first project to adopt" IDEA (filed in a real consuming project) has a working surface to copy from.
 
 **Why now**:
 - ROADMAP (PR #105) is plan-depth. Treating it as the plan and skipping `/plan` is the right shape — the discovery work is already done and architectural-reviewed.
@@ -30,7 +30,7 @@ sensitive_paths_cleared_reason: "Edits skills that gate sprint-auto execution (S
 - Direction 2 (`auto_safe_with_eval_gate`) shipped already. Direction 1 is the planned uplift that shrinks Direction 2's manual-walk surface — the longer the gap, the more linear cost the cohort eats per IDEA.
 
 **Non-goals**:
-- Not authoring the first concrete Playwright tests. That's a downstream IDEA in a real project (teisutis is the natural pilot — it has the most Cotton/Alpine/HTMX surface).
+- Not authoring the first concrete Playwright tests. That's a downstream IDEA in a real project (a consuming project is the natural pilot — it has the most Cotton/Alpine/HTMX surface).
 - Not running the bootstrap script against any project. The script template lives in mind-vault; running it is the consumer project's first Direction-1 IDEA.
 - Not changing visual-regression workflow conventions beyond what [`VISUAL_BASELINE_BUMPS`](../../../skills/django-frontend/references/VISUAL_BASELINE_BUMPS.md) formalises.
 - Not auto-detecting projects that already have Playwright infra (out of scope; current convention is "consumer project copies from mind-vault asset, runs once").

@@ -47,7 +47,7 @@ The cost manifests as: every `/wrap` invocation pulls 546 SKILL.md lines into co
 
 **Out of scope (deferred to Phase 2/3 PRs):**
 
-- `skills/django-frontend/SKILL.md` — six sections enumerated in IDEA body, total ~369L. Larger cross-reference surface (teisutis archives + sibling skills); ships as its own PR after Phase 1's pattern validates.
+- `skills/django-frontend/SKILL.md` — six sections enumerated in IDEA body, total ~369L. Larger cross-reference surface (a consuming project's archives + sibling skills); ships as its own PR after Phase 1's pattern validates.
 - `skills/django/SKILL.md` — distributed bloat with no single dominant section. Lowest priority; per-section judgment call on whether each inline body earns extraction.
 
 **Explicit non-goals:**

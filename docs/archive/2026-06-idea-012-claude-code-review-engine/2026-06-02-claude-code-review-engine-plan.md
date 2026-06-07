@@ -14,7 +14,7 @@ pr: 167
 
 mind-vault's `/review-loop` drives a bounded-autonomy review-fix-rerun loop against pluggable engines, two of which ship today: Cursor Bugbot and GitHub Copilot. We just installed `anthropics/claude-code-action@v1` via `/install-github-app` — `.github/workflows/claude-code-review.yml` auto-runs the `code-review` plugin on every PR, and `claude.yml` is an `@claude`-mention interactive agent. Those reviews already happen; the loop just can't *drive or triage* them yet. This work makes `claude` a first-class engine: dogfooding our own review stack, OAuth/subscription-billed (no per-review SKU), and `CLAUDE.md`-convention-aware in a way the generic vendors structurally can't be.
 
-The intended outcome: a `claude` adapter that satisfies the engine-adapter contract (with the divergences below), `claude` added to the default engine set, the sync contract generalized 2→N (and renamed `multi-engine-sync`), and a staged dogfood that proves the adapter in isolation, then proves N-engine sync, before the flow ships to teisutis.
+The intended outcome: a `claude` adapter that satisfies the engine-adapter contract (with the divergences below), `claude` added to the default engine set, the sync contract generalized 2→N (and renamed `multi-engine-sync`), and a staged dogfood that proves the adapter in isolation, then proves N-engine sync, before the flow ships to a consuming project.
 
 ## Problem Frame
 
@@ -39,7 +39,7 @@ The good news: the contract *already* says "never infer clean from `CONCLUSION`;
 - **R7.** The sync contract is renamed `dual-engine-sync.md → multi-engine-sync.md` (per `RULE_rename-before-drop`) with all referrers rewired, and carries claude's escape-hatch rows, scratch slots, alphabetical retrigger order (bugbot → claude → copilot), and a 3-engine asymmetric-clearance template.
 - **R8.** `sprint-auto`'s `SPRINT_AUTO_REVIEW_ENGINE` validation accepts any non-empty CSV subset of `{bugbot,copilot,claude}` (+ `none`), rejecting unknown names.
 - **R9.** Mechanical enum/doc propagation: `commands/review-loop.md`, `review-loop/SKILL.md`, `engine-adapter-contract.md` (formalize "auto-trigger" adapter category), `compound/references/review-finding-ingest.md` (`.claude-loop/` dir + engine inference), README + guides + CHANGELOG.
-- **R10.** Staged dogfood: `claude`-solo on this PR → `bugbot,copilot,claude` on the IDEA-009 PR → hand to user for teisutis.
+- **R10.** Staged dogfood: `claude`-solo on this PR → `bugbot,copilot,claude` on the IDEA-009 PR → hand to user for a consuming project.
 
 ## Scope Boundaries
 
@@ -93,7 +93,7 @@ The good news: the contract *already* says "never infer clean from `CONCLUSION`;
 
 ## Key Technical Decisions
 
-- **`claude` joins the default engine set — gated on reachability** *(user decision + architect A2)*. Default becomes `bugbot,copilot,claude`, but claude is included in the *default* set only when the action's workflow is installed on the target repo (reachability probe). Where absent it self-excludes from the default so a bare `/review-loop` doesn't HUNG; explicit `claude` still attempts and degrades loudly. This reconciles "default-on" with cross-project safety (teisutis won't break before its own install).
+- **`claude` joins the default engine set — gated on reachability** *(user decision + architect A2)*. Default becomes `bugbot,copilot,claude`, but claude is included in the *default* set only when the action's workflow is installed on the target repo (reachability probe). Where absent it self-excludes from the default so a bare `/review-loop` doesn't HUNG; explicit `claude` still attempts and degrades loudly. This reconciles "default-on" with cross-project safety (a consuming project won't break before its own install).
 - **Review-state synthesized from the GitHub Actions job** *(user decision)*. `find_claude_comments.sh` polls the `claude-code-review` workflow run (`gh api .../actions/runs` filtered to that workflow + head SHA, **latest by `run_started_at`**): `queued`/`in_progress` → RUNNING, `completed` → DONE. Conclusion ignored (fits "never infer clean from CONCLUSION"). Gives the multi-engine sync gate a real RUNNING signal.
 - **`claude` is push-triggered, not retriggered** *(architect A7, option a)*. The action auto-runs on `synchronize`, so a fix push *is* the retrigger — Phase 3 does not fire `claude_retrigger.sh` for claude (avoids the double-run race where the `synchronize` auto-run and an explicit `@claude review once` both run on one head SHA). The retrigger script is a **fallback** for the no-auto-run case only. This simplifies claude's retrigger surface and removes a whole class of "which run is authoritative" ambiguity (dedup: latest run by `run_started_at`).
 - **Clean is belt-and-suspenders, substring-matched** *(research + architect A6)*: `clean = summary-comment body contains the case-insensitive substring "no issues found" OR zero claude-authored inline comments on the head SHA after settle`. Substring (not the full sentence) per the copilot lesson (`find_copilot_comments.sh:182-189` — copilot already burned two phrasings); the zero-inline OR-arm covers issue #1087 (no summary comment) + clean-string drift.
@@ -128,7 +128,7 @@ Commits are grouped so the rename (R7) lands as its own `RULE_rename-before-drop
 8. ✅ `15d8b69` **Doc sweep.** `README.md` (engine/tool counts + lists), `docs/guides/{GIT_WORKFLOW,SPRINT_WORKFLOW,ONBOARDING}.md` (review-engine mentions), `CHANGELOG.md` (new version section — minor bump: this is a feature, first IDEA-driven release since v4.5; confirm bump at wrap).
 9. **Dogfood step A — claude-solo (R10).** Open the PR for this branch. Run `/review-loop <PR> claude`. **This is where Q1–Q3 resolve empirically.** Fix the adapter against real behavior (bot login, retrigger semantics, job-status readability, clean-string). Iterate until claude clears CLEAN solo. Capture confirmed constants back into `engine-claude.md` § first-run calibration.
 10. **Dogfood step B — tri-engine (R10).** On the parked IDEA-009 PR, run `/review-loop <PR> bugbot,copilot,claude`. Validates the 2→N sync generalization (slowest-of-three gate, one batched fix commit, three retriggers in alphabetical order, 3-engine asymmetric-clearance hand-back). Fix any sync-layer issues.
-11. **Hand to user** for the teisutis cross-project test (install via `/install-github-app` on teisutis, then `/review-loop <PR> claude` there).
+11. **Hand to user** for the cross-project test in a consuming project (install via `/install-github-app` there, then `/review-loop <PR> claude`).
 
 ## Verification
 

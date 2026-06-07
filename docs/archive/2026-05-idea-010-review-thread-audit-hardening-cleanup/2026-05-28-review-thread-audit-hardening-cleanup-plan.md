@@ -32,7 +32,7 @@ Pattern 2 gates bulk-resolve on **zero STILL-REAL**. With a high false-positive 
 
 **Out of scope / non-goals:**
 - Fixing `#120 scripts/install-wsl.ps1` PowerShell bugs (TLS 1.2, `Missing` switch fallthrough, `$vmMonitor` unused, whitespace `-Distro`) — real code, **handed back to the user**.
-- Any teisutis work — a separate Claude Code session is running IDEA-155 there; **do not checkout branches on its worktree**. mind-vault-only.
+- Any work in a consuming project — a separate Claude Code session is running its own IDEA there; **do not checkout branches on its worktree**. mind-vault-only.
 - Pattern 1 (forward auto-resolve) — already high-confidence, untouched.
 - Re-opening v4.3.13 (#154) — shipped + self-reviewed.
 

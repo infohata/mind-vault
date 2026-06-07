@@ -13,8 +13,8 @@ Review and refine 6 Django architecture skills before final commit to PR #4.
 ## Work Completed This Session
 
 ### 1. Removed All Project-Specific References ✅
-- Removed all "Teisutis" references from skills
-- Changed app paths from `teisutis_ai` to `myapp`
+- Removed all consuming-project references from skills
+- Changed app paths from a project-specific app name to `myapp`
 - Updated use cases to be project-agnostic
 - Changed settings paths to generic `project.settings`
 
@@ -46,9 +46,9 @@ Review and refine 6 Django architecture skills before final commit to PR #4.
 - Verified SKILL_django-celery.md is 100% single-tenant
 
 ### 6. Fixed Remaining Project References
-- Line 49 in async-websocket: `teisutis_ai` → `myapp`
-- Line 725 in multi-tenant: Removed Teisutis mention from "Why It's Generic"
-- Line 751 in multi-tenant: Removed reference to non-existent TEISUTIS_ARCHITECTURE_ANALYSIS.md
+- Line 49 in async-websocket: project-specific app name → `myapp`
+- Line 725 in multi-tenant: Removed consuming-project mention from "Why It's Generic"
+- Line 751 in multi-tenant: Removed reference to a non-existent project-specific architecture-analysis doc
 - Line 133 in architecture: Made example path generic
 
 ## Current State
@@ -75,7 +75,7 @@ Next session: Continue reviewing skills for remaining inconsistencies before fin
 
 ## Key Insights from This Session
 
-1. **Token sustainability**: Need to keep skills manageable to avoid billion-token burn like Teisutis
+1. **Token sustainability**: Need to keep skills manageable to avoid billion-token burn like a consuming project's load-all pattern
 2. **Discoverability**: Index would help but defer until 10+ skills (not yet needed)
 3. **One-place tracking**: Put all TBD references in plan, not scattered across skills
 4. **Reference discipline**: Once reference in overview = loaded in context, don't repeat
@@ -97,7 +97,7 @@ Next session: Continue reviewing skills for remaining inconsistencies before fin
 
 - Early commit happened again (pattern to break)
 - User is in "review mode" to iron out inconsistencies before final commit
-- Approach is already superior to Teisutis (load-all) pattern
+- Approach is already superior to a consuming project's (load-all) pattern
 - Index/discoverability is future concern, not now
 - All changes uncommitted except one early commit (65bdf71)
 

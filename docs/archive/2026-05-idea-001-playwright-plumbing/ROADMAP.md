@@ -23,7 +23,7 @@ Composability with Direction 2 is the point: per-surface Playwright tests land a
 
 ## What headless Playwright covers
 
-Two distinct buckets — both useful, but the OSS world (and mind-vault's first user, teisutis) recurrently conflates them:
+Two distinct buckets — both useful, but the OSS world (and mind-vault's first consuming project) recurrently conflates them:
 
 **Static rule scans** (axe-core via `axe-playwright-python`):
 - WCAG 2.1 AA mappable issues — contrast ratio, ARIA roles, label associations, heading order, landmark usage, alt-text presence.
@@ -95,7 +95,7 @@ The bootstrap script answers "how does the project get Playwright". The gate ans
 
 ## Stack notes — Cotton + Alpine + HTMX (no TypeScript)
 
-The first user (teisutis) ships server-rendered Django Cotton components with Alpine.js for client state and HTMX for partial swaps. No TypeScript. So:
+The first consuming project ships server-rendered Django Cotton components with Alpine.js for client state and HTMX for partial swaps. No TypeScript. So:
 
 - Tests are **Python** (`pytest-playwright` sync API), not TS — keeps the dev surface uniform with the rest of the project's tests. Async API only when the app itself is async (Daphne+ASGI on every endpoint); for HTMX-driven Django, **stay sync**.
 - Live-server fixture: `pytest-django`'s `live_server` is the canonical answer; no separate `django-playwright` package needed. Microsoft's `mxschmitt/python-django-playwright` repo is the reference example.
@@ -174,7 +174,7 @@ Non-fatal. The IDEA-level gate handles the absence per § IDEA-level Playwright-
 ## Implementation sketch (per project, ordered)
 
 1. **Run `tools/setup_playwright.sh`** (the bootstrap script — see § Project-side bootstrap script). Reviewable PR. Merges to main. **This IDEA does NOT carry `requires_playwright: true`** — it provisions the gate's "present" state but doesn't depend on it.
-2. **First-IDEA pilot** — pick a surface that's *both* eval-gate today AND has high-value automatable scenarios. Concrete candidates from teisutis: IDEA-141 modal primitives focus traps, IDEA-146 article-shell preview-stack URL round-tripping, IDEA-160 per-pane scroll containment. Set `requires_playwright: true` on the pilot IDEA's frontmatter; author 3-5 Playwright tests covering the highest-value scenarios; verify the per-scenario `Walked: [x] (covered by ...)` pre-fill works in the eval-checklist.
+2. **First-IDEA pilot** — pick a surface that's *both* eval-gate today AND has high-value automatable scenarios. Concrete candidates from a consuming project: modal-primitive focus traps, article-shell preview-stack URL round-tripping, per-pane scroll containment. Set `requires_playwright: true` on the pilot IDEA's frontmatter; author 3-5 Playwright tests covering the highest-value scenarios; verify the per-scenario `Walked: [x] (covered by ...)` pre-fill works in the eval-checklist.
 3. **Sweep follow-up** — once the pattern is proven, file backfill IDEAs to add Playwright coverage for previously-shipped UX surfaces. Each backfill IDEA ships with `requires_playwright: true` + `auto_safe: true` (no eval-gate needed — the surface is already shipped + walked once; the test is regression-only). **Test-quality gate**: backfill IDEAs require at least one human-eyes pass on each new test asserting it actually exercises the failure path it claims to (checking against the original IDEA's eval-checklist) — without this, "walked once" becomes a cargo-cult gate.
 
 Test layout (provisioned by bootstrap):
