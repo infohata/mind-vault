@@ -32,7 +32,7 @@ Two things make this more than a one-off `sed`:
 - **R4.** A repeatable **provenance-scrub runbook** is created and homed in this IDEA's archive dir, carrying the procedure (inventory → categorise → generalise → verify) plus a dated run-log; this scrub is its first logged entry.
 - **R5.** Generalisation phrasing is consistent and decided once per category (see Key Technical Decisions), not improvised per file.
 - **R6.** Real project names live **only** in local memory (`~/.claude`) + git history + commit messages — never re-introduced into tracked file bodies.
-- **R7.** Verification gate (architect F1 — positive count-assertion, not a brittle content-exclusion): outside the whitelisted IDEA-018 archive dir, `git grep -i teisutis` returns **exactly one** hit — the ideas-index In-Progress line — verified by count plus an eyeball of that one line. Any count ≠ 1 (or a different line) blocks merge.
+- **R7.** Verification gate (architect F1 — positive count-assertion, not a brittle content-exclusion): outside the whitelisted IDEA-018 archive dir, `git grep -i teisutis` returns **zero** hits — verified by count. (Originally this was `1`, allowing the ideas-index In-Progress line; the `/wrap` pass then moved that line to References-Implemented in clean framing, dropping it to `0`. The archive dir is the sole whitelist.) Any non-zero count blocks merge.
 
 ## Scope Boundaries
 
@@ -77,7 +77,7 @@ Two things make this more than a one-off `sed`:
 ## Key Technical Decisions
 
 - **Instruction-only guard (no denylist).** Per user direction: a name blacklist's false-positive cost outweighs its value and ages badly; a well-written instruction wins long-term as models improve. R3 rewrites the gate prose to define the *class* (any proper-noun project/repo/client name that isn't mind-vault's own; provenance tags like `(X) IDEA-N` / `X PR #N`; project-rooted paths `~/projects/X`), the *why* (public-repo-safety), and the *transform* (drop tag, keep lesson) with before/after examples. The existing generic-pattern grep stays only as an optional cheap aid, explicitly **not** the enforcement mechanism.
-- **Keep IDEA-018 self-references (Q2).** The IDEA-018 archive dir + its single ideas-index In-Progress line legitimately name the scrub target for legibility. Verification whitelists exactly those paths.
+- **Keep IDEA-018 self-references (Q2).** The IDEA-018 archive dir legitimately names the scrub target for legibility; it is the sole whitelist. (Q2 originally also kept the ideas-index In-Progress line, but `/wrap` moved that entry to References-Implemented in clean framing — so the live index no longer names the target and the outside-archive count is `0`.)
 - **Archive-homed, maintained runbook (Q-runbook).** The repeatable procedure + run-log lives at `docs/archive/2026-06-idea-018-provenance-scrub/PROVENANCE_SCRUB_RUNBOOK.md`. Future recurrences run it and append a log entry rather than spawning a new IDEA — the archive dir is the canonical home per user direction ("maintain its knowledge in archive"). The compound gate instruction (R3) points at it **by IDEA id** ("the provenance-scrub runbook in the IDEA-018 archive"), **not** by hard-coding the dated path (architect F4 — avoids a stale dead-link if Q2's escape hatch ever promotes it to `docs/maintenance/`).
 - **Generalisation conventions (decided once, R5):**
   - *Prose example name* → "a consuming project" / "an external project".
@@ -106,18 +106,18 @@ Two things make this more than a one-off `sed`:
 2. ✅ `829d5fa` **Tool scripts (commit 2).** Generalised the 3 comments in `tools/find_copilot_comments.sh` + `tools/find_claude_comments.sh`; `bash -n` clean on both. *(Confirmed all 3 were comments — no functional default.)*
 3. ✅ `7f5f187` **SKILL bodies + guides + READMEs (commit 3).** `skills/idea/SKILL.md`; `docs/guides/AGENT_PORTABILITY.md`; `docs/guides/SKILL_AUTHORING_WALKTHROUGH.md`; `README.md` ×2; `docs/ideas/README.md` IDEA-012 entry (Q3). *(The IDEA-018 In-Progress index line is whitelisted — left in place.)*
 4. ✅ `0abca11` **CHANGELOG + archive bulk (commit 4).** `CHANGELOG.md` (47) + 11 archive IDEA/plan/session-note docs (83 hits total) — uniform drop-the-tag generalisation via `mv-documentation`. *(IDEA-018 archive dir whitelisted.)*
-5. ✅ **Final verify + self-sweep — GATE PASS.** F1 positive-count gate ran: outside-whitelist count == **1** (the index line). `bash -n` clean; stray-name grep (`bookingrobot|br-internal`) clean. Zero stragglers → this step produced no scrub commit (only this progress-marker commit).
+5. ✅ **Final verify + self-sweep — GATE PASS.** F1 positive-count gate ran: outside-whitelist count == **0** (the `/wrap` index rewording dropped the last self-reference; archive dir is the sole whitelist). `bash -n` clean; stray-name grep (`bookingrobot|br-internal`) clean. Zero stragglers.
 
 ## Verification
 
 ```bash
 # R7 — positive count-assertion (architect F1): outside the whitelisted archive
-# dir, exactly ONE hit must remain — the ideas-index In-Progress line. Any other
-# count blocks merge. Eyeball that the single hit IS the index line.
+# dir, ZERO hits must remain. (The ideas-index entry was generalised to clean
+# framing during /wrap, so the archive dir is the sole whitelist.) Any hit blocks merge.
 n=$(git grep -i teisutis -- ':!docs/archive/2026-06-idea-018-provenance-scrub' | wc -l)
-echo "outside-archive teisutis hits: $n (expect 1 = the IDEA-018 index entry)"
-git grep -i teisutis -- ':!docs/archive/2026-06-idea-018-provenance-scrub'   # eyeball: must be docs/ideas/README.md In-Progress line ONLY
-test "$n" -eq 1 && echo "GATE PASS" || echo "GATE FAIL — investigate"
+echo "outside-archive teisutis hits: $n (expect 0)"
+git grep -i teisutis -- ':!docs/archive/2026-06-idea-018-provenance-scrub'   # eyeball: must be empty
+test "$n" -eq 0 && echo "GATE PASS" || echo "GATE FAIL — investigate"
 
 # R2 — tool scripts still parse:
 bash -n tools/find_copilot_comments.sh && bash -n tools/find_claude_comments.sh && echo "scripts OK"
