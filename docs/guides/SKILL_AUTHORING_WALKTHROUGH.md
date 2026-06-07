@@ -63,6 +63,26 @@ The discipline:
 
 IDEA-002 (May 2026) debloated the three biggest mind-vault skills (`wrap`, `django-frontend`, `django`) by extracting 748 lines into `references/` — meaningful token savings at sprint-auto-scale invocation rates. The pattern stuck: new skills are written reference-first.
 
+### The line count is a smell, not the rule — three refinements
+
+The 500-line budget is a *trigger to look*, not a target to hit. Three things sharpen it:
+
+**1. Progressive disclosure pays off ONLY for minority-read content.** Extraction saves tokens when the reference is read in a *minority* of fires: extract content read ~20% of the time → you save its tokens the other 80%. But extracting content the skill needs on *every* fire is a **net negative** — the agent must `Read` it back each time anyway, so you now pay (a) the trimmed body, (b) the full reference, *plus* (c) the Read tool-call overhead (the result re-includes the whole file with line-number gutters), *plus* a round-trip — and you've added a failure mode: if the agent doesn't read the extracted ref, the skill **loses function**. Split conditional content; keep always-needed orchestration inline. "Must not lose function" is the binding constraint, and for core orchestration it's incompatible with extraction.
+
+**2. Measure the *real* number — both axes, with a working tool.** Two different size axes have very different economics:
+
+- **`description` frontmatter** loads *every session* (it's the probabilistic-trigger surface the agent scans to decide whether to fire). This is the expensive axis. Keep it tight on CC; OpenCode hard-caps it at 1024 chars (see [`AGENT_PORTABILITY.md`](AGENT_PORTABILITY.md)).
+- **SKILL.md body** loads *only when the skill fires*. A long body on a rarely-fired skill is cheap; the cost is intermittent.
+
+Measure before you cut — and trust the measurement only if the tool is correct. `tools/validate-skills.sh` once over-reported descriptions by an order of magnitude (`work` "12492 chars" vs the real **308**) because its parser read *past the closing `---`* into the body. A phantom number nearly triggered a pointless debloat. Run `validate-skills.sh <name>` (CC checks) or `--opencode` (fork audit), and sanity-check any surprising count against the actual frontmatter.
+
+**3. Exemplar — `skills/plan`.** At 181 lines it sits *under* budget while still being a large workflow skill, because it extracted exactly the conditional 20% and kept the always-needed 80% inline:
+
+- **Extracted (minority-read):** `references/thin-input-bootstrap.md` (fires only on thin input), `references/architect-handoff.md` (only when the reviewer pass runs), `references/batching-for-sprint-auto.md` (only in batch mode).
+- **Kept inline (every fire):** resume/scope, research, draft, architect pass, the IDEA `git mv`, plan emit.
+
+That's the template. `skills/work` (242 lines) is similar — both are healthy. Neither is a debloat target despite *feeling* big; the feeling came from the phantom description count, not the real body. Resist decomposing a skill on a raw line count or a single scary metric: confirm the content is genuinely minority-read first, or you trade tokens you weren't spending for a function-loss risk you didn't have.
+
 ## What a skill should NOT have
 
 - **Project-specific paths or commands.** A skill that says `cd ~/projects/project-x && make test` is broken for every other project. Use placeholders + describe the convention (`cd <project-root> && make test` + "this skill assumes a Makefile with a `test` target").

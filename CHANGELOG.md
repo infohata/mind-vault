@@ -10,6 +10,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.0.3 — validate-skills.sh CC-first + description-parser fix + progressive-disclosure guidance
+
+Patch release ([PR #188](https://github.com/infohata/mind-vault/pull/188)). Surfaced during IDEA-016 review when the OpenCode-era validator reported 6 skills "failing" — which proved to be a parser bug, not skill instability. Fixes the tool and compounds the lesson into the skill-authoring guide.
+
+### Fixed
+
+- **`tools/validate-skills.sh` description-length parser over-counted by reading past the closing `---`.** When `description` was the last frontmatter field, the next-field search scanned the whole file and counted everything up to the first body `word:` line (e.g. `status: complete` in a fenced YAML example) as description — inflating `work` to a reported 12492 chars (real: 308), `plan` 10371 (real: 384), `skill-writer` 1775 (real: <1024). Fix: bound the next-field search to within the frontmatter fence. Three of the six "failures" were pure parser artifacts and now pass even `--opencode`.
+
+### Changed
+
+- **`tools/validate-skills.sh` is now Claude-Code-first by default; OpenCode checks are opt-in via `--opencode`.** It was an OpenCode-era artifact enforcing OpenCode's ≤1024-char description cap + section-heading conventions on every run, so CC-first skills (rich descriptions, `## When to use` wording) false-failed. Default mode runs universal structural checks only (name, frontmatter, name↔dir, description present/non-empty); `--opencode` adds the fork-readiness checks back (see `docs/guides/AGENT_PORTABILITY.md`). Result: default `--all` = 21/21; `--opencode --all` = honest 18/3 (`land`/`sprint-auto`/`wrap` have genuinely >1024-char descriptions — a CC-irrelevant, OpenCode-fork-only concern).
+- **`docs/guides/SKILL_AUTHORING_WALKTHROUGH.md` — the "500-line budget" section gains three refinements** (compounded from the above). (1) Progressive disclosure saves tokens **only** for minority-read content; splitting always-needed orchestration adds Read-tool overhead *and* risks function loss — net negative. (2) Measure the *real* number on both axes (`description` = always-loaded/expensive; body = fire-only/intermittent) with a trustworthy tool — a phantom metric nearly triggered a pointless debloat. (3) `skills/plan` (181L) is the exemplar: extracted the conditional 20% (`thin-input-bootstrap`, `architect-handoff`, `batching-for-sprint-auto`), kept the always-needed 80% inline. The line count is a smell to investigate, not a target to cut to.
+
 ## v5.0.2 — IDEA-018: prior-project provenance scrub + instruction-only scrub-gate guard
 
 Patch release ([PR #186](https://github.com/infohata/mind-vault/pull/186), IDEA-018). Closes the v5.0.1 known-follow-up: the pervasive pre-existing prior-project provenance presence is purged repo-wide (94 outside-archive hits → 0), and the gate that let it accumulate is hardened so it can't recur.
