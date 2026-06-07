@@ -38,7 +38,7 @@ sensitive_paths_cleared_reason: "The research pass itself touches no code (read-
 **Why now**:
 - It's a live, actively-maintained peer system solving the same problem — the cheapest learning available is reading someone else's converged design before we re-derive it.
 - Feeds the backlog: each confirmed gap becomes a scoped IDEA, making future sprints richer without blocking current work.
-- Relates to the stack-agnostic agent direction ([[IDEA-014]]) — gstack's multi-role / cross-model agent model is a reference point for where that architecture could go.
+- Relates to the stack-agnostic agent direction ([IDEA-014](IDEA-014-stack-agnostic-agents.md)) — gstack's multi-role / cross-model agent model is a reference point for where that architecture could go.
 
 **Non-goals**:
 - Not a wholesale port. mind-vault's minimalism (skills + rules + symlinks, no heavy runtime) is a deliberate stance; the output is a curated shortlist, not "adopt everything gstack has."
