@@ -137,7 +137,7 @@ Run inline because `mv-architect` cannot self-dispatch until step 2 lands in a f
 - **Abstraction/genericity.** Sound. Generator correctly rejected in favour of a methodology doc; `persona-dispatch.md`-as-canonical-id-map is the right single abstraction, no over-engineering.
 - **Coupling/dependency.** The display-name (`AGENT_xxx`) vs dispatch-id (`mv-xxx`) split is decoupled via one mapping table; only true dispatch sites switch, so cross-skill prose + file links don't move. Symlink preserved by keeping filenames.
 - **Boundary contradiction.** Two boundaries flagged + resolved: (a) architect keeps Write because it is author-mode in `/work` (diverges from feature-dev's read-only architect — justified, documented); (b) curator is read-only review (no Write/Edit) — emits fixes as text. Model-inherit-vs-IDEA-opus divergence recorded in step 5.
-- **Deployment/scaling.** No infra/migration — symlinked config, picked up next session. **Downstream consumers (e.g. teisutis) referencing `AGENT_xxx` are unaffected:** file links are unchanged, and an unknown `subagent_type` degrades gracefully to the existing inline persona-read fallback. Add this reassurance as a one-line note in `AGENT_PORTABILITY.md`.
+- **Deployment/scaling.** No infra/migration — symlinked config, picked up next session. **Downstream consumers (e.g. a consuming project) referencing `AGENT_xxx` are unaffected:** file links are unchanged, and an unknown `subagent_type` degrades gracefully to the existing inline persona-read fallback. Add this reassurance as a one-line note in `AGENT_PORTABILITY.md`.
 
 **Verdict: ARCHITECTURALLY SOUND.** One non-blocking addition folded in (downstream-consumer note → portability doc).
 

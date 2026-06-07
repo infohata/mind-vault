@@ -40,7 +40,7 @@ Two deliberate choices make the file maximally portable:
 
 ### Downstream-consumer safety
 
-Projects that consume mind-vault (e.g. teisutis) and reference personas by their display name (`AGENT_backend`) or by file path (`agents/AGENT_backend.md`) are **unaffected** by the `mv-` dispatch ids:
+Projects that consume mind-vault (e.g. a consuming project) and reference personas by their display name (`AGENT_backend`) or by file path (`agents/AGENT_backend.md`) are **unaffected** by the `mv-` dispatch ids:
 
 - File paths are unchanged — the profiles keep their `AGENT_*.md` filenames (CC dispatches on the frontmatter `name:`, not the filename).
 - An unknown `subagent_type` degrades gracefully: the orchestrating skill falls back to reading the persona file inline (the pre-existing behaviour), so nothing breaks if a host hasn't picked up the `mv-` registration yet.

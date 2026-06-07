@@ -1,26 +1,26 @@
 ---
 id: 018
 title: Scrub prior-project provenance identifiers from tracked files
-status: idea
+status: complete
 priority: high
 supersedes: []
 superseded_by: null
 depends_on: []
 related: []
 created: 2026-06-07
-completed: null
+completed: 2026-06-07
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
 auto_safe: false
-auto_safe_reason: "Some occurrences are in the review-loop tool scripts (find_claude_comments.sh / find_copilot_comments.sh) where the identifier may be a functional example/default, not just narrative — each hit needs a human narrative-vs-functional judgment + a behavioural test pass, not a blind sed. Also a presentation call on how to generalise provenance (drop vs neutral phrase) per the scrub gate."
+auto_safe_reason: "/plan research (2026-06-07) DISPROVED the functional-default worry: all 3 tool-script hits are pure comments (`bash -n` clean, no REPO=/owner= defaults). Remaining judgment is generalisation phrasing (drop tag vs neutral descriptor) + the scrub-gate instruction rewrite — model-judgment work, not a blind sed. Still human-reviewed (public-safety stakes), so left false."
 sensitive_paths_cleared: false
-sensitive_paths_cleared_reason: "Touches executable review-loop tool scripts (tools/find_*_comments.sh) — infra-adjacent automation that must still run after the edits. A human eyeballs the script diffs before merge."
+sensitive_paths_cleared_reason: "Touches the review-loop tool scripts (tools/find_*_comments.sh) — but only their comments; scripts re-parse clean (`bash -n`). Human eyeballs the script + scrub-gate diffs before merge."
 ---
 
 # IDEA-018: Scrub prior-project provenance identifiers from tracked files
 
-**Status**: 💡 Idea
+**Status**: ✅ Complete (2026-06-07) · PR #186
 **Priority**: High
 
 **Problem** (or opportunity): mind-vault carries a pervasive prior-project identifier (`teisutis`) across **~90 references in ~20 tracked files** — accumulated organically over months of `/compound` provenance bullets. Locations include: ~47 lines in `CHANGELOG.md`; two **SKILL bodies** (`skills/compound/SKILL.md`, `skills/idea/SKILL.md`); the **review-loop tool scripts** (`tools/find_claude_comments.sh`, `tools/find_copilot_comments.sh`) where it may be a functional example/default rather than narrative; `docs/guides/` (AGENT_PORTABILITY, SKILL_AUTHORING_WALKTHROUGH); `README.md`; `docs/ideas/README.md`; and numerous archive IDEA/plan/session-note docs. mind-vault's own `/compound` customer-data scrub gate is explicit that the repo must be **public-repo-safe** ("private today, public tomorrow") and even names `teisutis PR #475` as an example of a foreign-project ref to drop — yet the identifier is woven throughout. Surfaced 2026-06-07 while scrubbing a *different* client leak (`BookingRobot-M`) during compound PR #184; that sprint's identifiers were cleaned in-PR, but the `teisutis` class is too large and too entangled with executable tooling to ride a compound.

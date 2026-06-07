@@ -301,7 +301,7 @@ export CLAUDE_FINDING_MARKERS='\bmissing\b|\bviolation\b|❌|#### |### [0-9]|###
 # Signature-matching bodies that are claude NO-OPs, never verdicts. Anchored to the
 # skip-preamble SHAPE — the "## Code review" heading immediately followed by skip prose —
 # matched with re.MULTILINE so `^` is a line start. claude phrases the skip BOTH ways:
-# past-tense "Skipped — draft status" / "Skipped: already reviewed this PR" (teisutis #516)
+# past-tense "Skipped — draft status" / "Skipped: already reviewed this PR" (seen on an external project)
 # AND gerund "Skipping review: already posted a code review comment" (mind-vault #169) —
 # so the verb arm is `skipp(ed|ing)`. Anchoring (vs a bare search-anywhere) is deliberate:
 # PR #169 self-dogfood flagged that a loose `already (posted|reviewed)` arm would

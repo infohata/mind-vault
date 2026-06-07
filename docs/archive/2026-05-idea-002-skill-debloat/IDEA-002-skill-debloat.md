@@ -56,7 +56,7 @@ Audit captured 2026-05-09 (post-PR-#106):
 Sequence (mechanically simplest → most cross-references):
 
 1. **`skills/wrap/SKILL.md`** Steps 5/7/8 → `references/{POST_MERGE_TEARDOWN,EVAL_GATE_EMISSION,ATOMIC_MERGE}.md`. Highest-leverage: ~285L savings × 2-invocations-per-IDEA-under-sprint-auto.
-2. **`skills/django-frontend/SKILL.md`** large patterns → `references/{APP_SHELL_LAYOUT,ALPINE_STORE_COORDINATORS,ACTIVE_STATE_TRACKING,TEMPLATE_COMMENT_SYNTAX,SCSS_VENDOR_IMPORT,JS_SIBLING_COMMENT_TRAP}.md`. Multiple section moves; more cross-references to update across teisutis archives + sibling skills.
+2. **`skills/django-frontend/SKILL.md`** large patterns → `references/{APP_SHELL_LAYOUT,ALPINE_STORE_COORDINATORS,ACTIVE_STATE_TRACKING,TEMPLATE_COMMENT_SYNTAX,SCSS_VENDOR_IMPORT,JS_SIBLING_COMMENT_TRAP}.md`. Multiple section moves; more cross-references to update across a consuming project's archives + sibling skills.
 3. **`skills/django/SKILL.md`** distributed bloat. Lower priority — judgement call per section on whether the inline body earns its keep.
 
 **Why now**:

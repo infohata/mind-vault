@@ -174,7 +174,7 @@ copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
 #
 # Two body-text phrasings observed in the wild as of 2026-05-22:
 #   * 'found no new issues' — classic Copilot wording.
-#   * 'generated no new comments' — newer wording, surfaced on PR #474 (teisutis)
+#   * 'generated no new comments' — newer wording, surfaced on a real external-project PR
 #     when the final review was effectively clean but the body started with
 #     '## Pull request overview\n\nCopilot reviewed N out of N changed files
 #     in this pull request and generated no new comments.' The legacy matcher
@@ -422,7 +422,7 @@ commit = latest.get('commit_id') or ''
 at = latest.get('submitted_at') or ''
 body = (latest.get('body') or '').strip()
 # Match either of the two known clean-body phrasings — see Pass 1 comment block
-# for the full rationale and the PR #474 (teisutis) reference that surfaced
+# for the full rationale and the external-project PR reference that surfaced
 # the 'generated no new comments' variant.
 CLEAN_PHRASES = ('found no new issues', 'generated no new comments')
 body_l = body.lower()

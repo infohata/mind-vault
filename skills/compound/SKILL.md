@@ -123,27 +123,36 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
    - If the current branch is any feature branch (e.g. `ce-inspired-evolution`): stay on it. No new branch. No branch spam.
    - Never modify `production` / `deployment` branches; refuse if on one.
 4. **Emit the file(s).** Write the target files per step 3.
-5. **Customer-data scrub gate — MANDATORY.** Mind-vault is a cross-project knowledge store and must contain **zero project/customer-identifying data**: no real tenant slugs, customer names, account / conversation / record ids, customer-supplied filenames, customer domain hostnames, internal URLs that could identify a deployment, or any other data that wouldn't be safe in a public repo (mind-vault may be private today and public tomorrow). Run a scrub pass on the staged diff before commit:
+5. **Prior-project / customer-data scrub gate — MANDATORY (forcing function).** Mind-vault is a cross-project knowledge store and must contain **zero project/customer-identifying data** — nothing that wouldn't be safe in a public repo (private today, public tomorrow). This gate is **instruction-driven, not blacklist-driven**: there is deliberately *no maintained denylist* of names. A name blacklist's false-positive cost outweighs its value and it ages badly — a well-written instruction the model reasons from wins long-term. Recognise the *category*; do not pattern-match a list.
 
-   ```bash
-   cd <mind-vault-path>
-   git diff --no-color --staged | grep -iE \
-       '<tenant-slug-pattern>|conversation [0-9]+|record [0-9]+|account [0-9]+|/Users/[^/]+/Downloads/|customer.specific.filename|<deployment-domain>'
-   # Project-specific: also grep for customer brand names, product nicknames,
-   # internal hostnames, anything in `<project>/.gitignore` that hints at
-   # secrets-adjacent paths.
-   ```
+   **The forcing function — emit a classification before you commit. Do not skip silently.** List every proper-noun token in the staged diff (project names, repo names, client/org names, person names, hostnames, absolute paths) and classify each:
 
-   Scrub policy:
-   - **Tenant identifiers** → drop entirely or replace with generic "production tenant".
-   - **Customer record ids / conversation ids / message ids** → drop.
-   - **Customer-supplied filenames** → drop or replace with `<filename>`.
-   - **Local filesystem paths** (`/Users/<name>/...`, `/home/<name>/...`) → drop.
-   - **Customer domain hostnames** → drop or replace with `<tenant-host>`.
-   - **PR / IDEA / commit references** → KEEP mind-vault's own (bare `PR #NNN` / `IDEA-NNN` resolve against mind-vault's numbering and are valid provenance). DROP **clearly foreign** refs: full URLs to another repo (`https://github.com/<other-repo>/pull/NNN`), or project-name-tagged refs (`(Teisutis) IDEA-178`, `teisutis PR #475`). When a bare `IDEA-NNN` / `PR #NNN` appears in context that ties it to another project (surrounding prose names the foreign project, or the number doesn't resolve in mind-vault), drop it or qualify it explicitly. Generalise IDEA-tagged narrative ("what IDEA-178 learned") to neutral framing ("what the first-suite stand-up learned"). Commit messages may keep source-project refs (git history is acknowledged-noisy); the **file body** must be clean.
-   - **Module / class / function names** (e.g. `AttachmentSerializer`, `_serialize_batch`, `<app>/`) → KEEP (these are public-API names that future readers need; they're already grep-able from the cited PR).
+   | Token kind | Class | Action |
+   | --- | --- | --- |
+   | mind-vault's own PR/IDEA/module/function names | mind-vault-own | KEEP |
+   | any OTHER project / repo / client / org proper noun | foreign | SCRUB (generalise) |
+   | generic technical terms | generic | KEEP |
 
-   The "would this be safe in a public repo today?" test is the gate. If the answer is "no", scrub before commit.
+   A gate you can satisfy *without emitting this classification* is decorative — emit it.
+
+   What "foreign" looks like (recognise the class — these are illustrations, NOT an exhaustive list):
+   - Project-name-tagged refs — `(project-x) IDEA-178`, `project-x PR #475`. ← `project-x` is a **deliberate placeholder**; never re-concretise it with a real project name (the gate's own example is the single highest-traffic re-leak vector).
+   - Full URLs to another repo (`https://github.com/<other-repo>/pull/NNN`).
+   - Real tenant / customer / org slugs, account / conversation / record / message ids, customer-supplied filenames, customer domain hostnames, internal deployment URLs.
+   - Local filesystem paths (`/Users/<name>/...`, `/home/<name>/...`).
+
+   Scrub policy (drop the tag, keep the lesson):
+   - **Foreign project / repo / client name** → generalise to a neutral descriptor ("a consuming project", "an external Django project") or an obvious placeholder (`project-x`) — never a real name.
+   - **Foreign PR / IDEA refs** → drop, or generalise the narrative ("what IDEA-178 learned" → "what the first-suite stand-up learned"). A bare `IDEA-NNN` / `PR #NNN` that resolves in mind-vault is KEPT (valid own-provenance); one tied to another project (surrounding prose names it, or it doesn't resolve here) is dropped or qualified.
+   - **Tenant / record / conversation ids, customer filenames, customer hostnames, local paths** → drop (or `<filename>` / `<tenant-host>`).
+   - **mind-vault's own module / class / function names** (`AttachmentSerializer`, `<app>/`) → KEEP (public-API names future readers need; already grep-able from the cited PR).
+   - Commit messages MAY keep source-project refs (git history is acknowledged-noisy); the **file body** must be clean.
+
+   The "would this be safe in a public repo today?" test is the gate. Answer "no" → scrub before commit.
+
+   *Optional cheap aid (NOT the enforcement mechanism):* `git diff --staged | grep -iE 'conversation [0-9]+|record [0-9]+|/Users/[^/]+/|/home/[^/]+/'` can surface obvious id/path leaks — but the classification above (model judgment, not regex) is what the gate relies on.
+
+   **Recurring drift.** Provenance accumulates back over time even with this gate. When it does, run the repeatable **provenance-scrub runbook** (in the IDEA-018 archive — grep `PROVENANCE_SCRUB_RUNBOOK`) and append a run-log entry — periodic maintenance, not a fresh IDEA each time.
 
 6. **Commit.** One commit per invocation, using the standard commit-message format (type(scope): description). **Mind-vault self-mode CHANGELOG bump:** when the destination is mind-vault itself (self-promotion, not a project-local write), patch-bump `CHANGELOG.md` in this same commit — pure `/compound` PRs increment the patch component by 1 (`vX.Y.Z → vX.Y.(Z+1)`, not a bump *to* `0.0.1`) with their own `## v` section (no IDEA → `/wrap` never runs to do it). See [`references/mind-vault-promotion.md`](references/mind-vault-promotion.md) § Self-mode CHANGELOG bump.
 7. **Push.** `git push --set-upstream origin <branch>`.
