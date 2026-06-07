@@ -12,7 +12,7 @@ _(none)_
 
 ## v5.0.4 — IDEA-016: scripts/ + tools/ taxonomy (scoped re-partition)
 
-Patch release ([PR #187](https://github.com/infohata/mind-vault/pull/187), IDEA-016). Resolves the long-ambiguous `scripts/` vs `tools/` split (both held `install`/`setup`-named scripts) into three single-concern dirs, without churning the symlink wiring that IDEA-017 may dissolve. _(Ordering note: shares the 5.0.x line with the concurrent #188/v5.0.3 — final section order reconciles when both land.)_
+Patch release ([PR #187](https://github.com/infohata/mind-vault/pull/187), IDEA-016). Resolves the long-ambiguous `scripts/` vs `tools/` split (both held `install`/`setup`-named scripts) into three single-concern dirs, without churning the symlink wiring that IDEA-017 may dissolve.
 
 ### Changed
 
@@ -23,6 +23,19 @@ Patch release ([PR #187](https://github.com/infohata/mind-vault/pull/187), IDEA-
 ### Added
 
 - **`install/` (new dir) — machine provisioning.** The 7 `install-*.sh` (from `tools/`) + `install-wsl.ps1` (from `scripts/`), with a new `install/README.md`. Named `install/` (not `setup/`) to avoid colliding with the `setup-*-symlinks.sh` prefix that stays in `scripts/`. Every command example flipped `./tools/install-` → `./install/install-`. Migration followed [`RULE_rename-before-drop`](rules/RULE_rename-before-drop.md) (move+shim → repoint → green gate → drop shims → re-verify); dead-path gate = 0, `bash -n` clean. Architect-reviewed plan (🟡 → all 8 findings folded: broadened verification gate, statusline L47 cross-wire, honest `tools/` genre, refreshed IDEA frontmatter, Q4/Q5 added).
+
+## v5.0.3 — validate-skills.sh CC-first + description-parser fix + progressive-disclosure guidance
+
+Patch release ([PR #188](https://github.com/infohata/mind-vault/pull/188)). Surfaced during IDEA-016 review when the OpenCode-era validator reported 6 skills "failing" — which proved to be a parser bug, not skill instability. Fixes the tool and compounds the lesson into the skill-authoring guide.
+
+### Fixed
+
+- **`tools/validate-skills.sh` description-length parser over-counted by reading past the closing `---`.** When `description` was the last frontmatter field, the next-field search scanned the whole file and counted everything up to the first body `word:` line (e.g. `status: complete` in a fenced YAML example) as description — inflating `work` to a reported 12492 chars (real: 308), `plan` 10371 (real: 384), `skill-writer` 1775 (real: <1024). Fix: bound the next-field search to within the frontmatter fence. Three of the six "failures" were pure parser artifacts and now pass even `--opencode`.
+
+### Changed
+
+- **`tools/validate-skills.sh` is now Claude-Code-first by default; OpenCode checks are opt-in via `--opencode`.** It was an OpenCode-era artifact enforcing OpenCode's ≤1024-char description cap + section-heading conventions on every run, so CC-first skills (rich descriptions, `## When to use` wording) false-failed. Default mode runs universal structural checks only (name, frontmatter, name↔dir, description present/non-empty); `--opencode` adds the fork-readiness checks back (see `docs/guides/AGENT_PORTABILITY.md`). Result: default `--all` = 21/21; `--opencode --all` = honest 18/3 (`land`/`sprint-auto`/`wrap` have genuinely >1024-char descriptions — a CC-irrelevant, OpenCode-fork-only concern).
+- **`docs/guides/SKILL_AUTHORING_WALKTHROUGH.md` — the "500-line budget" section gains three refinements** (compounded from the above). (1) Progressive disclosure saves tokens **only** for minority-read content; splitting always-needed orchestration adds Read-tool overhead *and* risks function loss — net negative. (2) Measure the *real* number on both axes (`description` = always-loaded/expensive; body = fire-only/intermittent) with a trustworthy tool — a phantom metric nearly triggered a pointless debloat. (3) `skills/plan` (181L) is the exemplar: extracted the conditional 20% (`thin-input-bootstrap`, `architect-handoff`, `batching-for-sprint-auto`), kept the always-needed 80% inline. The line count is a smell to investigate, not a target to cut to.
 
 ## v5.0.2 — IDEA-018: prior-project provenance scrub + instruction-only scrub-gate guard
 
