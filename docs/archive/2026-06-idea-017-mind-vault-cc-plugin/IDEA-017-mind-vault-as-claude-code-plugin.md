@@ -1,7 +1,7 @@
 ---
 id: 017
 title: mind-vault as a Claude Code plugin
-status: idea          # idea | in-progress | complete | superseded
+status: in-progress   # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by:
@@ -20,7 +20,7 @@ sensitive_paths_cleared_reason: "Touches the distribution/installation substrate
 
 # IDEA-017: mind-vault as a Claude Code plugin
 
-**Status**: 💡 Idea
+**Status**: 🚧 In Progress (plan: `2026-06-07-mind-vault-cc-plugin-plan.md`)
 **Priority**: Medium
 
 **Problem** (or opportunity): mind-vault is distributed into agent hosts by a fleet of per-host symlink scripts (`scripts/setup-{claude-code,cursor,opencode,vscode-copilot,antigravity}-symlinks.sh` + `_symlink-lib.sh`). The mechanism works but carries a recurring tax:

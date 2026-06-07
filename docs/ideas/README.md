@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-017](../archive/2026-06-idea-017-mind-vault-cc-plugin/IDEA-017-mind-vault-as-claude-code-plugin.md) ⏳ — mind-vault as a Claude Code plugin
 
 ## 💡 High Priority (backlog)
 
@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-- [IDEA-017](IDEA-017-mind-vault-as-claude-code-plugin.md) — mind-vault as a Claude Code plugin
+_(none)_
 
 ## 💡 Low Priority (backlog)
 
