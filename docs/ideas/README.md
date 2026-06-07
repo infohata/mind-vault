@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-- [IDEA-016](../archive/2026-06-idea-016-scripts-tools-by-concern/IDEA-016-reorganize-scripts-tools-by-concern.md) ⏳ — Reorganize scripts/ and tools/ by concern
+_(none)_
 
 ## 💡 High Priority (backlog)
 
@@ -25,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-016: Reorganize scripts/ and tools/ by concern ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-06-07 · **See**: [Archive](../archive/2026-06-idea-016-scripts-tools-by-concern/IDEA-016-reorganize-scripts-tools-by-concern.md), [PR #187](https://github.com/infohata/mind-vault/pull/187).
+Scoped re-partition of `scripts/` + `tools/` into three single-concern dirs: `tools/` = runtime skill helpers (review-loop adapters, `sprint-auto-bootstrap`, `validate-skills`) + `statusline-command.sh` (moved in) + `cleanup-contamination.sh` (maintenance); **new `install/`** = machine provisioning (`install-*` + `install-wsl.ps1`); `scripts/` = host config-wiring (`setup-*-symlinks` + `_symlink-lib`), left untouched. Runtime helpers deliberately did not move (zero ref repointing for the high-ref group). Migration followed [`RULE_rename-before-drop`](../../rules/RULE_rename-before-drop.md) (move+shim → repoint → green gate → drop shims → re-verify); the load-bearing statusline cross-wire (`setup-claude-code-symlinks.sh:47`) was repointed. The `scripts/` → `link/` rename was deferred to [IDEA-017](IDEA-017-mind-vault-as-claude-code-plugin.md) — a research spike confirmed the CC plugin only **partially** dissolves the symlink wiring (`rules/`/`docs/rules/`/statusline have no plugin home). Architect-reviewed (🟡 → all 8 findings folded).
 
 ### IDEA-018: Scrub prior-project provenance identifiers + repeatable scrub runbook ✅ COMPLETE
 

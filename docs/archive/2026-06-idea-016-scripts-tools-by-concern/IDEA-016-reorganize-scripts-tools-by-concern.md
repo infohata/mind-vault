@@ -1,14 +1,14 @@
 ---
 id: 016
 title: Reorganize scripts/ and tools/ by concern
-status: in-progress   # idea | in-progress | complete | superseded
+status: complete      # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by:
 depends_on: []       # list of IDEA ids required before starting, or []
 related: [017]             # list of IDEA ids that share context, or []
 created: 2026-06-06
-completed:
+completed: 2026-06-07
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
@@ -20,7 +20,7 @@ sensitive_paths_cleared_reason: "/plan confirmed ZERO .github/ workflow refs (th
 
 # IDEA-016: Reorganize scripts/ and tools/ by concern
 
-**Status**: 🚧 In Progress (plan: `2026-06-07-scripts-tools-taxonomy-plan.md`)
+**Status**: ✅ Complete (2026-06-07) · PR #187
 **Priority**: Medium
 
 **Problem** (or opportunity): `scripts/` and `tools/` have drifted into an ambiguous split — both hold `install`/`setup`-named routines, so it's no longer obvious where a given script belongs or lives. The real boundary isn't two dirs; it's **three distinct concerns mixed across them**:
