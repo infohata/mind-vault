@@ -3,7 +3,7 @@ stage: plan
 slug: scripts-tools-taxonomy
 created: 2026-06-07
 source: ./IDEA-016-reorganize-scripts-tools-by-concern.md
-status: ready
+status: shipped
 project: mind-vault
 architect_review: "🟡 REQUIRES ABSTRACTION → all 8 findings folded (2026-06-07): broadened R4 gate (F1/F7), expanded ref table + corrected statusline L47 (F2/F4), honest tools/ genre for cleanup-contamination (F3/Q5), refreshed IDEA frontmatter (F5), added Q4 scripts/-naming + Q5 (F6), post-merge cross-wire note (F8)."
 ---
@@ -207,6 +207,15 @@ to 017's archive dir at `/plan 017`.
   - **Trade-off:** a fourth `maintenance/` dir would be purer but over-partitions for a single file; the honest-label approach keeps it discoverable beside the other dev tooling.
 
 ## Execution Sequence
+
+**Shipped 2026-06-07** — all steps complete; Q1=`install/`, Q4=defer, Q5=keep-in-tools confirmed at `/work` start:
+
+- ✅ Step 1 — moves + shims (`d2fbe57`)
+- ✅ Step 2 — repoint live refs incl. R5 statusline cross-wire L47 (`ab41190`)
+- ✅ Step 3 — per-dir READMEs (`f67fa36`)
+- ✅ Step 4 — green gate (verification; no commit)
+- ✅ Step 5 — drop shims (`53cf45e`)
+- ✅ Step 6 — re-verify shim-free (dead-path gate = 0; bash -n clean)
 
 Commits ordered for `RULE_rename-before-drop` (move+shim → repoint → green → drop → re-verify).
 
