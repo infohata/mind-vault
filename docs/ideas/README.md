@@ -26,6 +26,11 @@ _(none)_
 
 ## ✅ References — Implemented
 
+### IDEA-020: Channel-aware inner command/skill references ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-06-08 · **See**: [Archive](../archive/2026-06-idea-020-channel-aware-inner-references/IDEA-020-channel-aware-inner-references.md), [PR #194](https://github.com/infohata/mind-vault/pull/194).
+Made the workflow's **executed** sibling dispatches (a skill spawning a sibling skill/command/persona) channel-aware so they resolve under the plugin's `mv:` namespace, not just the symlink channel. Generalised the review-loop `reentry_command` precedent (PR #193) into a shared `skills/work/references/CHANNEL_AWARE_DISPATCH.md` covering all three mechanisms — `Skill` tool, literal slash, and `Agent` `subagent_type`. The architect (and a live failure — this IDEA's own `/plan` handoff erroring on bare `mv-architect`) widened scope to `/work`'s persona dispatch (reached transitively by every sprint-auto IDEA) + sprint-auto's stage dispatch (`channel_prefix` persisted to the batch state file). **Folded in a rename**: all 8 agent profiles `mv-<persona>` → `<persona>` (plugin form `mv:<persona>`, dropping the now-redundant doubly-prefixed `mv:mv-architect`). Prose mentions stay bare (IDEA-017 Q3); `land`/`wrap`/`skill-writer` untouched.
+
 ### IDEA-017: mind-vault as a Claude Code plugin ✅ COMPLETE
 
 **Status**: ✅ **COMPLETE** · **Completed**: 2026-06-08 · **See**: [Archive](../archive/2026-06-idea-017-mind-vault-cc-plugin/IDEA-017-mind-vault-as-claude-code-plugin.md), [PR #190](https://github.com/infohata/mind-vault/pull/190).
@@ -69,7 +74,7 @@ Added `claude` (anthropics/claude-code-action@v1 + `code-review` plugin) as the 
 ### IDEA-011: Agent Profiles → Recognized Subagent Schema ✅ COMPLETE
 
 **Status**: ✅ **COMPLETE** · **Completed**: 2026-06-01 · **See**: [Archive](../archive/2026-06-idea-011-agent-profiles-subagent-schema/IDEA-011-agent-profiles-subagent-schema.md), [PR #163](https://github.com/infohata/mind-vault/pull/163).
-Re-authored all eight `agents/AGENT_*.md` profiles from OpenCode-style frontmatter to the recognized Claude Code subagent schema — namespaced `name: mv-<persona>`, rich `description:` with `<example>` trigger blocks, comma-string `tools:`, `model: inherit`, `color:` — so they register as real dispatchable `subagent_type`s instead of degrading silently. Filenames kept (`RULE_rename-before-drop` doesn't bind — CC dispatches on `name:`, not filename); dispatch sites (`work/SKILL.md`, `persona-dispatch.md` canonical map, `architect-handoff.md`) now name the `mv-*` ids. Per-role tool audit: `mv-curator` review-only (no Write/Edit), `mv-researcher` gains web tools. Added [`docs/guides/AGENT_PORTABILITY.md`](../guides/AGENT_PORTABILITY.md) cross-harness methodology — Cursor = straight copy (`model: inherit`), OpenCode + Antigravity = fork recipes. Residual post-merge check: fresh-session dispatch probe (R1).
+Re-authored all eight `agents/AGENT_*.md` profiles from OpenCode-style frontmatter to the recognized Claude Code subagent schema — namespaced `name: mv-<persona>`, rich `description:` with `<example>` trigger blocks, comma-string `tools:`, `model: inherit`, `color:` — so they register as real dispatchable `subagent_type`s instead of degrading silently. Filenames kept (`RULE_rename-before-drop` doesn't bind — CC dispatches on `name:`, not filename); dispatch sites (`work/SKILL.md`, `persona-dispatch.md` canonical map, `architect-handoff.md`) now name the `mv-*` ids. Per-role tool audit: `curator` review-only (no Write/Edit), `researcher` gains web tools. Added [`docs/guides/AGENT_PORTABILITY.md`](../guides/AGENT_PORTABILITY.md) cross-harness methodology — Cursor = straight copy (`model: inherit`), OpenCode + Antigravity = fork recipes. Residual post-merge check: fresh-session dispatch probe (R1).
 
 ### IDEA-010: Retroactive review-thread audit hardening + mind-vault stale-thread cleanup ✅ COMPLETE
 

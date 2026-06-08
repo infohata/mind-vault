@@ -4,20 +4,22 @@ Rules for routing plan Execution Sequence items to the right persona, and for pr
 
 ## Canonical persona ↔ subagent_type map
 
-Each persona registers as a recognized Claude Code subagent under a namespaced `name:` (the `mv-` prefix avoids collisions with marketplace plugin agents in the shared registry). Dispatch with `Agent(subagent_type: "<id>")`; the backing profile file keeps its `AGENT_*.md` name (Claude dispatches on the frontmatter `name:`, not the filename — see [`docs/guides/AGENT_PORTABILITY.md`](../../../docs/guides/AGENT_PORTABILITY.md)).
+Each persona registers as a recognized Claude Code subagent under its `name:` — the **bare role name** (`architect`, `backend`, …). Dispatch with `Agent(subagent_type: "<id>")`; the backing profile file keeps its `AGENT_*.md` name (Claude dispatches on the frontmatter `name:`, not the filename — see [`docs/guides/AGENT_PORTABILITY.md`](../../../docs/guides/AGENT_PORTABILITY.md)). (Historical note: profiles were originally named `mv-<persona>` to dodge shared-registry collisions; IDEA-020 dropped that `mv-` prefix — on the plugin channel the plugin's own `mv:` namespace disambiguates, and the doubly-prefixed `mv:mv-architect` was redundant.)
+
+**Channel-aware dispatch (plugin route — IDEA-020).** `subagent_type` is an *executed* lookup, so it must mirror the install channel — see [`CHANNEL_AWARE_DISPATCH.md`](CHANNEL_AWARE_DISPATCH.md). On the **symlink channel** the `subagent_type` is the bare `<persona>` in the table below (`architect`, …). On the **plugin channel** the marketplace plugin namespaces it, so the dispatchable id is **`mv:<persona>`** (e.g. `mv:architect`) — a bare `architect` returns `Agent type … not found` there. Mirror the prefix you were invoked with (the plugin route's `${CLAUDE_PLUGIN_ROOT}` is not in the agent shell, so use the invocation form, not an env probe); under sprint-auto `source` the batch state file (`/tmp/sprint-auto-<batch-iso>-state.sh`, sprint-auto S(-1) step 10) and dispatch **`${SPRINT_AUTO_CHANNEL_PREFIX}<persona>`** — the prefix concatenated with the table's persona id (e.g. `${SPRINT_AUTO_CHANNEL_PREFIX}backend` → `backend` symlink / `mv:backend` plugin), never the prefix alone. **Host-availability fallback:** if neither form resolves (persona not registered on this host), invoke the persona **inline from its profile file** (`agents/AGENT_<persona>.md`, resolved by repo path — channel-independent) rather than silently degrading to generic-Claude.
 
 | Persona | `subagent_type` | Profile file |
 | --- | --- | --- |
-| Systems Architect | `mv-architect` | `agents/AGENT_architect.md` |
-| Staff Backend Engineer | `mv-backend` | `agents/AGENT_backend.md` |
-| Staff Client-Side Engineer | `mv-frontend` | `agents/AGENT_frontend.md` |
-| SRE / Infrastructure Lead | `mv-devops` | `agents/AGENT_devops.md` |
-| QA / Surgical TDD Enforcer | `mv-test-engineer` | `agents/AGENT_test-engineer.md` |
-| Curator (pre-commit review) | `mv-curator` | `agents/AGENT_curator.md` |
-| External Intelligence Scout | `mv-researcher` | `agents/AGENT_researcher.md` |
-| Technical Writer / Clarifier | `mv-documentation` | `agents/AGENT_documentation.md` |
+| Systems Architect | `architect` | `agents/AGENT_architect.md` |
+| Staff Backend Engineer | `backend` | `agents/AGENT_backend.md` |
+| Staff Client-Side Engineer | `frontend` | `agents/AGENT_frontend.md` |
+| SRE / Infrastructure Lead | `devops` | `agents/AGENT_devops.md` |
+| QA / Surgical TDD Enforcer | `test-engineer` | `agents/AGENT_test-engineer.md` |
+| Curator (pre-commit review) | `curator` | `agents/AGENT_curator.md` |
+| External Intelligence Scout | `researcher` | `agents/AGENT_researcher.md` |
+| Technical Writer / Clarifier | `documentation` | `agents/AGENT_documentation.md` |
 
-Conceptual prose elsewhere may still call a persona by its display name (`AGENT_backend`); the dispatchable string an executor passes is always the `mv-` id above.
+Conceptual prose elsewhere may still call a persona by its display name (`AGENT_backend`); the dispatchable string an executor passes is the bare `<persona>` id above (`mv:<persona>` on the plugin channel).
 
 ## Persona dispatch matrix
 
@@ -29,11 +31,11 @@ Some plan items span multiple personas. Resolve by the **primary artifact touche
 
 | Plan item example | Primary artifact | Subagent type |
 | --- | --- | --- |
-| "Add admin widget for billing summary" | Template + Alpine view logic | `mv-frontend` |
-| "Add `billing_summary` API endpoint the widget consumes" | DRF viewset | `mv-backend` |
-| "Dockerise the new Celery queue" | `docker-compose.yml` + entrypoint | `mv-devops` |
-| "Add integration test for the new endpoint" | `test_*.py` | `mv-test-engineer` |
-| "Refactor permission layer across auth+billing+kb apps" | Spans 3 apps, shared base class | `mv-architect` (author mode) |
+| "Add admin widget for billing summary" | Template + Alpine view logic | `frontend` |
+| "Add `billing_summary` API endpoint the widget consumes" | DRF viewset | `backend` |
+| "Dockerise the new Celery queue" | `docker-compose.yml` + entrypoint | `devops` |
+| "Add integration test for the new endpoint" | `test_*.py` | `test-engineer` |
+| "Refactor permission layer across auth+billing+kb apps" | Spans 3 apps, shared base class | `architect` (author mode) |
 
 If a single item genuinely touches two domains, split it into two items first — the plan is expressing two logical units and should have been split at plan time.
 
@@ -172,5 +174,5 @@ Silent plan deviation is the pattern that makes execution expensive to review la
 ## What NOT to route through this skill
 
 - **Pure refactors without feature content.** If the plan is "extract `EventRenderer` into its own module, no behaviour change", architect is the author; backend is not needed.
-- **Documentation-only work.** `mv-documentation` handles it; the work skill barely orchestrates.
+- **Documentation-only work.** `documentation` handles it; the work skill barely orchestrates.
 - **Exploratory prototyping with no plan.** If there's no plan, there's nothing to dispatch. Drop to direct work or route to `/plan`.

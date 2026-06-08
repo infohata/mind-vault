@@ -97,7 +97,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 
 ## Agents (8 subagent personas)
 
-`AGENT_*.md` files registered as recognized Claude Code subagents (dispatchable as `mv-<persona>`) and consumed unchanged by Cursor 2.4+ (`.cursor/agents/` symlink). Each persona has Prime Directives, an N-pass workflow, a `## Stack adapter`, and a structured verdict format. Since IDEA-014 the personas are **stack-agnostic**: the craft core stays in the profile while concrete framework rules resolve against the *active* framework-stack skill via the contract-heading interface in [`skills/work/references/SKILL_CONTRACT.md`](skills/work/references/SKILL_CONTRACT.md) (stack resolved per [`skills/work/references/persona-dispatch.md`](skills/work/references/persona-dispatch.md)). Cross-harness portability — Cursor = straight copy, OpenCode + Antigravity = fork recipes — is documented in [`docs/guides/AGENT_PORTABILITY.md`](docs/guides/AGENT_PORTABILITY.md).
+`AGENT_*.md` files registered as recognized Claude Code subagents (dispatchable as `<persona>` — `architect`, `backend`, … — or `mv:<persona>` on the plugin channel) and consumed unchanged by Cursor 2.4+ (`.cursor/agents/` symlink). Each persona has Prime Directives, an N-pass workflow, a `## Stack adapter`, and a structured verdict format. Since IDEA-014 the personas are **stack-agnostic**: the craft core stays in the profile while concrete framework rules resolve against the *active* framework-stack skill via the contract-heading interface in [`skills/work/references/SKILL_CONTRACT.md`](skills/work/references/SKILL_CONTRACT.md) (stack resolved per [`skills/work/references/persona-dispatch.md`](skills/work/references/persona-dispatch.md)). Cross-harness portability — Cursor = straight copy, OpenCode + Antigravity = fork recipes — is documented in [`docs/guides/AGENT_PORTABILITY.md`](docs/guides/AGENT_PORTABILITY.md).
 
 | Persona                                         | Covers                                                                                                                                           | Stage                                                   |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
@@ -193,7 +193,7 @@ claude --plugin-dir ~/projects/mind-vault   # then /reload-plugins after edits
 
 `/plugin marketplace add` **git-clones the repo** into `~/.claude/plugins/marketplaces/mind-vault` and runs skills from that **pinned snapshot** — *not* from your working tree. Edits in `~/projects/mind-vault` don't go live until you `/plugin update` (which re-pulls the merged+released state from GitHub). That pinning is the whole point of the channel split — match it to what the machine *does*:
 
-- **Consumer machine** (uses mind-vault, doesn't develop it — a project box, a VPS running overnight `sprint-auto`): **marketplace plugin.** One-command install, and `/plugin update` after each mind-vault release is the natural adoption cadence. This is the channel's home turf.
+- **Consumer machine** (uses mind-vault, doesn't develop it — a project box, a VPS running overnight `sprint-auto`): **marketplace plugin.** One-command install, and `/plugin update` after each mind-vault release is the natural adoption cadence. This is the channel's home turf. **One channel-safety note for `sprint-auto` hosts:** the workflow skills' *executed* dispatches (a skill spawning a sibling skill/command/persona) must be channel-aware to resolve under the `mv:` namespace — shipped in v5.1.3+ (IDEA-020). Ensure the installed plugin is at or past that version (`/plugin update`) before running `sprint-auto` plugin-only; on a plugin pinned below it, sprint-auto's stage/persona dispatch silently fails on the plugin channel.
 - **Authoring machine** (where you develop mind-vault itself): you have a **stable/dev release-channel split** for free —
   - the **pinned plugin is your stable runtime**: the agent runs a known-good mind-vault, insulated from your half-finished edits (a symlink setup can't do this — it loads WIP live the instant you save, so a broken skill-in-progress destabilizes the very tools you're working with);
   - the **working tree is the dev surface**: `/work`, `/wrap`, `/compound` operate on files + git, so you build the *next* version without needing it loaded;
@@ -279,7 +279,7 @@ Commit all non-sensitive configuration to git.
 
 Licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Kestutis Januskevicius.
 
-<!-- wrap:readme-currency-audited 2026-06-06 -->
+<!-- wrap:readme-currency-audited 2026-06-08 -->
 
 <!-- wrap:readme-currency
 N: 5

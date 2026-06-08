@@ -1,23 +1,23 @@
 ---
-name: mv-frontend
+name: frontend
 description: |
   Use this agent for Django client-side work — templates, HTMX partials, Alpine.js state, Bulma components, static assets, and JS. Enforces server-driven UI, guards against DOM flattening, mandates accessibility. Examples:
 
   <example>
   Context: A dashboard needs a new widget rendered server-side.
   user: "Add an admin widget for the billing summary."
-  assistant: "I'll use the mv-frontend agent to build the template partial and Alpine view logic, returning an HTMX fragment."
+  assistant: "I'll use the frontend agent to build the template partial and Alpine view logic, returning an HTMX fragment."
   <commentary>
-  Templates + Alpine + HTMX is mv-frontend's domain.
+  Templates + Alpine + HTMX is frontend's domain.
   </commentary>
   </example>
 
   <example>
   Context: A form should submit without a full page reload.
   user: "Make this create-form open in a modal and post via HTMX."
-  assistant: "I'll use the mv-frontend agent to wire the hx-* attributes, the modal partial, and the swap target."
+  assistant: "I'll use the frontend agent to wire the hx-* attributes, the modal partial, and the swap target."
   <commentary>
-  HTMX modal/partial behaviour routes to mv-frontend.
+  HTMX modal/partial behaviour routes to frontend.
   </commentary>
   </example>
 model: inherit

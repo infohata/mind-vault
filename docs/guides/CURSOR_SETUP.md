@@ -38,7 +38,7 @@ Restart Cursor (Cmd+Shift+P → Developer: Reload Window) to rescan.
 | Subagents| `.cursor/agents/`     | `~/.cursor/agents/`   | **Project**: mind-vault has `.cursor/agents` → `agents/`. **User**: symlink → mind-vault for other projects. |
 | Rules    | `.cursor/rules/`      | Cursor Settings       | User Rules are in app; `~/.cursor/rules` is reference only. |
 
-**Why subagents didn’t show from project:** Cursor discovers subagents from **project** `.cursor/agents/` first. mind-vault now includes `.cursor/agents` (symlink to `agents/`), so when you open mind-vault, Cursor finds `mv-architect`, `mv-backend`, `mv-curator`, etc. (each `agents/AGENT_*.md` profile carries an explicit `name: mv-<persona>` in frontmatter — Cursor reads that `name`, falling back to the filename). User-level `~/.cursor/agents` is for when you’re in a different project and still want mind-vault subagents.
+**Why subagents didn’t show from project:** Cursor discovers subagents from **project** `.cursor/agents/` first. mind-vault now includes `.cursor/agents` (symlink to `agents/`), so when you open mind-vault, Cursor finds `architect`, `backend`, `curator`, etc. (each `agents/AGENT_*.md` profile carries an explicit `name: <persona>` in frontmatter — Cursor reads that `name`, falling back to the filename). User-level `~/.cursor/agents` is for when you’re in a different project and still want mind-vault subagents.
 
 Because every profile uses `model: inherit`, **the same file works unchanged in both Claude Code and Cursor** — no fork needed. OpenCode and Antigravity need a translation step; see [`AGENT_PORTABILITY.md`](AGENT_PORTABILITY.md) for the cross-harness compatibility matrix and fork recipes.
 

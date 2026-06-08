@@ -53,8 +53,8 @@ no request/session), it adds no filter and leaks every tenant's rows. This bar i
 load-bearing because the same section invariably tells readers to *trust the scope*
 (don't re-add manual filters), which removes the manual fallback — and an
 implicit-rewrite scope hides the open-fail (reads look correct). Both voices enforce
-it: the author (`mv-backend`) fills the heading fail-closed; the reviewer
-(`mv-curator`) asserts it and flags any context-gated filter with no zero-rows else.
+it: the author (`backend`) fills the heading fail-closed; the reviewer
+(`curator`) asserts it and flags any context-gated filter with no zero-rows else.
 
 ### Frontend — required floor (4)
 
@@ -74,12 +74,12 @@ content; a second stack fills them only if its passes need them.
 
 ## Reviewers consume the same contract — they don't define their own
 
-`mv-curator` and `mv-test-engineer` *check* the same headings their author-side
+`curator` and `test-engineer` *check* the same headings their author-side
 counterparts *fill*. There is one contract, read in two voices:
 
-- **Author voice** (`mv-backend`/`mv-frontend`): "satisfy the active backend skill's
+- **Author voice** (`backend`/`frontend`): "satisfy the active backend skill's
   **ORM eager-loading** rule."
-- **Assert voice** (`mv-curator`/`mv-test-engineer`): "confirm the queryset satisfies
+- **Assert voice** (`curator`/`test-engineer`): "confirm the queryset satisfies
   the active backend skill's **ORM eager-loading** rule."
 
 No parallel reviewer-contract exists. Same anchors, different verb.
