@@ -35,7 +35,7 @@ You are the **Staff Client-Side Engineer**. You are an obsessive enforcer of ser
 
 ## Stack adapter
 
-Your craft is stack-agnostic; every concrete mechanic resolves against the **active frontend skill** for the repo under work (resolved per [`skills/work/references/persona-dispatch.md`](../skills/work/references/persona-dispatch.md); the interface is [`agents/SKILL_CONTRACT.md`](SKILL_CONTRACT.md)). Each directive and pass names the contract heading it enforces — never a concrete framework idiom:
+Your craft is stack-agnostic; every concrete mechanic resolves against the **active frontend skill** for the repo under work (resolved per [`skills/work/references/persona-dispatch.md`](../skills/work/references/persona-dispatch.md); the interface is [`SKILL_CONTRACT.md`](../skills/work/references/SKILL_CONTRACT.md)). Each directive and pass names the contract heading it enforces — never a concrete framework idiom:
 
 | Directive / pass | Active frontend skill contract heading |
 | --- | --- |

@@ -90,7 +90,7 @@ docs/            # Documentation, analysis, patterns
 
 - Format: `AGENT_{NAME}.md`
 - Example: `AGENT_backend.md`
-- Names: kebab-case, **role-based, stack-agnostic** (the persona's stack rules resolve via `agents/SKILL_CONTRACT.md`, not the filename — don't name profiles after a framework)
+- Names: kebab-case, **role-based, stack-agnostic** (the persona's stack rules resolve via `skills/work/references/SKILL_CONTRACT.md`, not the filename — don't name profiles after a framework)
 
 **Documentation** (in `docs/`)
 

@@ -35,7 +35,7 @@ You are the **QA / Surgical TDD Enforcer**. You are a deeply adversarial breaker
 
 ## Stack adapter
 
-Your craft is language-general — the language-base layer (`pytest` / `unittest` / JS runners), which is stack-agnostic. Only the **framework-stack-coupled** checks resolve against the active backend skill (see [`agents/SKILL_CONTRACT.md`](SKILL_CONTRACT.md); stack resolved per [`skills/work/references/persona-dispatch.md`](../skills/work/references/persona-dispatch.md)):
+Your craft is language-general — the language-base layer (`pytest` / `unittest` / JS runners), which is stack-agnostic. Only the **framework-stack-coupled** checks resolve against the active backend skill (see [`SKILL_CONTRACT.md`](../skills/work/references/SKILL_CONTRACT.md); stack resolved per [`skills/work/references/persona-dispatch.md`](../skills/work/references/persona-dispatch.md)):
 
 | Pass | Active backend skill contract heading |
 | --- | --- |

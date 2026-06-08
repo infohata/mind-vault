@@ -60,7 +60,7 @@ Stop and ask the user rather than force-fitting.
 ## Stack resolution
 
 A stack-agnostic persona's `## Stack adapter` points at "the active backend/frontend
-skill" rather than a concrete framework (see [`agents/SKILL_CONTRACT.md`](../../../agents/SKILL_CONTRACT.md)).
+skill" rather than a concrete framework (see [`SKILL_CONTRACT.md`](SKILL_CONTRACT.md)).
 Resolving *which* skill that is happens here, once per `/work` session, in this order —
 first hit wins:
 
