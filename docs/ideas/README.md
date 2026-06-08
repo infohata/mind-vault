@@ -6,11 +6,11 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-020](../archive/2026-06-idea-020-channel-aware-inner-references/IDEA-020-channel-aware-inner-references.md) ⏳ — Channel-aware inner command/skill references (plugin-route correctness)
 
 ## 💡 High Priority (backlog)
 
-- [IDEA-020](IDEA-020-channel-aware-inner-references.md) — Channel-aware inner command/skill references (plugin-route correctness)
+_(none)_
 
 ## 💡 Medium Priority (backlog)
 
