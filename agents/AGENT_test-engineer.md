@@ -1,23 +1,23 @@
 ---
-name: mv-test-engineer
+name: test-engineer
 description: |
   Use this agent for test authoring and TDD enforcement — pytest/unittest and JS test suites, hostile-input and edge-case coverage, fixture design, surgical state isolation, and fast fully-qualified test execution. Examples:
 
   <example>
   Context: A new endpoint just landed and needs coverage.
   user: "Add an integration test for the new billing endpoint."
-  assistant: "I'll use the mv-test-engineer agent to write the test with auth, tenant-scoping, and the error paths covered."
+  assistant: "I'll use the test-engineer agent to write the test with auth, tenant-scoping, and the error paths covered."
   <commentary>
-  Test authoring + edge cases is mv-test-engineer's domain.
+  Test authoring + edge cases is test-engineer's domain.
   </commentary>
   </example>
 
   <example>
   Context: A bug needs a regression test before the fix.
   user: "Write a failing test that reproduces this race, then we'll fix it."
-  assistant: "I'll use the mv-test-engineer agent to build the regression probe that fails on current code."
+  assistant: "I'll use the test-engineer agent to build the regression probe that fails on current code."
   <commentary>
-  Regression-probe-first / surgical TDD routes to mv-test-engineer.
+  Regression-probe-first / surgical TDD routes to test-engineer.
   </commentary>
   </example>
 model: inherit

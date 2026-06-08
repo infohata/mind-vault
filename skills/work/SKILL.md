@@ -47,16 +47,16 @@ Honour `RULE_git-safety` and `RULE_parallel-worktree-docker` at all times.
 
 Walk the plan's Execution Sequence. For each step, pick the right persona via the dispatch matrix in [`references/persona-dispatch.md`](references/persona-dispatch.md).
 
-Default matrix (projects can override in their own `AGENTS.md`). The right column is the dispatchable `subagent_type` — pass it to `Agent(subagent_type: …)`, **channel-aware**: the bare `mv-<persona>` below on the symlink channel, the stacked **`mv:mv-<persona>`** on the plugin channel (mirror your invocation prefix — see [`references/CHANNEL_AWARE_DISPATCH.md`](references/CHANNEL_AWARE_DISPATCH.md) and [`references/persona-dispatch.md`](references/persona-dispatch.md), which also carries the host-availability inline-fallback). The profile file backing each id is mapped in persona-dispatch.md:
+Default matrix (projects can override in their own `AGENTS.md`). The right column is the dispatchable `subagent_type` — pass it to `Agent(subagent_type: …)`, **channel-aware**: the bare `<persona>` below on the symlink channel, **`mv:<persona>`** on the plugin channel (mirror your invocation prefix — see [`references/CHANNEL_AWARE_DISPATCH.md`](references/CHANNEL_AWARE_DISPATCH.md) and [`references/persona-dispatch.md`](references/persona-dispatch.md), which also carries the host-availability inline-fallback). The profile file backing each id is mapped in persona-dispatch.md:
 
 | Plan-item domain                                   | Subagent type                                                        |
 | -------------------------------------------------- | -------------------------------------------------------------------- |
-| Models, views, signals, DRF, Channels, Celery, ORM | `mv-backend`                                                         |
-| Templates, Alpine, HTMX, Bulma, static assets, JS  | `mv-frontend`                                                        |
-| Docker, compose, nginx, systemd, CI/CD, env config | `mv-devops`                                                          |
-| Test authoring, fixture design, coverage gates     | `mv-test-engineer`                                                   |
-| Multi-domain or cross-cutting refactor             | `mv-architect` (as author now, not reviewer — plan already reviewed) |
-| Documentation-only updates (README, CHANGELOG)     | `mv-documentation`                                                   |
+| Models, views, signals, DRF, Channels, Celery, ORM | `backend`                                                         |
+| Templates, Alpine, HTMX, Bulma, static assets, JS  | `frontend`                                                        |
+| Docker, compose, nginx, systemd, CI/CD, env config | `devops`                                                          |
+| Test authoring, fixture design, coverage gates     | `test-engineer`                                                   |
+| Multi-domain or cross-cutting refactor             | `architect` (as author now, not reviewer — plan already reviewed) |
+| Documentation-only updates (README, CHANGELOG)     | `documentation`                                                   |
 
 Pass the persona the **plan path + the specific item index** — never inline the item's prose into the dispatch prompt (per the "pass paths not content to subagents" convention). The persona reads the plan file itself.
 

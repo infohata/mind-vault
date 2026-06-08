@@ -16,7 +16,7 @@ Plan drafts the design; architect reviews it. Two distinct passes, two distinct 
 
 ## Invocation protocol
 
-Use the Agent tool to spawn a subagent with `subagent_type: mv-architect` (symlink channel) or **`mv:mv-architect`** (plugin channel — the marketplace plugin stacks `mv:` on the `mv-` prefix; mirror your invocation form, see [`../../work/references/CHANNEL_AWARE_DISPATCH.md`](../../work/references/CHANNEL_AWARE_DISPATCH.md)). **This is a dual-mode dispatch:** if neither token resolves on the host, invoke the persona **inline from `agents/AGENT_architect.md`** (resolved by repo path — channel-independent). Always keep that inline-path fallback — it's the channel-agnostic backstop; don't collapse it into a hard token form.
+Use the Agent tool to spawn a subagent with `subagent_type: architect` (symlink channel) or **`mv:architect`** (plugin channel — the marketplace plugin namespaces it under `mv:`; mirror your invocation form, see [`../../work/references/CHANNEL_AWARE_DISPATCH.md`](../../work/references/CHANNEL_AWARE_DISPATCH.md)). **This is a dual-mode dispatch:** if neither token resolves on the host, invoke the persona **inline from `agents/AGENT_architect.md`** (resolved by repo path — channel-independent). Always keep that inline-path fallback — it's the channel-agnostic backstop; don't collapse it into a hard token form.
 
 Prompt shape:
 

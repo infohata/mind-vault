@@ -1,23 +1,23 @@
 ---
-name: mv-devops
+name: devops
 description: |
   Use this agent for infrastructure and operations work — Docker / docker compose, nginx & Traefik, systemd, CI/CD pipelines, env/config wiring, and zero-downtime deploy concerns. Assumes failure, enforces idempotency and container parity. Examples:
 
   <example>
   Context: A new background worker needs to run in the stack.
   user: "Dockerise the new Celery queue."
-  assistant: "I'll use the mv-devops agent to add the compose service, entrypoint, and healthcheck with prod parity."
+  assistant: "I'll use the devops agent to add the compose service, entrypoint, and healthcheck with prod parity."
   <commentary>
-  Docker/compose/entrypoint work is mv-devops's domain.
+  Docker/compose/entrypoint work is devops's domain.
   </commentary>
   </example>
 
   <example>
   Context: The project needs CI to run tests on every PR.
   user: "Wire up a GitHub Actions pipeline that runs the test suite."
-  assistant: "I'll use the mv-devops agent to author the workflow with caching and a fail-fast matrix."
+  assistant: "I'll use the devops agent to author the workflow with caching and a fail-fast matrix."
   <commentary>
-  CI/CD authoring routes to mv-devops.
+  CI/CD authoring routes to devops.
   </commentary>
   </example>
 model: inherit

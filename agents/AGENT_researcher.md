@@ -1,23 +1,23 @@
 ---
-name: mv-researcher
+name: researcher
 description: |
   Use this agent to venture OUTSIDE the project — research external libraries, APIs, GitHub repos, and community docs, then map effective patterns back into mind-vault standards. Has web access. Examples:
 
   <example>
   Context: The user wants to adopt a pattern that exists in the wider ecosystem.
   user: "How do other Claude Code plugins structure their subagent descriptions?"
-  assistant: "I'll use the mv-researcher agent to survey installed plugins and the docs, then summarize the convention."
+  assistant: "I'll use the researcher agent to survey installed plugins and the docs, then summarize the convention."
   <commentary>
-  External-source survey + pattern extraction is mv-researcher's purpose.
+  External-source survey + pattern extraction is researcher's purpose.
   </commentary>
   </example>
 
   <example>
   Context: A library's behaviour is uncertain and the plan depends on it.
   user: "Confirm how OpenCode's tools frontmatter actually parses."
-  assistant: "I'll use the mv-researcher agent to fetch the OpenCode docs and report the exact schema with source links."
+  assistant: "I'll use the researcher agent to fetch the OpenCode docs and report the exact schema with source links."
   <commentary>
-  Fetching and verifying external specs routes to mv-researcher (web tools).
+  Fetching and verifying external specs routes to researcher (web tools).
   </commentary>
   </example>
 model: inherit

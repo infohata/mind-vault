@@ -128,4 +128,10 @@ Verification all green (persona dispatch channel-aware ×3 files; architect-hand
 
 ---
 
-**Status:** shipped — architect-reviewed (🟡 → all 6 findings folded), all execution steps landed + verified.
+## Amendment — agent rename folded in (2026-06-08, same PR)
+
+User direction post-execution: the plugin persona form `mv:mv-architect` is over-verbose. **Folded in a rename of all 8 agent profiles** `name: mv-<persona>` → `name: <persona>` (`architect`, `backend`, …). The original `mv-` prefix existed to dodge shared-registry collisions; now that mind-vault *is* the plugin, the plugin's own `mv:` namespace disambiguates, so `mv-` was redundant and `mv:mv-architect` doubly-prefixed. Result: plugin form is the clean **`mv:<persona>`**, symlink form is bare **`<persona>`** — no stacking. Every dispatch reference (`persona-dispatch.md`, `work/SKILL.md` matrix, `architect-handoff.md`, `sprint-auto`, `CHANNEL_AWARE_DISPATCH.md`) + downstream docs (README, AGENT_PORTABILITY, CURSOR_SETUP) + the two plugin manifests updated; grep-gate clean; `claude plugin validate --strict` passes. The resolution-audit log's `mv:mv-architect` observation is the pre-rename point-in-time record (still factually what was observed at audit time). **Trade-off accepted:** on the symlink channel agents are now bare `<persona>` in the shared `~/.claude/agents/` (loses the `mv-` collision guard); low risk in practice (other plugins self-namespace), and plugin-channel is primary.
+
+---
+
+**Status:** shipped — architect-reviewed (🟡 → all 6 findings folded) + agent-rename amendment, all execution steps landed + verified.

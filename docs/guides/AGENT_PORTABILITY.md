@@ -10,7 +10,7 @@
 
 ```yaml
 ---
-name: mv-backend                                   # required; lowercase-hyphen, 3–50 chars
+name: backend                                   # required; lowercase-hyphen, 3–50 chars
 description: |                                      # rich, trigger-oriented, with <example> blocks
   Use this agent for ... Examples:
   <example> ... </example>
@@ -24,7 +24,7 @@ tools: Read, Grep, Glob, Bash, Write, Edit, TodoWrite  # comma-string OR YAML li
 
 Two deliberate choices make the file maximally portable:
 
-- **`name: mv-<persona>`** — namespaced so it never collides with marketplace plugin agents in the shared subagent registry.
+- **`name: <persona>`** (bare role name — `architect`, `backend`, …). Originally `mv-<persona>` to dodge shared-registry collisions; IDEA-020 dropped the `mv-` prefix because on the plugin channel the plugin's own `mv:` namespace already disambiguates (`mv:architect`), making the old `mv-` redundant (and `mv:mv-architect` verbose).
 - **`model: inherit` across the whole roster** — any pinned model (`opus`/`sonnet`) would break single-file Cursor compatibility for that persona. Inherit keeps every profile a straight copy into Cursor.
 
 ## Compatibility matrix (verified June 2026)
@@ -47,11 +47,11 @@ Projects that consume mind-vault (e.g. a consuming project) and reference person
 
 ## Fork recipe — OpenCode
 
-Target: `~/.config/opencode/agents/<id>.md` (global) or `.opencode/agents/<id>.md` (project). OpenCode derives the id from the **filename**, so name the file `mv-backend.md`.
+Target: `~/.config/opencode/agents/<id>.md` (global) or `.opencode/agents/<id>.md` (project). OpenCode derives the id from the **filename**, so name the file `backend.md`.
 
 | CC field | OpenCode transform |
 | --- | --- |
-| `name: mv-backend` | **drop** — filename is the id (`mv-backend.md`) |
+| `name: backend` | **drop** — filename is the id (`backend.md`) |
 | `description:` (+`<example>`) | keep a **one-line** description; OpenCode doesn't use `<example>` blocks for triggering — trim them or leave them in the body |
 | `model: inherit` | **omit** (uses OpenCode's default model) or set a provider-prefixed string, e.g. `anthropic/claude-sonnet-4-20250514` |
 | `color: blue` | keep — `color:` is supported |
@@ -59,7 +59,7 @@ Target: `~/.config/opencode/agents/<id>.md` (global) or `.opencode/agents/<id>.m
 | — | **add** `mode: subagent` |
 | — | optional: `temperature: 0.1` |
 
-**Worked example** — `agents/AGENT_backend.md` (CC) → `.opencode/agents/mv-backend.md` (OpenCode):
+**Worked example** — `agents/AGENT_backend.md` (CC) → `.opencode/agents/backend.md` (OpenCode):
 
 ```yaml
 ---
