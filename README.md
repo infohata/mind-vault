@@ -189,6 +189,19 @@ claude --plugin-dir ~/projects/mind-vault   # then /reload-plugins after edits
 
 **Coexist note (CC only): use the plugin OR the symlink script on a single machine, not both** — running both double-loads every skill/command/agent. The symlink script prints a *best-effort, one-directional* warning if it detects an installed plugin (the reverse order and the `--plugin-dir` dev-loop are unguardable/exempt). `rules/`, `docs/rules/`, and the statusline stay **script-wired on both channels** — they have no plugin home, so the symlink script remains the way to wire them regardless.
 
+#### Authoring vs consuming — pick the channel for the machine's *role*
+
+`/plugin marketplace add` **git-clones the repo** into `~/.claude/plugins/marketplaces/mind-vault` and runs skills from that **pinned snapshot** — *not* from your working tree. Edits in `~/projects/mind-vault` don't go live until you `/plugin update` (which re-pulls the merged+released state from GitHub). That pinning is the whole point of the channel split — match it to what the machine *does*:
+
+- **Consumer machine** (uses mind-vault, doesn't develop it — a project box, a VPS running overnight `sprint-auto`): **marketplace plugin.** One-command install, and `/plugin update` after each mind-vault release is the natural adoption cadence. This is the channel's home turf.
+- **Authoring machine** (where you develop mind-vault itself): you have a **stable/dev release-channel split** for free —
+  - the **pinned plugin is your stable runtime**: the agent runs a known-good mind-vault, insulated from your half-finished edits (a symlink setup can't do this — it loads WIP live the instant you save, so a broken skill-in-progress destabilizes the very tools you're working with);
+  - the **working tree is the dev surface**: `/work`, `/wrap`, `/compound` operate on files + git, so you build the *next* version without needing it loaded;
+  - **`/plugin update` is the promotion gate** — your compounded improvement goes live only when it's merged, released, and you deliberately pull it. The compound flywheel still turns; the floor rises per *release*, not per keystroke.
+  - Prefer live skill edits while authoring (the classic symlink dev-loop)? Use **symlinks** instead, or `claude --plugin-dir ~/projects/mind-vault` to get the plugin channel *and* live loading from your working tree.
+
+Rule of thumb: **consumer → marketplace plugin; author who wants stability → marketplace plugin (promote via `/plugin update`); author who wants live edits → symlinks or `--plugin-dir`.**
+
 ### Claude Code extra config
 
 The `setup-claude-code-symlinks.sh` script also symlinks `~/.claude/statusline-command.sh` to the in-repo source at `tools/statusline-command.sh` — a six-segment status line showing topic / context-window % / per-turn token meter / 7-day rolling rate-limit % / thinking effort / vim mode. Runtime dependency: **`jq`** (only — token-formatting uses pure bash arithmetic, no `bc` needed). If `jq` isn't on `PATH`, the status line falls back to a single `jq missing` segment so Claude Code keeps rendering. To wire it in, add this top-level key to `~/.claude/settings.json`:

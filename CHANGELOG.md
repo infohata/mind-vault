@@ -10,6 +10,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.2 — compound: plugin channel = stable/dev release-channel split (authoring vs consuming)
+
+Patch release (`/compound`). Dogfooding IDEA-017 surfaced that the marketplace install runs a **pinned snapshot** (git-cloned to `~/.claude/plugins/marketplaces/mind-vault`), not the working tree — edits go live only on `/plugin update`. Doc-only clarification of what that means per machine role.
+
+### Changed
+
+- **`README.md` + `docs/guides/ONBOARDING.md` — "Authoring vs consuming" guidance** on the plugin install. The pinning is the channel's point, not a limitation: a **consumer** machine wants the marketplace plugin (`/plugin update` per release); the **authoring** machine gets a stable/dev split for free (pinned plugin = stable runtime insulated from WIP, working tree = where the next version is built, `/plugin update` = the promotion gate — the compound floor rises per *release*, not per keystroke). Authors who want live skill edits use symlinks or `claude --plugin-dir`. Inverts the earlier "the plugin breaks compounding" read — it's a deliberate release-channel separation a symlink setup can't give.
+
+### Fixed
+
+- **`skills/review-loop/SKILL.md` — `ScheduleWakeup` re-entry is now channel-aware.** The loop self-invokes via a literal slash command in its wakeup `prompt`; a hardcoded `/review-loop` doesn't resolve on a **plugin-only** machine (commands namespace to `/mv:review-loop`), so the wake fires but the loop never re-enters. The re-entry token is now `<reentry_command>` — `review-loop` on the symlink channel, `mv:review-loop` on the plugin channel — mirrored from the invocation form (`${CLAUDE_PLUGIN_ROOT}` isn't exposed in the agent shell) and persisted to the scratch file so it survives compaction. The documented carve-out from IDEA-017's "don't rewrite bodies channel-aware" rule: a self-invoking command is a literal lookup, not a description-invoke. Surfaced live by going plugin-only on the authoring machine mid-review-loop.
+
 ## v5.1.1 — compound: claude clean-verdict counter-observation + set -e fallback trap
 
 Patch release (`/compound`). Two load-on-demand reference additions from the IDEA-017 review-loop run — no body/rule bloat.
