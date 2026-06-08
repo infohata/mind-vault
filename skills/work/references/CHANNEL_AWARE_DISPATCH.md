@@ -17,7 +17,7 @@ A self-invoking dispatch is a **literal lookup, not a description-invoke** — s
 
 ## Detection — mirror the invocation form, persist it
 
-`${CLAUDE_PLUGIN_ROOT}` is **not exposed in the agent's shell** (verified — an env probe won't work). The reliable signal is **how the skill was invoked**: `/sprint-auto` → bare channel; `/mv:sprint-auto` → `mv:` channel. Derive the prefix from that, and **persist it wherever it must survive a boundary**:
+`${CLAUDE_PLUGIN_ROOT}` is **not exposed in the agent's shell** (verified — an env probe won't work). The signal is **how the skill was invoked** — and that prefix shows up the same way whether it was **typed as a slash** (`/sprint-auto` vs `/mv:sprint-auto`) **or dispatched via the `Skill` tool** (`Skill(skill="sprint-auto")` vs `Skill(skill="mv:sprint-auto")`): both carry the `mv:`-or-bare prefix. Derive the prefix from whichever form you observe. **If no prefixed form is observable** (a pure description-trigger, where the agent decided to invoke with no explicit name), fall through to the **host-availability fallback** — attempt the dispatch and, on an `Agent type … not found` / unresolved-command error, retry with the other prefix (on a plugin-only host the bare token fails, so `mv:` is the resolving form). The fallback is the catch-all that makes detection robust even when the invocation form is silent. **Persist the resolved prefix wherever it must survive a boundary**:
 
 - **`ScheduleWakeup` / wake-loops** → the scratch file (review-loop's `reentry_command`). Survives compaction.
 - **Long unattended runs across worktrees/subshells** → the batch state file (sprint-auto's `channel_prefix`, written at setup time — same rail as `SPRINT_AUTO_PLAYWRIGHT_AVAILABLE`, because env vars don't survive subshells).
