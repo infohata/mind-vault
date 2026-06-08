@@ -119,12 +119,26 @@ Settle age is computed in Python `datetime` (cross-platform), never `date -d`.
 |---|---|---|
 | claude action not installed | `CLAUDE_NOT_INSTALLED=true` (no `claude-code-review.yml` workflow on the repo) | Self-exclude from the **default** set (bare `/review-loop`); on an **explicit** `claude` run, degrade **loudly** — hand back with "run `/install-github-app`", never HUNG, never silent. |
 | **Draft PR (no review posted)** | `CLAUDE_DRAFT_NOOP=true` — the PR `.draft` is `true` (adapter early-exits) | Not a verdict — the draft no-op. `/review-loop` pre-flight should have un-drafted (`gh pr ready`); if this still fires, un-draft and re-poll. NEVER read as clean/SILENT/HUNG. |
-| claude stalled | Actions job `STATUS=in_progress` (RUNNING) past observed latency on `last_push_sha` | Proceed with other engines' findings if any; do NOT explicitly retrigger (push-triggered — the next fix push re-runs it). Surface in hand-back if it doesn't recover within the idle-poll budget. |
+| claude stalled | Actions job `STATUS=in_progress` (RUNNING) past observed latency on `last_push_sha` — **but claude's normal latency is long (up to ~17 min on a large PR); confirm genuinely wedged, not merely slow — see § slow-not-hung** | Proceed with other engines' findings if any; do NOT explicitly retrigger (push-triggered — the next fix push re-runs it). **Before treating it as stalled, run the § slow-not-hung checks (step-progress + verdict re-fetch).** Surface in hand-back if it doesn't recover within the idle-poll budget. |
 | Actions job unreadable | `actions: read` blocked for the user's `gh` auth — `WORKFLOW_RUNS` empty, no `CLAUDE_CHECKRUN` (Q3) | Degrade to summary-comment-only state (lose the RUNNING signal) with a logged warning. Do NOT hard-fail the loop. |
 | **Silent run (success + nothing posted)** | `CLAUDE_REVIEW_SILENT=...` — run `completed`/`success` but NO findings and NO clean summary after settle (held RUNNING) | **NOT clean.** Hand back as uncertain: re-trigger once, and verify the workflow has the reliability fixes + `pull-requests: write` (LAYER 1/2). Most likely the #1087 buffer-drop, a read-only-perms posting block, or an un-fixed/old workflow — never read as a clean pass. Don't wait for the full idle-timeout; the SILENT marker is the terminal signal. |
 
 **Robust-mode alternative (record-only).** #1087 is an *open* upstream bug — the workflow fixes *mitigate* (post-during-run) but don't *guarantee* (the model can still end on a `TodoWrite` before posting). For guaranteed reliability, Anthropic's **managed Code Review GitHub App** (`@claude review`, Team/Enterprise) writes findings to **check-run annotations** independent of the comment buffer — but it's paid (~$15–25/review), research-preview, and unavailable under Zero Data Retention. If a project hits persistent SILENT despite the fixes, the managed App is the escalation path (a different adapter — it *does* post a named check-run, unlike this action path). Tracked in IDEA-012.
 | Review-pending race | Actions job `completed` but no head-SHA summary/inline comment yet | Downgraded to RUNNING + `CLAUDE_REVIEW_PENDING` (§ Race-condition caveats). Keep waiting; never a premature CLEAN. |
+
+## § slow-not-hung — don't escape-hatch a long claude run on elapsed time alone
+
+claude's review legitimately runs **much longer than bugbot/copilot** — observed up to **~17 min** on a large multi-file PR (vs the ~1–9 min seen on small diffs). The multi-engine stall escape-hatch ([`multi-engine-sync.md`](multi-engine-sync.md) § Trade-off escape hatch) must therefore **not** fire on elapsed wall-time alone — that's how a still-working run gets abandoned one beat before it posts.
+
+Field near-miss (the source of this note): a ~17-min run was treated as hung and superseded by a fix push; it then posted real findings essentially immediately after — the supersede had thrown them away, and a human surfaced the missed findings by hand. Two findings were lost to the loop.
+
+Before tripping the escape-hatch on claude:
+
+1. **Confirm genuinely wedged, not just slow.** Read the Actions job's *step progress*, not just elapsed time: `gh run view <run-id>` (or `--json jobs`). A job advancing through steps is working; a job parked on one step well past its normal duration is wedged. *No step movement* is the wedged signal — elapsed-since-start is not.
+2. **Re-fetch for a late-posted verdict FIRST.** Re-run `find_claude_comments.sh` immediately before superseding — claude posts its summary/inline comments synchronously near the **end** of the job (§ Settle window), so a run that was verdict-less five minutes ago may have just posted. A supersede that skips this re-check is the exact shape of the near-miss.
+3. **Raise the stall ceiling for claude specifically.** Whatever per-engine stall threshold the loop carries, claude's must sit comfortably above its ~17-min observed worst case — a ceiling tuned to copilot/bugbot's minutes mis-classifies a healthy claude run as hung.
+
+This pairs with the RUNNING-state machine (§ Review-state gate): a `completed` Actions run with no readable verdict is held at RUNNING precisely so the loop can't read a no-verdict run as CLEAN — and the same discipline says **don't read a still-RUNNING run as hung** until step-progress proves it. (It also pairs with the C1 calibration: even once it posts, claude's findings often live only in the summary BODY, so a too-early supersede skips them twice over — never fetched, never surfaced.)
 
 ## § Common patterns (codified Tier 1)
 
