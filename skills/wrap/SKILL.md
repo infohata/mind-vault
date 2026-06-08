@@ -263,7 +263,9 @@ Use the last two devlog entries in the same file as style anchors — match pros
 
 **Fires when** the project has a discoverable version source AND the scope is `docs` or `full` (i.e. not `idea-only`). **Skipped** when no version source exists (most internal projects without a published surface), or when scope is `idea-only` (per-IDEA wraps inside sprint-auto defer the version bump to the integration-branch batch wrap so the whole sprint ships as ONE versioned release).
 
-**Version-source detection** — first match wins:
+**Version-source detection.** A project carries one **PRIMARY** (narrative) source — where the human-facing version + headline lives — and zero-or-more **sync-required mirror** sources: version-compliance artefacts (e.g. a plugin manifest) that must *mirror* the primary number but never *originate* it. A bump advances the primary **and every mirror together**; the mechanism is generic ("N sync-required sources"), not special-cased to any one project.
+
+PRIMARY — first match wins (unchanged):
 
 ```bash
 if   [ -f VERSION ];        then VER_SOURCE=VERSION
@@ -276,7 +278,25 @@ else VER_SOURCE=none
 fi
 ```
 
-If `VER_SOURCE=none`, skip this step entirely — the project doesn't publish a versioned surface, no bump to consider.
+MIRROR — collect **all** present (not first-match); each must end the bump equal to the primary:
+
+```bash
+SYNC_SOURCES=()
+# .claude-plugin/plugin.json `version` mirrors the primary (mind-vault: the top CHANGELOG `## vX.Y.Z`).
+[ -f .claude-plugin/plugin.json ] && jq -e '.version' .claude-plugin/plugin.json >/dev/null 2>&1 && SYNC_SOURCES+=(.claude-plugin/plugin.json)
+# Future mirror sources append here — same contract: mirror-only, never primary.
+```
+
+If `VER_SOURCE=none`, skip this step entirely — the project doesn't publish a versioned surface, no bump to consider. (A project with mirror sources but no primary is malformed — a mirror with nothing to mirror; surface it rather than bumping.)
+
+**Consistency check (the stricter review gate — runs even when no bump fires).** Every `SYNC_SOURCES` entry's version MUST already equal the primary's current version. Drift = a prior bump that updated the primary but not the mirror (or vice-versa). Surface it in the wrap hand-back and as a [`RULE_self-sweep-before-push`](../../rules/RULE_self-sweep-before-push.md) doc-consistency item — don't silently let the channels diverge.
+
+```bash
+# mind-vault example: plugin.json.version == top CHANGELOG `## vX.Y.Z`.
+pv=$(jq -r '.version' .claude-plugin/plugin.json)
+cv=$(grep -m1 -E '^## v[0-9]' CHANGELOG.md | sed -E 's/^## v([0-9.]+).*/\1/')
+[ "$pv" = "$cv" ] || echo "VERSION DRIFT: plugin.json=$pv  CHANGELOG=$cv — bring into sync this wrap"
+```
 
 **Bump triggers** (any one is sufficient; cluster of two+ makes it near-certain). These are abstract criteria — apply to whatever version scheme the project uses (semver, milestone-based, calver, custom):
 
@@ -295,11 +315,12 @@ If `VER_SOURCE=none`, skip this step entirely — the project doesn't publish a 
 **Mechanics when a bump is warranted:**
 
 1. **Confirm with the user** before editing the version source — show the proposed new version + headline rationale linking back to which bump-trigger criterion fired. The user picks the version number (`v4.1`, `v5`, named milestone like "Cross-platform-ready", semver `2.3.0`, etc.). **Never decide the number autonomously** — projects have policy on minor-vs-major calls that an outside agent doesn't know.
-2. **Update the version source** detected above:
+2. **Update the version sources** — the PRIMARY **and every `SYNC_SOURCES` mirror, in the same wrap commit** (the lockstep bump; leaving a mirror behind reintroduces the drift the consistency check exists to catch):
    - `VERSION` file → single-line replace
    - `pyproject.toml` / `package.json` / `Cargo.toml` → in-place version-field edit
    - `setup.py` → in-place version-arg edit
    - `CHANGELOG.md` with `## v<N>` headers → insert a new section above the most recent dated/Unreleased block; move only entries that are *part of the new version's narrative*, leave unrelated rolling entries in place
+   - `.claude-plugin/plugin.json` (mirror) → `jq` in-place `.version` edit to the bare `X.Y.Z` (no `v` prefix), equal to the primary's new number. After writing, re-run the consistency check above and confirm it's silent.
 3. **Write a headline paragraph** — one paragraph describing what's new, how it relates to the prior version, and what adopter-facing change (if any) it implies. Goes in CHANGELOG, GitHub release notes draft, or the project's release artefact.
 4. **Update downstream version references** — README.md, ONBOARDING / docs callouts (`> You're reading the v<N> docs`), badge URLs that pin to `:latest` vs `:v4`, deploy manifests if the project releases container images, etc. The Step 6 grep pass catches these naturally; flag any that surface for explicit attention here.
 5. **Tag the commit** in the wrap branch's diff so the eventual GitHub release / `git tag` can fast-forward — but **don't `git tag` from the wrap commit itself** unless the project's CI requires it (the human is the tagger by default).
