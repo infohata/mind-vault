@@ -279,7 +279,7 @@ Commit all non-sensitive configuration to git.
 
 Licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Kestutis Januskevicius.
 
-<!-- wrap:readme-currency-audited 2026-06-06 -->
+<!-- wrap:readme-currency-audited 2026-06-08 -->
 
 <!-- wrap:readme-currency
 N: 5

@@ -1,14 +1,14 @@
 ---
 id: 020
 title: Channel-aware inner command/skill references (plugin-route correctness)
-status: in-progress        # idea | in-progress | complete | superseded
+status: complete   # idea | in-progress | complete | superseded
 priority: high   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
 depends_on: []       # list of IDEA ids required before starting, or []
 related: [017]             # list of IDEA ids that share context, or []
 created: 2026-06-08
-completed: null
+completed: 2026-06-08
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
@@ -20,7 +20,7 @@ sensitive_paths_cleared_reason: "Touches the unattended-execution substrate (spr
 
 # IDEA-020: Channel-aware inner command/skill references (plugin-route correctness)
 
-**Status**: 💡 Idea
+**Status**: ✅ Complete (2026-06-08) — shipped in PR #194
 **Priority**: High
 
 **Problem** (or opportunity): On the **plugin route** (IDEA-017), Claude Code namespaces all mind-vault commands/skills under `mv:` (`/mv:work`, `/mv:review-loop`, …). Any skill that **invokes a sibling by bare name** — a literal slash command or a `Skill` tool call — does **not** resolve on a plugin-only machine, and the failure is silent. Discovered live by switching the authoring machine to plugin-only mid-`/review-loop`: the loop's `ScheduleWakeup(prompt="/review-loop …")` self-re-entry would have fired into a non-existent command and the loop would have died on its next wake with no error. `review-loop`'s re-entry was hot-fixed in **PR #190's follow-up PR #193 (v5.1.2)** — `reentry_command` now mirrors the invocation prefix and is persisted to scratch — but that is one site of a whole class. The highest-stakes unfixed site is **`sprint-auto`**, which dispatches every stage (`/plan → /work → /wrap → /review-loop → /land → /compound`) by bare name, **unattended overnight on a VPS** — exactly the host the IDEA-017 docs (PR #193) now *recommend* run the marketplace plugin. A bare-name dispatch failure there is a silent 3am death of the entire batch.

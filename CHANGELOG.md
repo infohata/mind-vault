@@ -10,6 +10,24 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.3 — IDEA-020: channel-aware inner dispatch + agent rename (plugin-route correctness)
+
+Patch release ([PR #194](https://github.com/infohata/mind-vault/pull/194), IDEA-020). Makes the workflow skills' **executed** sibling dispatches resolve under the plugin's `mv:` namespace, not just the symlink channel — the silent-failure class surfaced by going plugin-only (a skill spawning a sibling by bare name doesn't resolve when only the `mv:`-namespaced plugin is installed). Generalises the review-loop `reentry_command` fix (v5.1.2) across all three dispatch mechanisms, and **drops the redundant `mv-` agent prefix** so the plugin persona form is the clean `mv:architect`.
+
+### Added
+
+- **`skills/work/references/CHANNEL_AWARE_DISPATCH.md`** — the shared convention covering all three *executed*-dispatch mechanisms (`Skill` tool → `mv:<skill>`, literal slash → `/mv:<command>`, `Agent` `subagent_type` → `mv:<persona>`), invocation-form detection (`${CLAUDE_PLUGIN_ROOT}` is not in the agent shell — mirror how you were invoked, persist the prefix), the executed-vs-prose test, and the dual-mode (token-OR-inline-path) fail-safe exception. Pointed at by review-loop, work, plan, and sprint-auto.
+
+### Changed
+
+- **Persona dispatch is channel-aware** — `work/references/persona-dispatch.md` + `work/SKILL.md` matrix resolve `mv:<persona>` on the plugin channel + gained a host-availability inline fallback; `plan/references/architect-handoff.md` documents the dual-mode exception. `/work`'s persona layer covers sprint-auto's personas transitively (the highest blast radius — unattended overnight).
+- **sprint-auto stage dispatch is channel-aware** — S(-1) detects + persists `channel_prefix` to the batch state file (same rail as `SPRINT_AUTO_PLAYWRIGHT_AVAILABLE`); every stage dispatch resolves via `${channel_prefix}`.
+- **Docs** — channel-safety caveat on the sprint-auto-VPS plugin recommendation (README + ONBOARDING): the workflow's executed dispatch is channel-safe as of v5.1.3+; `/plugin update` to at least that version before running sprint-auto plugin-only.
+
+### Removed
+
+- **The `mv-` agent-name prefix** — all 8 profiles renamed `name: mv-<persona>` → `name: <persona>` (`architect`, `backend`, …). The prefix existed to dodge shared-registry collisions; now that mind-vault *is* the plugin, the plugin's `mv:` namespace disambiguates, so `mv-` was redundant and `mv:mv-architect` doubly-prefixed. Plugin form is now `mv:<persona>`, symlink form bare `<persona>`. (Trade-off: symlink-channel agents lose the `mv-` collision guard — low risk; plugin-channel is primary.)
+
 ## v5.1.2 — compound: plugin channel = stable/dev release-channel split (authoring vs consuming)
 
 Patch release (`/compound`). Dogfooding IDEA-017 surfaced that the marketplace install runs a **pinned snapshot** (git-cloned to `~/.claude/plugins/marketplaces/mind-vault`), not the working tree — edits go live only on `/plugin update`. Doc-only clarification of what that means per machine role.

@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-- [IDEA-020](../archive/2026-06-idea-020-channel-aware-inner-references/IDEA-020-channel-aware-inner-references.md) ⏳ — Channel-aware inner command/skill references (plugin-route correctness)
+_(none)_
 
 ## 💡 High Priority (backlog)
 
@@ -25,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-020: Channel-aware inner command/skill references ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-06-08 · **See**: [Archive](../archive/2026-06-idea-020-channel-aware-inner-references/IDEA-020-channel-aware-inner-references.md), [PR #194](https://github.com/infohata/mind-vault/pull/194).
+Made the workflow's **executed** sibling dispatches (a skill spawning a sibling skill/command/persona) channel-aware so they resolve under the plugin's `mv:` namespace, not just the symlink channel. Generalised the review-loop `reentry_command` precedent (PR #193) into a shared `skills/work/references/CHANNEL_AWARE_DISPATCH.md` covering all three mechanisms — `Skill` tool, literal slash, and `Agent` `subagent_type`. The architect (and a live failure — this IDEA's own `/plan` handoff erroring on bare `mv-architect`) widened scope to `/work`'s persona dispatch (reached transitively by every sprint-auto IDEA) + sprint-auto's stage dispatch (`channel_prefix` persisted to the batch state file). **Folded in a rename**: all 8 agent profiles `mv-<persona>` → `<persona>` (plugin form `mv:<persona>`, dropping the now-redundant doubly-prefixed `mv:mv-architect`). Prose mentions stay bare (IDEA-017 Q3); `land`/`wrap`/`skill-writer` untouched.
 
 ### IDEA-017: mind-vault as a Claude Code plugin ✅ COMPLETE
 
