@@ -10,6 +10,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.2 — compound: plugin channel = stable/dev release-channel split (authoring vs consuming)
+
+Patch release (`/compound`). Dogfooding IDEA-017 surfaced that the marketplace install runs a **pinned snapshot** (git-cloned to `~/.claude/plugins/marketplaces/mind-vault`), not the working tree — edits go live only on `/plugin update`. Doc-only clarification of what that means per machine role.
+
+### Changed
+
+- **`README.md` + `docs/guides/ONBOARDING.md` — "Authoring vs consuming" guidance** on the plugin install. The pinning is the channel's point, not a limitation: a **consumer** machine wants the marketplace plugin (`/plugin update` per release); the **authoring** machine gets a stable/dev split for free (pinned plugin = stable runtime insulated from WIP, working tree = where the next version is built, `/plugin update` = the promotion gate — the compound floor rises per *release*, not per keystroke). Authors who want live skill edits use symlinks or `claude --plugin-dir`. Inverts the earlier "the plugin breaks compounding" read — it's a deliberate release-channel separation a symlink setup can't give.
+
 ## v5.1.1 — compound: claude clean-verdict counter-observation + set -e fallback trap
 
 Patch release (`/compound`). Two load-on-demand reference additions from the IDEA-017 review-loop run — no body/rule bloat.
