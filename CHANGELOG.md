@@ -10,6 +10,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.4 — fix: plugin SessionStart hook hard-failed (exit 2) under POSIX sh
+
+Patch release ([PR #195](https://github.com/infohata/mind-vault/pull/195)). On a fresh plugin-only machine the `SessionStart` rule-loader hook could abort with **exit 2** instead of degrading gracefully, breaking session startup rather than falling back to the `/mv:load-rules` pointer note.
+
+### Fixed
+
+- **`hooks/load-rules.sh` — re-exec under bash if invoked via `sh`/`dash`.** The script opened with `set -euo pipefail`; `set -o pipefail` is a bashism that a POSIX `sh`/`dash` rejects with `Illegal option -o pipefail` and **exits 2** — *before* any of the graceful `emit_note` fallbacks could run. The hook command wraps the script in `bash`, so a pristine install is protected, but a host that routes hook commands through `sh -c` (or a shebang-only exec where bash wasn't the interpreter) detonated on the first body line. Added a POSIX-clean guard ahead of the `set` line — `if [ -z "${BASH_VERSION:-}" ]; then exec bash "$0" "$@"; fi` — so the script always re-enters under bash (it legitimately needs bash arrays + `shopt nullglob`). All invocation paths (`bash`/`sh`/`dash`, with `CLAUDE_PLUGIN_ROOT` set or unset) now exit 0.
+
 ## v5.1.3 — IDEA-020: channel-aware inner dispatch + agent rename (plugin-route correctness)
 
 Patch release ([PR #194](https://github.com/infohata/mind-vault/pull/194), IDEA-020). Makes the workflow skills' **executed** sibling dispatches resolve under the plugin's `mv:` namespace, not just the symlink channel — the silent-failure class surfaced by going plugin-only (a skill spawning a sibling by bare name doesn't resolve when only the `mv:`-namespaced plugin is installed). Generalises the review-loop `reentry_command` fix (v5.1.2) across all three dispatch mechanisms, and **drops the redundant `mv-` agent prefix** so the plugin persona form is the clean `mv:architect`.

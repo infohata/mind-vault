@@ -9,6 +9,14 @@
 #
 # This hook only ever fires when the plugin is active; symlink-path machines
 # auto-load rules via ~/.claude/CLAUDE.md and never invoke it.
+
+# Re-exec under bash if a host invoked us via sh/dash. This script uses bash
+# arrays + `shopt nullglob` + `set -o pipefail` (all bashisms); under a POSIX sh
+# the `set -o pipefail` below aborts with exit 2 ("Illegal option") BEFORE any
+# emit_note fallback can run, hard-failing SessionStart instead of degrading to
+# the /mv:load-rules pointer note. Keep this guard POSIX-clean and first.
+if [ -z "${BASH_VERSION:-}" ]; then exec bash "$0" "$@"; fi
+
 set -euo pipefail
 
 emit_note() {
