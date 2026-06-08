@@ -36,5 +36,11 @@ fi
 header="Mind-Vault plugin active — the following behavioural rules are loaded and apply to every tool call this session (plugin-channel parity with ~/.claude/rules/). Their rationale docs (docs/rules/*-rationale.md) are not bundled on the plugin channel; load them from the repo if an edge case needs the full discussion."
 body="$(cat "${rule_files[@]}")"
 
-jq -n --arg ctx "$header"$'\n\n'"$body" \
-  '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$ctx}}'
+# Build the rules payload; if jq fails for any reason (encoding, size, runtime),
+# fall back to the pointer note rather than letting `set -e` exit with no output
+# — a bare non-zero exit emits neither the rules nor a note, silently breaking
+# SessionStart instead of degrading to /mv:load-rules.
+if ! jq -n --arg ctx "$header"$'\n\n'"$body" \
+  '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$ctx}}'; then
+  emit_note
+fi
