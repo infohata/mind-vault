@@ -10,6 +10,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.0.5 — compound: claude slow-not-hung + two django-frontend traps
+
+Patch release (`/compound`). A downstream sprint's cleanup-capstone review-loop session — three load-on-demand reference additions, no body/rule bloat.
+
+### Added
+
+- **`skills/review-loop/references/engine-claude.md` § slow-not-hung.** claude's review legitimately runs much longer than bugbot/copilot (observed up to ~17 min on a large PR), so the multi-engine stall escape-hatch must NOT fire on elapsed wall-time alone. Before superseding a slow claude run: confirm genuinely-wedged via Actions-job *step progress* (not elapsed), re-fetch `find_claude_comments.sh` for a late-posted verdict first (claude posts near the end of the job), and keep claude's stall ceiling above its ~17-min worst case. Sourced from a real near-miss — a 17-min run escape-hatched as hung that then posted real findings immediately after (two findings lost to the loop, surfaced by a human). The § Failure-modes "claude stalled" row now points here.
+- **`skills/django-frontend/references/DELEGATED_HANDLER_STOPPROPAGATION_TRAP.md` (new).** A `@click.stop` / `onclick="event.stopPropagation()"` guard on a dropdown/kebab wrapper halts the bubble before it reaches `document`, so a document-delegated action handler inside (confirm-trigger, preview-open) never fires — the Delete click silently dead-ends. The guard is usually unnecessary too (the sibling open-handler is already `closest()`-scoped). Plus: drive click affordances with an Alpine click-toggle, never Bulma `is-hoverable` (hover-only → no feedback on click, dead on touch). Framed as the inverse of `LISTENER_REBIND_ON_SWAP`. SKILL.md References pointer added.
+
+### Changed
+
+- **`skills/django-frontend/references/SESSION_FILTER_PERSISTENCE.md` — resolver-scope + namespace-unity section.** A session-filter resolver whose `filter_keys` under-scopes the render fn's keys (most easily the `CHECKBOX_TOGGLE_KEYS` toggles) silently starves it — the symptom ("toggle does nothing on cold load") mis-points at the render fn when the bug is the resolver's scope. The resolver's `filter_keys` must be a **superset** of every key the render fn reads. Plus: per-entity toggle persistence must pass **one** `namespace` across the write path (workspace form) and the read path (param-less refresh partial), else the toggle persists on submit but evaporates on the next no-param re-fetch. SKILL.md pointer extended.
+
 ## v5.0.4 — IDEA-016: scripts/ + tools/ taxonomy (scoped re-partition)
 
 Patch release ([PR #187](https://github.com/infohata/mind-vault/pull/187), IDEA-016). Resolves the long-ambiguous `scripts/` vs `tools/` split (both held `install`/`setup`-named scripts) into three single-concern dirs, without churning the symlink wiring that IDEA-017 may dissolve.

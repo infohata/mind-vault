@@ -222,6 +222,48 @@ def test_unchecking_toggle_clears_session(self):
 
 The empty siblings matter: `has_filter_params` becomes True (because `scope` is in GET, even though its value is empty), the toggle-clear loop runs, the toggle drops from session.
 
+## The resolver's `filter_keys` must be a superset of what the render fn reads
+
+`get_effective_filters(request, *, namespace, filter_keys)` only merges and returns
+the keys named in `filter_keys`. If a caller passes a `filter_keys` tuple that omits
+keys the **render function downstream actually applies** — most easily the
+`CHECKBOX_TOGGLE_KEYS` toggles — the resolver returns a dict missing those keys, and
+the render fn filters on nothing for them. The toggles appear dead: clicking a pill on
+a cold-loaded surface re-fetches the partial but never activates / deactivates the
+filter.
+
+The trap is that **the symptom points at the wrong layer.** The render fn is correct —
+it reads `filters['assigned_to_me']` and filters properly *when the key is present*.
+The bug is upstream: the resolver was never asked to resolve that key, so it's absent
+from `filters`. It reads as "the render fn doesn't apply the toggle" when it's really
+"the resolver under-scoped its `filter_keys` and starved the render fn." Grep the
+render fn for every `filters[...]` / `filters.get(...)` key it consumes and confirm the
+resolver's `filter_keys` is a superset:
+
+```python
+# WRONG — toggles dropped from the resolver scope; the render fn never sees them
+filters = get_effective_filters(request, namespace='dashboard',
+                                filter_keys=('scope', 'property'))   # ← missing toggles
+# render fn applies filters['assigned_to_me'] etc. → always absent → toggle is dead
+
+# RIGHT — resolver scope is a superset of what the render fn reads
+filters = get_effective_filters(request, namespace='dashboard',
+                                filter_keys=('scope', 'property', *CHECKBOX_TOGGLE_KEYS))
+```
+
+### One namespace across the write path AND the read path
+
+Per-entity persistence keys the session bucket on `namespace`
+(`{namespace}_{entity}_filters_{org_id}`). The **write path** (the workspace filter
+form that sets the toggle) and the **read path** (the param-less load-more /
+entity-refresh partial that re-fetches) must pass the **same** `namespace` — otherwise
+the read path resolves a *different* bucket than the one the form wrote, and a
+param-less re-fetch reads a stale (or empty) entry. A surface whose form submits under
+`namespace='dashboard'` but whose refresh partial resolves under
+`namespace='dashboard_events'` writes one bucket and reads another: the toggle
+"persists" on submit but evaporates on the next no-param refresh. Unify the namespace
+constant across both call sites; don't let the partial view re-derive its own.
+
 ## Chip-row + per-filter-clear endpoint pattern
 
 When a filter is set by **navigation** (clicking a counter, a deep-link from another surface, an AI-tool result) rather than by the filter form itself, the form-input model breaks down — there's no checkbox to uncheck. The user only sees the narrowed list and has no obvious way to clear the navigation-driven filter without clearing **everything**.
