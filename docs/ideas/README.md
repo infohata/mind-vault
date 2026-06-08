@@ -14,7 +14,7 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-_(none)_
+- [IDEA-019](IDEA-019-research-gstack-patterns.md) — Research gstack — mine sprint-workflow patterns for mind-vault
 
 ## 💡 Low Priority (backlog)
 
