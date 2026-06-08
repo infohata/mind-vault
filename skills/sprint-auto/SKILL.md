@@ -94,7 +94,20 @@ Run once, before any per-IDEA work. If **any** check fails, abort with an action
 
    Bootstrap circularity is solved by manual-eval fallback: the first project-side "set up Playwright" IDEA's `requires_playwright` is `false` (it provisions the gate's "present" state but doesn't depend on it); after it merges, downstream IDEAs' probes flip to "present" and the gate begins authoring tests. No IDEA is ever blocked on infra readiness.
 
-10. **Channel-prefix detection (S(-1), IDEA-020) — plugin-route correctness.** Every stage this skill dispatches (`plan`, `work`, `wrap`, `review-loop`, `compound`) and every persona those stages spawn is an **executed** lookup that must mirror the install channel — bare names don't resolve on a plugin-only host (the unattended-3am-silent-death failure mode). Detect the prefix from **how `/sprint-auto` was invoked** (`/sprint-auto` → `channel_prefix=""`; `/mv:sprint-auto` → `channel_prefix="mv:"`); `${CLAUDE_PLUGIN_ROOT}` is not in the agent shell, so use the invocation form, not an env probe. **Persist `channel_prefix` to the batch state file here at setup** — same rail as `SPRINT_AUTO_PLAYWRIGHT_AVAILABLE` (env vars don't survive subshells; a post-compaction resume reads a stable value). Every stage dispatch below resolves as `/${channel_prefix}<stage>` (commands) / `Skill(skill="${channel_prefix}<stage>")`, and `/work`'s persona dispatch as `${channel_prefix}<persona>` (bare `architect` symlink → `mv:architect` plugin) — the full contract is in [`../work/references/CHANNEL_AWARE_DISPATCH.md`](../work/references/CHANNEL_AWARE_DISPATCH.md). (On a symlink-channel host `channel_prefix` is empty and every dispatch is the bare form, unchanged.)
+10. **Channel-prefix detection (S(-1), IDEA-020) — plugin-route correctness.** Every stage this skill dispatches (`plan`, `work`, `wrap`, `review-loop`, `compound`) and every persona those stages spawn is an **executed** lookup that must mirror the install channel — bare names don't resolve on a plugin-only host (the unattended-3am-silent-death failure mode). Detect the prefix from **how `/sprint-auto` was invoked** (`/sprint-auto` → `channel_prefix=""`; `/mv:sprint-auto` → `channel_prefix="mv:"`); `${CLAUDE_PLUGIN_ROOT}` is not in the agent shell, so use the invocation form, not an env probe. **Persist `channel_prefix` to the batch state file here at setup** — same rail as `SPRINT_AUTO_PLAYWRIGHT_AVAILABLE` (env vars don't survive subshells; a post-compaction resume reads a stable value).
+
+   **Batch state file — concrete contract** (referenced loosely elsewhere as "the batch state file"; defined here). It is a single **sourceable shell file** of `export` lines at **`/tmp/sprint-auto-<batch-iso>-state.sh`** (the `<batch-iso>` that names the integration branch; the same file `PARALLEL_WORKTREE_DOCKER.md` sources before worktree `docker compose` ops). Writer (S(-1)) appends; every reader (`/plan` S1, `/work` S2 + its persona dispatch, the architect handoff) **sources** it first:
+
+   ```bash
+   STATE_FILE="/tmp/sprint-auto-${BATCH_ISO}-state.sh"
+   # writer (S(-1)):
+   printf 'export SPRINT_AUTO_CHANNEL_PREFIX=%q\n' "$channel_prefix" >> "$STATE_FILE"
+   printf 'export SPRINT_AUTO_PLAYWRIGHT_AVAILABLE=%q\n' "$SPRINT_AUTO_PLAYWRIGHT_AVAILABLE" >> "$STATE_FILE"
+   # reader (any per-IDEA stage, after a fresh shell / compaction):
+   source "$STATE_FILE"   # → $SPRINT_AUTO_CHANNEL_PREFIX, $SPRINT_AUTO_PLAYWRIGHT_AVAILABLE
+   ```
+
+   Every stage dispatch below resolves as `/${SPRINT_AUTO_CHANNEL_PREFIX}<stage>` (commands) / `Skill(skill="${SPRINT_AUTO_CHANNEL_PREFIX}<stage>")`, and `/work`'s persona dispatch as `${SPRINT_AUTO_CHANNEL_PREFIX}<persona>` (bare `architect` symlink → `mv:architect` plugin) — the full contract is in [`../work/references/CHANNEL_AWARE_DISPATCH.md`](../work/references/CHANNEL_AWARE_DISPATCH.md). (`channel_prefix`/`$SPRINT_AUTO_CHANNEL_PREFIX` are the same value, named with the `SPRINT_AUTO_` prefix once persisted; on a symlink-channel host it's empty and every dispatch is the bare form, unchanged.)
 
 ### 2. Per-IDEA execution loop (S0–S11)
 
