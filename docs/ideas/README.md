@@ -10,7 +10,7 @@ _(none)_
 
 ## 💡 High Priority (backlog)
 
-_(none)_
+- [IDEA-020](IDEA-020-channel-aware-inner-references.md) — Channel-aware inner command/skill references (plugin-route correctness)
 
 ## 💡 Medium Priority (backlog)
 
