@@ -3,7 +3,7 @@ stage: plan
 slug: mind-vault-cc-plugin
 created: 2026-06-07
 source: ./IDEA-017-mind-vault-as-claude-code-plugin.md
-status: ready
+status: shipped
 project: mind-vault
 architect_review: "🟡 REQUIRES ABSTRACTION → all 7 findings folded (2026-06-07): F1 load-rules-vs-rules-out-of-band contradiction (Q5 + exec step 5), F2 per-depth SKILL_CONTRACT repoint table + link-resolution gate, F3 namespacing blast-radius + canonical-note decision (Q3), F4 6-command verification, F5 guard-honesty (one-directional/dev-loop-exempt, Q4), F6 source './' , F7 update-cadence consequence (Q1). Verifies sound on repo-root-as-plugin-root, auto-discovery, coexist, source pointer."
 ---
@@ -352,7 +352,25 @@ have no plugin home; non-CC hosts have no plugin system at all).
 
 ---
 
-**Status:** ready — architect-reviewed (🟡 → all 7 findings folded). **Q1 resolved**
+## Execution Progress (shipped 2026-06-08)
+
+| Step | Status | Commit |
+| --- | --- | --- |
+| 1. Audit agent frontmatter | ✅ clean (no disallowed keys) | `6aa4bb9` |
+| 2. Relocate `SKILL_CONTRACT.md` + repoint | ✅ both gates pass | `6aa4bb9` |
+| 3. `plugin.json` | ✅ `name: mv`, `version: 5.0.5` | `d70d8b1` |
+| 4. `marketplace.json` | ✅ `source: ./`, id `mv` | `d70d8b1` |
+| 4b. `/wrap` Step 4b multi-location sync | ✅ + `/compound` mirror bump | `45a134c` |
+| 5. Rule-loading (`/mv:load-rules` + hook) | ✅ Q5 stretch (auto-inject) done | `637aff6` |
+| 6. Docs (README/AGENTS/ONBOARDING) | ✅ | `9ed72f4` |
+| 7. Best-effort double-load guard | ✅ | `e92f565` |
+| 8. IDEA-014 backref | ⏳ deferred to `/wrap` | — |
+
+Verification: all automated checks green (see [`2026-06-08-verification-log.md`](./2026-06-08-verification-log.md)); manual live-session checks pending first real install. **Q4 carried its default** (docs-first + best-effort plugin-then-script warning, dev-loop exempt). Plan's stale Verification line (`jq .name == "mind-vault"`) overridden by authoritative Q3 (`name: mv`) — noted in the log.
+
+---
+
+**Status:** shipped — architect-reviewed (🟡 → all 7 findings folded). **Q1 resolved**
 (set plugin.json `version`, mirror CHANGELOG, `/wrap` keeps both in sync → R11 + the
 wrap Step-4b update). **Q2 resolved** (`SKILL_CONTRACT.md` → `skills/work/references/`).
 **Q3 resolved** (`name: mv` + `displayName: Mind-Vault` → `/mv:<cmd>`; research-verified
