@@ -10,8 +10,11 @@ This guide is for agentic coding assistants (Claude Code, OpenCode) working in t
 - **agents/** - Custom agent definitions (AGENT.md files)
 - **rules/** - Shared behavioral rules (RULE.md files)
 - **docs/** - Analysis and pattern documentation
+- **.claude-plugin/** - Claude Code plugin manifests (additive CC install channel; see below)
 
 This is **not** a typical application - there are no tests, build steps, or runtime execution. Focus is on **clarity, completeness, and reusability**.
+
+**Distribution — two channels.** mind-vault installs into agent hosts via per-host symlink scripts (`scripts/setup-*-symlinks.sh`) **or**, on Claude Code only, as a native plugin (`/plugin marketplace add infohata/mind-vault` → `/plugin install mv@mind-vault`). The two coexist but pick **one per machine** (both = double-load). On the plugin channel, `commands/` entries namespace under `mv:` (type `/mv:wrap`), while skill triggers are unaffected (description-invoked). `rules/`, `docs/rules/`, and the statusline stay script-wired on both channels.
 
 ## Commands & Workflow
 

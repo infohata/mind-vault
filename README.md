@@ -43,9 +43,11 @@ See [docs/guides/SPRINT_WORKFLOW.md](docs/guides/SPRINT_WORKFLOW.md) for the ful
 
 ```text
 mind-vault/
+├── .claude-plugin/ CC plugin manifests (plugin.json + marketplace.json — additive install channel)
 ├── skills/        Agent Skills (SKILL.md + references/ + assets/ + scripts/)
 ├── agents/        Subagent personas (AGENT_*.md)
-├── commands/      Slash commands invoked as /<name>
+├── commands/      Slash commands invoked as /<name> (/mv:<name> on the plugin channel)
+├── hooks/         Plugin SessionStart hook (auto-loads rules on the plugin channel)
 ├── rules/         Always-on behavioural rules (RULE_*.md — auto-loaded every session)
 ├── docs/          Specs, plans, solutions, artefacts
 ├── scripts/       mind-vault → host config wiring (per-host symlink setup)
@@ -164,6 +166,28 @@ cd mind-vault
 ```
 
 Hosts don't conflict with each other. Restart the host client after setup for it to rescan.
+
+### Install as a Claude Code plugin (additive, CC-only)
+
+Claude Code can install mind-vault as a **native plugin** instead of the symlink script — a single command on a fresh machine, with `/plugin` auto-update. This is **additive and CC-only**: it bundles the CC-host slice (`skills/`, `commands/`, `agents/`) under `.claude-plugin/`; the symlink path stays fully intact for machines already wired that way (pick one channel per machine — see the coexist note below).
+
+```bash
+# Private install — no public marketplace submission:
+/plugin marketplace add infohata/mind-vault
+/plugin install mv@mind-vault
+```
+
+Commands namespace under `mv:` on the plugin channel — type `/mv:wrap`, `/mv:idea`, etc. (coherent with the `mv-` subagent prefix). **Skill triggers are unaffected** — skills are description-invoked, so `/plan`, `/work`, `/compound` etc. still fire from natural language regardless of channel; only literal slash-typing of `commands/` entries gains the `mv:` prefix.
+
+**Behavioural rules** (`rules/RULE_*.md`) load automatically on the plugin channel via a `SessionStart` hook (parity with the symlink channel's `~/.claude/rules/`); if anything looks unloaded, run `/mv:load-rules`.
+
+**Dev loop — no build step.** To edit skills live from your working tree:
+
+```bash
+claude --plugin-dir ~/projects/mind-vault   # then /reload-plugins after edits
+```
+
+**Coexist note (CC only): use the plugin OR the symlink script on a single machine, not both** — running both double-loads every skill/command/agent. The symlink script prints a *best-effort, one-directional* warning if it detects an installed plugin (the reverse order and the `--plugin-dir` dev-loop are unguardable/exempt). `rules/`, `docs/rules/`, and the statusline stay **script-wired on both channels** — they have no plugin home, so the symlink script remains the way to wire them regardless.
 
 ### Claude Code extra config
 

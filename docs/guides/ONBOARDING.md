@@ -110,6 +110,21 @@ cd ~/projects/mind-vault
 
 The symlink script wires `skills/`, `agents/`, `commands/`, `rules/` into your host's native config dir (`~/.claude/` for Claude Code). One source of truth, edited in `mind-vault/`, picked up by every host.
 
+#### Claude Code: install as a plugin instead (additive, CC-only)
+
+On Claude Code you can skip the symlink script and install mind-vault as a **native plugin** — one command on a fresh machine, with `/plugin` auto-update:
+
+```bash
+/plugin marketplace add infohata/mind-vault   # private — no public marketplace
+/plugin install mv@mind-vault
+```
+
+Three things to know:
+
+- **Namespacing.** Plugin commands are prefixed: type `/mv:wrap`, `/mv:idea`, etc. **Skill triggers are unaffected** — `/plan`, `/work`, `/compound` still fire from natural language; only literal slash-typing of `commands/` entries gains the `mv:` prefix.
+- **Rules auto-load.** A `SessionStart` hook loads `rules/RULE_*.md` on the plugin channel (parity with the symlink channel's `~/.claude/rules/`); if they look unloaded, run `/mv:load-rules`. `rules/`, `docs/rules/`, and the statusline still need the symlink script to wire their on-disk paths — the plugin only covers skills/commands/agents.
+- **One channel per machine.** The plugin and the symlink script **double-load** if both are active on the same machine — pick one. Dev-loop live editing from a working tree (`claude --plugin-dir ~/projects/mind-vault` then `/reload-plugins`) is the exception and is exempt from the script's best-effort guard.
+
 ### Bootstrap your project repo
 
 ```bash
