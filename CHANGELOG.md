@@ -20,7 +20,7 @@ Patch release (`/compound`). Two load-on-demand reference additions from the IDE
 
 ### Changed
 
-- **`skills/review-loop/references/engine-claude.md` § COUNTER-OBSERVATION.** A single clean data point against the established "claude never posts a positive clean verdict — clean always reads SILENT" claim: on PR #190 a clean post-fix tree, re-reviewed via the explicit `claude_retrigger.sh` (`@claude review` / `claude.yml`) path, posted a positive whole-review clean summary and read structurally CLEAN. Recorded with the path-asymmetry hypothesis (retrigger path posts clean where the push path short-circuits) and a "promote to capability on a second independent confirmation" gate — not yet generalised. Adapter safety is unchanged (clean is already structural).
+- **`skills/review-loop/references/engine-claude.md` § COUNTER-OBSERVATION + §Net-capability pointers.** Two independent data points against the established "claude never posts a positive clean verdict — clean always reads SILENT" claim: PR #190 (explicit-retrigger / `claude.yml` path) and PR #192 (PR-open auto-run / `claude-code-review.yml` push path) both posted a positive whole-review clean summary and read structurally CLEAN. Both paths → the push-vs-retrigger asymmetry hypothesis is weakened; most likely an upstream clean-path posting fix. The §Net-capability "never posts clean" assertions are flagged OUTDATED with forward-pointers. Net: claude can now usually be a CLEAN source, but SILENT-on-clean can still recur (open #1087), so don't make it the sole clean gate. Adapter safety unchanged (clean is already structural).
 
 ## v5.1.0 — IDEA-017: mind-vault as a Claude Code plugin (additive / coexist)
 
