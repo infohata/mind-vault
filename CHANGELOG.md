@@ -10,6 +10,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.5 — compound: sprint-auto Batch-1 review-loop learnings
+
+Patch release. Cross-project learnings compounded from a multi-engine (`bugbot,claude`) sprint-auto batch whose review loop surfaced several real defects the happy-path tests + architect passes missed. References-first; no SKILL.md-body bloat.
+
+### Added
+
+- **`RULE_self-sweep-before-push`** (defensive-code sweep): a guard that *selects* rows for a downstream consumer must replicate the consumer's FULL acceptance predicate, not the subset a plan/architect named — else the consumer bounces the row and a re-feeding path loops or silently drops. Validate against the consumer's real acceptance code, not the plan's prose.
+- **`AGENT_curator`** PASS 3: subclass override-completeness — when a base method calls `self.get_X()` and a subclass overrides only some hooks, the inherited path uses the base value for the missed one (e.g. an embed subclass missing a fallback-URL override → full-shell redirect inside an iframe). The class-hierarchy twin of Layout-sibling parity.
+- **`AGENT_test-engineer`** PASS 2: discrimination check — an isolation/routing test where both arms share the same state passes for the wrong reason; make the arms differ so a mis-route flips an assertion.
+- **`skills/review-loop/references/engine-claude.md`**: double-run friction — a fix-push `synchronize` auto-run (skip-no-op) plus an explicit retrigger create two runs for one head SHA; treat a substantive posted verdict as DONE even if the latest Actions run lingers `in_progress`.
+- **`skills/sprint-auto/references/worktree-lifecycle.md`**: `post_up_init` must build EVERY runtime artefact the suite reads (notably `compilemessages` — translation-asserting tests fail in a fresh stack otherwise); and the per-IDEA DB `down -v` reset is skippable for pytest-only IDEAs with no migrations + e2e absent.
+- **`skills/wrap/SKILL.md`** Step 2: flip `status:` AND `completed:` AND the body `**Status**` line together — grep-verify all three (frontmatter field order varies; a block edit can miss `status:`, and a doc-review engine catches it inconsistently).
+
 ## v5.1.4 — fix: plugin SessionStart hook hard-failed (exit 2) under POSIX sh
 
 Patch release ([PR #195](https://github.com/infohata/mind-vault/pull/195)). On a fresh plugin-only machine the `SessionStart` rule-loader hook could abort with **exit 2** instead of degrading gracefully, breaking session startup rather than falling back to the `/mv:load-rules` pointer note.
