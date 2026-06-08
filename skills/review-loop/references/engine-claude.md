@@ -171,6 +171,15 @@ The first *high-volume* findings-bearing run (13 `claude[bot]` summary comments 
 
 This does **not** change the net capability above: claude still posts findings reliably and never a positive clean verdict (a fully-clean tree still reads SILENT — the forced-summary prompt doesn't fire on a short-circuit clean run). The C1 fix only stops claude's *findings* — when they exist and live in the body — from being silently dropped.
 
+## § COUNTER-OBSERVATION — a clean tree DID post a positive clean verdict (PR #190, 2026-06-08)
+
+A single, clean, reproducible data point **against** the "clean always reads SILENT" claim above — recorded, not yet generalised:
+
+- **Setup.** PR #190 (mind-vault self-review, `bugbot,claude`). First claude run fired on `ready_for_review` over a tree carrying one real (bugbot-found) finding → claude went **SILENT** (run `completed`, posted nothing — the expected #1087 / short-circuit behaviour). The finding was fixed, pushed (new SHA), and claude was **explicitly retriggered via `claude_retrigger.sh`** (the `@claude review` / `claude.yml` mention path, NOT the `claude-code-review.yml` push path).
+- **What happened.** On the clean post-fix tree, claude posted a **positive whole-review clean summary** — `find_claude_comments.sh` read `CLAUDE_SUMMARY_ID=… CLEAN=true FINDINGS=false` and the loop terminated structurally **CLEAN** off claude (not just SILENT-but-safe). This is the verdict the §Net-capability block says claude "never" produces.
+- **What's uncertain (don't over-generalise from n=1).** Unconfirmed whether the differentiator is (a) the **retrigger path** (`claude.yml`'s `@claude review` prompt forces a posted summary where the `synchronize` auto-review short-circuits on clean), (b) upstream improvement to the action's clean-path posting, or (c) tree-specific luck. The §158 SILENT-on-clean observation was on the **push-triggered** path; this CLEAN-on-clean was on the **explicit-retrigger** path — that path-asymmetry is the most likely real distinction and the thing to confirm next.
+- **Loop consequence (unchanged for safety).** The detection is already structural (clean = DONE + posted clean summary + zero finding markers), so a posted clean verdict reads CLEAN correctly and a SILENT run still reads NOT-clean. Nothing about the adapter needs changing to be *safe*. The open item is whether claude can now be **relied on** as a clean source via the retrigger path — if confirmed across more runs, the §Net-capability "cannot be the source of a CLEAN signal" claim softens to "cannot via the push path; can via the explicit-retrigger path." Watch for it; promote from counter-observation to capability once a second independent clean-via-retrigger verdict lands.
+
 ## § residual open questions (post-downstream calibration)
 
 The §131 + §140 downstream blocks supersede the PR #167 first-run calibration — identity (`github-actions[bot]` → **`claude[bot]`**), the dead "zero-inline-only, no summary" posting model, and `CLAUDE_BODY_SIGNATURES` wording are all now confirmed. Two items survive it:

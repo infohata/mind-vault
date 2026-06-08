@@ -10,6 +10,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.1 — compound: claude clean-verdict counter-observation + set -e fallback trap
+
+Patch release (`/compound`). Two load-on-demand reference additions from the IDEA-017 review-loop run — no body/rule bloat.
+
+### Added
+
+- **`skills/review-loop/references/common-review-findings.md` #22 — `set -euo pipefail` swallows a fallback placed as the final command.** A script's unconditional fallback/cleanup written as a bare final statement is skipped on its own failure (`set -e` exits first), emitting neither output nor fallback — classic in hooks/entrypoints whose contract is "always emit something". Fix: guard the fallible final command with `if ! cmd; then fallback; fi`. Provenance: a `SessionStart` plugin hook's final `jq` (PR #190).
+
+### Changed
+
+- **`skills/review-loop/references/engine-claude.md` § COUNTER-OBSERVATION.** A single clean data point against the established "claude never posts a positive clean verdict — clean always reads SILENT" claim: on PR #190 a clean post-fix tree, re-reviewed via the explicit `claude_retrigger.sh` (`@claude review` / `claude.yml`) path, posted a positive whole-review clean summary and read structurally CLEAN. Recorded with the path-asymmetry hypothesis (retrigger path posts clean where the push path short-circuits) and a "promote to capability on a second independent confirmation" gate — not yet generalised. Adapter safety is unchanged (clean is already structural).
+
 ## v5.1.0 — IDEA-017: mind-vault as a Claude Code plugin (additive / coexist)
 
 Minor release ([PR #190](https://github.com/infohata/mind-vault/pull/190), IDEA-017). mind-vault gains a **native Claude Code plugin** install channel alongside the existing per-host symlink scripts — a fresh CC machine installs with one command (`/plugin marketplace add infohata/mind-vault` → `/plugin install mv@mind-vault`) and gets `/plugin` auto-update, instead of cloning the repo and running `setup-claude-code-symlinks.sh`. Additive and CC-only: the symlink path is unchanged, both coexist, pick one per machine. This is the adopter-surface widening the version bump reflects.
