@@ -3,7 +3,7 @@ stage: plan
 slug: channel-aware-inner-references
 created: 2026-06-08
 source: ./IDEA-020-channel-aware-inner-references.md
-status: ready
+status: shipped
 project: mind-vault
 architect_review: "🟡 REQUIRES ABSTRACTION → all 6 findings folded (2026-06-08): (1) convention covers 3 mechanisms (Skill / slash / subagent_type), stacked mv:mv- prefix called out; (2) R4 split — R4a stage dispatch + R4b persona dispatch (work/persona-dispatch.md + work/SKILL.md + plan/architect-handoff.md), sprint-auto reaches personas transitively via /work; (3) shared reference relocated sprint-auto/references → work/references (fix inverted dependency arrow); (4) dual-mode token-OR-inline-path exception documented (architect-handoff fail-safe); (5) R1 demoted keystone→record-3-facts+confirm, dead 'if bare resolves' branch deleted; (6) SPRINT_AUTO_PLAYWRIGHT_AVAILABLE batch-state precedent cited, persist channel_prefix at setup time. Core boundary sound + reusable."
 ---
@@ -112,6 +112,20 @@ sprint-auto IDEA) the highest blast radius.
 - **review-loop regression-free:** `reentry_command` mechanics intact.
 - **Docs reconciled:** sprint-auto-VPS recommendation carries the caveat.
 
+## Execution Progress (shipped 2026-06-08)
+
+| Step | Status | Commit |
+| --- | --- | --- |
+| R1 resolution-audit log | ✅ 3 facts recorded + evidence | `8f6b814` |
+| R3 `CHANNEL_AWARE_DISPATCH.md` (3 mechanisms) | ✅ | `8f6b814` |
+| R4b persona dispatch (work + plan) | ✅ + inline fallback + dual-mode | `8f6b814` |
+| R4a sprint-auto stage dispatch + `channel_prefix` | ✅ S(-1) step 10 + 6 sites | `b8fd00d` |
+| R5a non-targets confirmed prose (untouched) | ✅ land/wrap/skill-writer = 0 diff | (verification) |
+| R6 docs hedge (README + ONBOARDING) | ✅ v5.1.3+ caveat | `<this>` |
+| review-loop → shared-doc pointer | ✅ | `<this>` |
+
+Verification all green (persona dispatch channel-aware ×3 files; architect-handoff dual-mode preserved; shared ref pointed at by 4 consumers; non-targets 0-diff; review-loop `reentry_command` intact). The Agent-tool/persona-dispatch surface (stacked `mv:mv-`) — the architect's scope-expansion catch — was discovered live when this IDEA's own `/plan` architect handoff failed on bare `mv-architect`.
+
 ---
 
-**Status:** ready — architect-reviewed (🟡 → all 6 findings folded). Next: `/work docs/archive/2026-06-idea-020-channel-aware-inner-references/2026-06-08-channel-aware-inner-references-plan.md`.
+**Status:** shipped — architect-reviewed (🟡 → all 6 findings folded), all execution steps landed + verified.
