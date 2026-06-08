@@ -6,6 +6,8 @@ Rules for routing plan Execution Sequence items to the right persona, and for pr
 
 Each persona registers as a recognized Claude Code subagent under a namespaced `name:` (the `mv-` prefix avoids collisions with marketplace plugin agents in the shared registry). Dispatch with `Agent(subagent_type: "<id>")`; the backing profile file keeps its `AGENT_*.md` name (Claude dispatches on the frontmatter `name:`, not the filename — see [`docs/guides/AGENT_PORTABILITY.md`](../../../docs/guides/AGENT_PORTABILITY.md)).
 
+**Channel-aware dispatch (plugin route — IDEA-020).** `subagent_type` is an *executed* lookup, so it must mirror the install channel — see [`CHANNEL_AWARE_DISPATCH.md`](CHANNEL_AWARE_DISPATCH.md). On the **symlink channel** the `subagent_type` is the bare `mv-<persona>` in the table below. On the **plugin channel** the marketplace plugin **stacks** its own `mv:` on top, so the dispatchable id is **`mv:mv-<persona>`** (e.g. `mv:mv-architect`) — a bare `mv-architect` returns `Agent type … not found`. Mirror the prefix you were invoked with (the plugin route's `${CLAUDE_PLUGIN_ROOT}` is not in the agent shell, so use the invocation form, not an env probe); under sprint-auto read the persisted `channel_prefix`. **Host-availability fallback:** if neither form resolves (persona not registered on this host), invoke the persona **inline from its profile file** (`agents/AGENT_<persona>.md`, resolved by repo path — channel-independent) rather than silently degrading to generic-Claude.
+
 | Persona | `subagent_type` | Profile file |
 | --- | --- | --- |
 | Systems Architect | `mv-architect` | `agents/AGENT_architect.md` |

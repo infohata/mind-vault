@@ -47,7 +47,7 @@ Honour `RULE_git-safety` and `RULE_parallel-worktree-docker` at all times.
 
 Walk the plan's Execution Sequence. For each step, pick the right persona via the dispatch matrix in [`references/persona-dispatch.md`](references/persona-dispatch.md).
 
-Default matrix (projects can override in their own `AGENTS.md`). The right column is the dispatchable `subagent_type` — pass it verbatim to `Agent(subagent_type: …)`; the profile file backing each id is mapped in [`references/persona-dispatch.md`](references/persona-dispatch.md):
+Default matrix (projects can override in their own `AGENTS.md`). The right column is the dispatchable `subagent_type` — pass it to `Agent(subagent_type: …)`, **channel-aware**: the bare `mv-<persona>` below on the symlink channel, the stacked **`mv:mv-<persona>`** on the plugin channel (mirror your invocation prefix — see [`references/CHANNEL_AWARE_DISPATCH.md`](references/CHANNEL_AWARE_DISPATCH.md) and [`references/persona-dispatch.md`](references/persona-dispatch.md), which also carries the host-availability inline-fallback). The profile file backing each id is mapped in persona-dispatch.md:
 
 | Plan-item domain                                   | Subagent type                                                        |
 | -------------------------------------------------- | -------------------------------------------------------------------- |
