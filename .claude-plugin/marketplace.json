@@ -1,0 +1,17 @@
+{
+  "name": "mind-vault",
+  "owner": {
+    "name": "Kestutis Januskevicius",
+    "url": "https://github.com/infohata"
+  },
+  "metadata": {
+    "description": "Private marketplace for the mind-vault plugin — sprint-workflow skills, mv-* persona subagents, and /mv: slash-commands."
+  },
+  "plugins": [
+    {
+      "name": "mv",
+      "source": "./",
+      "description": "mind-vault sprint-workflow skills, the 8 mv-* persona subagents, and /mv: slash-commands."
+    }
+  ]
+}
