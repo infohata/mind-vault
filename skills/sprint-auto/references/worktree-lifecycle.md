@@ -129,6 +129,14 @@ See `skills/sprint-auto/assets/sprint-auto-hooks.sh.example` for a fuller templa
 
 **Why the hooks file is copied, not wrapped**: the content IS the project-specific part. There's nothing to delegate to a canonical version — each project's migrations, fixtures, and smoke-test URL differ. A wrapper would be a wrapper around the project's own code, which is pointless.
 
+### `post_up_init` must build EVERY runtime artefact the test suite reads — not just migrate + seed (compounded)
+
+A `post_up_init` that runs `migrate` + `seed` but **not the project's compiled-asset steps** leaves the integration stack subtly incomplete: tests that assert on a *built* artefact fail in the integration run though they pass locally. The recurring instance: **compiled translation catalogs** — an i18n project's `{% trans %}`/`gettext` strings fall back to the source language until `compilemessages` (or equivalent) runs, so any test asserting a *translated* string fails in a fresh worktree stack. Same class: collected static, built CSS/JS bundles, search-index population. Rule: `post_up_init` should reproduce the project's **full** "make it runnable" sequence (migrate → seed → compile-translations → collectstatic/build-assets → index), idempotently — mirror what a from-scratch `make start` does, not a subset. The tell is a green local suite + a handful of red "expected <translated/built> got <source/empty>" failures only in the integration run.
+
+### DB `down -v` reset between IDEAs is skippable for pytest-only IDEAs with no migrations (compounded)
+
+The per-IDEA S2-entry DB reset (`down -v` + `up` + migrate + seed, ~5 min) exists to give a main-equivalent baseline so each per-IDEA PR is independently deliverable. But its value is **nil** when (a) verification is pytest-django (which builds its *own* isolated test DB from migrations, ignoring the dev DB), (b) the IDEA ships **no migrations** (test DB builds from the existing set), and (c) Playwright/e2e — the only consumer of the dev DB — is absent or gated off. In that intersection the prior IDEA's run never mutated what the next IDEA's tests read, so the reset is pure wall-clock overhead. Keep the reset when any of those don't hold (migrations present, e2e against the live dev tenant, or a non-pytest verification path). Log the skip + the reason rather than dropping it silently.
+
 ## Worktree naming
 
 ### Per-IDEA worktrees (code-surface only in v3.1)

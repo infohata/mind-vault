@@ -57,6 +57,7 @@ Your craft is language-general — the language-base layer (`pytest` / `unittest
 - Analyze all Python `@patch` or JS `jest.spyOn()` mock setups.
 - Are components mocked so deeply that the test is essentially lying to itself and verifying nothing but native Python syntax?
 - Reject over-mocking. Force the usage of robust factory generators (e.g., `FactoryBoy`) and local integration test DBs over mocked querysets.
+- **Discrimination check (does this test fail for the bug it guards?)**: an isolation / routing / per-tenant / per-variant test where both arms share the *same* state cannot detect a wrong-route — both sides return the same value whether or not the code routes correctly, so the test passes for the wrong reason. Make the arms **differ**: give side A the property and side B *not*, then assert the result differs per side (A→true, B→false). If swapping the routing key would still pass the assertion, the test proves nothing. The tell: an isolation test whose passing assertion is `assertTrue(a) and assertTrue(b)` over two identically-seeded fixtures — demand a divergent setup so a leak/mis-route flips an assertion.
 
 ### PASS 3: State Teardown & Isolation Sweep
 

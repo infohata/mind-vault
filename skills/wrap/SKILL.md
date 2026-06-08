@@ -161,6 +161,8 @@ Leave `created:` unchanged. If the completed PR superseded or was superseded by 
 
 **Mandatory sub-step — sync the body-prose status line.** The frontmatter flip isn't the whole job: IDEA files (and many plan/README docs) carry a *second*, human-readable `**Status**: 🚧 In Progress` prose line. After editing frontmatter, grep the same file (and sibling plan/index docs) for a `**Status**:` / `Status:` line and sync it (`✅ Complete (YYYY-MM-DD)`). Skipping this leaves a frontmatter↔body mismatch a doc-reviewing engine **will** flag — a self-inflicted finding. Zero review cost. See [`references/WRAP_BEFORE_REVIEW.md`](references/WRAP_BEFORE_REVIEW.md).
 
+> **Flip all THREE together — `status:` AND `completed:` AND the body line.** The frontmatter has two fields (`status:` and `completed:`) on *different* lines; a minimal edit that targets one block can miss the other. Observed failure: an edit flipped `completed: null → <date>` and the body `**Status**` line but left the YAML `status: in-progress` (the machine-readable field the ideas-index sort + status queries consume) — caught by the doc-review engine on one IDEA but **missed on a sibling IDEA whose review focused elsewhere**, so it shipped a `status: in-progress` "complete" IDEA. Don't rely on the bot to catch it: after the flip, **grep-verify all three** in one shot — `grep -nE '^status:|^completed:|\*\*Status\*\*' <idea-file>` — and confirm `status: complete`, a real `completed:` date, and the synced body line. Frontmatter field order varies between IDEAs, so a `replace_all`-style block edit is not reliable across the batch.
+
 ### Step 3 — Re-sort the ideas index
 
 Edit `docs/ideas/README.md`:
