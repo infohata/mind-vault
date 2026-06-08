@@ -13,6 +13,23 @@ mv_resolve_root
 CLAUDE="$HOME/.claude"
 mkdir -p "$CLAUDE"
 
+# Best-effort double-load guard (IDEA-017, Q4). On a single CC machine use the
+# plugin OR this symlink script, not both — running both double-loads every
+# skill/command/agent. This warning is BEST-EFFORT and ONE-DIRECTIONAL: it only
+# catches the plugin-then-script order (plugin already installed when you run
+# this). The script-then-plugin order is unguardable (`/plugin install` has no
+# hook here), and the `--plugin-dir` / `@skills-dir` dev-loop does NOT register
+# under ~/.claude/plugins, so a dev deliberately running both is correctly exempt.
+mv_plugin_dir="$CLAUDE/plugins"
+if [[ -d "$mv_plugin_dir" ]] && grep -rqs -e '"name": *"mv"' -e 'mind-vault' "$mv_plugin_dir" 2>/dev/null; then
+    echo "⚠️  Best-effort warning: the mind-vault plugin appears already installed"
+    echo "    (found under $mv_plugin_dir). Running this symlink script too will"
+    echo "    DOUBLE-LOAD every skill/command/agent on this machine. Use ONE channel"
+    echo "    per machine — the plugin (/plugin) OR this script, not both. Continuing."
+    echo "    (Dev-loop via --plugin-dir / @skills-dir is exempt and won't trip this.)"
+    echo ""
+fi
+
 echo "Setting up Claude Code symlinks from $MV"
 echo ""
 

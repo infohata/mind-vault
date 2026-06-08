@@ -14,7 +14,6 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-- [IDEA-017](IDEA-017-mind-vault-as-claude-code-plugin.md) — mind-vault as a Claude Code plugin
 - [IDEA-019](IDEA-019-research-gstack-patterns.md) — Research gstack — mine sprint-workflow patterns for mind-vault
 
 ## 💡 Low Priority (backlog)
@@ -27,10 +26,15 @@ _(none)_
 
 ## ✅ References — Implemented
 
+### IDEA-017: mind-vault as a Claude Code plugin ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-06-08 · **See**: [Archive](../archive/2026-06-idea-017-mind-vault-cc-plugin/IDEA-017-mind-vault-as-claude-code-plugin.md), [PR #190](https://github.com/infohata/mind-vault/pull/190).
+mind-vault is now installable as a **native Claude Code plugin** (additive, CC-only): `.claude-plugin/plugin.json` + `marketplace.json` at repo root make `skills/`/`commands/`/`agents/` auto-discover under `name: mv` (commands namespace to `/mv:<cmd>`), installed privately via `/plugin marketplace add infohata/mind-vault` → `/plugin install mv@mind-vault`. The symlink path stays fully intact (coexist — one channel per machine). `SKILL_CONTRACT.md` moved out of `agents/` → `skills/work/references/` so the plugin loads exactly the 8 real `AGENT_*.md` (amends [IDEA-014](../archive/2026-06-idea-014-stack-agnostic-agents/)). Rule-loading on the plugin channel via a channel-aware `/mv:load-rules` + a `SessionStart` hook that auto-injects the always-on rule bodies (`rules/`/`docs/rules/`/statusline stay script-wired). `/wrap` Step 4b generalised to bump N sync-required version sources in lockstep (CHANGELOG ↔ `plugin.json`).
+
 ### IDEA-016: Reorganize scripts/ and tools/ by concern ✅ COMPLETE
 
 **Status**: ✅ **COMPLETE** · **Completed**: 2026-06-07 · **See**: [Archive](../archive/2026-06-idea-016-scripts-tools-by-concern/IDEA-016-reorganize-scripts-tools-by-concern.md), [PR #187](https://github.com/infohata/mind-vault/pull/187).
-Scoped re-partition of `scripts/` + `tools/` into three single-concern dirs: `tools/` = runtime skill helpers (review-loop adapters, `sprint-auto-bootstrap`, `validate-skills`) + `statusline-command.sh` (moved in) + `cleanup-contamination.sh` (maintenance); **new `install/`** = machine provisioning (`install-*` + `install-wsl.ps1`); `scripts/` = host config-wiring (`setup-*-symlinks` + `_symlink-lib`), left untouched. Runtime helpers deliberately did not move (zero ref repointing for the high-ref group). Migration followed [`RULE_rename-before-drop`](../../rules/RULE_rename-before-drop.md) (move+shim → repoint → green gate → drop shims → re-verify); the load-bearing statusline cross-wire (`setup-claude-code-symlinks.sh:47`) was repointed. The `scripts/` → `link/` rename was deferred to [IDEA-017](IDEA-017-mind-vault-as-claude-code-plugin.md) — a research spike confirmed the CC plugin only **partially** dissolves the symlink wiring (`rules/`/`docs/rules/`/statusline have no plugin home). Architect-reviewed (🟡 → all 8 findings folded).
+Scoped re-partition of `scripts/` + `tools/` into three single-concern dirs: `tools/` = runtime skill helpers (review-loop adapters, `sprint-auto-bootstrap`, `validate-skills`) + `statusline-command.sh` (moved in) + `cleanup-contamination.sh` (maintenance); **new `install/`** = machine provisioning (`install-*` + `install-wsl.ps1`); `scripts/` = host config-wiring (`setup-*-symlinks` + `_symlink-lib`), left untouched. Runtime helpers deliberately did not move (zero ref repointing for the high-ref group). Migration followed [`RULE_rename-before-drop`](../../rules/RULE_rename-before-drop.md) (move+shim → repoint → green gate → drop shims → re-verify); the load-bearing statusline cross-wire (`setup-claude-code-symlinks.sh:47`) was repointed. The `scripts/` → `link/` rename was deferred to [IDEA-017](../archive/2026-06-idea-017-mind-vault-cc-plugin/IDEA-017-mind-vault-as-claude-code-plugin.md) — a research spike confirmed the CC plugin only **partially** dissolves the symlink wiring (`rules/`/`docs/rules/`/statusline have no plugin home). Architect-reviewed (🟡 → all 8 findings folded).
 
 ### IDEA-018: Scrub prior-project provenance identifiers + repeatable scrub runbook ✅ COMPLETE
 
@@ -40,7 +44,7 @@ Purged a pervasive prior-project provenance identifier from tracked files (94 ou
 ### IDEA-014: Stack-agnostic agent architecture + Laravel proving stack ✅ COMPLETE
 
 **Status**: ✅ **COMPLETE** · **Completed**: 2026-06-07 · **See**: [Archive](../archive/2026-06-idea-014-stack-agnostic-agents/IDEA-014-stack-agnostic-agents.md), [PR #178](https://github.com/infohata/mind-vault/pull/178) (Phase 1), [PR #183](https://github.com/infohata/mind-vault/pull/183) (Phase 2).
-Two phases. **Phase 1 (v4.9)** split all 8 `AGENT_*.md` personas into a craft core + `## Stack adapter` resolving against the active stack skill, and shipped `agents/SKILL_CONTRACT.md` (6 backend + 4 frontend contract-heading floor). **Phase 2 (v5)** proved the architecture portable: added `skills/laravel` + `skills/laravel-frontend` filling all 10 contract headings with **zero edits to any agent profile** — the empty `agents/` diff is the proof (see the [verification log](../archive/2026-06-idea-014-stack-agnostic-agents/2026-06-07-phase2-verification-log.md)). v5 = *demonstrated on a second stack*, not merely architected. Real-repo dogfood (a real ZF1→Laravel rework) follows as v5.x. Built on the [IDEA-009](IDEA-009-extract-python-general-from-django.md) `python` language-base tier.
+Two phases. **Phase 1 (v4.9)** split all 8 `AGENT_*.md` personas into a craft core + `## Stack adapter` resolving against the active stack skill, and shipped `skills/work/references/SKILL_CONTRACT.md` (6 backend + 4 frontend contract-heading floor). **Phase 2 (v5)** proved the architecture portable: added `skills/laravel` + `skills/laravel-frontend` filling all 10 contract headings with **zero edits to any agent profile** — the empty `agents/` diff is the proof (see the [verification log](../archive/2026-06-idea-014-stack-agnostic-agents/2026-06-07-phase2-verification-log.md)). v5 = *demonstrated on a second stack*, not merely architected. Real-repo dogfood (a real ZF1→Laravel rework) follows as v5.x. Built on the [IDEA-009](IDEA-009-extract-python-general-from-django.md) `python` language-base tier.
 
 ### IDEA-009: Extract Python-general patterns into a skills/python base layer ✅ COMPLETE
 

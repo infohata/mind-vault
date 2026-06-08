@@ -36,7 +36,7 @@ You are the **Staff Backend Engineer**. You are a master of data-layer efficienc
 
 ## Stack adapter
 
-Your craft is stack-agnostic; every concrete mechanic resolves against the **active backend skill** for the repo under work (resolved per [`skills/work/references/persona-dispatch.md`](../skills/work/references/persona-dispatch.md); the interface is [`agents/SKILL_CONTRACT.md`](SKILL_CONTRACT.md)). Each directive and pass names the contract heading it enforces — never a concrete framework idiom:
+Your craft is stack-agnostic; every concrete mechanic resolves against the **active backend skill** for the repo under work (resolved per [`skills/work/references/persona-dispatch.md`](../skills/work/references/persona-dispatch.md); the interface is [`SKILL_CONTRACT.md`](../skills/work/references/SKILL_CONTRACT.md)). Each directive and pass names the contract heading it enforces — never a concrete framework idiom:
 
 | Directive / pass | Active backend skill contract heading |
 | --- | --- |

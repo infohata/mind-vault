@@ -6,7 +6,7 @@ The interface between a **stack-agnostic agent profile** (`agents/AGENT_*.md`) a
 A persona's `## Stack adapter` section never names a concrete framework. It names a
 *role* ("the active backend skill", "the active frontend skill") plus a **contract
 heading** below. At dispatch time the active stack is resolved (see
-[`../skills/work/references/persona-dispatch.md`](../skills/work/references/persona-dispatch.md)),
+[`persona-dispatch.md`](persona-dispatch.md)),
 and the agent reads the rule under that heading in the resolved skill. Swap the stack,
 swap the skill — the profile is untouched. That is the whole mechanism.
 
@@ -97,5 +97,5 @@ the difference between a loud gap and an invisible one.
 ## Stack resolution
 
 Resolution order and the auto-detect signal table live in
-[`../skills/work/references/persona-dispatch.md`](../skills/work/references/persona-dispatch.md):
+[`persona-dispatch.md`](persona-dispatch.md):
 `.claude/dispatch.md` `stack:` pin → `AGENTS.md` pin → auto-detect signals → ask once.

@@ -10,6 +10,25 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.0 — IDEA-017: mind-vault as a Claude Code plugin (additive / coexist)
+
+Minor release ([PR #190](https://github.com/infohata/mind-vault/pull/190), IDEA-017). mind-vault gains a **native Claude Code plugin** install channel alongside the existing per-host symlink scripts — a fresh CC machine installs with one command (`/plugin marketplace add infohata/mind-vault` → `/plugin install mv@mind-vault`) and gets `/plugin` auto-update, instead of cloning the repo and running `setup-claude-code-symlinks.sh`. Additive and CC-only: the symlink path is unchanged, both coexist, pick one per machine. This is the adopter-surface widening the version bump reflects.
+
+### Added
+
+- **`.claude-plugin/plugin.json` + `marketplace.json`** at repo root — repo root IS the plugin root, so `skills/`/`commands/`/`agents/` auto-discover. `name: mv` namespaces commands to `/mv:<cmd>` (coherent with the `mv-` subagent prefix); `displayName: Mind-Vault`; `version` mirrors the top CHANGELOG. Private install (no public marketplace). `claude plugin validate ./ --strict` passes.
+- **Rule-loading on the plugin channel** — `commands/load-rules.md` (`/mv:load-rules`) is now channel-aware (resolves `${CLAUDE_PLUGIN_ROOT}/rules/` on the plugin path, repo-relative on the symlink path, detect-and-warn if neither). A new `hooks/hooks.json` + `hooks/load-rules.sh` `SessionStart` hook **auto-injects** the always-on rule bodies via `additionalContext`, giving the plugin channel parity with the symlink channel's auto-loaded `~/.claude/rules/` (graceful fallback to a `/mv:load-rules` pointer note when jq/env/dir are unavailable).
+
+### Changed
+
+- **`/wrap` Step 4b generalised to multi-location version sync.** First-match-single-source → a PRIMARY (narrative) source plus N sync-required MIRROR sources bumped in lockstep, with a consistency-check gate (`plugin.json.version` == top CHANGELOG `## v`) that fires even when no bump happens. `.claude-plugin/plugin.json` is the first mirror; the mechanism is generic. `/compound` self-mode (`mind-vault-promotion.md`) patched to mirror-bump plugin.json too, so IDEA-less compound PRs don't trip the gate.
+- **Best-effort double-load guard** in `setup-claude-code-symlinks.sh` — a light, non-fatal, one-directional (plugin-then-script) warning, with the `--plugin-dir`/`@skills-dir` dev-loop exempt. Symlink behaviour otherwise unchanged (coexist); non-CC host scripts untouched.
+- **Docs** — README, AGENTS.md, and ONBOARDING gain the install-as-plugin path, the canonical `/mv:` namespacing note (skill triggers unaffected — description-invoked), the coexist note, and the `--plugin-dir` dev-loop. `rules/`/`docs/rules/`/statusline stated to stay script-wired on both channels.
+
+### Removed
+
+- **`agents/SKILL_CONTRACT.md` relocated to `skills/work/references/SKILL_CONTRACT.md`** so `agents/` holds exactly the 8 real `AGENT_*.md` — the plugin loads every `agents/*.md` as an agent, and a stray non-agent file would load as a bogus one (also fixed the same latent bug on the symlink path). ~13 referrers repointed per-depth; both gates pass (no stale path, every link resolves). Amends [IDEA-014](https://github.com/infohata/mind-vault/pull/183).
+
 ## v5.0.5 — compound: claude slow-not-hung + two django-frontend traps
 
 Patch release (`/compound`). A downstream sprint's cleanup-capstone review-loop session — three load-on-demand reference additions, no body/rule bloat.

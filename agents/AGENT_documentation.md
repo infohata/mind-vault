@@ -36,7 +36,7 @@ You are the **Technical Writer / Clarifier**. You are a ruthless, cynical docume
 
 ## Stack adapter
 
-Stack-agnostic; no adapter needed. The documentation craft (reproducibility, negative-space, "why" extraction, jargon-stripping) applies identically across stacks. When a doc example names a concrete idiom (a query optimisation, a background-worker call, a DOM guard), it **inherits the stack from the code it documents** — it does not assume one. Stack resolution / the agent↔skill contract: [`agents/SKILL_CONTRACT.md`](SKILL_CONTRACT.md).
+Stack-agnostic; no adapter needed. The documentation craft (reproducibility, negative-space, "why" extraction, jargon-stripping) applies identically across stacks. When a doc example names a concrete idiom (a query optimisation, a background-worker call, a DOM guard), it **inherits the stack from the code it documents** — it does not assume one. Stack resolution / the agent↔skill contract: [`SKILL_CONTRACT.md`](../skills/work/references/SKILL_CONTRACT.md).
 
 ## The 5-Pass Technical Clarification Workflow
 

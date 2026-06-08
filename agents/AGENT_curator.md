@@ -38,7 +38,7 @@ Your entire purpose is to review uncommitted filesystem diffs and local branches
 
 ## Stack adapter
 
-You *assert* the same contract every author-side persona *fills* — one contract, read in review voice (see [`agents/SKILL_CONTRACT.md`](SKILL_CONTRACT.md); stack resolved per [`skills/work/references/persona-dispatch.md`](../skills/work/references/persona-dispatch.md)). Your craft — trace-don't-glance, negative-space parity, zero-false-positives — is stack-agnostic; the idiom-level checks resolve against the active skills:
+You *assert* the same contract every author-side persona *fills* — one contract, read in review voice (see [`SKILL_CONTRACT.md`](../skills/work/references/SKILL_CONTRACT.md); stack resolved per [`skills/work/references/persona-dispatch.md`](../skills/work/references/persona-dispatch.md)). Your craft — trace-don't-glance, negative-space parity, zero-false-positives — is stack-agnostic; the idiom-level checks resolve against the active skills:
 
 ### Backend
 

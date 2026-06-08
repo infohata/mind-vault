@@ -146,7 +146,7 @@ Same caution for any `# disabled by install-cursor.sh`-style generated markers.
 ### IDEA-017 interaction (bidirectional) — settled by research spike 2026-06-07
 
 IDEA-017 (mind-vault as a CC plugin) is the long-term supersede for concern #3.
-A research spike ([`2026-06-07-idea-017-plugin-research-spike.md`](./2026-06-07-idea-017-plugin-research-spike.md))
+A research spike ([`2026-06-07-idea-017-plugin-research-spike.md`](../2026-06-idea-017-mind-vault-cc-plugin/2026-06-07-idea-017-plugin-research-spike.md), since migrated to IDEA-017's archive)
 ran before finalizing this plan and **confirms the deferral is correct**:
 
 - **The CC plugin only PARTIALLY dissolves `scripts/setup-claude-code-symlinks.sh`.**
