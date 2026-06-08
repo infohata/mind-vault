@@ -10,6 +10,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.1 — compound: claude clean-verdict counter-observation + set -e fallback trap
+
+Patch release (`/compound`). Two load-on-demand reference additions from the IDEA-017 review-loop run — no body/rule bloat.
+
+### Added
+
+- **`skills/review-loop/references/common-review-findings.md` #22 — `set -euo pipefail` swallows a fallback placed as the final command.** A script's unconditional fallback/cleanup written as a bare final statement is skipped on its own failure (`set -e` exits first), emitting neither output nor fallback — classic in hooks/entrypoints whose contract is "always emit something". Fix: guard the fallible final command with `if ! cmd; then fallback; fi`. Provenance: a `SessionStart` plugin hook's final `jq` (PR #190).
+
+### Changed
+
+- **`skills/review-loop/references/engine-claude.md` § COUNTER-OBSERVATION + §Net-capability pointers.** Two independent data points against the established "claude never posts a positive clean verdict — clean always reads SILENT" claim: PR #190 (explicit-retrigger / `claude.yml` path) and PR #192 (PR-open auto-run / `claude-code-review.yml` push path) both posted a positive whole-review clean summary and read structurally CLEAN. Both paths → the push-vs-retrigger asymmetry hypothesis is weakened; most likely an upstream clean-path posting fix. The §Net-capability "never posts clean" assertions are flagged OUTDATED with forward-pointers. Net: claude can now usually be a CLEAN source, but SILENT-on-clean can still recur (open #1087), so don't make it the sole clean gate. Adapter safety unchanged (clean is already structural).
+
 ## v5.1.0 — IDEA-017: mind-vault as a Claude Code plugin (additive / coexist)
 
 Minor release ([PR #190](https://github.com/infohata/mind-vault/pull/190), IDEA-017). mind-vault gains a **native Claude Code plugin** install channel alongside the existing per-host symlink scripts — a fresh CC machine installs with one command (`/plugin marketplace add infohata/mind-vault` → `/plugin install mv@mind-vault`) and gets `/plugin` auto-update, instead of cloning the repo and running `setup-claude-code-symlinks.sh`. Additive and CC-only: the symlink path is unchanged, both coexist, pick one per machine. This is the adopter-surface widening the version bump reflects.
