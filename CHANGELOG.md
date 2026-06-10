@@ -10,6 +10,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.9 — compound: mock.patch stack leak + heal-and-attribute canary
+
+Patch release. Compounded from a dependency-batch verification on a consuming Django project where a 2-test full-suite-only deterministic failure root-caused to a cross-layer mock leak (51 leak points named by the canary in one run). References-first; one new reference, no SKILL.md-body bloat.
+
+### Added
+
+- **`skills/python/references/MOCK_PATCH_STACK_LEAK.md`** (new): two test layers patching the SAME `mock.patch` target with mixed stop disciplines (base-class tearDown stop + subclass addCleanup stop) invert the stack unwind — the subclass stop re-installs the base's MagicMock onto the process global, poisoning every later test on the xdist worker. Rules: never re-patch a target the base already patches (the redundancy IS the bug); one target / one layer / one stop discipline; `addCleanup` immediately after `start()`. Plus the heal-and-attribute autouse canary (names each leaker, heals the global, no cascade — one diagnostic run attributes everything) and the reproducibility tells (full-suite deterministic + isolated green = worker-state leak; `--dist loadscope` reshuffles make long-latent leaks surface after unrelated test-adding PRs; a victim with accumulated non-sticking isolation fixes means the corruption is upstream).
+
 ## v5.1.8 — compound: anonymous-gate dual + structured error detection
 
 Patch release. The tail of a deferred compound sweep over two earlier sprints on a consuming Django project (a public-nav fix and a search-index dimension migration). References-first; one new reference + one section extension, no SKILL.md-body bloat.
