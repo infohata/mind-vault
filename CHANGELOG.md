@@ -10,6 +10,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.6 — compound: CSP inline-handler delegation + shared-widget lazy-load guardrail
+
+Patch release. Cross-project frontend learnings compounded from a CSP-hardening sprint (drop `script-src 'unsafe-inline'` by converting native `on*=` handlers to delegation) + a load-on-nav script-trimming sprint. References-first; one new reference + one section extension + a pointer, no SKILL.md-body bloat.
+
+### Added
+
+- **`skills/django-frontend/references/CSP_INLINE_HANDLER_DELEGATION.md`** (new): converting native `on*=` / `javascript:` URIs to body-level `addEventListener` delegation to drop `'unsafe-inline'` (Alpine `@click`/`hx-on::` are eval-based → keep `'unsafe-eval'`, untouched). Three traps: (1) **drop `|escapejs`** when a value moves from a JS-string context into a `data-*` HTML attribute — escapejs emits `\uXXXX` that renders literally; rely on HTML autoescape; (2) `textContent` does NOT decode HTML entities but `getAttribute` does — a hardcoded `&quot;` in a JS fallback renders raw; (3) bind drawer-injected widgets on `htmx:afterSettle`, not `afterSwap`. Plus: delete dead handlers rather than convert; lock with source-assert + an e2e CSP-violation probe (curl can't see CSP refusals).
+
+### Changed
+
+- **`skills/django-frontend/references/LAZY_LOAD_HEAVY_ASSETS_ON_HTMX_NAV.md`** § *What stays eager*: added the shared-form-widget mis-classification trap — a colour/icon picker or accessibility-enhancer *looks* surface-specific but is needed wherever its form appears (multiple surfaces + drawer-injected forms the manifest's nav path never reaches). Rule: shared-widget dependencies stay **eager**; the per-surface lazy manifest is for heavy single-owner assets only. Small-or-shared → always eager; heavy + single-owner → the only lazy candidate.
+
 ## v5.1.5 — compound: sprint-auto Batch-1 review-loop learnings
 
 Patch release. Cross-project learnings compounded from a multi-engine (`bugbot,claude`) sprint-auto batch whose review loop surfaced several real defects the happy-path tests + architect passes missed. References-first; no SKILL.md-body bloat.
