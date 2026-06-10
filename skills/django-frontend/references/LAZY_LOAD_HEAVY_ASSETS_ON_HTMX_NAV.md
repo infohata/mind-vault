@@ -137,6 +137,35 @@ surface-**specific**, heavy-or-narrow assets are load-on-nav candidates. Mixing
 the two up (moving an infra script to load-on-nav) breaks global behaviour
 everywhere; classifying requires a per-script audit.
 
+### Shared form-widget dependencies are NOT surface-specific (the mis-classification trap)
+
+The subtle failure: a **shared form widget** — a colour picker, icon picker,
+accessibility-enhancer, file-upload helper — *looks* surface-specific (it's only
+visible on the org/category/tag edit forms) and gets swept into the per-surface
+manifest as if it belonged to one surface. But these widgets are needed
+**wherever any form that uses them appears**, including:
+
+- multiple unrelated surfaces' edit forms, and
+- **drawer-injected** forms (a form fetched into a preview drawer via `innerHTML`),
+  which don't go through the surface manifest's nav path at all.
+
+Scoping such a widget to one surface (or to a `SURFACE_ASSETS['orgs']`-style
+single bundle) means it works on the surface you tested and is **silently dead**
+everywhere else its form renders — a classic "started working only after I visited
+the org-edit page first" bug (the widget loaded as a side-effect of the one surface
+that did declare it, then stayed cached). It also fails the
+[CSP delegation](CSP_INLINE_HANDLER_DELEGATION.md) trap 3: a drawer-injected form's
+widget must boot on `htmx:afterSettle`, which the lazy-nav path never fires.
+
+**Rule:** a script that is a *dependency of a shared widget/form* stays **eager**
+(load on every shell page). The per-surface manifest is **only** for genuinely
+surface-bound *heavy* assets (a diagram renderer, a rich-text editor) that a
+single surface owns. Before lazy-classifying any script, ask: *"is this consumed
+by a component that can appear on more than one surface, or inside a drawer?"* If
+yes → eager, full stop. The payload cost of a small shared widget script is
+trivial next to the silent-breakage cost of mis-scoping it. Heavy + single-owner
+is the **only** lazy candidate; small-or-shared is always eager.
+
 ## Related references
 
 - **[`HTMX_WIDGET_LIFECYCLE.md`](HTMX_WIDGET_LIFECYCLE.md)** — the shared (re-)init / teardown /
