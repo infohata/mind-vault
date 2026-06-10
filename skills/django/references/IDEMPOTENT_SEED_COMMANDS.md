@@ -6,6 +6,28 @@ already-initialised database without duplicating or corrupting rows. A seed that
 only works on an empty DB isn't reproducible — it must be a safe no-op on the
 second run and must *heal* drifted rows on an existing one.
 
+## Key the lookup on the IMMUTABLE natural key
+
+Before any of the top-up gaps below: the `get_or_create` / `update_or_create`
+**lookup kwargs** (everything outside `defaults={}`) must be fields nothing else
+ever mutates — the row's natural identity (`email` + `org`, `slug` + `scope`),
+never a state field (`status`, `is_active`, `approved`).
+
+```python
+# ❌ a test (or a user) flips status='pending' → 'accepted'; the next seed run's
+#    lookup misses, creates a fresh 'pending' row — live-DB e2e accumulates a
+#    duplicate per run, and count/filter assertions drift until they break
+Invitation.objects.get_or_create(email=addr, status="pending", defaults={...})
+
+# ✅ identity in the lookup, state in defaults — re-runs find the row whatever
+#    state it has drifted to (heal state per the top-up patterns below if needed)
+Invitation.objects.get_or_create(email=addr, org=org, defaults={"status": "pending"})
+```
+
+The failure is invisible on a fresh volume (nothing has mutated yet) and only
+surfaces on a long-lived dev/e2e DB where tests exercise the state transition —
+exactly the environment a reusable seed exists for.
+
 ## The top-up idempotency trio
 
 `get_or_create` alone is not enough. Three recurring gaps turn a "re-run is a
