@@ -10,6 +10,24 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.7 — compound: nav-chrome consolidation doctrine + e2e corpus/seed/locator learnings
+
+Patch release ([PR #199](https://github.com/infohata/mind-vault/pull/199), which also carries the missed `plugin.json` manifest bump for v5.1.6). Cross-project learnings compounded from a nav-consolidation sprint on a consuming Django project. References-first; one new reference + three section extensions, no SKILL.md-body bloat.
+
+### Added
+
+- **`skills/django-frontend/references/NAV_CHROME_CONSOLIDATION.md`** (new): doctrine for collapsing N near-duplicate chrome copies into one canonical component — (1) a `variant` prop rendering structurally different markup is still a fork (one markup tree, conditionals gate slots/items, never parallel structures); (2) single-slot placement policy for cross-surface affordances, encoded once in shared chrome ("in app-nav when present, else header; exactly one per page"); (3) identity-slot mutual exclusion — anon and authed affordances are one slot in two states, rendered from one shared `{% if authed %}` block; (4) the generation-vs-display debugging tell — a "broken" feature may be working generation with a lost render target; grep the chrome for the context key before debugging the generation path.
+
+### Changed
+
+- **`skills/django/references/IDEMPOTENT_SEED_COMMANDS.md`** new § *Key the lookup on the IMMUTABLE natural key*: `get_or_create` lookup kwargs must be the row's natural identity (`email`+`org`), never a mutable state field (`status`) — a test that transitions the state makes the next seed run miss and create a duplicate; live-DB e2e accumulates one duplicate per run, invisible on fresh volumes.
+- **`skills/django-frontend/references/MULTI_TENANT_PLAYWRIGHT.md`** new § *Shared corpus is READ-ONLY* (+ anti-pattern bullet): mutation tests provision a dedicated disposable row; mutating shared-corpus rows couples other tests to alphabetical test-file ordering — failures appear when an unrelated test file shifts collection order.
+- **`skills/django-frontend/references/HTMX_ALPINE_WAITS.md`** new § 9 *Debugging tell — sub-second failure is strict-mode multi-match, not absence*: absence burns the full assertion timeout; a ~1s fail is Playwright strict-mode refusing multiple matches — selector too broad or a genuine duplicate render. Opposite fixes; adding waits buries the duplicate.
+
+### Fixed
+
+- **`.claude-plugin/plugin.json`** version bumped (was left at `5.1.5` by PR #198, making the v5.1.6 release invisible to the plugin update channel — `marketplace.json` carries no version field, so `plugin.json` is the sole version source).
+
 ## v5.1.6 — compound: CSP inline-handler delegation + shared-widget lazy-load guardrail
 
 Patch release. Cross-project frontend learnings compounded from a CSP-hardening sprint (drop `script-src 'unsafe-inline'` by converting native `on*=` handlers to delegation) + a load-on-nav script-trimming sprint. References-first; one new reference + one section extension + a pointer, no SKILL.md-body bloat.

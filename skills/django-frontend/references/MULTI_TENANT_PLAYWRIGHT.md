@@ -152,6 +152,26 @@ Discipline when you add a test that needs a corpus shape:
 
 Amending another component's seed to support your test is a legitimate cross-component amendment — document it bidirectionally (the seed's invariant list + the test's rationale) so the next reader sees why the seed grew a tagged Event it doesn't obviously need.
 
+## Shared corpus is READ-ONLY — mutation tests provision a dedicated fixture
+
+The seeded shared corpus exists for read-only assertions (lists render, filters
+partition, detail pages open). A test that **mutates** a shared row — accepts an
+invitation, flips a status, deletes a record — couples every other test that
+reads that row to *test-file execution order*. The coupling is invisible until
+ordering shifts: pytest collects files alphabetically, so adding or renaming a
+test file silently reorders the run, and a filter test asserting "the pending
+row is listed" starts failing because a file that now sorts *before* it already
+transitioned that row.
+
+Rule: a write-path test creates its own **dedicated disposable row** (a natural
+key reserved for that test, e.g. a `+e2e-mutate-<case>` email alias) via
+idempotent `get_or_create` in its fixture, mutates that, and never touches the
+shared corpus. The shared corpus stays frozen; ordering becomes irrelevant.
+
+The tell that this rule was violated: a test passes in isolation and in the
+full run, then fails after an unrelated test *file* is added — the diff that
+"broke" it contains no related code.
+
 ## Authentication — pre-baked cookies vs UI login
 
 For tests that don't *exercise* the login flow, pre-bake the session cookie to skip a full UI login on every test:
@@ -233,6 +253,7 @@ Default to option 1. Add an explicit list of tables that need truncation; `cur.e
 - ❌ **Pre-baking session cookies WITHOUT `schema_context` on session save** — the session row lands in `public.django_session` instead of `<tenant>.django_session`; SessionMiddleware looks in the wrong schema.
 - ❌ **Cookie `domain` mismatch** with the `Host` header — the browser silently drops the cookie. Symptom: every authed test redirects to login.
 - ❌ **Relying on incidental rows in a long-lived dev tenant** for a corpus shape the test needs — passes locally, fails on a fresh-volume/CI/`--reset` tenant. Guarantee the shape in the seed + lock it in a fast unit invariant. See § Seed determinism.
+- ❌ **Mutating a shared-corpus row from a test** — couples other tests to file ordering; passes until an unrelated test file shifts the alphabetical collection order. Mutation tests provision a dedicated disposable row. See § Shared corpus is READ-ONLY.
 - ❌ **Hardcoding a host in a URL assertion** — `to_have_url('http://localhost/orgs/5/invitations/')`. Assert a **relative path** (`to_have_url('/orgs/5/invitations/')`); Playwright resolves it against the context's `base_url`. The hardcode is doubly wrong here: the configured `base_url` differs from the dev box (the docker test runner reaches the app over an internal hostname, not `localhost`), **and** in multi-tenant tests the host *is* the tenant identity (the `Host` header from § Option A) — a literal host in the assertion silently asserts the wrong tenant or never matches. Relative paths are tenant-agnostic and base-URL-agnostic; they're the only form that survives both. (`grep` for `to_have_url.*http` should return zero hits.)
 
 ## Related references

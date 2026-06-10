@@ -165,6 +165,20 @@ async def open_htmx_modal(page, trigger_selector: str, modal_selector: str):
 | `wait_for_selector(...)` without `state='visible'` | Default state is `visible` — actually fine — but be explicit | `wait_for_selector(..., state='visible')` (or use `expect(...).to_be_visible()`) |
 | Chained `assert` after `click()` with no wait | Playwright's auto-wait covers actions but not arbitrary assertions | Always pair an action with an explicit settle recipe |
 
+## 9. Debugging tell — a sub-second failure is strict-mode multi-match, not absence
+
+Read the *speed* of a locator failure before reading its message. An element
+that's genuinely absent fails only after the full assertion timeout (5s+ of
+auto-wait retries). A failure that lands in **~1 second is not a timeout** — it's
+a strict-mode violation: the locator resolved to *multiple* elements and
+Playwright refused immediately.
+
+The two need opposite fixes — absence means a wait/seam problem (recipes 1-7);
+multi-match means the selector is too broad, or the DOM genuinely contains two
+copies of the element (often the real bug: a consolidation left a duplicate
+render, e.g. two navbars / two badges on one page). Triaging a fast-fail as
+"flaky wait" and adding waits buries that duplicate.
+
 ## Related references
 
 - [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) — the seven subtle gotchas; this file's recipes test for them.
