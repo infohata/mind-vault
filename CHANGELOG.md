@@ -10,6 +10,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.8 — compound: anonymous-gate dual + structured error detection
+
+Patch release. The tail of a deferred compound sweep over two earlier sprints on a consuming Django project (a public-nav fix and a search-index dimension migration). References-first; one new reference + one section extension, no SKILL.md-body bloat.
+
+### Added
+
+- **`skills/python/references/STRUCTURED_ERROR_DETECTION.md`** (new): classify a caught client-library exception on its structured error body (`err.body` → `error.root_cause[].type/reason`), never the rendered message string — two narrowing layers (exception class + body predicate) so a resilience path skips only the one precise upstream failure and propagates everything else. Test contract: construct synthetic exceptions WITH a real `body` dict (bare-message exceptions leave the structured path unexercised); pair positive with negative cases (same exception class, different reason → must propagate).
+
+### Changed
+
+- **`skills/django/references/PERMISSION_GATE_PROBE.md`** new § *The anonymous dual — "anon sees nothing" is a premise, not a fact*: on public-content apps, a blanket anonymous short-circuit (204/login-wall) on a shared endpoint breaks every anon-reachable surface it serves — anon flows through the same resolver with `visible_to(None)` doing the narrowing (private rows return empty; the short-circuit buys no security). Telltale regression symptom: works on cold load (server-rendered), breaks on client-side re-fetch. Review bots love suggesting the guard; the premise is false on public-content apps.
+
 ## v5.1.7 — compound: nav-chrome consolidation doctrine + e2e corpus/seed/locator learnings
 
 Patch release ([PR #199](https://github.com/infohata/mind-vault/pull/199), which also carries the missed `plugin.json` manifest bump for v5.1.6). Cross-project learnings compounded from a nav-consolidation sprint on a consuming Django project. References-first; one new reference + three section extensions, no SKILL.md-body bloat.

@@ -117,6 +117,28 @@ bypasses the affordance, so the GET-render gate is not redundant with hiding the
 boundary for every path that doesn't start at the button. (Surfaced on a taxonomy shell migration: the
 edit-form fragment GET rendered for readers who'd be 403'd on save; three such GET-gate gaps in one PR.)
 
+## The anonymous dual — "anon sees nothing" is a premise, not a fact
+
+On an app with **public content** (anonymous-readable articles/FAQs/chat), the inverse
+over-narrowing shows up: a shared endpoint short-circuits anonymous requests wholesale
+(`if not request.user.is_authenticated: return HttpResponse(status=204)`) on the premise that
+anonymous users see nothing anyway. Review bots love suggesting this guard — and on a
+public-content app the premise is **false**.
+
+The correct shape: anonymous flows through the **same resolver** as authenticated, with the
+visibility selector doing the narrowing — `visible_to(None)` / `visible_to(request.user)`
+returning the public-only subset for anon. The data layer already knows what anon may see;
+a blanket endpoint short-circuit second-guesses it and breaks every anon-reachable surface
+the endpoint serves. Private objects still leak nothing (the selector returns empty), so the
+short-circuit buys no security — it only subtracts function.
+
+The telltale symptom when this regresses: the surface works on **cold load** (server-rendered
+markup includes the chrome) but breaks on **client-side interaction** (the JS path re-fetches
+the fragment from the short-circuited endpoint and gets nothing). Cold-start ≠ hot-path is the
+grep cue that some endpoint in the re-fetch chain special-cases anon. Test contract: one
+anon-public-renders test + one anon-private-no-leak test on the same endpoint, replacing any
+test that pinned the blanket-deny behavior.
+
 ## When NOT to over-probe
 
 If the view's only gate genuinely *is* the permission class — no `get_queryset` narrowing, no
