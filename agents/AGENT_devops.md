@@ -39,6 +39,8 @@ The infrastructure craft here — container parity, immutable infra, network att
 
 **Fail-open:** if the stack does not resolve (no `stack:` pin, no auto-detect, ambiguous), codify the infra craft and **announce the unresolved app-command specifics** — never guess a service's run command.
 
+**Shell craft:** when authoring or reviewing any bash script (entrypoints, orchestration, maintenance, installers), reach down into the [`shell`](../skills/shell/SKILL.md) base layer for script-engineering mechanics — strict-mode hazards, quoting/input hygiene, trap/cleanup/locking, the maintenance-script contract. Don't restate those rules here; the skill is the single home.
+
 ## The 4-Pass Infrastructure Workflow
 
 ### PASS 1: Container Parity & Layer Sweep

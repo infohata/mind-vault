@@ -1,125 +1,164 @@
 ---
 name: shell
-description: Base shell layer beneath devops — DRY-RUN/--apply/--verify maintenance scripts, operator precondition gates, SSH fleet sweeps, validator-less config edits, evidence-gated remediation on live hosts.
+description: Base shell-language layer beneath deployment + the devops persona — strict-mode hazards, quoting/input hygiene, trap cleanup + locking, plus live-host ops machinery (DRY-RUN/--apply/--verify contracts, operator gates, SSH fleet sweeps, validator-less config edits, evidence-gated remediation).
 ---
 
 # shell
 
-The vault's **base shell-scripting layer** — patterns for authoring operational
-and maintenance bash scripts (fleet rollouts, host probes, config remediation)
-that touch **live systems**. What `python` is to the framework skills, `shell`
-is to devops work: language-general recipes beneath the `deployment` skill and
-the `devops` persona. `deployment` owns the Docker-Compose deploy lifecycle and
-machine provisioning; this skill owns the script-engineering mechanics any
-operational script needs regardless of what it deploys or fixes — mode
-surfaces, operator gates, SSH sweep hygiene, safe config edits, evidence gates.
-New shell-general ops patterns land here, not under `deployment` by gravity.
+The vault's **base shell-language layer** — what `python` is to the framework
+skills, `shell` is to ops work: language-general recipes beneath the
+`deployment` skill and the devops persona. Two tiers live here:
+
+- **Language mechanics** (patterns 1–3 + the non-negotiables): true of *any*
+  bash script — deploy tooling, installers, cron jobs, CI steps, maintenance
+  scripts.
+- **Live-host ops machinery** (patterns 4–7): scripts that mutate live systems
+  — mode surfaces, operator gates, SSH sweep hygiene, safe config edits,
+  evidence gates.
+
+`deployment` owns the Docker-Compose deploy lifecycle and machine provisioning;
+its references point *down* into this layer for the language-general mechanics
+rather than restating them. New shell-general patterns land here, not under
+`deployment` by gravity.
 
 ## When to use
 
-**TRIGGER when:** writing or reviewing a maintenance / ops / rollout shell script; user asks to "make this script safe to re-run"; adding or auditing DRY-RUN / `--apply` / `--verify` mode surfaces; sweeping a host fleet over SSH (probes, payload pushes, config remediation); editing system config files (PAM stack, `nsswitch.conf`, login-path or firewall config) from a script; designing precondition checklists for operator tooling.
+**TRIGGER when:** writing or reviewing any bash/sh script — ops/maintenance/rollout tooling, cron jobs, CI steps, entrypoints; user asks to "make this script safe to re-run"; adding or auditing DRY-RUN / `--apply` / `--verify` mode surfaces; sweeping a host fleet over SSH; editing system config files (PAM stack, `nsswitch.conf`, login-path or firewall config) from a script; designing precondition checklists for operator tooling.
 
-**SKIP when:** the script is a Docker-Compose deploy / backup / rollback (→ [`deployment`](../deployment/SKILL.md) owns that lifecycle) or a machine-provisioning installer (→ deployment's [`SHELL_INSTALLERS.md`](../deployment/references/SHELL_INSTALLERS.md)); the script only touches the repo checkout (build/test helpers — the live-system safety machinery here is pure overhead for scripts that can't break a host).
+**SKIP when:** the script is a Docker-Compose deploy / backup / rollback (→ [`deployment`](../deployment/SKILL.md) owns that lifecycle) or a machine-provisioning installer (→ deployment's [`SHELL_INSTALLERS.md`](../deployment/references/SHELL_INSTALLERS.md) leads and reaches down into this layer); one-shot commands a human types interactively.
 
-## Pattern
+## Language mechanics
 
-### 1. The maintenance-script contract
+### 1. Strict mode and its holes
 
-**Fires when** a script mutates a live host. The house contract:
+**Fires when** authoring any script. `set -euo pipefail` is the house prologue
+AND a known-leaky tripwire: pipeline-in-assignment aborts before your friendly
+error, `head -N` SIGPIPE races, informative non-zero rcs (`diff`, `grep`),
+`local var=$(cmd)` masking failure (SC2155), condition contexts disabling
+errexit transitively (`if f; then` turns `-e` off inside all of `f`), unguarded
+`cd` (SC2164), `(( i++ ))` at zero. Explicit rc handling at every destructive
+step, as if `-e` were absent; never retrofit `-e` onto a working script.
+Full catalog + the honest judgment-call stance:
+[`references/STRICT_MODE_HAZARDS.md`](references/STRICT_MODE_HAZARDS.md).
 
-- **Mode surface**: DRY-RUN default (read-only, prints the plan), `--apply`
-  (mutating, often per-target), `--verify` (proves the **effect** — re-measures
-  the latency/posture the fix targets — never "the script ran"), `--revert`
-  where meaningful, `--check` for CI-style staleness checks.
-- **Interactive precondition-acknowledgement gate** (the headline pattern):
-  when safe operation depends on operator-side preconditions (break-glass
-  access confirmed, a second held session open, a backup taken), print the
-  checklist and `read -r ans </dev/tty` requiring a literal `yes` **before the
-  first connection or mutation**. A checklist printed while the action already
-  runs is decoration, not a gate.
-- One-target-at-a-time for risky mutations; idempotent re-runs with a no-op
-  fast path; `$HERE`-relative sibling defaults; evidence logs via
-  `exec > >(tee -a "$LOG") 2>&1`; `set -euo pipefail`; lockout discipline for
-  login-path changes (held second session + fresh-connection post-check).
-- **Grep portability hazard**: quiet+invert grep logic (`! grep -qv`,
-  `grep -qvx`) is unreliable on non-GNU greps — use positive matches only, and
-  parse line *shape* when distinguishing active vs commented config.
+### 2. Quoting and input hygiene
+
+**Fires when** a variable expands into a command line, a loop reads lines, a
+flag value needs validation, or a heredoc gets written. Quote every expansion;
+lists are arrays; `"$@"` always; `printf '%s\n'` over `echo` for variable data;
+`IFS= read -r` fed by `< <(…)` (never pipe into `while read` for state);
+validate untrusted values with `case`, not `grep -E` (newline injection);
+validate `$2` before `shift 2`; never external `getopt(1)`; heredoc quoting
+matches its comment; anchor status greps both ends (`active`/`inactive`).
+Full rules + the getopts-vs-manual judgment call:
+[`references/QUOTING_AND_INPUT_HYGIENE.md`](references/QUOTING_AND_INPUT_HYGIENE.md).
+
+### 3. Cleanup traps, temp files, locking
+
+**Fires when** a script acquires anything that outlives a crash. `mktemp` +
+`trap 'rm -rf -- "$tmp"' EXIT HUP INT TERM` registered immediately after
+acquisition; one composed cleanup function per script (a second `trap` on the
+same signal silently replaces the first); `flock -n` on a held fd for
+single-instance cron/deploy scripts (lock dies with the process — no stale
+locks, unlike check-then-create or `ps | grep`); kill + `wait` background
+children. Full recipes:
+[`references/CLEANUP_TRAPS_AND_LOCKING.md`](references/CLEANUP_TRAPS_AND_LOCKING.md).
+
+### Non-negotiables (one-liners)
+
+- Every script passes **shellcheck** before merge (SC2086/SC2155/SC2164
+  mechanically enforce patterns 1–3); suppressions are per-line directives
+  with a justification comment, never global.
+- `[[ ]]` over `[ ]` in bash; `$(…)` over backticks; `(( … ))` for arithmetic
+  (`[[ $x > 7 ]]` is *string* comparison).
+- Never `sed … file > file` — truncates before read.
+- `main "$@"` as the last line of any script with functions.
+
+### Judgment calls (decide per script, don't legislate)
+
+- **bash vs POSIX sh**: host-side ops scripts → `#!/bin/bash` and use bash
+  features freely; container entrypoints → match the image's shell
+  (alpine/dash/BusyBox) and enforce with `shellcheck --shell=sh`. Never
+  bash-isms under `#!/bin/sh`.
+- **bats-core tests**: only past the real-logic threshold (branching arg
+  parsing, parsing functions, a shared `lib.sh`); below it the question is
+  "why is this still shell, not Python?". Never for five-line wrappers.
+
+## Live-host ops machinery
+
+### 4. The maintenance-script contract
+
+**Fires when** a script mutates a live host. Mode surface: DRY-RUN default,
+`--apply` (per-target for risky changes), `--verify` (proves the **effect** —
+re-measures the symptom — never "the script ran"), `--revert`, `--check`.
+**Interactive precondition-acknowledgement gate** (the headline pattern): when
+safety depends on operator-side preconditions (break-glass verified, second
+held session, off-box backup), `read -r ans </dev/tty` requiring a literal
+`yes` **before the first connection or mutation** — a checklist printed while
+the action already runs is decoration. Plus: one-target-at-a-time, no-op fast
+path, `$HERE`-relative siblings, evidence logs via `exec > >(tee -a "$LOG")
+2>&1`, lockout discipline for login-path changes, grep portability (positive
+matches only; parse line *shape* for active-vs-commented).
 
 ✅ DO: `--verify` re-measures the symptom (fresh-connection login latency back under threshold).
 ❌ DON'T: `--verify` that greps for the config line `--apply` just wrote — that proves execution, not effect.
 
-Full contract, gate snippet, and the post-factum-checklist failure story:
+Full contract, gate snippet, post-factum-checklist failure story:
 [`references/MAINTENANCE_SCRIPT_CONTRACT.md`](references/MAINTENANCE_SCRIPT_CONTRACT.md).
 
-### 2. SSH fleet sweeps
+### 5. SSH fleet sweeps
 
-**Fires when** a script probes or remediates many hosts over SSH.
-
-- **Cold-probe hygiene** for timing-sensitive probes: `-o ControlMaster=no -o
-  ControlPath=none -o BatchMode=yes`, plus an **outer** `timeout N` around the
-  whole ssh — `ConnectTimeout` bounds only the TCP handshake; post-auth stalls
-  (PAM session setup) are invisible to it.
-- **One-login apply mux**: when target logins are expensive, the first
-  (gate-probe) connection opens a ControlMaster and subsequent scp/ssh ride
-  the socket free; teardown trap closes each socket explicitly.
-- Jump-host via env-driven `-J`, probe-identity vs operator-identity
-  separation (refuse privileged modes under the read-only identity), and the
-  scaffold-duplication counter: extract a shared hosts-parser/SSH-opts lib at
-  the **5th** copied instance, not before.
-
-Full options, mux teardown gotchas, hosts-file parser:
+**Fires when** a script probes or remediates many hosts over SSH. Cold-probe
+hygiene for timing-sensitive probes (`ControlMaster=no`, `BatchMode=yes`,
+**outer** `timeout N` — `ConnectTimeout` can't see post-auth stalls); one-login
+ControlMaster apply mux when logins are expensive; env-driven jump host;
+probe-identity vs operator-identity separation (refuse privileged modes under
+the read-only identity); extract shared scaffold at the **5th** copy, not
+before. Full options, mux teardown, hosts parser:
 [`references/SSH_FLEET_PATTERNS.md`](references/SSH_FLEET_PATTERNS.md).
 
-### 3. Editing config files that have no validator
+### 6. Editing config files that have no validator
 
 **Fires when** a script edits a system config file with no syntax checker
-(unlike `sshd_config`'s `sshd -t`). Worst case is the PAM stack: a corrupt
-`/etc/pam.d/common-session` breaks every login path at once — SSH, console,
-`su` — and nothing warns you before the next login fails.
-
-The discipline: anchored sed on the exact line shape → `cp -a` `.bak` first →
-a **hard post-edit assertion** that the diff vs `.bak` has exactly the
-intended shape (one line changed, only by gaining a leading `#`, equal line
-counts) — any other shape restores the `.bak` and aborts.
+(worst case PAM: a corrupt `common-session` breaks every login path at once).
+Anchored sed on the exact line shape → `cp -a` `.bak` → **hard post-edit
+diff-shape assertion** (exactly one line changed, only by gaining `#`, equal
+line counts) — any other shape restores the `.bak` and aborts.
 
 ✅ DO: assert the diff shape after the edit; restore + abort on surprise.
 ❌ DON'T: trust sed's exit code — sed exits 0 whether or not anything matched.
 
-Worked PAM example + the diff-shape assertion snippet:
-[`references/SAFE_CONFIG_EDITS.md`](references/SAFE_CONFIG_EDITS.md).
+Worked PAM example: [`references/SAFE_CONFIG_EDITS.md`](references/SAFE_CONFIG_EDITS.md).
 
-### 4. Gating remediations on evidence, not point-in-time probes
+### 7. Gating remediations on evidence, not point-in-time probes
 
-**Fires when** the fault being remediated is intermittent (e.g. a PAM/D-Bus
-call that stalls *some* logins). A moment-of-truth probe under-selects (host
-measures healthy now, stalls an hour later); a service-liveness probe
-(`systemctl is-active`, `busctl status`) over-trusts (the service is up, the
-call path is glacial). The reliable cause-gate is the fault's **historical
-fingerprint** — the exact log line it writes, checked as root at apply time in
-the live log plus the most recent rotation. Pair with a `--preventive` waiver
-for provision-time use where no history can exist, and run a gate-equivalence
-dry-run when two independent gate definitions exist — candidate-set MISMATCH
-is a fail-closed stop, never "pick one".
-
-Full pattern + falsification discipline:
+**Fires when** the fault is intermittent. A moment-of-truth probe under-selects
+(healthy now, stalls later); a liveness probe over-trusts (service up, call
+path glacial). Gate on the fault's **historical fingerprint** — the exact log
+line, checked as root at apply time, live log + most recent rotation. Pair with
+a `--preventive` waiver for provision-time use, and a gate-equivalence dry-run
+when two gate definitions exist — candidate-set MISMATCH is fail-closed, never
+"pick one". Full pattern:
 [`references/INTERMITTENT_FAULT_GATING.md`](references/INTERMITTENT_FAULT_GATING.md).
 
 ## When NOT to use these patterns
 
-- **A real validator exists** for the file you're editing (`sshd -t`,
-  `visudo -c`, `nginx -t`) — run it as the post-edit gate instead of (or in
-  addition to) the diff-shape assertion. The assertion is the fallback for
-  validator-less files, not a replacement for real validation.
-- **One-shot commands a human types interactively** — the mode surface and
-  gate are for *scripts* that encode a procedure, not for ad-hoc terminal work.
+- **A real validator exists** (`sshd -t`, `visudo -c`, `nginx -t`) — run it as
+  the post-edit gate; the diff-shape assertion is the validator-less fallback.
+- **One-shot interactive commands** — the mode surface and gates are for
+  scripts that encode a procedure, not ad-hoc terminal work.
 - **Deploy lifecycle scripts** — `deploy.sh`/`backup_db.sh` shapes belong to
-  the [`deployment`](../deployment/SKILL.md) skill; reach down into this layer
-  for shared mechanics (evidence logs, idempotency) rather than duplicating.
+  [`deployment`](../deployment/SKILL.md); reach down into this layer for the
+  shared mechanics rather than duplicating.
 
 ## References
 
-- [references/MAINTENANCE_SCRIPT_CONTRACT.md](references/MAINTENANCE_SCRIPT_CONTRACT.md) — mode surface (DRY-RUN / `--apply` / `--verify` / `--revert` / `--check`), the interactive precondition-acknowledgement gate (`read … </dev/tty`, literal `yes`, before first connection), one-target-at-a-time, idempotency, evidence logs, lockout discipline, grep portability.
-- [references/SSH_FLEET_PATTERNS.md](references/SSH_FLEET_PATTERNS.md) — cold-probe hygiene (no mux, BatchMode, outer `timeout`), the one-login ControlMaster apply mux + per-socket teardown, jump-host + identity separation, the extract-at-5th-copy scaffold rule.
-- [references/SAFE_CONFIG_EDITS.md](references/SAFE_CONFIG_EDITS.md) — validator-less config edits: anchored sed, `cp -a` backup, hard diff-shape assertion with restore-and-abort; worked PAM common-session example.
-- [references/INTERMITTENT_FAULT_GATING.md](references/INTERMITTENT_FAULT_GATING.md) — historical-fingerprint cause gates (journal/auth-log line, root, current + rotated), `--preventive` waiver, gate-equivalence dry-run with fail-closed MISMATCH handling.
-- [deployment skill](../deployment/SKILL.md) — the devops-layer sibling above this one (deploy lifecycle, screen sessions, CI/CD); its [`SHELL_INSTALLERS.md`](../deployment/references/SHELL_INSTALLERS.md) covers provisioning installers specifically.
+- [references/STRICT_MODE_HAZARDS.md](references/STRICT_MODE_HAZARDS.md) — `set -euo pipefail` hazard catalog (pipeline-in-assignment, SIGPIPE race, SC2155, condition-context transitivity, SC2164 cd guards, arithmetic-at-zero) + the never-retrofit / explicit-rc-at-destructive-steps stance.
+- [references/QUOTING_AND_INPUT_HYGIENE.md](references/QUOTING_AND_INPUT_HYGIENE.md) — quoting/arrays/`"$@"`, `printf` over `echo`, `IFS= read -r` + subshell trap, `case`-not-`grep` validation, arg parsing (`$2` guard, getopts vs manual, no `getopt(1)`), heredoc quoting, anchored status greps.
+- [references/CLEANUP_TRAPS_AND_LOCKING.md](references/CLEANUP_TRAPS_AND_LOCKING.md) — mktemp + EXIT-trap pair, composed single cleanup function, `flock` single-instance locking, background-child reaping.
+- [references/MAINTENANCE_SCRIPT_CONTRACT.md](references/MAINTENANCE_SCRIPT_CONTRACT.md) — mode surface (DRY-RUN / `--apply` / `--verify` / `--revert` / `--check`), the interactive precondition-acknowledgement gate, one-target-at-a-time, idempotency, evidence logs, lockout discipline, grep portability.
+- [references/SSH_FLEET_PATTERNS.md](references/SSH_FLEET_PATTERNS.md) — cold-probe hygiene, one-login ControlMaster apply mux + per-socket teardown, jump-host + identity separation, extract-at-5th-copy scaffold rule.
+- [references/SAFE_CONFIG_EDITS.md](references/SAFE_CONFIG_EDITS.md) — validator-less config edits: anchored sed, `cp -a` backup, diff-shape assertion with restore-and-abort; worked PAM example.
+- [references/INTERMITTENT_FAULT_GATING.md](references/INTERMITTENT_FAULT_GATING.md) — historical-fingerprint cause gates, `--preventive` waiver, fail-closed gate-equivalence dry-run.
+- [deployment skill](../deployment/SKILL.md) — the devops-layer sibling above this one; its [`SHELL_INSTALLERS.md`](../deployment/references/SHELL_INSTALLERS.md) keeps the installer-specific catalog and points down here for the language-general entries.
+- Upstream canon (verified 2026-06): Greg's Wiki BashPitfalls + BashFAQ 105/045/062/035, ShellCheck wiki, Google Shell Style Guide, bats-core docs.
