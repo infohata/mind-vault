@@ -10,6 +10,55 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.11 — shell skill + dual-verdict engine calibration (2026-06-11, compound)
+
+Single-PR compound section.
+
+### Added
+
+- **`skills/shell/`** — new base shell-**language** layer beneath `deployment` + the
+  devops persona (the `python`-tier analog for ops bash), two tiers, seven references.
+  **Language mechanics** (any bash script, upstream canon verified against BashPitfalls /
+  BashFAQ 105/045/062/035 / ShellCheck wiki / Google Shell Style Guide): strict-mode
+  hazard catalog (`set -euo pipefail` as tripwire-not-seatbelt — pipeline-in-assignment
+  silent abort, SIGPIPE/`head` race, SC2155 `local` masking, condition-context errexit
+  transitivity, SC2164 cd guards, never-retrofit stance), quoting/input hygiene
+  (arrays-for-lists, `"$@"`, `printf` over `echo`, `IFS= read -r` + subshell trap,
+  `case`-not-`grep` validation, heredoc discipline, getopts-vs-manual judgment call),
+  and cleanup traps + temp files + `flock` single-instance locking. **Live-host ops
+  machinery**: DRY-RUN/`--apply`/`--verify`/`--revert` maintenance-script contract with
+  the **interactive precondition-acknowledgement gate** (block on a literal `yes` from
+  `/dev/tty` BEFORE any connection/mutation — a checklist that prints while the action
+  runs is decoration), SSH fleet patterns (cold-probe hygiene, one-login ControlMaster
+  apply mux, scaffold-copy extraction counter), validator-less config edits with
+  diff-shape assertions (`.bak` + exactly-one-line post-edit check), and evidence-gated
+  remediation for intermittent faults (historical log fingerprints over point-in-time
+  probes; `--preventive` waiver; gate-equivalence dry-runs fail closed). 22nd skill
+  row in README.
+- **AGENT_architect PASS 3** — gate-design probe: point-in-time probes cannot govern
+  intermittent faults; demand recorded-evidence conjuncts + fail-closed gate-equivalence.
+
+### Changed
+
+- **`deployment/references/SHELL_INSTALLERS.md` dedup** — the language-general entries
+  (1–3, 5, 8, 10, 11: pipefail family, arg validation, `case`-vs-`grep`, heredoc,
+  substring anchoring) hoisted into `shell`'s references; the installer catalog keeps
+  numbered stubs (numbering stable for the review-findings cross-reference) and the
+  installer-specific patterns (chown, marker blocks, opt-out sweep, target-user
+  resolution). `deployment/SKILL.md` References gains the base-layer pointer — same
+  point-down relationship `django` has to `python`.
+- **AGENT_devops** — shell-craft pointer added: bash authoring/review reaches down into
+  the `shell` skill instead of restating script mechanics in the persona.
+
+- **engine-claude calibration — dual substantive verdicts (second downstream, 2026-06-11):**
+  the §48 "subsequent pushes auto-skip" model is **install-dependent** — a non-skipping
+  install produced two full reviews per SHA that DISAGREED (findings-bearing auto-run
+  verdict masked by a later clean retrigger verdict → false CLEAN hand-back). New adapter
+  rule: wait for ALL head-SHA runs to complete, read EVERY substantive verdict, and let any
+  unaddressed findings-bearing verdict keep the engine STILL_FINDING — a newer clean
+  verdict never overrides it. `commands/review-loop.md` + `skills/review-loop/SKILL.md`
+  hard "no double-run" claims softened accordingly.
+
 ## v5.1.10 — compound: Celery task hygiene + review-engine adapter calibrations
 
 Patch release. Compounded from a Celery-optimization cycle on a consuming Django project (a reindex post-mortem quantifying ~38.6k overhead-dominated tasks, dead result rows, an nproc-sized worker fleet, and a scheduler that had been silently dead for months) plus one multi-engine review-loop run that exposed two adapter blind spots. References-first; zero SKILL.md-body additions.

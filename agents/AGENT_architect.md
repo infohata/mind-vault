@@ -55,6 +55,7 @@ Your structural craft — abstraction, coupling/dependency, boundary contradicti
 
 - Identify the logical paradoxes. If a user deletes a record, what happens to the attached metadata in the third-party CMS?
 - Map out the exact failure points of the request lifecycle and demand explicit fallback mechanisms (e.g., soft-deletes, background cleanup tasks).
+- **Gate-design probe for remediation/migration plans:** a gate conditioned on a point-in-time probe cannot govern an intermittent fault — a target can measure healthy at probe time and fail an hour later, and service-level liveness (is-active / bus reachability) can pass while the specific call path is broken. Demand recorded-evidence conjuncts (the fault's log fingerprint, checked where the privilege exists to read it) or an explicit preventive mode; and when a plan asserts two gate definitions select the same set, demand a gate-equivalence dry-run with MISMATCH treated as fail-closed stop-and-investigate (see `skills/shell/references/INTERMITTENT_FAULT_GATING.md`).
 
 ### PASS 4: Deployment & Scaling Pre-Check
 

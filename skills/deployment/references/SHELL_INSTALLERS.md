@@ -14,90 +14,21 @@ Cautionary example: PR #59 cycle 9 fixed one `ufw status | head -1` site for the
 
 Applies across all patterns below. When in doubt, `grep` first, fix second.
 
+**Layering note:** the language-general entries below (1–3, 5, 8, 10, 11) are owned by the base [`shell`](../../shell/SKILL.md) layer — each keeps a stub here so the installer catalog numbering stays stable, with the full pattern one link down.
+
 ## Pattern catalog
 
 ### 1. `set -eo pipefail` — always, never bare `set -e`
 
-**Bad:**
-
-```bash
-set -e
-curl -fsSL https://example.com/key.gpg | gpg --dearmor -o /usr/share/keyrings/repo.gpg
-```
-
-If `curl` fails, `gpg` still exits 0 on empty input. The script writes an empty keyring, then `apt-get update` fails downstream with a confusing GPG verification error.
-
-**Good:**
-
-```bash
-set -eo pipefail
-curl -fsSL https://example.com/key.gpg | gpg --dearmor -o /usr/share/keyrings/repo.gpg
-```
-
-Pipefail propagates the first non-zero exit in the pipeline, aborting immediately.
-
-Installers invariably have `curl | gpg`, `curl | bash`, `jq | …` pipelines. Always `-eo pipefail`. *Provenance: PR #55 cycle 1 (install-gcloud-cli).*
+Installers invariably have `curl | gpg`, `curl | bash`, `… | jq` pipelines; bare `set -e` only sees the last element's rc (failed curl → empty keyring → confusing downstream GPG error). Full hazard: [`shell` STRICT_MODE_HAZARDS.md §0](../../shell/references/STRICT_MODE_HAZARDS.md). *Provenance: PR #55 cycle 1 (install-gcloud-cli).*
 
 ### 2. `set -eo pipefail` + pipeline-in-assignment — silent abort
 
-**Bad:**
-
-```bash
-set -eo pipefail
-TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
-if [ -z "$TARGET_HOME" ] || [ ! -d "$TARGET_HOME" ]; then
-    echo "❌ Could not resolve home directory for user '$TARGET_USER'." >&2
-    exit 1
-fi
-```
-
-When `$TARGET_USER` doesn't exist, `getent` exits 2. Pipefail propagates 2 as the assignment's exit status. `set -e` aborts the script *before* the friendly-error `if` block runs. User sees a silent unexplained exit.
-
-**Good — pre-validate the precondition:**
-
-```bash
-if ! id -u "$TARGET_USER" >/dev/null 2>&1; then
-    echo "❌ User '$TARGET_USER' does not exist on this system." >&2
-    echo "   Pass --target-user NAME with an existing account." >&2
-    exit 1
-fi
-TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
-```
-
-Alternatives: split the pipeline across two lines with explicit checks between; or wrap in `set +e; VAR=$(…); status=$?; set -e`. *Provenance: PR #59 cycle 7.*
+`VAR=$(getent … | cut …)` dies under pipefail *before* the friendly-error `if` below it runs; pre-validate the precondition (`id -u "$TARGET_USER"`) first. Full hazard + alternatives: [`shell` STRICT_MODE_HAZARDS.md §1](../../shell/references/STRICT_MODE_HAZARDS.md). *Provenance: PR #59 cycle 7.*
 
 ### 3. `set -eo pipefail` + `head -N` — SIGPIPE race
 
-**Bad:**
-
-```bash
-set -eo pipefail
-if ufw status | head -1 | grep -qE '^Status:[[:space:]]+active[[:space:]]*$'; then
-    ...
-fi
-echo "   mosh: $(mosh-server --version 2>/dev/null | head -1 || echo installed)"
-```
-
-`head -1` closes its stdin after one line. The producer (`ufw status`, `mosh-server --version`) gets SIGPIPE writing the next line, exits 141. Pipefail propagates 141. The `if` is false even when grep matched; the `||` fallback fires masking the real value.
-
-**Good — drop redundant `head`:**
-
-```bash
-# The anchored regex already matches only the Status line; head was redundant.
-if ufw status | grep -qE '^Status:[[:space:]]+active[[:space:]]*$'; then
-    ...
-fi
-```
-
-**Good — isolate when `head` is genuinely needed:**
-
-```bash
-MOSH_VER=$(mosh-server --version 2>/dev/null || true)
-MOSH_VER_LINE=${MOSH_VER%%$'\n'*}     # bash parameter expansion — no pipe, no SIGPIPE
-echo "   mosh: ${MOSH_VER_LINE:-installed}"
-```
-
-*Provenance: PR #59 cycles 9 & 10.*
+`head -1` closes stdin early; the producer exits 141; pipefail propagates it, falsifying the `if` or firing the `||` mask. Drop redundant `head` (an anchored regex already selects one line) or take the first line via parameter expansion. Full hazard: [`shell` STRICT_MODE_HAZARDS.md §2](../../shell/references/STRICT_MODE_HAZARDS.md). *Provenance: PR #59 cycles 9 & 10.*
 
 ### 4. `chown 'user:'`, not `'user:user'`
 
@@ -124,36 +55,7 @@ Trailing colon instructs `chown` to use the user's primary group from `/etc/pass
 
 ### 5. Arg validation before consuming `$2`
 
-**Bad:**
-
-```bash
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --session-name) SESSION_NAME="$2"; shift 2 ;;
-        ...
-    esac
-done
-```
-
-If the user runs `install-foo.sh --session-name` with no following arg, `SESSION_NAME` becomes empty and `shift 2` may misbehave or consume the next flag.
-
-**Good:**
-
-```bash
-case "$1" in
-    --session-name)
-        if [ -z "${2:-}" ]; then
-            echo "❌ --session-name requires a value (e.g. --session-name main)." >&2
-            exit 1
-        fi
-        SESSION_NAME="$2"
-        shift 2
-        ;;
-    ...
-esac
-```
-
-See `install-gcloud-cli.sh` `--with-components` for a canonical example. *Provenance: PR #59 cycle 2 drill (missed in install-mosh-tmux pre-review).*
+`--flag` run with no value makes `shift 2` eat the next flag; check `[ -z "${2:-}" ]` → friendly error before consuming. Canonical in-repo example: `install-gcloud-cli.sh` `--with-components`. Full pattern + the getopts-vs-manual decision: [`shell` QUOTING_AND_INPUT_HYGIENE.md](../../shell/references/QUOTING_AND_INPUT_HYGIENE.md). *Provenance: PR #59 cycle 2 drill.*
 
 ### 6. Idempotency check must respect user-requested flags
 
@@ -230,37 +132,7 @@ fi
 
 ### 8. Security-sensitive input — `case`, not `grep -E`
 
-**Bad:**
-
-```bash
-# SESSION_NAME will be interpolated into a .bashrc HEREDOC.
-if ! printf '%s' "$SESSION_NAME" | grep -qE '^[a-zA-Z0-9_.-]+$'; then
-    echo "❌ Invalid session name." >&2
-    exit 1
-fi
-```
-
-`grep` matches per-line. A value like `$'main\nmalicious'` has two lines; the first passes the anchored regex, grep exits 0, validation succeeds. The newline still injects a second line into the target file.
-
-**Good:**
-
-```bash
-case "$SESSION_NAME" in
-    '')
-        echo "❌ --session-name cannot be empty." >&2
-        exit 1
-        ;;
-    *[!a-zA-Z0-9_.-]*)
-        echo "❌ Invalid --session-name: $(printf '%q' "$SESSION_NAME")" >&2
-        echo "   Allowed: letters, digits, underscore, dot, hyphen. No spaces or newlines." >&2
-        exit 1
-        ;;
-esac
-```
-
-`case` matches the full string without line splitting. No regex engine subtleties. POSIX-portable.
-
-*Provenance: PR #59 cycle 6 (SESSION_NAME bashrc code injection via unquoted HEREDOC).*
+`grep` matches per-line: `$'main\nmalicious'` passes an anchored regex on its first line while the newline still injects a second line into the target file. `case` matches the full string atomically. Full pattern + snippet: [`shell` QUOTING_AND_INPUT_HYGIENE.md](../../shell/references/QUOTING_AND_INPUT_HYGIENE.md). *Provenance: PR #59 cycle 6 (SESSION_NAME bashrc code injection via unquoted HEREDOC).*
 
 ### 9. Opt-out flag consistency — end-to-end sweep
 
@@ -282,52 +154,11 @@ Adding a flag at one site and moving on is the most common way incomplete opt-ou
 
 ### 10. HEREDOC quoting — document your choice
 
-**Bad:**
-
-```bash
-# Comment claims single-quoted; code uses unquoted.
-# Using single-quoted HEREDOC so tmux's $-vars aren't expanded.
-cat >> "$TMUX_CONF" <<TMUXCONF
-...
-TMUXCONF
-```
-
-The comment and the code disagree. Future maintainers will be confused or wrong.
-
-**Good — match the comment to the code AND explain the tradeoff:**
-
-```bash
-# HEREDOC is intentionally unquoted so $BEGIN_MARK and $END_MARK expand.
-# The body happens to have no runtime $-vars. If you add any, escape them
-# as \$VAR or switch to <<'TMUXCONF' and inline the marker strings literally.
-cat >> "$TMUX_CONF" <<TMUXCONF
-$BEGIN_MARK
-...
-$END_MARK
-TMUXCONF
-```
-
-When the body has both script-time vars (should expand) and runtime vars (should not), use unquoted + backslash-escape the runtime ones (`\$SSH_CONNECTION`). *Provenance: PR #59 cycle 2 drill.*
+Quoted `<<'EOF'` = zero expansion; unquoted = script-time vars expand (escape runtime ones as `\$VAR`); the comment above the heredoc must match the code. Full discipline: [`shell` QUOTING_AND_INPUT_HYGIENE.md](../../shell/references/QUOTING_AND_INPUT_HYGIENE.md). *Provenance: PR #59 cycle 2 drill.*
 
 ### 11. Substring traps in status checks
 
-**Bad:**
-
-```bash
-if ufw status | grep -qi "active"; then
-    # fires for "Status: inactive" too — "active" is a substring
-fi
-```
-
-**Good:**
-
-```bash
-if ufw status | grep -qE '^Status:[[:space:]]+active[[:space:]]*$'; then
-    ...
-fi
-```
-
-Anchor on both ends. Any short status token that's also a prefix/suffix of its negation (`on`/`gone`, `up`/`stuck-up`, `active`/`inactive`) needs anchoring, not substring matching. *Provenance: PR #59 cycle 3 (HIGH).*
+`grep -qi "active"` fires on "inactive" — anchor both ends (`^Status:[[:space:]]+active[[:space:]]*$`) for any token that is a substring of its own negation. Full pattern: [`shell` QUOTING_AND_INPUT_HYGIENE.md](../../shell/references/QUOTING_AND_INPUT_HYGIENE.md). *Provenance: PR #59 cycle 3 (HIGH).*
 
 ### 12. `.bashrc` blank-line accumulation (idempotency over time)
 
@@ -406,7 +237,7 @@ When authoring a new `install-X.sh`, start by copying the closest existing insta
 # Usage: sudo ./install/install-X.sh [--check] [--flag VALUE]
 # Supports: Debian 11+, Ubuntu 20.04+
 
-set -eo pipefail
+set -euo pipefail   # new scripts take -u (see shell STRICT_MODE_HAZARDS.md § set -u edges)
 
 CHECK_ONLY=0
 # … default flag values …
@@ -455,6 +286,7 @@ fi
 
 ## Related
 
+- [`skills/shell/SKILL.md`](../../shell/SKILL.md) — the base shell-language layer beneath this catalog; owns the hoisted language-general entries (1–3, 5, 8, 10, 11) plus cleanup traps, locking, and the live-host ops machinery.
 - [`skills/review-loop/references/common-review-findings.md`](../../review-loop/references/common-review-findings.md) #15 — review-side pointer to this reference (drill discipline stays in the shared catalogue so the review loop knows where to look).
 - `tools/README.md` "Adding New Tools" — author-side pointer to this reference.
 - `../../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md` — when writing an installer that runs INSIDE a parallel-worktree stack, the gotchas there apply in addition.

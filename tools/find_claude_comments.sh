@@ -313,10 +313,12 @@ export CLAUDE_NOOP_PATTERNS='^##\s+code[ -]?review\s*\n+\s*skipp(ed|ing)'
 # ------------------------------------------------------------------------------
 # Pass 1 — Review-state from the Actions job (A7/R2): synthesize CLAUDE_CHECKRUN
 # ------------------------------------------------------------------------------
-# Filter runs to the head SHA, pick the LATEST by `run_started_at` (dedup of the
-# synchronize auto-run + any fallback retrigger). Map queued/in_progress→RUNNING,
-# completed→DONE. The Actions conclusion is emitted for forensics ONLY — never a
-# verdict (it is green with or without findings).
+# Filter runs to the head SHA. Metadata (id/AT) comes from the LATEST run by
+# `run_started_at`, but STATUS aggregates across ALL head-SHA runs — completed
+# only when every run completed (dual-verdict rule: auto-run + retrigger can both
+# review one SHA; an in-flight earlier run must hold the engine RUNNING). The
+# Actions conclusion is emitted for forensics ONLY — never a verdict (it is
+# green with or without findings).
 CLAUDE_CHECKRUN_LINE=$(echo "$WORKFLOW_RUNS" | PR_HEAD_SHA="$PR_HEAD_SHA" python3 -c "
 import json, os, sys
 try:
@@ -331,16 +333,29 @@ if head:
     runs = [r for r in runs if (r.get('head_sha') or '') == head]
 if not runs:
     sys.exit(0)
-# Latest by run_started_at (A7 dedup). Fall back to created_at then id.
+# Latest by run_started_at (A7 dedup of metadata). Fall back to created_at then id.
 runs.sort(key=lambda r: (r.get('run_started_at') or r.get('created_at') or '', r.get('id') or 0), reverse=True)
 latest = runs[0]
 rid = latest.get('id') or ''
 sha = latest.get('head_sha') or ''
-status = latest.get('status') or ''      # queued | in_progress | completed
 conclusion = latest.get('conclusion') or ''
+# Dual-verdict rule (engine-claude.md § dual substantive verdicts): the engine is
+# DONE only when ALL head-SHA runs are completed — the skip-no-op is install-
+# dependent, so a push auto-run AND an explicit retrigger can both run full
+# reviews of one SHA. STATUS aggregates across runs: any queued/in_progress run
+# holds the whole engine in that state, regardless of which run started latest.
+incomplete = [r for r in runs if (r.get('status') or '') != 'completed']
+status = (incomplete[0].get('status') or 'in_progress') if incomplete else 'completed'
 # AT anchors the settle valve — prefer updated_at (when it completed) then run_started_at.
 at = latest.get('updated_at') or latest.get('run_started_at') or latest.get('created_at') or ''
-print(f'CLAUDE_CHECKRUN={rid} COMMIT={sha} STATUS={status} CONCLUSION={conclusion} AT={at}')
+# WINDOW_START = earliest head-SHA run start: scopes the all-verdicts pass below
+# to summaries posted for THIS SHA (issue comments carry no commit id).
+# Empty timestamps are EXCLUDED from min() — one run with a blank
+# run_started_at would otherwise poison the window to '' and silently
+# disable Pass 2b (bugbot 3399604441).
+starts = [s for s in ((r.get('run_started_at') or r.get('created_at') or '') for r in runs) if s]
+window = min(starts) if starts else ''
+print(f'CLAUDE_CHECKRUN={rid} COMMIT={sha} STATUS={status} CONCLUSION={conclusion} AT={at} RUNS={len(runs)} WINDOW_START={window}')
 " 2>/dev/null || true)
 
 # ------------------------------------------------------------------------------
@@ -461,6 +476,82 @@ SUMMARY_ID=$(echo "$CLAUDE_SUMMARY_LINE" | grep -oE 'CLAUDE_SUMMARY_ID=[^ ]+' | 
 SUMMARY_AT=$(echo "$CLAUDE_SUMMARY_LINE" | grep -oE 'AT=[^ ]+' | cut -d= -f2 || true)
 SUMMARY_CLEAN=$(echo "$CLAUDE_SUMMARY_LINE" | grep -oE 'CLEAN=[^ ]+' | cut -d= -f2 || true)
 SUMMARY_FINDINGS=$(echo "$CLAUDE_SUMMARY_LINE" | grep -oE 'FINDINGS=[^ ]+' | cut -d= -f2 || true)
+
+# ------------------------------------------------------------------------------
+# Pass 2b — ALL head-SHA verdicts (dual-verdict rule, engine-claude.md § dual
+# substantive verdicts): the newest-wins selection above is the verdict SURFACE,
+# but an earlier findings-bearing summary on the SAME SHA must never be masked by
+# a newer clean roll. Classify EVERY substantive non-no-op summary inside the
+# head-SHA window (created_at >= earliest head-SHA run start — issue comments
+# carry no commit id, so the run window is the SHA scope) and emit:
+#   CLAUDE_HEAD_VERDICTS=<n> — substantive summaries in the window
+#   CLAUDE_HAS_FINDINGS=<bool> — true iff ANY of them is findings-bearing
+#   CLAUDE_FINDINGS_SUMMARY_IDS=<id,id,...|none> — the findings-bearing ids
+# No window (runs fetch failed / blank timestamps) → pass emits nothing and the
+# clean signal is WITHHELD fail-closed below (CLAUDE_VERDICT_SET_PROVEN) — an
+# unproven verdict set must never re-open the masking hole. Findings-bearing
+# reads are unaffected (they only ever ADD caution).
+WINDOW_START=$(echo "${CLAUDE_CHECKRUN_LINE:-}" | grep -oE 'WINDOW_START=[^ ]+' | cut -d= -f2 || true)
+CLAUDE_VERDICTS_OUT=$(echo "$ISSUE_COMMENTS" | WINDOW_START="$WINDOW_START" NEWEST_SUMMARY_ID="${SUMMARY_ID:-}" python3 -c "
+import json, os, re, sys
+window = os.environ.get('WINDOW_START', '')
+if not window:
+    sys.exit(0)
+try:
+    comments = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+logins = set(os.environ.get('CLAUDE_LOGINS', '').split())
+sig_re = re.compile(os.environ.get('CLAUDE_BODY_SIGNATURES', 'a^'), re.IGNORECASE)
+noop_re = re.compile(os.environ.get('CLAUDE_NOOP_PATTERNS', 'a^'), re.IGNORECASE | re.MULTILINE)
+clean_re = re.compile(os.environ.get('CLAUDE_CLEAN_PATTERNS', 'a^'), re.IGNORECASE)
+finding_re = re.compile(os.environ.get('CLAUDE_FINDING_MARKERS', 'a^'), re.IGNORECASE)
+newest_id = os.environ.get('NEWEST_SUMMARY_ID', '')
+def in_window(c):
+    # ISO-8601 UTC Z strings compare lexicographically.
+    return (c.get('created_at') or '') >= window
+def is_claude_summary(c):
+    login = (c.get('user') or {}).get('login') or ''
+    body = c.get('body') or ''
+    return login in logins and bool(sig_re.search(body)) and not noop_re.search(body)
+verdicts = [c for c in comments if is_claude_summary(c) and in_window(c)]
+finding_ids, masked = [], []
+for c in verdicts:
+    body = c.get('body') or ''
+    is_clean = bool(clean_re.search(body)) and not finding_re.search(body)
+    if not is_clean:
+        cid = str(c.get('id') or '')
+        finding_ids.append(cid)
+        # Masked = findings-bearing AND not the newest summary (which the
+        # standard render path already emits as a finding block).
+        if cid != newest_id:
+            masked.append(c)
+ids = ','.join(finding_ids) if finding_ids else 'none'
+has = 'true' if finding_ids else 'false'
+print(f'CLAUDE_HEAD_VERDICTS={len(verdicts)} CLAUDE_HAS_FINDINGS={has} CLAUDE_FINDINGS_SUMMARY_IDS={ids}')
+if masked:
+    # Second output line: masked findings-bearing summaries as a JSON array —
+    # the render section emits a mandatory finding block for EACH (a masked
+    # verdict the loop cannot triage would reproduce the false-CLEAN).
+    print(json.dumps(masked))
+" 2>/dev/null || true)
+CLAUDE_VERDICTS_LINE=$(printf '%s\n' "${CLAUDE_VERDICTS_OUT:-}" | grep '^CLAUDE_HEAD_VERDICTS=' || true)
+CLAUDE_MASKED_JSON=$(printf '%s\n' "${CLAUDE_VERDICTS_OUT:-}" | grep '^\[' || true)
+CLAUDE_HAS_FINDINGS=$(echo "${CLAUDE_VERDICTS_LINE:-}" | grep -oE 'CLAUDE_HAS_FINDINGS=[^ ]+' | cut -d= -f2 || true)
+CLAUDE_HEAD_VERDICTS_N=$(echo "${CLAUDE_VERDICTS_LINE:-}" | grep -oE 'CLAUDE_HEAD_VERDICTS=[^ ]+' | cut -d= -f2 || true)
+# Fail-closed single-verdict proof: the clean signal may only stand when Pass 2b
+# actually ran AND the newest (clean) summary itself counted as an in-window
+# verdict (HEAD_VERDICTS >= 1). No window / empty verdict set = the script
+# CANNOT prove the clean summary isn't masking an earlier head-SHA verdict —
+# withhold clean rather than fall back to the pre-dual-verdict read
+# (bugbot 3399604441: blank timestamps → WINDOW_START='' → pass skipped →
+# UNPROVEN. Run-list gaps are NOT defended here — same-SHA runs are expected
+# to co-appear in the API response for a fresh push; a paginated-out earlier
+# run would narrow the window undetected.)
+CLAUDE_VERDICT_SET_PROVEN=false
+if [ -n "${CLAUDE_VERDICTS_LINE:-}" ] && [ "${CLAUDE_HEAD_VERDICTS_N:-0}" -ge 1 ] 2>/dev/null; then
+    CLAUDE_VERDICT_SET_PROVEN=true
+fi
 
 if [ -n "$CLAUDE_INLINE_JSON" ]; then
     HEAD_INLINE_COUNT=$(echo "$CLAUDE_INLINE_JSON" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
@@ -584,8 +675,22 @@ except Exception:
         echo -e "${GREEN}✅ Claude Actions run completed with a posted verdict for PR head.${NC}"
         if [ "$HEAD_INLINE_COUNT" -gt 0 ] 2>/dev/null || [ "$SUMMARY_FINDINGS" = "true" ]; then
             : # findings present (inline and/or summary body) — rendered below; emit NO clean signal
+        elif [ "$SUMMARY_CLEAN" = "true" ] && [ "$CLAUDE_HAS_FINDINGS" = "true" ]; then
+            # Dual-verdict masking: the NEWEST summary reads clean, but an earlier
+            # substantive verdict in the head-SHA window carries findings. A clean
+            # verdict never overrides a findings verdict — no clean signal; the
+            # orchestrator must read every id in CLAUDE_FINDINGS_SUMMARY_IDS.
+            echo -e "${RED}⚠️  DUAL-VERDICT MASKING: newest head-SHA summary is clean, but earlier head-SHA verdict(s) carry findings (${CLAUDE_VERDICTS_LINE:-}). STILL_FINDING — findings are addressed by fixes, never by a newer clean roll. See engine-claude.md § dual substantive verdicts.${NC}"
+        elif [ "$SUMMARY_CLEAN" = "true" ] && [ "$CLAUDE_VERDICT_SET_PROVEN" != "true" ]; then
+            # Fail-closed: a clean newest summary WITHOUT a proven head-SHA verdict
+            # set (no run window, blank run timestamps, or the summary itself fell
+            # outside the window) cannot rule out a masked earlier verdict. Withhold
+            # the clean signal — the orchestrator keeps polling / re-triggers; it
+            # must never read this state as CLEAN (bugbot 3399604441).
+            echo -e "${YELLOW}⚠️  Newest summary reads clean but the head-SHA verdict set is UNPROVEN (${CLAUDE_VERDICTS_LINE:-no run window}) — clean signal withheld, fail-closed. Verify the Actions run list for the head SHA.${NC}"
         elif [ "$SUMMARY_CLEAN" = "true" ]; then
-            # Posted clean summary ("no issues found") + zero inline → clean.
+            # Posted clean summary ("no issues found") + zero inline + proven
+            # verdict set with no earlier findings-bearing head-SHA verdict → clean.
             # (LAYER 2: clean now requires a POSITIVE posted signal — never zero-inline alone.)
             echo "CLAUDE_CLEAN_SIGNAL=${SUMMARY_ID:-checkrun-${cr_id}} COMMIT=${cr_sha} AT=${SUMMARY_AT:-$cr_at}"
         fi
@@ -609,6 +714,12 @@ fi
 LATEST_ANCHOR_ID="$SUMMARY_ID"
 LATEST_ANCHOR_AT="$SUMMARY_AT"
 LATEST_CLEAN="$SUMMARY_CLEAN"
+# Dual-verdict masking: the legacy CLEAN= hint must not read true off the newest
+# summary while an earlier head-SHA verdict carries findings. (The orchestrator
+# ignores CLEAN= anyway — this just stops the hint from lying.)
+if [ "$CLAUDE_HAS_FINDINGS" = "true" ]; then
+    LATEST_CLEAN=false
+fi
 if [ -z "$LATEST_ANCHOR_ID" ]; then
     LATEST_ANCHOR_ID="$INLINE_ANCHOR_ID"
     LATEST_ANCHOR_AT="$INLINE_ANCHOR_AT"
@@ -620,6 +731,12 @@ if [ -z "$LATEST_ANCHOR_ID" ]; then
 fi
 if [ -n "$LATEST_ANCHOR_ID" ]; then
     echo "CLAUDE_LATEST_REVIEW=${LATEST_ANCHOR_ID} COMMIT=${PR_HEAD_SHA} AT=${LATEST_ANCHOR_AT} CLEAN=${LATEST_CLEAN:-false}"
+    # Dual-verdict marker (Pass 2b): every substantive head-SHA verdict, not just
+    # the newest — the orchestrator reads CLAUDE_FINDINGS_SUMMARY_IDS when
+    # CLAUDE_HAS_FINDINGS=true even if the LATEST_REVIEW anchor reads clean.
+    if [ -n "${CLAUDE_VERDICTS_LINE:-}" ]; then
+        echo "$CLAUDE_VERDICTS_LINE"
+    fi
     echo ""
 fi
 
@@ -751,11 +868,62 @@ print('')
 fi
 
 # ------------------------------------------------------------------------------
+# MASKED head-SHA summaries (dual-verdict rule) — every findings-bearing summary
+# that is NOT the newest gets its own mandatory finding block. Without this, a
+# masked verdict is listed in CLAUDE_FINDINGS_SUMMARY_IDS but never rendered,
+# the loop counts zero triageable findings, and the false-CLEAN reproduces.
+# ------------------------------------------------------------------------------
+if [ -n "${CLAUDE_MASKED_JSON:-}" ]; then
+    echo -e "${RED}🐛 MASKED head-SHA verdict(s) — earlier findings-bearing summaries on this SHA (dual-verdict rule; newest summary does NOT retire these):${NC}"
+    echo ""
+    echo "$CLAUDE_MASKED_JSON" | python3 -c "
+import json, re, sys
+try:
+    masked = json.loads(sys.stdin.read())
+except Exception:
+    sys.exit(0)
+for c in masked:
+    body = c.get('body', '') or ''
+    cid = c.get('id', '')
+    url = c.get('html_url', '')
+    # Severity heuristic mirrors the newest-summary render (see note there).
+    b = body.lower()
+    if 'critical' in b:
+        severity, color = 'CRITICAL', '\033[0;31m'
+    elif 'privilege' in b or 'escalation' in b or '❌' in body:
+        severity, color = 'HIGH', '\033[0;31m'
+    elif 'violation' in b or 'missing' in b or '⚠️' in body:
+        severity, color = 'MEDIUM', '\033[1;33m'
+    else:
+        severity, color = 'INFO', ''
+    headings = re.findall(r'^#{1,6}\s+(.+)$', body, re.MULTILINE)
+    finding_headings = [h.strip() for h in headings if not re.match(r'code[ -]?review\b', h.strip(), re.I)]
+    title = (finding_headings or [h.strip() for h in headings] or ['Claude summary review'])[0]
+    separator = '━' * 80
+    print(f'{color}{separator}\033[0m')
+    # Mandatory contract token — verbatim '(comment id <cid>, review summary)'.
+    print(f'{color}Severity: {severity} (comment id {cid}, review summary) [MASKED by newer same-SHA verdict]\033[0m')
+    print('\033[0;34m**File:**\033[0m (summary body — not line-anchored)')
+    print(f'\033[0;34m**Title:**\033[0m {title}')
+    print('\033[0;34m**Description:**\033[0m')
+    print(body.strip())
+    print('')
+    print(f'\033[0;34m**Link:**\033[0m {url}')
+    print('')
+"
+fi
+
+# ------------------------------------------------------------------------------
 # Summary comment surface (top-level) — informational, by id
 # ------------------------------------------------------------------------------
 if [ -n "$CLAUDE_SUMMARY_LINE" ]; then
     echo "$CLAUDE_SUMMARY_LINE"
-    if [ "$SUMMARY_CLEAN" = "true" ]; then
+    if [ "$SUMMARY_CLEAN" = "true" ] && [ "$CLAUDE_HAS_FINDINGS" = "true" ]; then
+        # Dual-verdict masking: NEVER print the green clean banner while an
+        # earlier head-SHA verdict carries findings — contradictory signals are
+        # how the false CLEAN slips past prose-weighting readers.
+        echo -e "${RED}⚠️  Newest summary reads clean but is MASKING earlier findings-bearing head-SHA verdict(s) — see the MASKED blocks above. NOT clean.${NC}"
+    elif [ "$SUMMARY_CLEAN" = "true" ]; then
         echo -e "${GREEN}✅ Claude summary comment is whole-review clean (positive phrase, no finding markers).${NC}"
     elif [ "$SUMMARY_FINDINGS" = "true" ]; then
         echo -e "${YELLOW}💬 Claude summary comment carries findings (id $SUMMARY_ID) — rendered above.${NC}"
