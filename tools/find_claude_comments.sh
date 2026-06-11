@@ -544,8 +544,10 @@ CLAUDE_HEAD_VERDICTS_N=$(echo "${CLAUDE_VERDICTS_LINE:-}" | grep -oE 'CLAUDE_HEA
 # verdict (HEAD_VERDICTS >= 1). No window / empty verdict set = the script
 # CANNOT prove the clean summary isn't masking an earlier head-SHA verdict —
 # withhold clean rather than fall back to the pre-dual-verdict read
-# (bugbot 3399604441: run-list gaps / blank timestamps must not re-open the
-# masking hole).
+# (bugbot 3399604441: blank timestamps → WINDOW_START='' → pass skipped →
+# UNPROVEN. Run-list gaps are NOT defended here — same-SHA runs are expected
+# to co-appear in the API response for a fresh push; a paginated-out earlier
+# run would narrow the window undetected.)
 CLAUDE_VERDICT_SET_PROVEN=false
 if [ -n "${CLAUDE_VERDICTS_LINE:-}" ] && [ "${CLAUDE_HEAD_VERDICTS_N:-0}" -ge 1 ] 2>/dev/null; then
     CLAUDE_VERDICT_SET_PROVEN=true
