@@ -10,6 +10,36 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.11 — shell skill + dual-verdict engine calibration (2026-06-11, compound)
+
+Single-PR compound section.
+
+### Added
+
+- **`skills/shell/`** — new base shell-scripting layer beneath `deployment` + the devops
+  persona (the `python`-tier analog for ops bash): DRY-RUN/`--apply`/`--verify`/`--revert`
+  maintenance-script contract with the **interactive precondition-acknowledgement gate**
+  (block on a literal `yes` from `/dev/tty` BEFORE any connection/mutation — a checklist
+  that prints while the action runs is decoration), SSH fleet patterns (cold-probe
+  hygiene, one-login ControlMaster apply mux, scaffold-copy extraction counter),
+  validator-less config edits with diff-shape assertions (`.bak` + exactly-one-line
+  post-edit check), and evidence-gated remediation for intermittent faults
+  (historical log fingerprints over point-in-time probes; `--preventive` waiver;
+  gate-equivalence dry-runs fail closed). Four references + 22nd skill row in README.
+- **AGENT_architect PASS 3** — gate-design probe: point-in-time probes cannot govern
+  intermittent faults; demand recorded-evidence conjuncts + fail-closed gate-equivalence.
+
+### Changed
+
+- **engine-claude calibration — dual substantive verdicts (second downstream, 2026-06-11):**
+  the §48 "subsequent pushes auto-skip" model is **install-dependent** — a non-skipping
+  install produced two full reviews per SHA that DISAGREED (findings-bearing auto-run
+  verdict masked by a later clean retrigger verdict → false CLEAN hand-back). New adapter
+  rule: wait for ALL head-SHA runs to complete, read EVERY substantive verdict, and let any
+  unaddressed findings-bearing verdict keep the engine STILL_FINDING — a newer clean
+  verdict never overrides it. `commands/review-loop.md` + `skills/review-loop/SKILL.md`
+  hard "no double-run" claims softened accordingly.
+
 ## v5.1.10 — compound: Celery task hygiene + review-engine adapter calibrations
 
 Patch release. Compounded from a Celery-optimization cycle on a consuming Django project (a reindex post-mortem quantifying ~38.6k overhead-dominated tasks, dead result rows, an nproc-sized worker fleet, and a scheduler that had been silently dead for months) plus one multi-engine review-loop run that exposed two adapter blind spots. References-first; zero SKILL.md-body additions.

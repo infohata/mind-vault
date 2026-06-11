@@ -55,7 +55,7 @@ mind-vault/
 └── tools/         Runtime skill helpers (review-loop adapters, statusline, etc.)
 ```
 
-## Skills (21)
+## Skills (22)
 
 Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each skill has frontmatter `name` + `description` (the probabilistic trigger), stays under ~500 lines, and pushes deep-dive content to `references/`.
 
@@ -79,6 +79,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 | Skill                  | Purpose                                                                                                                                                                                                                            |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **python**             | Language-base tier beneath the framework skills — `ast` byte-exact flat-module→package splits, env-driven `frozenset` allowlists. Language-general recipes for any Python project; SKIP hands off to the active framework skill.   |
+| **shell**              | Base shell-scripting tier beneath `deployment` + the devops persona — DRY-RUN/`--apply`/`--verify` maintenance-script contract with interactive precondition-acknowledgement gates, SSH fleet sweeps (cold-probe hygiene, one-login ControlMaster mux), validator-less system-config edits with diff-shape assertions, evidence-gated remediation for intermittent faults. |
 | **django**             | Backend conventions: BaseModel, soft-delete, DRF viewsets, multi-tenancy boundaries, generic-FK pattern, permission probes, translation workflow.                                                                                  |
 | **django-frontend**    | HTMX + Alpine + Bulma + Crispy Forms — partial dispatch, modal/formset JS contracts, safe query-string generation. Pairs with `django`.                                                                                            |
 | **laravel**            | Laravel 12 backend conventions across the 6 contract concerns — Eloquent eager-loading (`with()`/`preventLazyLoading`), Form-Request + API-Resource input boundary, queued jobs on Redis/Horizon, tenant data-isolation via global scopes, Policy/Gate authz, Pest testing + split-by-ownership translations. The second stack (IDEA-014 Phase 2). |
@@ -109,7 +110,7 @@ Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each sk
 
 ## Commands
 
-Slash commands surface from two sources via the host's symlink: `commands/` (6 commands) and `skills/` (every skill with a `name:` frontmatter is invocable as `/<name>` per the skill-writer convention). The two groups below list the **sprint-workflow** + **automation** + **review/PR** entries — the most common surfaces. Engineering-pattern skills (`python`, `django`, `django-frontend`, `laravel`, `laravel-frontend`, `deployment`, `surgical-tdd`, `dependabot-triage`, `mobile-ux-polish`, `skill-writer`, `artefact-retrieval`) are also slash-invocable but typically activate via trigger-phrase rather than direct slash; see each skill's frontmatter.
+Slash commands surface from two sources via the host's symlink: `commands/` (6 commands) and `skills/` (every skill with a `name:` frontmatter is invocable as `/<name>` per the skill-writer convention). The two groups below list the **sprint-workflow** + **automation** + **review/PR** entries — the most common surfaces. Engineering-pattern skills (`python`, `shell`, `django`, `django-frontend`, `laravel`, `laravel-frontend`, `deployment`, `surgical-tdd`, `dependabot-triage`, `mobile-ux-polish`, `skill-writer`, `artefact-retrieval`) are also slash-invocable but typically activate via trigger-phrase rather than direct slash; see each skill's frontmatter.
 
 **Sprint workflow:** `/ideate`, `/idea`, `/plan` (alias `/brainstorm`), `/work`, `/wrap`, `/land`, `/compound`, `/ingest-backlog`.
 
