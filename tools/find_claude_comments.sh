@@ -487,7 +487,7 @@ SUMMARY_FINDINGS=$(echo "$CLAUDE_SUMMARY_LINE" | grep -oE 'FINDINGS=[^ ]+' | cut
 # back to the newest-summary read (the pre-dual-verdict behaviour, surfaced as
 # such rather than silently degraded).
 WINDOW_START=$(echo "${CLAUDE_CHECKRUN_LINE:-}" | grep -oE 'WINDOW_START=[^ ]+' | cut -d= -f2 || true)
-CLAUDE_VERDICTS_LINE=$(echo "$ISSUE_COMMENTS" | WINDOW_START="$WINDOW_START" python3 -c "
+CLAUDE_VERDICTS_OUT=$(echo "$ISSUE_COMMENTS" | WINDOW_START="$WINDOW_START" NEWEST_SUMMARY_ID="${SUMMARY_ID:-}" python3 -c "
 import json, os, re, sys
 window = os.environ.get('WINDOW_START', '')
 if not window:
@@ -501,6 +501,7 @@ sig_re = re.compile(os.environ.get('CLAUDE_BODY_SIGNATURES', 'a^'), re.IGNORECAS
 noop_re = re.compile(os.environ.get('CLAUDE_NOOP_PATTERNS', 'a^'), re.IGNORECASE | re.MULTILINE)
 clean_re = re.compile(os.environ.get('CLAUDE_CLEAN_PATTERNS', 'a^'), re.IGNORECASE)
 finding_re = re.compile(os.environ.get('CLAUDE_FINDING_MARKERS', 'a^'), re.IGNORECASE)
+newest_id = os.environ.get('NEWEST_SUMMARY_ID', '')
 def in_window(c):
     # ISO-8601 UTC Z strings compare lexicographically.
     return (c.get('created_at') or '') >= window
@@ -509,16 +510,28 @@ def is_claude_summary(c):
     body = c.get('body') or ''
     return login in logins and bool(sig_re.search(body)) and not noop_re.search(body)
 verdicts = [c for c in comments if is_claude_summary(c) and in_window(c)]
-finding_ids = []
+finding_ids, masked = [], []
 for c in verdicts:
     body = c.get('body') or ''
     is_clean = bool(clean_re.search(body)) and not finding_re.search(body)
     if not is_clean:
-        finding_ids.append(str(c.get('id') or ''))
+        cid = str(c.get('id') or '')
+        finding_ids.append(cid)
+        # Masked = findings-bearing AND not the newest summary (which the
+        # standard render path already emits as a finding block).
+        if cid != newest_id:
+            masked.append(c)
 ids = ','.join(finding_ids) if finding_ids else 'none'
 has = 'true' if finding_ids else 'false'
 print(f'CLAUDE_HEAD_VERDICTS={len(verdicts)} CLAUDE_HAS_FINDINGS={has} CLAUDE_FINDINGS_SUMMARY_IDS={ids}')
+if masked:
+    # Second output line: masked findings-bearing summaries as a JSON array —
+    # the render section emits a mandatory finding block for EACH (a masked
+    # verdict the loop cannot triage would reproduce the false-CLEAN).
+    print(json.dumps(masked))
 " 2>/dev/null || true)
+CLAUDE_VERDICTS_LINE=$(printf '%s\n' "${CLAUDE_VERDICTS_OUT:-}" | grep '^CLAUDE_HEAD_VERDICTS=' || true)
+CLAUDE_MASKED_JSON=$(printf '%s\n' "${CLAUDE_VERDICTS_OUT:-}" | grep '^\[' || true)
 CLAUDE_HAS_FINDINGS=$(echo "${CLAUDE_VERDICTS_LINE:-}" | grep -oE 'CLAUDE_HAS_FINDINGS=[^ ]+' | cut -d= -f2 || true)
 
 if [ -n "$CLAUDE_INLINE_JSON" ]; then
@@ -675,6 +688,12 @@ fi
 LATEST_ANCHOR_ID="$SUMMARY_ID"
 LATEST_ANCHOR_AT="$SUMMARY_AT"
 LATEST_CLEAN="$SUMMARY_CLEAN"
+# Dual-verdict masking: the legacy CLEAN= hint must not read true off the newest
+# summary while an earlier head-SHA verdict carries findings. (The orchestrator
+# ignores CLEAN= anyway — this just stops the hint from lying.)
+if [ "$CLAUDE_HAS_FINDINGS" = "true" ]; then
+    LATEST_CLEAN=false
+fi
 if [ -z "$LATEST_ANCHOR_ID" ]; then
     LATEST_ANCHOR_ID="$INLINE_ANCHOR_ID"
     LATEST_ANCHOR_AT="$INLINE_ANCHOR_AT"
@@ -823,11 +842,62 @@ print('')
 fi
 
 # ------------------------------------------------------------------------------
+# MASKED head-SHA summaries (dual-verdict rule) — every findings-bearing summary
+# that is NOT the newest gets its own mandatory finding block. Without this, a
+# masked verdict is listed in CLAUDE_FINDINGS_SUMMARY_IDS but never rendered,
+# the loop counts zero triageable findings, and the false-CLEAN reproduces.
+# ------------------------------------------------------------------------------
+if [ -n "${CLAUDE_MASKED_JSON:-}" ]; then
+    echo -e "${RED}🐛 MASKED head-SHA verdict(s) — earlier findings-bearing summaries on this SHA (dual-verdict rule; newest summary does NOT retire these):${NC}"
+    echo ""
+    echo "$CLAUDE_MASKED_JSON" | python3 -c "
+import json, re, sys
+try:
+    masked = json.loads(sys.stdin.read())
+except Exception:
+    sys.exit(0)
+for c in masked:
+    body = c.get('body', '') or ''
+    cid = c.get('id', '')
+    url = c.get('html_url', '')
+    # Severity heuristic mirrors the newest-summary render (see note there).
+    b = body.lower()
+    if 'critical' in b:
+        severity, color = 'CRITICAL', '\033[0;31m'
+    elif 'privilege' in b or 'escalation' in b or '❌' in body:
+        severity, color = 'HIGH', '\033[0;31m'
+    elif 'violation' in b or 'missing' in b or '⚠️' in body:
+        severity, color = 'MEDIUM', '\033[1;33m'
+    else:
+        severity, color = 'INFO', ''
+    headings = re.findall(r'^#{1,6}\s+(.+)$', body, re.MULTILINE)
+    finding_headings = [h.strip() for h in headings if not re.match(r'code[ -]?review\b', h.strip(), re.I)]
+    title = (finding_headings or [h.strip() for h in headings] or ['Claude summary review'])[0]
+    separator = '━' * 80
+    print(f'{color}{separator}\033[0m')
+    # Mandatory contract token — verbatim '(comment id <cid>, review summary)'.
+    print(f'{color}Severity: {severity} (comment id {cid}, review summary) [MASKED by newer same-SHA verdict]\033[0m')
+    print('\033[0;34m**File:**\033[0m (summary body — not line-anchored)')
+    print(f'\033[0;34m**Title:**\033[0m {title}')
+    print('\033[0;34m**Description:**\033[0m')
+    print(body.strip())
+    print('')
+    print(f'\033[0;34m**Link:**\033[0m {url}')
+    print('')
+"
+fi
+
+# ------------------------------------------------------------------------------
 # Summary comment surface (top-level) — informational, by id
 # ------------------------------------------------------------------------------
 if [ -n "$CLAUDE_SUMMARY_LINE" ]; then
     echo "$CLAUDE_SUMMARY_LINE"
-    if [ "$SUMMARY_CLEAN" = "true" ]; then
+    if [ "$SUMMARY_CLEAN" = "true" ] && [ "$CLAUDE_HAS_FINDINGS" = "true" ]; then
+        # Dual-verdict masking: NEVER print the green clean banner while an
+        # earlier head-SHA verdict carries findings — contradictory signals are
+        # how the false CLEAN slips past prose-weighting readers.
+        echo -e "${RED}⚠️  Newest summary reads clean but is MASKING earlier findings-bearing head-SHA verdict(s) — see the MASKED blocks above. NOT clean.${NC}"
+    elif [ "$SUMMARY_CLEAN" = "true" ]; then
         echo -e "${GREEN}✅ Claude summary comment is whole-review clean (positive phrase, no finding markers).${NC}"
     elif [ "$SUMMARY_FINDINGS" = "true" ]; then
         echo -e "${YELLOW}💬 Claude summary comment carries findings (id $SUMMARY_ID) — rendered above.${NC}"
