@@ -62,8 +62,8 @@ Followed by an empty line, then optionally:
 - `<ENGINE>` literal is uppercase engine name (e.g. `BUGBOT`, `COPILOT`, `CLAUDE`).
 - `<ENGINE>_LATEST_REVIEW` is **mandatory** when any review exists for the PR — the orchestrator's staleness rule depends on it. It may carry a trailing legacy `CLEAN=<bool>` token; the orchestrator ignores it (clean is structural), and parsers must tolerate extra trailing fields.
 - `<ENGINE>_CHECKRUN` is the **review-state gate**, emitted whenever the engine has a check-run on the head SHA. Its **absence means the engine has no check-run for this SHA yet** — either `NOT_TRIGGERED` (no retrigger fired) or `TRIGGERED` (retrigger fired, check-run not yet created); Phase 4 distinguishes them by whether a trigger fired this SHA, so absence alone must not prompt a re-trigger. When present, `STATUS` maps to `RUNNING` (`queued`/`in_progress`) vs `DONE` (`completed`); `CONCLUSION` is a run outcome, never a clean verdict. A `completed` check-run must not be surfaced as DONE until a review for the head SHA has posted — with one exception, the **success-only settle valve** (a `success` review-less check-run is trusted after the window; a non-success one never is). See § Review-state gate's review-pending guard for the full rule.
-- `<ENGINE>_CLEAN_SIGNAL` is **legacy and non-authoritative**: the orchestrator derives clean structurally (engine `DONE` + zero active findings matching `LATEST_REVIEW`), never from this line. A script MAY still emit it; the orchestrator ignores it for the verdict.
-- Each inline finding must include the `review <rid>` token so the orchestrator can filter active findings (`rid == LATEST_REVIEW`) vs persistent-thread stale findings (`rid != LATEST_REVIEW`).
+- `<ENGINE>_CLEAN_SIGNAL` is **legacy and non-authoritative**: the orchestrator derives clean structurally (engine `DONE` + zero active findings across the head-SHA verdict set — `LATEST_REVIEW` for single-verdict engines; every head-SHA verdict for multi-verdict engines per the core skill's § Staleness carve-out), never from this line. A script MAY still emit it; the orchestrator ignores it for the verdict.
+- Each inline finding must include the `review <rid>` token so the orchestrator can filter active findings vs persistent-thread stale findings. For single-verdict engines that's `rid == LATEST_REVIEW`; for multi-verdict engines (claude — see `engine-claude.md` § dual substantive verdicts) the active set spans every substantive verdict on the head SHA, so the script must let the orchestrator see them all (emit per-verdict ids/timestamps, not just the newest).
 - The `COMMIT=<sha>` on `LATEST_REVIEW` is the trigger-anchor SHA; the authoritative review state is the `CHECKRUN STATUS` for the current head SHA.
 - Exit code 0 on success (regardless of whether findings exist); non-zero only on auth/network failure.
 
@@ -99,11 +99,11 @@ Any engine-specific quirks (e.g. Copilot's bare `--add-reviewer` no-op against a
 
 ### § Review-state + clean detection
 
-Document the engine's check-run (name / app-slug) and how `STATUS` maps to `RUNNING`/`DONE`. Clean is structural: `DONE` + zero active findings matching `LATEST_REVIEW`. If the script also emits a legacy `CLEAN_SIGNAL` (e.g. a review-body marker), note it as corroboration only — the orchestrator does not consume it for the verdict.
+Document the engine's check-run (name / app-slug) and how `STATUS` maps to `RUNNING`/`DONE`. Clean is structural: `DONE` + zero active findings across the head-SHA verdict set (`LATEST_REVIEW` for single-verdict engines). If the script also emits a legacy `CLEAN_SIGNAL` (e.g. a review-body marker), note it as corroboration only — the orchestrator does not consume it for the verdict.
 
 ### § Staleness rule
 
-Engine-specific staleness semantics if any. The default contract (active iff `review.id == LATEST_REVIEW`) is uniform across engines, but engines with persistent-thread quirks (bugbot: stale findings linger in `/comments` until manual resolve) document them here.
+Engine-specific staleness semantics if any. The default contract (active iff `review.id == LATEST_REVIEW`) is uniform across single-verdict engines; engines with persistent-thread quirks (bugbot: stale findings linger in `/comments` until manual resolve) or multiple substantive verdicts per head SHA (claude: staleness ages out by SHA, not review id — every head-SHA verdict stays active; see `engine-claude.md` § dual substantive verdicts) document them here.
 
 ### § Race-condition caveats
 

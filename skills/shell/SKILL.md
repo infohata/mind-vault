@@ -31,8 +31,10 @@ rather than restating them. New shell-general patterns land here, not under
 
 ### 1. Strict mode and its holes
 
-**Fires when** authoring any script. `set -euo pipefail` is the house prologue
-AND a known-leaky tripwire: pipeline-in-assignment aborts before your friendly
+**Fires when** authoring any script. `set -euo pipefail` (+ `shopt -s
+inherit_errexit` on bash ≥4.4 — without it multi-step command substitutions
+sail past a failing first step) is the house prologue AND a known-leaky
+tripwire: pipeline-in-assignment aborts before your friendly
 error, `head -N` SIGPIPE races, informative non-zero rcs (`diff`, `grep`),
 `local var=$(cmd)` masking failure (SC2155), condition contexts disabling
 errexit transitively (`if f; then` turns `-e` off inside all of `f`), unguarded

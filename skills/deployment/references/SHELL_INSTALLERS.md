@@ -237,7 +237,7 @@ When authoring a new `install-X.sh`, start by copying the closest existing insta
 # Usage: sudo ./install/install-X.sh [--check] [--flag VALUE]
 # Supports: Debian 11+, Ubuntu 20.04+
 
-set -eo pipefail
+set -euo pipefail   # new scripts take -u (see shell STRICT_MODE_HAZARDS.md § set -u edges)
 
 CHECK_ONLY=0
 # … default flag values …
