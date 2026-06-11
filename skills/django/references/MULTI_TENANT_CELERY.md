@@ -228,6 +228,26 @@ def bulk_operation(self, data, org_id):
             Model.objects.create(**item)  # ✅ Correct tenant
 ```
 
+---
+
+**❌ Assuming `django_celery_results` rows live in one schema**:
+
+With django-tenants + the `django-db` result backend, the worker writes each `TaskResult` row through its **tenant-aware connection** — into whichever schema the connection's `search_path` points at when the task finishes. Over months the "current writer" silently drifts between schemas as tenant context shifts; a production audit found ~28.5k rows scattered across **6 schemas**, each frozen at a different date (the public copy looked like writes "stopped" — they had just moved).
+
+Consequences:
+
+- **Audits and purges must sweep every schema** that has the table, not just `public`:
+
+  ```sql
+  select table_schema from information_schema.tables
+  where table_name = 'django_celery_results_taskresult';
+  -- then count/delete per schema
+  ```
+
+- **`celery.backend_cleanup` only cleans the schema it happens to run in** — it cannot be the retention strategy here.
+- **The real fix is upstream**: `CELERY_TASK_IGNORE_RESULT = True` (see CELERY.md § Task Hygiene) so the rows aren't written at all; the backend stays installed for explicit opt-in tasks.
+- Forensics caveat: without `CELERY_RESULT_EXTENDED = True`, `task_name` is NULL on every row — per-task breakdowns are unrecoverable after the fact.
+
 ## Injection Points
 
 1. **settings.py** - CELERY configuration (same as single-tenant)

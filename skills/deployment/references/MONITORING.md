@@ -140,6 +140,39 @@ server {
 }
 ```
 
+### Scheduler Liveness and Service-Inventory Checks
+
+#### Schedulers must be first-class services
+
+A background scheduler (Celery beat, a cron-runner sidecar, a queue dispatcher) started **manually inside another service's container** dies silently on the next container recreation — and scheduled jobs then lie dormant for months with zero errors, zero alerts, and a green-looking stack. A production audit found a schedule dead since a routine redeploy ~3 months earlier; nothing surfaced it because no process *owned* the scheduler's liveness.
+
+The fix is structural, not monitoring: run the scheduler as its **own compose service** (own `restart: unless-stopped`, own log stream), so:
+
+- `docker compose ps` answers "is the scheduler alive" directly;
+- a recreation of the worker/web service cannot take the scheduler down with it;
+- the health-inventory check below covers it for free.
+
+Anti-pattern signature to grep for in runbooks/session notes: "started beat manually inside the celery container", `docker compose exec <svc> <scheduler> &`.
+
+#### Inventory-based stack verification (don't count containers)
+
+Health checks that assert a container *count* (`docker compose ps | wc -l` vs an expected number) break every time profiles or new services change the denominator — and silently pass when one expected service is missing but an optional one is up. Enumerate **by name** instead, using the compose file itself as the profile-aware expected set:
+
+```make
+health:
+	@ok=1; \
+	for svc in $$(docker compose config --services); do \
+		st=$$(docker compose ps --format '{{.Status}}' $$svc 2>/dev/null | head -1); \
+		if [ -z "$$st" ]; then echo "✗ $$svc: NOT RUNNING"; ok=0; \
+		elif echo "$$st" | grep -qiE "unhealthy|restarting|exited|dead|created|paused"; then \
+			echo "✗ $$svc: $$st"; ok=0; \
+		else echo "✓ $$svc: $$st"; fi; \
+	done; \
+	if [ $$ok -eq 1 ]; then echo "health: all services OK"; else echo "health: FAILED"; exit 1; fi
+```
+
+`docker compose config --services` respects active profiles, so dev/e2e-only services don't false-fail a production stack. Non-zero exit on any missing/unhealthy service makes it CI- and deploy-script-safe. Wire it into the deploy runbook's verify step as the first check, before app-level health URLs.
+
 ### Infrastructure Monitoring
 
 #### Docker Container Metrics

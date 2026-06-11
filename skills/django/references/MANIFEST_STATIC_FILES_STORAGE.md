@@ -53,3 +53,28 @@ The contract: every static-file change requires `make static && make restart-web
 4. Restart the app server → next page load emits the NEW hashed URL → browser fetches NEW file → user sees the change.
 
 Applies the same way to JS / image / font / any post-processed asset. Does not apply when `DEBUG=True` because `StaticFilesStorage` (no manifest) just resolves URLs to plain filenames at request time. The staging / production gotcha only.
+
+## Test assertions on static names must be hash-robust
+
+The second face of the same trapdoor: render-and-assert tests that check a script/asset reference by **literal filename substring** pass on every `DEBUG=True` dev box and fail on any `DEBUG=False` host — `{% static 'app/js/widget.js' %}` renders `app/js/widget.<hash>.js`, which does not contain the substring `widget.js`.
+
+```python
+# ❌ Fragile — green for years on dev boxes, fails the first time the suite
+#    runs on a staging-shaped host (DEBUG=False → ManifestStaticFilesStorage):
+self.assertContains(response, 'widget.js')
+idx = body.find('app/js/widget.js')        # -1 under hashed URLs
+
+# ✅ Hash-robust — match the stem with an optional content-hash segment:
+self.assertRegex(body, r"app/js/widget(\.[0-9a-f]+)?\.js")
+```
+
+For script-**ordering** assertions (A must load before B), wrap the regex in a position helper rather than `str.find`:
+
+```python
+def find_static_asset(body: str, stem: str, ext: str = 'js') -> int:
+    """Return the match offset of a static asset reference, or -1 (hash-robust)."""
+    m = re.search(re.escape(stem) + r'(\.[0-9a-f]+)?\.' + re.escape(ext), body)
+    return m.start() if m else -1
+```
+
+Put the helper in the project's shared test-utils package and grep the suite for existing `'.js'` / `'.css'` substring assertions when introducing it — this class of fragility accumulates invisibly because suites overwhelmingly run on DEBUG=True machines. Negative assertions (`assertNotContains(response, 'legacy.js')`) need the regex form too (`assertNotRegex`), or a hashed `legacy.<hash>.js` slips through.
