@@ -10,6 +10,22 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.10 — compound: Celery task hygiene + review-engine adapter calibrations
+
+Patch release. Compounded from a Celery-optimization cycle on a consuming Django project (a reindex post-mortem quantifying ~38.6k overhead-dominated tasks, dead result rows, an nproc-sized worker fleet, and a scheduler that had been silently dead for months) plus one multi-engine review-loop run that exposed two adapter blind spots. References-first; zero SKILL.md-body additions.
+
+### Added
+
+- **`skills/django/references/CELERY.md` § Task Hygiene** (new section): ignore-results-by-default + per-task opt-in (`CELERY_TASK_IGNORE_RESULT` / `CELERY_RESULT_EXPIRES`), the **beat auto-adds `celery.backend_cleanup` even under django_celery_beat's DatabaseScheduler** gotcha (an explicit schedule entry duplicates the daily run — docs folklore says otherwise, empirically false), the delayed-coalescing debounce recipe for signal-driven fan-in (one `cache.add` gate + `apply_async(countdown=window)` inside `on_commit`; ≤2×window convergence; rollback can't consume the gate), env-driven worker sizing (`--concurrency` + `--max-tasks-per-child` — CPython keeps peak heap), and beat-as-first-class-service.
+- **`skills/django/references/MULTI_TENANT_CELERY.md`** new pitfall: with django-tenants + the django-db result backend, **TaskResult rows scatter across tenant schemas** (the worker writes through its tenant-aware connection; the "current writer" schema drifts over months) — audits/purges must sweep `information_schema` for every copy of the table; `backend_cleanup` only cleans the schema it runs in; without `CELERY_RESULT_EXTENDED`, `task_name` is NULL and forensics are unrecoverable.
+- **`skills/django/references/MANIFEST_STATIC_FILES_STORAGE.md`** new section: test assertions on static names must be **hash-robust** — literal `'<stem>.js'` substring assertions pass on every DEBUG=True dev box and fail on any DEBUG=False host; `stem(\.[0-9a-f]+)?\.ext` regex + a shared `find_static_asset()` position helper for ordering assertions; negative assertions need `assertNotRegex` too.
+- **`skills/deployment/references/MONITORING.md` § Scheduler Liveness and Service-Inventory Checks** (new section): schedulers manually started inside another service's container die silently on recreation (months-dormant schedules, zero alerts) — run them as first-class compose services; plus inventory-based stack verification (`docker compose config --services` enumerated by name vs `ps` status, profile-aware, non-zero exit) replacing container *counting*.
+
+### Changed
+
+- **`skills/review-loop/references/engine-claude.md`** new calibration block: a clean-prose summary CAN coexist with inline-only findings (3 inline finding comments, each its own single-comment review, followed seconds later by a clean-reading summary → adapter false-cleaned) — enumerate `/comments` independently every cycle; in-flight **progress comments** (unchecked `- [ ]` checklist) match the `## Code review` signature but are not verdicts — treat as RUNNING. Residual Q1 answered (inline findings post as separate single-comment reviews, no shared review id) and Q2 closed (the `@claude review` comment-trigger fallback exercised and working).
+- **`skills/review-loop/references/engine-copilot.md`** new failure mode: **silent request consumption** — the reviewer request disappears (`requested_reviewers` empty) with no review, no check-run, no error body; 2× consecutive → ERRORED, exclude from the multi-engine sync wait, point the user at org Copilot settings.
+
 ## v5.1.9 — compound: mock.patch stack leak + heal-and-attribute canary
 
 Patch release. Compounded from a dependency-batch verification on a consuming Django project where a 2-test full-suite-only deterministic failure root-caused to a cross-layer mock leak (51 leak points named by the canary in one run). References-first; one new reference, no SKILL.md-body bloat.

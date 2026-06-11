@@ -370,6 +370,65 @@ def download_file():
     )
 ```
 
+## Task Hygiene — results, schedule liveness, worker sizing
+
+Three defaults that quietly hurt at scale. A consuming project's post-mortem quantified the combined cost: ~38,600 overhead-dominated tasks in 1.5h, a dead result row per task, a 17-process worker fleet (nproc default) leaving 2.3GB of swap residue.
+
+### Results: ignore by default, opt in per task
+
+Most signal-driven tasks (indexing, sync, notifications) have no result consumer — yet a configured result backend writes one row per task, unbounded.
+
+```python
+# settings.py
+CELERY_TASK_IGNORE_RESULT = True            # no rows unless a task opts in
+CELERY_RESULT_EXPIRES = 60 * 60 * 24 * 7    # expire anything opt-in tasks DO write
+# Opt-in on the rare task whose result is actually read:
+@shared_task(ignore_result=False)
+def build_report(...): ...
+```
+
+Verify zero consumers before flipping: `grep -rn "AsyncResult\|\.get()\|chord\|chain" --include="*.py"` over non-test code.
+
+**⚠️ beat AUTO-ADDS `celery.backend_cleanup`** (daily 04:00 UTC) whenever a result backend + `result_expires` are configured — **including under django_celery_beat's `DatabaseScheduler`**, which syncs the auto-added entry into its DB tables like any other. Adding an explicit `celery.backend_cleanup` entry to `CELERY_BEAT_SCHEDULE` therefore creates a **duplicate** daily run (verified live: two 04:00 rows in `PeriodicTask`). Don't add one; instead verify the auto-added row appears after beat's first start. (Docs folklore claims DatabaseScheduler doesn't auto-schedule it — empirically false on celery 5.6 + django_celery_beat.)
+
+### Delayed-coalescing debounce for signal-driven fan-in
+
+When a signal-driven task is idempotent over current state (regenerate a config file, rebuild a cache), N triggers in a window need exactly one run — and that run must observe *every* change in the window. One cache key, no dirty flag, no end-of-task recheck:
+
+```python
+DEBOUNCE_SECONDS = 60
+DEBOUNCE_CACHE_KEY = 'my_sync_scheduled'   # module-level so tests can isolate it
+
+def request_sync(source: str) -> None:
+    """Single entry point for every dispatch site — source-tagged for telemetry."""
+    # Gate consumption INSIDE on_commit: a rolled-back transaction must not
+    # consume the gate. Bind args explicitly (late-binding closure bug).
+    transaction.on_commit(lambda source=source: _schedule(source))
+
+def _schedule(source: str) -> None:
+    if cache.add(DEBOUNCE_CACHE_KEY, 1, timeout=DEBOUNCE_SECONDS):
+        sync_task.apply_async(countdown=DEBOUNCE_SECONDS)
+```
+
+Because the task runs **after** the window closes (`countdown` = window), it sees every change that triggered during the window: a steady storm yields exactly one run per window, and every change converges within ≤2× window. This beats the two-key trailing-edge design, whose "change lands after task end but inside the gate window" case waits for the next organic trigger — potentially hours. Trade-off: even a lone trigger runs `WINDOW` seconds after commit — fine for config regeneration, wrong for user-facing latency.
+
+Route **all** dispatch sites through the helper (signals, views, management paths) so a future caller can't silently re-create the storm; give the helper a source-tagged log line so cadence anomalies are attributable from logs alone.
+
+### Worker sizing is config, not destiny
+
+`celery worker` defaults to `--concurrency=nproc` and never recycles children — CPython keeps a process's peak heap forever, so one task burst permanently inflates the fleet's RSS.
+
+```yaml
+# docker-compose.yml — env-driven with dev-safe defaults
+command: celery -A proj worker -l info --concurrency=${CELERY_CONCURRENCY:-2} --max-tasks-per-child=${CELERY_MAX_TASKS_PER_CHILD:-1000}
+```
+
+Document both knobs in `.env.template`; production sets its own values. `--max-tasks-per-child` returns burst heap to the OS on recycle. A `.env` change needs container *recreate*, not restart.
+
+### Beat must be a first-class service
+
+A manually-started `celery beat` inside the worker container dies silently on every container recreation — the schedule then lies dormant for months with zero errors. Run beat as its own compose service so `docker compose ps` answers "is the scheduler alive" (see the deployment skill's MONITORING reference § scheduler liveness). With `DatabaseScheduler`, point `--pidfile` at `/tmp` when `/app` is a bind-mounted source tree.
+
 ## Celery Injection Points
 
 1. **settings.py** - CELERY_BROKER_URL, limits, retry config
