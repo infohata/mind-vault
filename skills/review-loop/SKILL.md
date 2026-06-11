@@ -81,7 +81,7 @@ Then apply Phase 4's decision tree. **Never collapse state + findings into a sin
 
 ### Staleness rule — primary, by `pull_request_review_id`
 
-A finding is active iff its `review <rid>` matches the engine's `<ENGINE>_LATEST_REVIEW` id. Findings whose `rid` is older are stale persistent threads — GitHub keeps them visible in `/comments` until a human clicks "Resolve conversation", but the engine is no longer flagging them on the current code.
+A finding is active iff its `review <rid>` matches the engine's `<ENGINE>_LATEST_REVIEW` id (single-verdict engines — for multi-verdict engines see the carve-out below). Findings whose `rid` is older are stale persistent threads — GitHub keeps them visible in `/comments` until a human clicks "Resolve conversation", but the engine is no longer flagging them on the current code.
 
 **Multi-verdict carve-out (claude).** For engines whose adapter documents multiple substantive verdicts per head SHA ([`engine-claude.md`](references/engine-claude.md) § dual substantive verdicts — the push auto-run's skip is install-dependent, so a fix push can yield TWO full reviews of one SHA that disagree), staleness ages out by **SHA, not review id**: every substantive verdict posted **for the head SHA** stays in the active set, and a finding is active iff it belongs to any of them and is unaddressed. A newer clean verdict on the same SHA never retires an earlier findings-bearing one — findings are addressed by fixes, not by a luckier second roll. Latest-wins reading applies only across SHAs.
 
