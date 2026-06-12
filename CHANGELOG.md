@@ -10,6 +10,21 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.12 — sudoers whitelist fences (2026-06-12, compound)
+
+Lessons from a 14-host fleet audit-whitelist deploy on project-x.
+
+### Added
+
+- `skills/shell/references/SUDOERS_WHITELIST_FENCES.md` — NOPASSWD command-whitelist
+  matching traps on heterogeneous fleets: stat-based entry-path matching (pre-usrmerge
+  `/bin` vs `/usr/bin` dead entries), fnmatch argument semantics (path-template wildcard
+  holes, regex-metachar self-destructing entries, offline fnmatch round-trip test),
+  sudo-denial vs file-absence rc ambiguity (stderr-signature classification, uniform
+  stderr-length forensic), dot-staged `visudo`-before-`mv` deploy, content-hash parity
+  verify via the service identity, and guard-skip classification of fleet cron lines.
+  Pointer added to the shell SKILL.md references list.
+
 ## v5.1.11 — shell skill + dual-verdict engine calibration (2026-06-11, compound)
 
 Single-PR compound section.
