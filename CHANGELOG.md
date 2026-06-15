@@ -10,6 +10,16 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.13 — compound: rootless-Docker deploy gotcha + Actions-billing review diagnostic
+
+Patch release. Compounded from a production rollout on a consuming project — the first deploy after a rootless-Docker cutover failed because a non-login deploy shell (`screen … bash -c`) misses the profile `DOCKER_HOST` and hits the dead rootful socket, making an idempotent deploy script misread "first-time deployment". References-first; zero SKILL.md-body additions.
+
+### Added
+- `skills/deployment/references/ROOTLESS_DOCKER.md` — rootless-Docker deploy shells must resolve the rootless socket; the `DOCKER_HOST`-vs-`docker context` distinction (env var lost in non-login shells; context is shell-independent), the `! docker info`-guarded `DOCKER_HOST` auto-detect helper, and an adoption checklist. Pointer added to `skills/deployment/SKILL.md` References.
+
+### Changed
+- `skills/review-loop/references/engine-claude.md` § Failure modes — new "Actions billing wall" subsection: on a private repo, exhausted Actions minutes / failed payment make every workflow fail at **startup** (no steps, ~2s, `runner=""`, annotation names billing). Signature distinguishes it from a real engine failure (unrelated workflows failing at the same instant with no steps); orchestrator surfaces it to the user and does NOT retrigger (only the Actions-based claude engine is affected, not app-based bugbot/copilot).
+
 ## v5.1.12 — sudoers whitelist fences (2026-06-12, compound)
 
 Lessons from a 14-host fleet audit-whitelist deploy on project-x.
