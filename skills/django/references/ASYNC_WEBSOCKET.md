@@ -453,3 +453,28 @@ Three reasons the cap belongs here, not at the model layer:
 For HTTP endpoints (DRF views), apply the same rule: cap in the view's `validate()` / `clean()` / `perform_create` *before* calling out to the LLM client. The principle is shape-of-input check at the boundary, not after the spend.
 
 Pairs with: env-driven settings parsed once into typed values (see [django/SKILL.md → Env-driven allowlists / denylists as `frozenset`](../SKILL.md)) and LLM output post-processing (see [django/SKILL.md → LLM output post-processing — strip-and-trust pattern](../SKILL.md)) — three pieces of the same hot-path discipline: cap input at the boundary, post-strip the output, frozen settings so the policy can't drift mid-request.
+## Persisting partial streamed content across a mid-stream disconnect
+
+**Fires when** a consumer streams generated content (LLM tokens, reasoning, any long response) and must persist whatever streamed **even if the client disconnects mid-stream**.
+
+The accumulator that collects the streamed chunks **MUST be instance state** (`self._streaming_buf`), never a method-local in the receive/stream handler. `disconnect(self, close_code)` is a *separate method* — it can only reach `self.*`. A method-local buffer built up in the stream loop is **unreachable from `disconnect`**, so a mid-stream disconnect persists empty/partial content (exactly the reload gap the persistence was meant to close).
+
+```python
+async def receive(self, text_data):
+    self._streaming_buf = ""            # instance state, init ONCE before the loop
+    self._streaming_reasoning = ""      #   (not inside the per-iteration tool loop)
+    async for chunk in stream:
+        self._streaming_buf += chunk    # survives across tool-call iterations — do NOT reset per iteration
+    await self._save(content=self._streaming_buf, reasoning=self._streaming_reasoning)
+
+async def disconnect(self, close_code):
+    # reachable ONLY because the buffer is on self, not a receive()-local
+    await self._persist_partial_if_any()   # reads self._streaming_buf
+```
+
+Two more rules that travel with this:
+
+1. **Don't reset the accumulator per tool-call iteration.** A multi-iteration response (tool call → result → answer) streams across several passes of the inner loop; resetting per pass drops everything but the last. Init once *before* the loop.
+2. **Thread the field through EVERY save site** — success, error/failed, and the disconnect path — and consolidate them onto one `_build_update_fields()` helper so a fifth save site can't silently forget the new field. The disconnect path is the one a method-local can't reach and the one that's easiest to forget; an explicit disconnect-persist test is worth its weight.
+
+Pairs with: [`OPENROUTER_REASONING_API.md`](OPENROUTER_REASONING_API.md) (the reasoning channel this most often accumulates).
