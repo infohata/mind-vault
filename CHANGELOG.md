@@ -8,7 +8,8 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 ## Unreleased
 
-_(none)_
+### Changed
+- `skills/work/references/WATCHER_HYGIENE.md` — added Hard Rules 7 + 8 for `Monitor` / background poll-scripts: never `set -u` (the sourced host shell-snapshot references unbound vars like `ZSH_VERSION`; nounset turns that into a fatal flood that silently stalls the loop), and match poll markers with subshell-free case-insensitive `grep -iE "^${e}_MARKER="` (nested `$(… | tr …)` anchors parse mismatched in the background shell). Both are the "silent-timeout" failure class — only safe when the watcher is an accelerator over a resilient spine ("correctness never depends on the accelerator"). Compounded from the IDEA-021 review-loop Monitor dogfood.
 
 ## v5.2 — review-loop: Monitor-accelerated Phase 4 wait
 
