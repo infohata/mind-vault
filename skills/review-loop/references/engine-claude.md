@@ -31,7 +31,7 @@ This engine drives `anthropics/claude-code-action@v1` running the **`code-review
 
 ## § Tool invocations
 
-- `./tools/find_claude_comments.sh <PR_NUMBER>` — probes engine reachability (below), then synthesizes the contract-shape stream: `CLAUDE_CHECKRUN=... STATUS=<queued|in_progress|completed>` from the **Actions job** (latest run by `run_started_at` for the head SHA), `CLAUDE_LATEST_REVIEW=...` anchored on the summary-comment id (or newest head-SHA inline comment id if no summary), inline finding blocks each carrying the mandatory `(comment id <cid>, review <rid>)` token, **summary-BODY finding blocks** carrying `(comment id <cid>, review summary)` when the `## Code review` summary itself is findings-bearing (the C1 surface — see § calibration update — findings live in the SUMMARY BODY), and an optional legacy `CLAUDE_CLEAN_SIGNAL=...` (non-authoritative). May also emit `CLAUDE_NOT_INSTALLED=true` (reachability), `CLAUDE_DRAFT_NOOP=true` (draft PR — no review), or `CLAUDE_REVIEW_PENDING=...` (race guard).
+- `./tools/find_claude_comments.sh <PR_NUMBER>` — probes engine reachability (below), then **surfaces review material** (IDEA-022 — it computes no clean/findings verdict; the § Verdict judge does): `CLAUDE_CHECKRUN=... STATUS=<queued|in_progress|completed> RUNS=<n> WINDOW_START=<iso>` from the **Actions job** (aggregated across all head-SHA runs), `CLAUDE_VERDICT_SET_PROVEN=<bool>` (structural fail-closed gate), `CLAUDE_HEAD_VERDICTS=<n> CLAUDE_VERDICT_IDS=<...>` (in-window verdict enumeration), `CLAUDE_LATEST_REVIEW=...` anchored on the summary-comment id (or newest head-SHA inline comment id if no summary), **verdict-body MATERIAL blocks** — every in-window summary body verbatim, each carrying `(comment id <cid>, review summary)`, UNclassified — and inline finding blocks each carrying `(comment id <cid>, review <rid>)`. May also emit `CLAUDE_NOT_INSTALLED=true` (reachability), `CLAUDE_DRAFT_NOOP=true` (draft PR — no review), `CLAUDE_REVIEW_PENDING=...` / `CLAUDE_REVIEW_SILENT=...` (race / silent guards). No `CLAUDE_CLEAN_SIGNAL`, no `CLAUDE_HAS_FINDINGS`, no `CLEAN=` token — those were the removed prose classifier.
 - `./tools/claude_retrigger.sh <PR_NUMBER>` — **fallback only.** Posts the hard-coded `@claude review once` comment. Pre-approvable in `~/.claude/settings.json`. See § Push-triggered model below — Phase 3 does NOT call this after a fix push.
 
 **Reachability probe (A2 / R4).** `find_claude_comments.sh` probes `gh api .../actions/workflows` for `claude-code-review.yml` by filename. If the workflow is absent it emits `CLAUDE_NOT_INSTALLED=true` and exits 0, so the orchestrator's default-engine resolution can **self-exclude** claude rather than poll an un-provisioned engine to HUNG.
@@ -74,25 +74,73 @@ The retrigger script also covers the **zero-activity bootstrap**: no Actions run
 
 ## § Review-state + clean detection
 
-**Review-state is synthesized from the Actions job, not a check-run.** `find_claude_comments.sh` filters `claude-code-review.yml` runs to the head SHA, picks the latest by `run_started_at`, and maps `queued`/`in_progress` → **RUNNING**, `completed` → **DONE**. The Actions `CONCLUSION` is **green whether claude found 0 or 5 issues** — it is a RUNNING/DONE signal only, NEVER a verdict.
+**Review-state is synthesized from the Actions job, not a check-run.** `find_claude_comments.sh` filters `claude-code-review.yml` runs to the head SHA, picks the latest by `run_started_at`, and maps `queued`/`in_progress` → **RUNNING**, `completed` → **DONE**. The Actions `CONCLUSION` is **green whether claude found 0 or 5 issues** — it is a RUNNING/DONE signal only, NEVER a verdict. This RUNNING/DONE state, the SILENT-≠-clean hold, and the settle valve are all **structural** (machine-derived in the adapter, unchanged by IDEA-022).
 
-**Clean requires a POSITIVE posted signal — never zero-inline alone (A6 / LAYER 2).**
+**Clean/blocking/non-blocking is a MODEL JUDGMENT, not a regex (IDEA-022).** The adapter no longer classifies claude's prose with `CLAUDE_CLEAN_PATTERNS` / `CLAUDE_FINDING_MARKERS` — that string-matcher false-FINDING'd on unrecognized clean phrasing (the dogfood) and risked false-CLEAN on marker-less prose findings (the architect's hole); both are inevitable when regex parses free-form model output. The adapter is reduced to **surfacing review material** (RUNNING/DONE, the in-window verdict-body enumeration, inline findings, `CLAUDE_VERDICT_SET_PROVEN`); the `/review-loop` orchestrator **judges that material with a model** and emits a tiered verdict. The full judge contract is **§ Verdict judge** below.
 
-```text
-clean    ⟺  claude POSTED a clean summary (body contains case-insensitive
-            substring "no issues found")  AND  zero inline findings
-findings ⟺  inline comments posted on the head SHA
-SILENT   ⟸  run `success` (DONE) but NOTHING posted after settle
-            → NOT clean (held RUNNING; see § Failure modes)
-```
+**`SILENT` (success + nothing posted) is still NOT clean — and it is structural, not a judgment.** A claude run can report `success` having posted **nothing** — action issue [#1087](https://github.com/anthropics/claude-code-action/issues/1087): the plugin buffers inline comments for a post-session step whose result-capture grabs a `TodoWrite` response instead of the review → empty → no comment. "success + silent" is **indistinguishable from genuinely-clean** ([#1054](https://github.com/anthropics/claude-code-action/issues/1054)) by run status, so the adapter holds a no-verdict `completed` run at **RUNNING** (§ Race-condition caveats) and emits `CLAUDE_REVIEW_SILENT` when the settle window elapses. The judge is only ever handed **posted, non-no-op material**; a SILENT run never reaches it (there is nothing to read), so the false-CLEAN-on-silence vector is closed structurally, upstream of the judge.
 
-**Why not "zero inline = clean" (the original A6 belt-and-suspenders, reversed by verified research).** A claude run can report `success` having posted **nothing** — action issue [#1087](https://github.com/anthropics/claude-code-action/issues/1087): the plugin buffers inline comments for a post-session step whose result-capture grabs a `TodoWrite` response instead of the review → empty → no comment. "success + silent" is **indistinguishable from genuinely-clean** ([#1054](https://github.com/anthropics/claude-code-action/issues/1054)) by run status, so zero-inline is a **false-CLEAN vector**, not a clean signal. Clean now demands a posted clean summary; the **fixed workflow** ([`../assets/claude-code-review.yml`](../assets/claude-code-review.yml) — `classify_inline_comments:false` + `claude_args` post-during-run + a prompt that forces a posted summary *even when clean*) is what makes a genuinely-clean run actually post that summary. The substring (not the full sentence) follows the copilot lesson (`find_copilot_comments.sh:182-189`).
+✅ **DO** route the clean/blocking/non-blocking decision to the § Verdict judge, reading the posted material the adapter surfaces.
 
-The legacy `CLAUDE_CLEAN_SIGNAL` line is corroboration only; the orchestrator derives clean structurally (DONE + zero active findings) — which is correct ONLY because the adapter holds a no-verdict run RUNNING (so DONE is reached only with a posted clean summary or posted findings).
+❌ **DON'T** read clean off zero-inline alone, off the Actions `CONCLUSION`, or off any leftover prose-substring — and never judge a SILENT run (it posted nothing to judge; it is held RUNNING).
 
-✅ **DO** read clean off a POSTED clean summary + zero inline findings.
+## § Verdict judge — the model-judge contract (IDEA-022; owns clean/blocking/non-blocking)
 
-❌ **DON'T** read clean off zero-inline alone, nor off the Actions `CONCLUSION`. Both pass on a #1087 silent drop → false CLEAN.
+> Carve-out, typed to cause (not engine name). The core rule "**clean is structural, never prose**" ([`../SKILL.md`](../SKILL.md) § Phase 1) holds for every engine with a **structured verdict surface** (bugbot/copilot post severity-tagged structured findings — a machine reads them). claude has **no structured surface**: its verdict *is* prose (§ Identity — no severity JSON, no named check-run). For a **prose-only verdict surface**, the prose IS the structural signal, and a model reading it is the classification. This carve-out is licensed by *absence of a structured surface* and applies to **any future prose-only engine**, not to claude by name.
+
+### Structural-vs-semantic split
+
+| Layer | Who decides | Surface |
+| --- | --- | --- |
+| RUNNING / DONE (all head-SHA runs completed?) | **adapter** (machine) | `CLAUDE_CHECKRUN ... STATUS=` aggregated across runs |
+| Was a real review posted (vs draft/skip no-op, vs SILENT)? | **adapter** (machine) | `CLAUDE_NOOP_PATTERNS` filter, `CLAUDE_DRAFT_NOOP`, `CLAUDE_REVIEW_SILENT` — a no-op/SILENT run never reaches the judge |
+| Was the whole head-SHA verdict set seen (vs paginated-out)? | **adapter** (machine, fail-closed) | `CLAUDE_VERDICT_SET_PROVEN` |
+| Which substantive bodies + inline findings exist for the head SHA | **adapter** (machine) | `CLAUDE_HEAD_VERDICTS=<n>` + each verdict body verbatim + inline blocks `(comment id …, review …)` |
+| **clean vs blocking vs non-blocking** | **the model-judge** (orchestrator-inline) | the tiered verdict below |
+
+The adapter surfaces material; it computes **no** clean/findings verdict. Only the last row is the judge's — and only because the surface is prose.
+
+### The judge prompt (orchestrator-inline)
+
+When `claude` ∈ `ENGINES` and its adapter run is **DONE with a readable verdict** (not RUNNING/PENDING/SILENT/NOOP/DRAFT), the `/review-loop` agent reads the surfaced material — **every** in-window verdict body verbatim + every head-SHA inline finding + `CLAUDE_VERDICT_SET_PROVEN` — and judges:
+
+> You are the review-loop's verdict judge for the claude engine. You are handed the full review material claude posted for the current head SHA: every substantive summary-comment body (verbatim), every head-SHA inline finding, and the structural facts (`CLAUDE_HEAD_VERDICTS`, `CLAUDE_VERDICT_SET_PROVEN`, unresolved inline-thread ids). Classify the review into exactly one tiered verdict:
+>
+> - **`CLEAN`** — claude found nothing that should change before merge. A genuinely-clean review (it may still *name* what it checked, e.g. "the privilege-escalation guard looks correct").
+> - **`BLOCKING`** — one or more findings that must be addressed before merge. Bugs, security issues, correctness problems, convention violations claude flags as required.
+> - **`NON_BLOCKING[<item>, …]`** — claude is content to merge but raised observations worth recording (e.g. "works, but you might later extract X"). Each item is `{title, why, where}`.
+>
+> A single review can be `BLOCKING` *and* carry `NON_BLOCKING` items — return `BLOCKING` with the non-blocking items listed alongside; blocking dominates for convergence. `CLEAN` and `NON_BLOCKING[]` both let the loop converge; only `BLOCKING` keeps it iterating.
+>
+> **The false-CLEAN direction is the dangerous one (IDEA-018 philosophy).** When uncertain whether an item is blocking, classify it **blocking**. Never return `CLEAN` past an unresolved concern. A "ready to merge, but one concern: …" body is **not** `CLEAN` — the concern is at least `NON_BLOCKING`, and if it names a correctness/security/convention defect it is `BLOCKING`.
+>
+> **Masking rule (verbatim — transcribed from § dual substantive verdicts).** Enumerate **every** substantive head-SHA body. Any unaddressed findings-bearing body keeps the verdict **`BLOCKING`** even if a newer same-SHA body reads clean — findings are addressed by fixes, never by a luckier newer roll. A clean verdict never overrides an earlier findings verdict on the same SHA.
+>
+> **Proven-set fail-closed (structural, non-overridable).** If `CLAUDE_VERDICT_SET_PROVEN` is not `true`, you **cannot** return `CLEAN` — the adapter could not prove it saw the whole verdict set (paginated-out / blank run timestamps / no run window), so a clean read can't rule out a masked earlier verdict. Return `BLOCKING` (re-poll / re-trigger) until the set is proven.
+>
+> When you return `CLEAN` over a posted summary body, **record which body id you cleared and the one-line reason** — a clean verdict over substantive prose must be auditable.
+
+### Backstop — stated honestly (architect C1; no "guarded two ways" overclaim)
+
+The never-false-CLEAN bias has **two different anchors depending on finding shape**, because claude's *common* finding shape is **summary-body-only with zero inline threads** (§ calibration update — findings live in the SUMMARY BODY; the ~30-docstring real case):
+
+- **Inline-thread findings** → the structural anchor holds: an unresolved head-SHA inline thread ⇒ the judge must not return `CLEAN` (machine-countable).
+- **Summary-body-only findings** → there is **no inline-thread anchor** (the signal *is* prose). The guard here is the **judge instruction** (false-CLEAN-dangerous) **plus** the structural **proven-verdict-set requirement** (`CLAUDE_VERDICT_SET_PROVEN` fail-closed). The judge may return `CLEAN` only over a verdict set the adapter proved whole.
+
+So: structural where a structural signal exists (inline threads, proven-set, masking enumeration); judge-instruction where the signal is irreducibly prose. Not "guarded two ways" everywhere — guarded by whatever anchor the finding shape affords.
+
+### Fixture taxonomy (drives the tests — § Verification / `tests/`)
+
+The judge contract is gated **asymmetrically** (architect C2 — moving classification to a model loses the deterministic CI gate, so restore it only on the dangerous direction):
+
+- **Hard-gated (false-CLEAN direction; the structurally-detectable part runs in bash CI):**
+  - **summary-body-only blocking finding** (the `:176` ~30-docstring shape) — the adapter MUST surface the body verbatim so the judge sees the concern.
+  - **dual-verdict masking** (newer clean body masks an earlier findings-bearing body on the same SHA) — the adapter MUST enumerate **both** bodies (`CLAUDE_HEAD_VERDICTS=2`), so a masked verdict can never be invisible to the judge.
+  - **unprovable verdict set** — `CLAUDE_VERDICT_SET_PROVEN=false` MUST hold, structurally forbidding a `CLEAN` judgment.
+  - **marker-less prose finding** ("ready to merge; one concern: no auth check on the new endpoint") — the adapter MUST surface the body verbatim; the *NOT-CLEAN reading* of it is the judge's (no structural signal distinguishes it from clean prose — that is exactly why it needs a model, and why this specific reading is **judge-eval / advisory**, not a bash assertion).
+- **Advisory (safe boundary; model variance is a calibration signal, not a build break):** the `CLEAN`-vs-`NON_BLOCKING` boundary — e.g. the dogfood `4729548936` "all findings resolved / ready to merge" recap should read `CLEAN` (or `NON_BLOCKING`), the original false-positive gone; a pure suggestion reads `NON_BLOCKING`.
+
+**What the bash hard-gate can and cannot assert** (architect C1, honest): bash deterministically gates that **the dangerous material is always surfaced to the judge** (verbatim bodies, full verdict enumeration) **and the structural fail-closed holds** (`CLAUDE_VERDICT_SET_PROVEN`, masking enumeration). The semantic NOT-CLEAN *reading* of pure prose is the model's job — covered by the judge instruction + the advisory eval, not a deterministic bash assertion. The machine guarantees the judge can't be starved of the concern; the model guarantees it reads the concern correctly.
 
 ## § Staleness rule
 
@@ -158,7 +206,9 @@ The codified Tier-1 catalogue is shared across engines — see [`common-review-f
 
 claude exposes its review-state as `CLAUDE_CHECKRUN ... STATUS=<status>` **synthesized from the Actions job** (there is no native check-run — see the trap banner at the top). `queued`/`in_progress` = **RUNNING**, `completed` = **DONE**; `CONCLUSION` is never a verdict.
 
-**Clean for claude**: Actions job DONE AND (summary-comment body contains "no issues found" OR zero active head-SHA inline findings matching `CLAUDE_LATEST_REVIEW`). The review-pending guard (§ Race-condition caveats) holds the loop in RUNNING until a head-SHA comment posts, so the DONE-before-comments gap cannot fire a false CLEAN. The orchestrator retriggers only from the zero-activity bootstrap (push-triggered otherwise) and never while RUNNING, so no inter-retrigger interval exists.
+**Clean for claude**: Actions job DONE (all head-SHA runs `completed`) AND the **§ Verdict judge** returns `CLEAN` or `NON_BLOCKING[]` over the surfaced material (IDEA-022 — clean is a model judgment for this prose-only surface, not a regex). The review-pending guard (§ Race-condition caveats) holds the loop in RUNNING until a head-SHA comment posts, so the DONE-before-comments gap cannot fire a false CLEAN; a SILENT run is held RUNNING and never reaches the judge. The orchestrator retriggers only from the zero-activity bootstrap (push-triggered otherwise) and never while RUNNING, so no inter-retrigger interval exists.
+
+> **⚠️ IDEA-022 supersession (regex mechanism → judge input).** The calibration blocks below were written to tune the **regex classifier** (`CLAUDE_CLEAN_PATTERNS` / `CLAUDE_FINDING_MARKERS` / `is_clean`), which IDEA-022 **removed** — the clean/blocking/non-blocking decision is now the **§ Verdict judge** (a model reading the prose). The *classification mechanism* these blocks describe is gone. Their *behavioural observations* — findings often live only in the summary BODY; clean is whole-review not substring; two substantive verdicts on one SHA can disagree; no-op/skip bodies aren't verdicts; clean now usually posts on both paths — are **exactly the material the judge reasons over**, so they remain load-bearing as judge input. Read them as "what claude's prose looks like in the wild," not "what regex to match."
 
 ## § calibration update — findings-bearing + clean runs (downstream non-draft, 2026-06-03)
 
@@ -214,4 +264,4 @@ A second downstream project falsified the §48 "subsequent pushes auto-skip" mod
 - **Adapter/orchestrator rule (supersedes latest-only reading):** treat the engine as DONE only when **all** Actions runs for the head SHA are `completed` AND no claude comment is in the WIP-checklist state; then read **every** substantive claude verdict posted for that SHA. Any findings-bearing verdict with unaddressed findings keeps the engine **STILL_FINDING**, even when a newer verdict on the same SHA reads clean. A clean verdict never overrides an earlier findings verdict — findings are addressed by fixes, not by a luckier second roll.
 - **Epistemics of disagreement:** a findings-bearing verdict is strong evidence (specific, checkable claims — verify each against source); a clean verdict is weak evidence (absence-of-findings on one sample). When verdicts disagree, the findings verdict wins by default.
 - **Why installs differ** is unresolved — candidate variables: `claude-code-action` / `code-review`-plugin version skew between repos, workflow-config differences (the skipping install vs the non-skipping install were set up weeks apart). Until root-caused, treat skip-no-op as an **optimization some installs have**, never as a correctness assumption: the Phase-3 explicit retrigger stays (it's the only guaranteed fresh verdict), and the dual-verdict reading rule above makes the double-run harmless.
-- **Adapter implementation** (`find_claude_comments.sh`): Pass 1 aggregates `STATUS` across **all** head-SHA Actions runs (completed only when every run completed; metadata from the latest) and emits `RUNS=` + `WINDOW_START=` (earliest head-SHA run start). Pass 2b classifies **every** substantive non-no-op summary with `created_at >= WINDOW_START` (issue comments carry no commit id — the run window IS the SHA scope) and emits `CLAUDE_HEAD_VERDICTS=` / `CLAUDE_HAS_FINDINGS=` / `CLAUDE_FINDINGS_SUMMARY_IDS=`. Masked findings-bearing summaries render as mandatory `(comment id …, review summary)` finding blocks tagged `[MASKED by newer same-SHA verdict]`. The clean signal is suppressed (with a loud `DUAL-VERDICT MASKING` warning) whenever the newest summary reads clean but `CLAUDE_HAS_FINDINGS=true` — and **withheld fail-closed** whenever the verdict set is unproven (no run window, blank run timestamps, or the clean summary itself outside the window): an unprovable single-verdict claim never certifies clean; the legacy `CLEAN=` hint is forced false under masking.
+- **Adapter implementation** (`find_claude_comments.sh`, IDEA-022 — material-surfacing, not classification): Pass 1 aggregates `STATUS` across **all** head-SHA Actions runs (completed only when every run completed; metadata from the latest) and emits `RUNS=` + `WINDOW_START=` (earliest head-SHA run start). Pass 2b **enumerates** every substantive non-no-op summary with `created_at >= WINDOW_START` (issue comments carry no commit id — the run window IS the SHA scope) and emits `CLAUDE_HEAD_VERDICTS=` / `CLAUDE_VERDICT_IDS=`, plus each verdict body **verbatim** as a `(comment id …, review summary)` material block (oldest-first) — it does **not** classify them findings/clean. The **§ Verdict judge** applies the masking rule over that surfaced set (any unaddressed findings-bearing body keeps the verdict BLOCKING even if a newer same-SHA body reads clean). The structural fail-closed stays in the adapter: `CLAUDE_VERDICT_SET_PROVEN=false` whenever the verdict set is unproven (no run window, blank run timestamps), and the judge is forbidden CLEAN under it. (Pre-IDEA-022 this was a regex `CLAUDE_HAS_FINDINGS` classification + clean-signal suppression — removed; the judge subsumes it.)

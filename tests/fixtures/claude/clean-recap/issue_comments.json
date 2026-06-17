@@ -1,0 +1,11 @@
+[
+  {
+    "id": 4729548936,
+    "user": {
+      "login": "claude[bot]"
+    },
+    "created_at": "2026-06-15T10:05:00Z",
+    "html_url": "https://github.com/testowner/testrepo/pull/1#issuecomment-4729548936",
+    "body": "## Code review\n\nVerdict: ready to merge. No open issues. All findings from both prior review rounds are resolved in HEAD. The PR is clean.\n\n### Previous findings \u2014 all resolved \u2705\n- [x] Fixed the off-by-one\n- [x] Added the guard that was missing"
+  }
+]

@@ -12,7 +12,7 @@ SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := help
 
-.PHONY: help release extract-version test-release
+.PHONY: help release extract-version test-release test-claude test
 
 # Shared extraction body — sourced by `extract-version` and `release`.
 # Defined once, executed via `bash -c "$$EXTRACT_VERSION_SH"` so both targets
@@ -168,3 +168,8 @@ release: ## Tag + push + GH-release the current version (VERSION=v<N> overrides 
 
 test-release: ## Run the version-extraction test harness against fixture files
 	@bash tests/test_release_extraction.sh
+
+test-claude: ## Run the claude adapter material-surfacing + false-CLEAN-gate tests (IDEA-022)
+	@bash tests/test_claude_material_surfacing.sh
+
+test: test-release test-claude ## Run all test harnesses

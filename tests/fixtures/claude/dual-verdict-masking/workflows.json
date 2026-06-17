@@ -1,0 +1,7 @@
+{
+  "workflows": [
+    {
+      "path": ".github/workflows/claude-code-review.yml"
+    }
+  ]
+}

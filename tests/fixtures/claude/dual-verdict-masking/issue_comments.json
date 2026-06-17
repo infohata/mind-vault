@@ -1,0 +1,20 @@
+[
+  {
+    "id": 3010,
+    "user": {
+      "login": "claude[bot]"
+    },
+    "created_at": "2026-06-15T10:05:00Z",
+    "html_url": "https://github.com/testowner/testrepo/pull/1#issuecomment-3010",
+    "body": "## Code review\n\n### Bugs\n\n#### 1. Missing auth check on /admin/export\n\nThe new endpoint has no permission_classes \u2014 any authenticated user can export all tenants' data."
+  },
+  {
+    "id": 3011,
+    "user": {
+      "login": "claude[bot]"
+    },
+    "created_at": "2026-06-15T10:10:00Z",
+    "html_url": "https://github.com/testowner/testrepo/pull/1#issuecomment-3011",
+    "body": "## Code review\n\nNo issues found. The PR looks good to merge."
+  }
+]

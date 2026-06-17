@@ -1,0 +1,11 @@
+[
+  {
+    "id": 2010,
+    "user": {
+      "login": "claude[bot]"
+    },
+    "created_at": "2026-06-15T10:05:00Z",
+    "html_url": "https://github.com/testowner/testrepo/pull/1#issuecomment-2010",
+    "body": "## Code review\n\n### Bugs\n\n#### 1. SQL injection in the search endpoint\n\nThe `q` query parameter is interpolated directly into the raw SQL string in `views/search.py`. This must be parameterized before merge."
+  }
+]
