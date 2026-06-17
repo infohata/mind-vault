@@ -27,19 +27,20 @@ sensitive_paths_cleared_reason: "Touches tools/find_claude_comments.sh + skills/
 
 Impact: this is a **convergence-blocker for any multi-cycle claude review**. Iterative review almost always ends with claude posting an "all previous findings resolved" recap — exactly the shape that trips the false-positive. A loop following the structural rule mechanically would read STILL_FINDING forever and never declare CLEAN. In the dogfood it was only caught because the agent adversarially read the full verdict and overrode (consistent with [`THREAD_AUTO_RESOLVE`] / the retroactive-audit "always refute" lesson) — but that manual override shouldn't be load-bearing.
 
-**Proposal** (or idea): Refine the claude adapter's findings detection to distinguish an **open-findings** summary from a **resolved-recap / clean** summary. Candidate directions (to be settled in `/plan`):
+**Proposal** (or idea): **Replace the prose regex classifier with an orchestrator-inline model-judge** (settled during `/plan`, 2026-06-17). Trying to classify claude's *model-generated prose* with regex (`CLAUDE_CLEAN_PATTERNS` / `CLAUDE_FINDING_MARKERS`) is the wrong tool by construction — this false-positive and its inverse (a marker-less prose finding reading false-CLEAN, surfaced by the architect review of the abandoned regex-broadening draft) are the same root failure. Instead:
 
-- Anchor `HAS_FINDINGS` on actual inline review-thread findings for the head SHA (line-anchored comments) rather than summary-body token matching; treat the summary body as corroborating, not authoritative.
-- If summary-body parsing is kept, require an *open*-finding signal (e.g. unchecked `[ ]` items, an explicit "Issues found" / severity block) and explicitly exclude resolved-recap structures ("all resolved", "✅", "ready to merge", "no open issues", "no new issues").
-- Preserve the genuine dual-substantive-verdict detection (the case where two same-SHA verdicts actually disagree, one carrying a real open finding) — the refinement must narrow false positives **without** reintroducing the masking the dual-verdict rule exists to catch.
+- `find_claude_comments.sh` is reduced to **surfacing material** (structural Actions-job RUNNING/DONE, inline-finding enumeration, summary body, per-SHA verdict set); it stops computing a clean/findings verdict from prose.
+- The `/review-loop` agent **judges the full review material** and emits a **tiered verdict — `CLEAN` · `BLOCKING` · `NON_BLOCKING[]`**. Non-blocking items don't block convergence; they're absorbed (fixed this PR) or formalized as new IDEAs.
+- The never-false-CLEAN bias moves from regex to a **judge instruction** + a structural backstop (unresolved head-SHA inline threads ⇒ not CLEAN). Claude-only; bugbot/copilot keep structured parsing. Full design in the plan.
 
 **Why now**:
 - Just surfaced concretely in the IDEA-021 dogfood as **F-dogfood-5** with a captured real example (PR #207, claude summaries `4729548936` / `4729623919`) — a reproducible artefact to design + test against.
 - It silently undermines the claude engine's value in the exact workflow it's meant for (iterate-to-clean); worth fixing before the next claude-engine-heavy review.
 
 **Non-goals**:
-- Weakening or removing dual-substantive-verdict detection (the legitimate case where same-SHA verdicts disagree on a real open finding).
-- Changing the Monitor accelerator or any IDEA-021 surface — this is the claude *adapter* parse layer only.
-- Re-architecting the engine-adapter contract; this is a targeted heuristic fix within the existing claude adapter.
+- Weakening the never-false-CLEAN bias (a missed blocking finding) — it's preserved, relocated from regex to a judge instruction + the unresolved-inline-thread structural backstop.
+- Changing the Monitor accelerator or any IDEA-021 surface.
+- Touching bugbot/copilot classification — claude-only (they emit structured findings where the structural rule works).
+- Auto-creating IDEAs from non-blocking items without human confirmation.
 
 **Related**: [IDEA-012](../archive/2026-06-idea-012-claude-code-review-engine/IDEA-012-claude-code-review-engine.md) (the claude engine adapter this refines) · IDEA-021 (the Monitor-accelerator dogfood that surfaced it, PR #207).
