@@ -115,7 +115,7 @@ Persist to `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (eng
 
 - `commits_this_session` (int, /20)
 - `active_work_minutes` (int, /240; best-effort)
-- `idle_polls` (int, /20)
+- `idle_polls` (int, /10)
 - `engines` (comma-separated list of active engines for this session)
 - `reentry_command` — the channel-matched slash command this loop re-invokes itself with (`review-loop` symlink channel, `mv:review-loop` plugin channel); mirror the form you were invoked as. Without it persisted, a post-compaction wake can't reconstruct a re-entry prompt that actually resolves (Phase 4 step 1).
 - `last_push_sha`

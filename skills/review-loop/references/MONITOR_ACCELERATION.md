@@ -29,7 +29,12 @@ Armed with the frozen scratch values substituted in. Follows the Monitor idioms:
 #!/usr/bin/env bash
 # review-loop Phase 4 accelerator — READ-ONLY. Emits ONE event, then exits.
 # Substituted at arm time from the scratch file; all values FROZEN for this entry.
-set -uo pipefail
+# NOTE: pipefail only — do NOT add `set -u`. The Monitor's background shell sources
+# the host shell-snapshot, which references optional vars (e.g. ZSH_VERSION) with no
+# default; under `set -u` (nounset) that becomes a fatal "unbound variable" that floods
+# stderr and disrupts the poll loop, so the script never reaches the all-done emit and
+# silently times out. (IDEA-021 dogfood, F-dogfood-4.)
+set -o pipefail
 
 REPO_ROOT="__REPO_ROOT__"      # repo toplevel, frozen at arm time
 PR="__PR_NUMBER__"
