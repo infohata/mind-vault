@@ -21,6 +21,8 @@ Minor release ([IDEA-021](docs/archive/2026-06-idea-021-monitor-accelerated-revi
 - `skills/review-loop/SKILL.md` — Phase 4 backstop cadence 270s→1200s (the Monitor handles fast detection; the `ScheduleWakeup` is the resilient spine); `max_idle_polls` 20→10 in Hard bounds (10 polls ≈ 3.3h, within `max_active_work_minutes`); Phase 4 step 1 arms the Monitor after the scratch write; step 2 makes unconditional `TaskStop` the first action of every wake; decision-tree idle branch updated; References entry added.
 - `skills/review-loop/references/multi-engine-sync.md` — **F1**: de-numbered the leaked `max_idle_polls × 270s` budget (both factors changed under this release) to reference `SKILL.md` § Hard bounds + Phase 4 step 1 by name; added the "the Monitor's `all-done` trigger is this sync gate in event form" pointer.
 
+- `docs/guides/GIT_WORKFLOW.md` — converted the integration-branches ASCII fan-out diagram to a mermaid `flowchart` (single integration-branch node fanning out to per-IDEA PRs and emitting the `[INTEGRATION]` PR to `main`), matching the repo's other mermaid diagrams.
+
 ### Fixed
 - `docs/guides/GIT_WORKFLOW.md` — corrected a stale multi-engine note that claimed claude "needs no explicit retrigger / the loop skips claude in the retrigger step". Since the dual-substantive-verdicts correction, claude **is** retriggered after a fix push once it has posted its first review (the `synchronize` auto-run skip-no-ops); only a still-in-flight first review withholds it. Brought in line with `SKILL.md` Phase 3 + `engine-claude.md` § A7. (Pre-existing drift surfaced by this PR's wrap Step 6 scan.)
 
