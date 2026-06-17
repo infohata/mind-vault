@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-021](../archive/2026-06-idea-021-monitor-accelerated-review-loop-wait/IDEA-021-monitor-accelerated-review-loop-wait.md) ⏳ — Monitor-accelerated review-loop Phase 4 wait
 
 ## 💡 High Priority (backlog)
 
