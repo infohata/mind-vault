@@ -10,7 +10,7 @@ _(none)_
 
 ## 💡 High Priority (backlog)
 
-_(none)_
+- [IDEA-022](IDEA-022-claude-findings-heuristic-false-positive.md) — Claude adapter HAS_FINDINGS false-positive on resolved-recap summaries
 
 ## 💡 Medium Priority (backlog)
 
