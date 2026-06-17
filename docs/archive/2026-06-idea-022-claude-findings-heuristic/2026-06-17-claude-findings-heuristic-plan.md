@@ -123,4 +123,4 @@ project: mind-vault
 
 ---
 
-**Status:** ready — model-judge architecture, architect-reviewed twice (regex draft 🟡 → reframed; model-judge 🟡 → C1/C2/C3 + S1-3 + N1-2 folded). Disposition mode-split (interactive surface vs sprint-auto auto-formalize) + the in-PR-IDEA acknowledgment-loop are maintainer-directed. Awaiting user approval before `/work`.
+**Status:** ✅ shipped (2026-06-17, PR #208) — model-judge architecture, architect-reviewed twice (regex draft 🟡 → reframed; model-judge 🟡 → C1/C2/C3 + S1-3 + N1-2 folded). Disposition mode-split (interactive surface vs sprint-auto auto-formalize) + the in-PR-IDEA acknowledgment-loop are maintainer-directed. All six execution items ✅; `make test` 38/38; `validate-skills review-loop` ✅.
