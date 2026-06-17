@@ -6,11 +6,11 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-022](../archive/2026-06-idea-022-claude-findings-heuristic/IDEA-022-claude-findings-heuristic-false-positive.md) ⏳ — Claude adapter HAS_FINDINGS false-positive on resolved-recap summaries
 
 ## 💡 High Priority (backlog)
 
-- [IDEA-022](IDEA-022-claude-findings-heuristic-false-positive.md) — Claude adapter HAS_FINDINGS false-positive on resolved-recap summaries
+_(none)_
 
 ## 💡 Medium Priority (backlog)
 

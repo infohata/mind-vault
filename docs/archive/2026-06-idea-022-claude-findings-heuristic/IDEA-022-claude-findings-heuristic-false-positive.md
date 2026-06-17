@@ -1,7 +1,7 @@
 ---
 id: 022
 title: Claude adapter HAS_FINDINGS false-positive on resolved-recap summaries
-status: idea          # idea | in-progress | complete | superseded
+status: in-progress          # idea | in-progress | complete | superseded
 priority: high   # high | medium | low
 supersedes: []
 superseded_by: null
@@ -20,7 +20,7 @@ sensitive_paths_cleared_reason: "Touches tools/find_claude_comments.sh + skills/
 
 # IDEA-022: Claude adapter HAS_FINDINGS false-positive on resolved-recap summaries
 
-**Status**: 💡 Idea
+**Status**: 🚧 In Progress
 **Priority**: High
 
 **Problem** (or opportunity): `tools/find_claude_comments.sh`'s `HAS_FINDINGS` / dual-verdict-masking heuristic **over-flags a clean summary as findings-bearing** when that summary is a *"previous findings — all resolved"* recap. Surfaced live in the IDEA-021 dogfood (PR #207): claude posted a summary reading **"Verdict: ready to merge. No open issues. All findings from both prior review rounds are resolved in HEAD. The PR is clean."** with a `### Previous findings — all resolved ✅` checklist — and the adapter set `CLAUDE_HAS_FINDINGS=true`, raising a spurious **dual-verdict-masking STILL_FINDING** alarm. The heuristic appears to key on the literal token "findings" and/or `[x]` checklist / resolved-list markers rather than on *open, actionable* findings.
