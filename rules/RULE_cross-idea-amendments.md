@@ -23,6 +23,7 @@ When amending another IDEA's shipped files in scope of a current IDEA's work, AL
    Amends IDEA-MMM <file:line> to support <reason>.
    ```
 2. **Refresh the amended file's inline comment** to point at the amending IDEA. If the original file had a comment like `// Phase 2 — IDEA-MMM`, update it to `// Phase 2 — IDEA-MMM (amended IDEA-NNN: <one-line reason>)`. Future readers grepping the file see the amendment without leaving the source.
+   > **Review-engine carve-out.** These `IDEA-NNN` attribution prefixes are *required* by this rule, but a review engine (Claude Code Review, Bugbot, etc.) running a generic "minimize comments / no unnecessary comments" instinct will repeatedly flag them as noise — a non-convergent cosmetic nit that survives every review-loop fix cycle. Pre-empt it: **document the carve-out in the project's `CLAUDE.md`/`AGENTS.md`** (e.g. "`IDEA-NNN` attribution comments are a required convention, not unnecessary comments") so the engine reads the convention as context and stops re-flagging. **Do NOT strip the prefixes to satisfy the engine** — that breaks the greppable amendment trail this rule exists to preserve. When an engine won't converge on this, that is the [`COSMETIC_NONCONVERGENCE`](../skills/review-loop/references/COSMETIC_NONCONVERGENCE.md) hard-stop — codify the convention, don't strip.
 3. **On `/wrap` of the amending IDEA**, append a one-line backref to the amended IDEA's archive directory (its README or devlog footer if no README exists). Format:
    ```
    <file> amended <X> → <Y> by IDEA-NNN (commit <sha>) — <reason>.
