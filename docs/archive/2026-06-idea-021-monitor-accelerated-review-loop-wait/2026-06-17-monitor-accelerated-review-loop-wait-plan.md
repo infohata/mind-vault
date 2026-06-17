@@ -3,7 +3,7 @@ stage: plan
 slug: monitor-accelerated-review-loop-wait
 created: 2026-06-17
 source: ./IDEA-021-monitor-accelerated-review-loop-wait.md
-status: ready
+status: shipped
 project: mind-vault
 ---
 
@@ -121,4 +121,4 @@ project: mind-vault
 
 ---
 
-**Status:** ready — architect-reviewed 2026-06-17 (🟡 REQUIRES ABSTRACTION → 2 must-fix + 3 should-fix folded in). Awaiting user approval before `/work`.
+**Status:** shipped — implemented in `d4dc3b4` (all Execution Sequence items 1-5 landed; steps 6-7 verification + architect done; step 8 version bump deferred to `/wrap`). Architect-reviewed 2026-06-17 (🟡 → all must/should findings folded). Verification greps green, `validate-skills review-loop` ✅.
