@@ -334,6 +334,8 @@ application = get_asgi_application()
 
 For WebSocket/Channels routing (protocol router, auth middleware stack, consumers), see [references/ASYNC_WEBSOCKET.md](references/ASYNC_WEBSOCKET.md).
 
+For OpenRouter reasoning-token streaming (request `reasoning.effort`; read-back via `delta.reasoning` string vs `delta.reasoning_details[]` typed array — readable `reasoning.text` vs opaque `reasoning.encrypted`; the dual-channel dedup gotcha; reasoning encrypted on tool-CALL turns), see [references/OPENROUTER_REASONING_API.md](references/OPENROUTER_REASONING_API.md).
+
 ### Settings
 
 Environment-driven configuration:

@@ -10,6 +10,16 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.1.14 — compound: OpenRouter reasoning-token streaming + disconnect-persist instance state
+
+Patch release. Compounded from an LLM-chat feature on a consuming Django project (making assistant reasoning functional, persisted, and displayed) — surfaced two reusable lessons. References-first; one minimal SKILL.md pointer.
+
+### Added
+- `skills/django/references/OPENROUTER_REASONING_API.md` — OpenRouter reasoning-token streaming: request the top-level `reasoning.effort` param (maps to Gemini `thinkingLevel`); read-back via `delta.reasoning` (string) AND/OR `delta.reasoning_details[]` (typed: `reasoning.text` readable vs `reasoning.encrypted` opaque) — there is NO `delta.thinking` field; the **dual-channel dedup gotcha** (OpenRouter mirrors the same reasoning into both channels → yielding from both double-persists; prefer the array, fall back to the string only when the array is absent); reasoning **encrypted on tool-CALL turns** (echo it back for chain-of-thought continuity); tokens under `usage.completion_tokens_details.reasoning_tokens`. Pointer added to `skills/django/SKILL.md`.
+
+### Changed
+- `skills/django/references/ASYNC_WEBSOCKET.md` — added "Persisting partial streamed content across a mid-stream disconnect": the stream accumulator MUST be instance state (`self.x`), never a method-local — `disconnect()` is a separate method and can only reach instance attributes; init once before the tool-call loop (no per-iteration reset); thread the buffer through ALL save sites (success / failed / disconnect) via one consolidated helper.
+
 ## v5.1.13 — compound: rootless-Docker deploy gotcha + Actions-billing review diagnostic
 
 Patch release. Compounded from a production rollout on a consuming project — the first deploy after a rootless-Docker cutover failed because a non-login deploy shell (`screen … bash -c`) misses the profile `DOCKER_HOST` and hits the dead rootful socket, making an idempotent deploy script misread "first-time deployment". References-first; zero SKILL.md-body additions.
