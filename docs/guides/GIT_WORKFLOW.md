@@ -63,7 +63,7 @@ Each loop polls the engine's GitHub API surface, classifies findings into tiers 
 
 ### Multi-engine flow
 
-Use a comma-separated engine list e.g. `/review-loop <PR> bugbot,copilot,claude` (the canonical multi-engine entry) — the loop **syncs each cycle**: wait for the slowest engine, batch findings from ALL engines into one fix commit, push once, retrigger each. Prevents the failure mode where independent single-engine sessions' pushes invalidate each other's pending reviews — always drive all engines through the one `/review-loop` session. (claude needs no explicit retrigger — the cycle's push re-runs its action automatically; the loop skips claude in the retrigger step.)
+Use a comma-separated engine list e.g. `/review-loop <PR> bugbot,copilot,claude` (the canonical multi-engine entry) — the loop **syncs each cycle**: wait for the slowest engine, batch findings from ALL engines into one fix commit, push once, retrigger each. Prevents the failure mode where independent single-engine sessions' pushes invalidate each other's pending reviews — always drive all engines through the one `/review-loop` session. (claude **is** retriggered after a fix push like the other engines, *once it has posted its first review*: the push's `synchronize` auto-run skip-no-ops once claude has already reviewed the PR, so the explicit `claude_retrigger.sh` is what forces a fresh verdict on the fix. The lone exception is a still-in-flight **first** claude review — then the auto-run carries it and the explicit retrigger is withheld to avoid a double-run. See [`skills/review-loop/references/engine-claude.md`](../../skills/review-loop/references/engine-claude.md) § A7.)
 
 Escape hatches when one engine stalls or service-errors are codified in [`skills/review-loop/references/multi-engine-sync.md`](../../skills/review-loop/references/multi-engine-sync.md) — see the trade-off escape-hatch table.
 
@@ -83,16 +83,16 @@ When a sprint runs **multiple IDEAs in parallel** (`/sprint-auto` overnight, for
 
 ### The pattern (sprint-auto v3.2)
 
-```
-                                                      ┌─→ per-IDEA PR #A (base: sprint-2026-05)
-                                                      │
-main ── sprint-2026-05 (integration branch) ──────────┼─→ per-IDEA PR #B
-                                                      │
-                                                      └─→ per-IDEA PR #C
-
-                                                                ↓ (sequential merge into integration)
-
-main ←── [INTEGRATION] PR — sprint-2026-05 → main ←── integrated state of A + B + C + compat patches
+```mermaid
+flowchart LR
+    main(["main"]) --> sprint["sprint-2026-05<br/>(integration branch)"]
+    sprint -->|base| prA["per-IDEA PR #A"]
+    sprint -->|base| prB["per-IDEA PR #B"]
+    sprint -->|base| prC["per-IDEA PR #C"]
+    prA -.->|sequential merge| sprint
+    prB -.->|sequential merge| sprint
+    prC -.->|sequential merge| sprint
+    sprint ==>|"[INTEGRATION] PR — single HITL gate<br/>(integrated A + B + C + compat patches)"| main
 ```
 
 - Per-IDEA PRs target the **integration branch** (`sprint-2026-05`), not `main`.
