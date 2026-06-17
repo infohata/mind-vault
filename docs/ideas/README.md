@@ -26,6 +26,11 @@ _(none)_
 
 ## ✅ References — Implemented
 
+### IDEA-021: Monitor-accelerated review-loop Phase 4 wait ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-06-17 · **See**: [Archive](../archive/2026-06-idea-021-monitor-accelerated-review-loop-wait/IDEA-021-monitor-accelerated-review-loop-wait.md), [PR #207](https://github.com/infohata/mind-vault/pull/207).
+Added a bounded, **read-only** `Monitor` as a pure accelerator over `/review-loop`'s Phase 4 `ScheduleWakeup` spine — emits one event the moment the loop can progress (all engines `DONE` for head SHA / SHA changed vs the frozen arm-time baseline / an escape-hatch-recognized engine error), then exits, re-entering faster than the backstop. Decision logic unchanged; **correctness never depends on the Monitor** (a vanished/auto-stopped Monitor is a silent no-op, the long `ScheduleWakeup` still drives the loop). New `references/MONITOR_ACCELERATION.md` (loop-agnostic recipe: poll-script template, read-only invariant, `TaskStop`-first GC, bounded-timeout carve-out from WATCHER_HYGIENE Rule 3). Coupled bounds: backstop cadence 270s→1200s, `max_idle_polls` 20→10. Architect-reviewed 🟡 → must-fix **F1** (the `270s` constant had leaked into `multi-engine-sync.md`, de-numbered to reference `SKILL.md` by name) + **F3** (frozen `ARM_SHA`, `TaskStop`-first, vanished-Monitor no-op) and should-fix F2/F4/F5 folded. Inspired by Fable 5 actively hunting review comments as they arrive.
+
 ### IDEA-020: Channel-aware inner command/skill references ✅ COMPLETE
 
 **Status**: ✅ **COMPLETE** · **Completed**: 2026-06-08 · **See**: [Archive](../archive/2026-06-idea-020-channel-aware-inner-references/IDEA-020-channel-aware-inner-references.md), [PR #194](https://github.com/infohata/mind-vault/pull/194).
