@@ -19,7 +19,7 @@ The script emits on the first of these to become true, then exits:
 
 - **`all-done`** — every engine's check-run is `STATUS=completed` for the tracked head SHA. This is exactly the multi-engine sync gate ("wait for the slowest engine") in event form — see [`multi-engine-sync.md`](multi-engine-sync.md).
 - **`sha-changed`** — live `git rev-parse HEAD` has diverged from the **frozen arm-time SHA** (an out-of-band push by the user or another process). Compared against the SHA frozen into the script at arm time, NOT two live reads (which move together and never diverge) — this mirrors `SKILL.md` Phase 4 step 3's frozen-baseline new-push detection (`scratch last_push_sha` vs live HEAD) so the two cannot drift.
-- **`engine-error`** — an engine reached a **terminal-error** check-run conclusion that the escape-hatch table in [`multi-engine-sync.md`](multi-engine-sync.md) acts on. This is a strict subset of, and must stay consistent with, that table. It is explicitly **NOT** triggered by `CONCLUSION=success` — an engine concludes `success` even when it posted inline findings (`SKILL.md` § "clean is structural": `CONCLUSION` is a run outcome, never a verdict). Firing on success-with-findings would wake the agent into a no-op and risk the auto-stop caveat.
+- **`engine-error`** — an engine reached a genuine **run-level failure** conclusion (`failure` / `cancelled` / `timed_out`) that the escape-hatch table in [`multi-engine-sync.md`](multi-engine-sync.md) acts on. This is a strict subset of, and must stay consistent with, that table. It is explicitly **NOT** triggered by `success`, `neutral`, or `action_required` — those are normal completions (an engine concludes `success`/`neutral` even when it posted inline findings, and `action_required` is "changes requested"; `SKILL.md` § "clean is structural": `CONCLUSION` is a run outcome, never a verdict). Any completion-with-findings is caught by the `all-done` path, so firing `engine-error` on it would only wake the agent into a no-op and risk the auto-stop caveat. (Observed in the IDEA-021 dogfood: bugbot completes findings-bearing reviews as `CONCLUSION=neutral`, not an error.)
 
 ## Poll-script template
 
@@ -50,15 +50,22 @@ while true; do
   IFS=',' read -ra ENG <<< "$ENGINES"
   for e in "${ENG[@]}"; do
     out=$(./tools/find_${e}_comments.sh "$PR" 2>/dev/null || true)   # read-only; tolerate transient failure
-    line=$(printf '%s\n' "$out" | grep -E "^$(printf '%s' "$e" | tr a-z A-Z)_CHECKRUN=" | head -1)
+    # Match the marker case-INSENSITIVELY and with NO dynamic uppercasing. An earlier
+    # template uppercased the engine name via `$(printf %s "$e" | tr a-z A-Z)` inside the
+    # pattern; that nested subshell parsed to a lowercase/mismatched anchor in the Monitor's
+    # background shell, so `^BUGBOT_CHECKRUN=` never matched → all_done stayed 0 forever → the
+    # Monitor timed out silently instead of emitting. `grep -iE "^${e}_CHECKRUN="` has no
+    # subshell and no locale-sensitive `tr`, so it is robust across shells. (IDEA-021 dogfood.)
+    line=$(printf '%s\n' "$out" | grep -iE "^${e}_CHECKRUN=" | head -1)
     status=$(printf '%s' "$line" | sed -n 's/.* STATUS=\([^ ]*\).*/\1/p')
     concl=$(printf '%s'  "$line" | sed -n 's/.* CONCLUSION=\([^ ]*\).*/\1/p')
 
-    # (engine-error) terminal-error conclusions the escape-hatch table acts on —
-    # NEVER `success` (success-with-findings is the normal all-done path).
+    # (engine-error) ONLY genuine run-level failures the escape-hatch table acts on.
+    # NOT `success`, and NOT `neutral`/`action_required` — those are normal completions
+    # (incl. "changes requested"/findings), already caught by the all-done path below.
     # Keep this set aligned with multi-engine-sync.md's escape-hatch table.
     case "$concl" in
-      failure|cancelled|timed_out|action_required)
+      failure|cancelled|timed_out)
         echo "engine-error: $e CONCLUSION=$concl"; exit 0 ;;
     esac
 
@@ -79,7 +86,7 @@ Arm it via `Monitor` with a bounded `timeout_ms` matched to the backstop (e.g. `
 ## Lifecycle — arm, GC, and the vanished-Monitor rule
 
 - **Arm after the scratch bootstrap write.** The script reads its frozen `ARM_SHA` and engine list from the scratch file's `last_push_sha` / `engines`. On the Phase 1 zero-activity path the scratch bootstrap write is mandatory *before* Phase 4 (`SKILL.md` Phase 1 § "Zero engine activity"); arm the Monitor only **after** that write, never before, or it freezes stale values.
-- **`TaskStop` is the GC, and it runs first on every wake.** Unconditionally `TaskStop` the current Monitor as the **first action of every Phase 4 wake** — before the re-fetch, regardless of whether a Monitor event or the `ScheduleWakeup` backstop woke the agent. The emit-once-then-exit contract is the belt; the explicit stop is the real garbage collection ([`../../work/references/WATCHER_HYGIENE.md`](../../work/references/WATCHER_HYGIENE.md) Hard Rule 2 — exit-condition self-clean is bug-prone; a future edit that breaks the exit condition would otherwise leave a zombie poller, Failure Mode D). Re-arm a fresh Monitor only if the decision tree keeps the loop in Phase 4.
+- **`TaskStop` is the GC, and it runs first on every wake.** Unconditionally `TaskStop` the current Monitor as the **first action of every Phase 4 wake** — before the re-fetch, regardless of whether a Monitor event or the `ScheduleWakeup` backstop woke the agent. The emit-once-then-exit contract is the belt; the explicit stop is the real garbage collection ([`../../work/references/WATCHER_HYGIENE.md`](../../work/references/WATCHER_HYGIENE.md) Hard Rule 2 — exit-condition self-clean is bug-prone; a future edit that breaks the exit condition would otherwise leave a zombie poller, Failure Mode D). Whenever the decision tree keeps the loop in Phase 4, the re-arm is **not optional** — it is bundled with the `ScheduleWakeup` into the single "wait state" the looping branches enter (`SKILL.md` Phase 4 step 1). A branch that schedules a wait without re-arming the Monitor disables fast detection after the first wake (the `TaskStop` above leaves nothing running) — the failure mode the IDEA-021 dogfood's bugbot pass flagged.
 - **A vanished Monitor is a silent no-op — never a signal.** If the Monitor is killed, errors out, hits its timeout, or is auto-stopped by the platform, its absence means nothing. The agent must never infer `all-done` (or any state) from a missing or silent Monitor — the long `ScheduleWakeup` backstop remains the sole correctness path and the agent recomputes state from the adapters on its next wake.
 
 ## Why a bounded `timeout_ms` here does NOT violate WATCHER_HYGIENE Hard Rule 3
