@@ -8,7 +8,7 @@
 
 ______________________________________________________________________
 
-**v5 — demonstrated on a second stack (IDEA-014 Phase 2): `skills/laravel` + `skills/laravel-frontend` fill all 10 [`skills/work/references/SKILL_CONTRACT.md`](skills/work/references/SKILL_CONTRACT.md) contract headings with ZERO edits to any `agents/AGENT_*.md` — the empty `agents/` diff is the proof that the craft/stack split (v4.9, Phase 1: all 8 personas split into a craft core + `## Stack adapter`) is genuinely stack-agnostic, not Django with indirection. A real-repo Laravel dogfood follows as a v5.x fast-follow. Recent line: installable as a native Claude Code plugin (`/plugin install mv@mind-vault`) alongside the symlink scripts — additive, coexist (v5.1, IDEA-017), new `skills/python` language-base tier beneath the framework skills (v4.8, IDEA-009), split `/wrap` into `/wrap` (docs) + `/land` (merge + teardown) and retire the double-review — canonical chain `/work → /wrap → /review-loop → /land` (v4.7), Claude Code Review as a third `/review-loop` engine (v4.6).**
+**v5 — demonstrated on a second stack (IDEA-014 Phase 2): `skills/laravel` + `skills/laravel-frontend` fill all 10 [`skills/work/references/SKILL_CONTRACT.md`](skills/work/references/SKILL_CONTRACT.md) contract headings with ZERO edits to any `agents/AGENT_*.md` — the empty `agents/` diff is the proof that the craft/stack split (v4.9, Phase 1: all 8 personas split into a craft core + `## Stack adapter`) is genuinely stack-agnostic, not Django with indirection. A real-repo Laravel dogfood follows as a v5.x fast-follow. Recent line: event-driven `/review-loop` Phase 4 — a bounded, read-only `Monitor` accelerates the `ScheduleWakeup` wait, re-entering the moment an engine verdict lands (v5.2, IDEA-021), installable as a native Claude Code plugin (`/plugin install mv@mind-vault`) alongside the symlink scripts — additive, coexist (v5.1, IDEA-017), new `skills/python` language-base tier beneath the framework skills (v4.8, IDEA-009), split `/wrap` into `/wrap` (docs) + `/land` (merge + teardown) and retire the double-review — canonical chain `/work → /wrap → /review-loop → /land` (v4.7), Claude Code Review as a third `/review-loop` engine (v4.6).**
 
 Cross-host configuration library for AI coding agents — skills, commands, subagent personas, and shared rules, authored once and symlinked into every agent-aware tool.
 
@@ -280,7 +280,7 @@ Commit all non-sensitive configuration to git.
 
 Licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Kestutis Januskevicius.
 
-<!-- wrap:readme-currency-audited 2026-06-08 -->
+<!-- wrap:readme-currency-audited 2026-06-17 -->
 
 <!-- wrap:readme-currency
 N: 5

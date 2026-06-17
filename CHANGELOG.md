@@ -10,6 +10,17 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.2 — review-loop: Monitor-accelerated Phase 4 wait
+
+Minor release ([IDEA-021](docs/archive/2026-06-idea-021-monitor-accelerated-review-loop-wait/IDEA-021-monitor-accelerated-review-loop-wait.md), [#207](https://github.com/infohata/mind-vault/pull/207)). The `/review-loop` Phase 4 wait gains an event-driven accelerator: a bounded, read-only `Monitor` re-enters the loop the moment an engine verdict lands, instead of polling blind on a fixed cadence — inspired by Fable 5 actively hunting review comments as they arrive. The `ScheduleWakeup` spine remains the resilient backstop (lengthened to 20 min), so the Phase 4 decision logic is unchanged and correctness never depends on the Monitor (a vanished/auto-stopped Monitor is a silent no-op). Architect-reviewed 🟡 → must-fix F1/F3 + should-fix F2/F4/F5 folded.
+
+### Added
+- `skills/review-loop/references/MONITOR_ACCELERATION.md` — loop-agnostic recipe for the accelerator: the poll-script template (read-only — calls only `find_*_comments.sh`, never a `*_retrigger.sh`; `cd`-inside-loop per WATCHER_HYGIENE Rule 4; **frozen `ARM_SHA` vs live HEAD** for sha-change detection, mirroring Phase 4 step 3; engine-error as a strict subset of the escape-hatch table, **never** off `CONCLUSION`), the three trigger events (`all-done` / `sha-changed` / `engine-error`), the `TaskStop`-first-on-every-wake GC discipline + the vanished-Monitor-is-a-no-op rule, and the narrow bounded-`timeout_ms` carve-out from WATCHER_HYGIENE Hard Rule 3 (read-only API pollers only, not test watchers).
+
+### Changed
+- `skills/review-loop/SKILL.md` — Phase 4 backstop cadence 270s→1200s (the Monitor handles fast detection; the `ScheduleWakeup` is the resilient spine); `max_idle_polls` 20→10 in Hard bounds (10 polls ≈ 3.3h, within `max_active_work_minutes`); Phase 4 step 1 arms the Monitor after the scratch write; step 2 makes unconditional `TaskStop` the first action of every wake; decision-tree idle branch updated; References entry added.
+- `skills/review-loop/references/multi-engine-sync.md` — **F1**: de-numbered the leaked `max_idle_polls × 270s` budget (both factors changed under this release) to reference `SKILL.md` § Hard bounds + Phase 4 step 1 by name; added the "the Monitor's `all-done` trigger is this sync gate in event form" pointer.
+
 ## v5.1.14 — compound: OpenRouter reasoning-token streaming + disconnect-persist instance state
 
 Patch release. Compounded from an LLM-chat feature on a consuming Django project (making assistant reasoning functional, persisted, and displayed) — surfaced two reusable lessons. References-first; one minimal SKILL.md pointer.

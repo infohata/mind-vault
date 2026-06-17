@@ -1,14 +1,14 @@
 ---
 id: 021
 title: Monitor-accelerated review-loop Phase 4 wait
-status: in-progress          # idea | in-progress | complete | superseded
+status: complete          # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
 depends_on: []       # list of IDEA ids required before starting, or []
 related: [005, 012]             # list of IDEA ids that share context, or []
 created: 2026-06-17
-completed: null
+completed: 2026-06-17
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
@@ -20,7 +20,7 @@ sensitive_paths_cleared_reason: "Touches skills/review-loop, which every review 
 
 # IDEA-021: Monitor-accelerated review-loop Phase 4 wait
 
-**Status**: 🚧 In Progress
+**Status**: ✅ Complete (2026-06-17)
 **Priority**: Medium
 
 **Problem** (or opportunity): `/review-loop` Phase 4 waits for engine verdicts via blind fixed-cadence `ScheduleWakeup` polling (180s first poll, then a 270s linear cadence). Two costs: (1) **latency** — up to ~270s between an engine posting a verdict/finding and the loop noticing it; (2) **waste** — every wake is a full context re-read (cache-busting once past the 300s prompt-cache TTL) even when nothing changed. The loop sits blind between polls instead of reacting to events as they land.
