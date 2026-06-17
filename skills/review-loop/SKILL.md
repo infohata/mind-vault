@@ -66,6 +66,8 @@ The script can emit these markers (each on its own line):
 
 **Clean is structural, not prose.** An engine is CLEAN for the head SHA iff its check-run is **DONE** (`STATUS=completed`) AND zero active findings remain across the head SHA's **verdict set** (see § Staleness — for single-verdict engines that's the findings matching `<ENGINE>_LATEST_REVIEW`; for multi-verdict engines, the union over every substantive verdict posted for the head SHA). Count active findings explicitly; never derive clean from review-body prose ("no new issues" and the like) or from `CONCLUSION`. **RUNNING is never clean and never not-clean — wait for DONE before reading a verdict.**
 
+> **Carve-out, typed to cause — prose-only verdict surfaces (IDEA-022).** "Clean is structural, never prose" holds for every engine with a **structured verdict surface** (bugbot/copilot post severity-tagged structured findings a machine reads). An engine that has **no structured surface** — its verdict *is* prose (claude: no severity JSON, no named check-run) — is the exception: for a prose-only surface the prose IS the structural signal, so its adapter SURFACES the material (RUNNING/DONE, the verdict-body enumeration, inline findings, `CLAUDE_VERDICT_SET_PROVEN`) and a **model-judge** classifies it (§ Per-engine model-judge below). The carve-out is licensed by *absence of a structured surface* and applies to any future prose-only engine — not to claude by name. Structured-surface engines are unaffected: still structural, still no model in the loop for them.
+
 **Meta-risk when reviewing this skill**: a diff that adds/modifies this skill's text may quote finding/status strings into the engine's review body. Because clean is structural (DONE + zero active findings), quoted strings cannot fabricate a clean verdict — but still identify findings by `comment id` + `review <rid>`, never by body text.
 
 ### Dual-signal enumeration — mandatory output shape every cycle
@@ -99,6 +101,27 @@ If for any engine in `ENGINES` the review state is `NOT_TRIGGERED` for the curre
 
 **Under multi-engine mode** the per-engine zero-activity branch above does NOT permit fixing findings from engines that are already `DONE` while a sibling engine is still `TRIGGERED`/`RUNNING` — that violates the multi-engine sync rule (see [`references/multi-engine-sync.md`](references/multi-engine-sync.md)). Instead, the orchestrator waits for the slowest engine to reach `DONE` for `last_push_sha` before batching fixes from all engines and pushing. The escape hatches in `multi-engine-sync.md` § Trade-off escape hatch govern when to break sync (engine stalled past N× normal latency, service-errored consecutively, etc.) — those, not "this engine has findings now", are the only valid reasons to push mid-cycle while another engine is still RUNNING.
 
+### Per-engine model-judge — prose-only surfaces (claude) — IDEA-022
+
+For an engine flagged prose-only by its adapter (claude — § Per-engine fetch carve-out), the adapter posts **no** clean/findings verdict. Once it is **DONE with readable material** (not RUNNING/PENDING/SILENT/NOOP/DRAFT), run the **model-judge inline** per [`references/engine-claude.md`](references/engine-claude.md) § Verdict judge: read every surfaced in-window verdict body (verbatim) + every head-SHA inline finding + `CLAUDE_VERDICT_SET_PROVEN`, and emit one tiered verdict:
+
+```text
+CLEAN              → engine is clean for the head SHA (sync gate: clean)
+BLOCKING           → engine is STILL_FINDING; the blocking items enter triage as findings
+NON_BLOCKING[...]  → engine is clean for the sync gate; items recorded, not iterated
+```
+
+- **Convergence (R2):** only `BLOCKING` keeps the loop iterating. `CLEAN` **and** `NON_BLOCKING`-only both count as **clean for the multi-engine sync gate** (the loop can converge). A review may be `BLOCKING` *with* `NON_BLOCKING` items alongside — blocking dominates; the non-blocking items ride along to disposition once blocking clears.
+- **Proven-set fail-closed (structural, non-overridable):** if `CLAUDE_VERDICT_SET_PROVEN` is not `true`, the judge **cannot** return `CLEAN` — re-poll / re-trigger until the set is proven (the adapter couldn't prove it saw the whole verdict set, so a masked earlier verdict can't be ruled out).
+- **Cache per head SHA (architect S2):** persist the judge result as `claude_judge_verdict @ <sha>` in the scratch file; it's a model call — do **not** re-judge unchanged material on every idle poll. Re-run only when the head SHA changes or new claude material posts for the current SHA.
+
+**Disposition of `NON_BLOCKING` items (R3) — mode-split.** Non-blocking items never block convergence; they route through the existing Tier machinery, but the *formalize* path splits on cost asymmetry:
+
+- **Always:** a trivial, in-scope non-blocking item → **absorbed** (fixed this PR as a Tier-1 batch fix).
+- **Interactive `/review-loop`** (human present, `SPRINT_AUTO_INTEGRATION_WORKTREE` unset): a non-trivial non-blocking item is **surfaced at hand-back with a proposed `/idea` line** for the human to confirm — no auto-IDEA-spam (a human is right there to triage).
+- **sprint-auto `/review-loop`** (unattended, `SPRINT_AUTO_INTEGRATION_WORKTREE` set): a non-trivial non-blocking item is **auto-formalized into a real IDEA file** (via the `/idea` schema) and listed in the batch/integration summary — "surfaced in the hand-back" = lost in never-read overnight output, so a recorded-and-pruned IDEA file beats a forgotten suggestion. The human prunes the throwaways at batch review.
+- **The committed IDEA doc is the in-band acknowledgment that closes the loop.** Once a formalized IDEA file (or the absorbed fix) lands in the PR diff, the next review cycle's judge **reads it in the diff**, sees the concern is tracked/accounted-for, and stops re-raising it as an open finding — the natural convergence mechanism of a model-judge reviewer (the deferred concern is acknowledged *in-band*, a reviewable artifact, not only in an out-of-band hand-back the reviewer never sees). Same effect interactively whenever the proposed IDEA is committed to the branch.
+
 ### Triage tier classification
 
 For each active finding (across all engines), classify into a tier:
@@ -126,6 +149,11 @@ Per-engine state slots (replicate the pattern for each engine in `engines`):
 - `<engine>_review_state` — `NOT_TRIGGERED` | `TRIGGERED` (fired, no check-run yet) | `RUNNING` (check-run `queued`/`in_progress`) | `DONE` (check-run `completed`), for the current `last_push_sha`.
 - `last_seen_<engine>_review` — `<id> @ <sha>` (the LATEST_REVIEW last acted on; staleness anchor for new-finding detection).
 - `last_seen_<engine>_signal_id` — engine-defined: comment id for comment-based engines (bugbot); unset for reviewer-assignment engines (Copilot) until the first review posts. Tracked so Phase 4's "new findings since" comparison doesn't misread the loop's own trigger as a finding.
+
+Prose-only-engine slots (claude — IDEA-022; replicate per prose-only engine in `engines`):
+
+- `claude_judge_verdict` — `CLEAN | BLOCKING | NON_BLOCKING @ <sha>` — the cached § Per-engine model-judge result for the current head SHA, so an idle-poll wake doesn't re-run the model on unchanged material (re-judge only when the SHA changes or new claude material posts).
+- `claude_non_blocking` — the list of recorded non-blocking items not yet dispositioned (`{title, why, where}`), namespaced like `no_progress_map`. **Must be checkpointed**: a non-blocking item raised pre-compaction is otherwise summarized away on the next `ScheduleWakeup` wake, losing both the hand-back surface (interactive) and the auto-formalize input (sprint-auto).
 
 Plus the per-cycle triage table (findings + tier + justification + outcome).
 
@@ -198,10 +226,11 @@ The wake-loop in this phase IS a watcher in the [`skills/work/references/WATCHER
    - **Guard: no-progress detector trips** — same finding category flagged 2× across cycles where a commit *attempted* that category (success-or-revert both count), namespaced per engine → hand back. Repeated same-category **cosmetic-prose** nits (changelog/doc/persona wording) count even when each cycle's exact text differs — the category recurrence is the signal. When the substance engine is clean while a prose-sensitive engine won't converge, adopt/codify the convention or hard-stop; see [`references/COSMETIC_NONCONVERGENCE.md`](references/COSMETIC_NONCONVERGENCE.md).
    - **Any engine `NOT_TRIGGERED`** → fire its retrigger (Phase 1 zero-activity path), set it `TRIGGERED`, **enter the wait state** (re-arm Monitor + `ScheduleWakeup(1200s)`).
    - **Any engine `TRIGGERED` or `RUNNING`** (review requested but check-run not yet `completed`) → still in flight: do NOT retrigger, do NOT read a verdict. This is the multi-engine sync gate — **wait for the slowest engine to reach `DONE` before reading any verdict.** Increment `idle_polls`, **enter the wait state** (re-arm Monitor + `ScheduleWakeup(1200s)`; the Monitor will usually re-enter sooner on the engine's `DONE` event). `idle_polls ≥ 10` here = a check-run wedged in `queued`/`in_progress` → treat as HUNG, hand back. (This is the sole idle backstop — once every engine is `DONE` the verdict is final and the branches below terminate without further polling.)
-   - **\[All engines `DONE`\] New findings since `last_seen_<engine>_signal_id` (any engine)** → reset `idle_polls=0`, update each engine's `last_seen_<engine>_signal_id` to its newest finding id, reload triage state, return to Phase 1 (which batch-triages every engine's active findings into one fix cycle). Compare against `last_seen_<engine>_signal_id`, not `last_push_sha` — see references/engine-adapter-contract.md.
+   - **Prose-only engines (claude) — the judge verdict IS the finding count (IDEA-022).** A material-surfacing adapter emits **zero structural active findings by design** (it surfaces verdict bodies, the judge classifies — § Per-engine model-judge), so the structural counts in the two branches below would read claude as "zero findings" even when the judge returned `BLOCKING`. For a prose-only engine, substitute its cached `claude_judge_verdict` for the structural count: `BLOCKING` ⇒ the engine **has active findings** (the judge's blocking items); `CLEAN` / `NON_BLOCKING`-only ⇒ zero active findings (clean for the gate). Apply this substitution wherever the two branches below say "active findings" for claude.
+   - **\[All engines `DONE`\] New findings since `last_seen_<engine>_signal_id` (any engine)** → reset `idle_polls=0`, update each engine's `last_seen_<engine>_signal_id` to its newest finding id, reload triage state, return to Phase 1 (which batch-triages every engine's active findings into one fix cycle). Compare against `last_seen_<engine>_signal_id`, not `last_push_sha` — see references/engine-adapter-contract.md. **For claude:** a fresh `claude_judge_verdict == BLOCKING` (or new blocking items vs the last cycle) is the "new findings" trigger — its blocking items enter triage as the findings to fix.
    - **\[All engines `DONE`\] No new findings** → terminal hand back, no further polling:
-     - **CLEAN** if every engine has zero active findings across its head-SHA verdict set (§ Staleness — `LATEST_REVIEW` for single-verdict engines; every head-SHA verdict for multi-verdict engines, where an unaddressed findings-bearing verdict keeps the engine **STILL_FINDING** even when a newer same-SHA verdict reads clean). (Structural — never inferred from `CONCLUSION` or review-body prose.)
-     - else surface the **residual active findings** (already-seen / Tier-3 escalations the loop chose not to fix) and hand back — the loop can't make further progress on this SHA.
+     - **CLEAN** if every engine has zero active findings across its head-SHA verdict set (§ Staleness — `LATEST_REVIEW` for single-verdict engines; every head-SHA verdict for multi-verdict engines, where an unaddressed findings-bearing verdict keeps the engine **STILL_FINDING** even when a newer same-SHA verdict reads clean) **AND every prose-only engine's `claude_judge_verdict` is `CLEAN` or `NON_BLOCKING`** (a `BLOCKING` verdict keeps that engine STILL_FINDING — the judge is the authority, since the adapter emits no structural finding count to fall back on). (Structural for structured-surface engines; the judge verdict for prose-only engines — never inferred from `CONCLUSION` or raw review-body prose.)
+     - else surface the **residual active findings** (already-seen / Tier-3 escalations the loop chose not to fix — including a prose-only engine's unaddressed `BLOCKING` judge items) and hand back — the loop can't make further progress on this SHA.
 
 ## Hand-back report
 

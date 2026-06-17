@@ -26,6 +26,11 @@ _(none)_
 
 ## ✅ References — Implemented
 
+### IDEA-022: Claude verdict classification — model-judge, not regex ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-06-17 · **See**: [Archive](../archive/2026-06-idea-022-claude-findings-heuristic/IDEA-022-claude-findings-heuristic-false-positive.md), [PR #208](https://github.com/infohata/mind-vault/pull/208).
+Replaced the claude review adapter's prose **regex classifier** (`CLAUDE_CLEAN_PATTERNS` / `CLAUDE_FINDING_MARKERS` / `is_clean`) with an orchestrator-inline **model-judge** producing a tiered verdict `{CLEAN | BLOCKING | NON_BLOCKING[]}`. Regex can't classify model-generated prose — it false-FINDING'd a clean "all resolved" recap (the IDEA-021 dogfood, PR #207) and false-CLEAN'd a marker-less prose finding (the architect hole); same root failure. `find_claude_comments.sh` is reduced to **material-surfacing** (RUNNING/DONE aggregation, raw in-window verdict-body enumeration verbatim, `CLAUDE_VERDICT_SET_PROVEN` fail-closed, inline + NOOP/draft/silent guards — net simpler); the `/review-loop` judge classifies, with the verbatim **masking rule** + proven-set fail-closed transcribed into its contract (`engine-claude.md` § Verdict judge). Carve-out typed to *prose-only verdict surface* (not engine name). `NON_BLOCKING` never blocks convergence; disposition is **mode-split** (interactive surfaces + proposes `/idea`; sprint-auto auto-formalizes IDEA files), and the committed IDEA doc is the **in-band acknowledgment** the next cycle's judge reads to stop re-raising. **Asymmetric test gate** (architect C2): bash hard-gates that the dangerous material is surfaced + the structural fail-closed holds; the semantic NOT-CLEAN reading of pure prose is judge-eval/advisory (no model in bash CI). `make test` 38/38 (new `test_claude_material_surfacing.sh` + 6 fixtures). Architect-reviewed ×2.
+
 ### IDEA-021: Monitor-accelerated review-loop Phase 4 wait ✅ COMPLETE
 
 **Status**: ✅ **COMPLETE** · **Completed**: 2026-06-17 · **See**: [Archive](../archive/2026-06-idea-021-monitor-accelerated-review-loop-wait/IDEA-021-monitor-accelerated-review-loop-wait.md), [PR #207](https://github.com/infohata/mind-vault/pull/207).

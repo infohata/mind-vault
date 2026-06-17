@@ -1,0 +1,11 @@
+[
+  {
+    "id": 4010,
+    "user": {
+      "login": "claude[bot]"
+    },
+    "created_at": "2026-06-15T10:05:00Z",
+    "html_url": "https://github.com/testowner/testrepo/pull/1#issuecomment-4010",
+    "body": "## Code review\n\nNo bugs found in the core refactor. One concern: the new `/export` endpoint has no authentication check \u2014 anyone can pull the full dataset. Ready to merge otherwise."
+  }
+]

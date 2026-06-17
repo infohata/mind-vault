@@ -24,20 +24,20 @@
 #   The Actions CONCLUSION is GREEN whether claude found 0 or 5 issues — it is a
 #   RUNNING/DONE signal only, NEVER a verdict.
 #
-# A6 / LAYER-2 — CLEAN REQUIRES A POSITIVE POSTED SIGNAL, never zero-inline alone.
+# A6 / LAYER-2 — CLEAN IS A MODEL JUDGMENT, never zero-inline alone (IDEA-022).
 #   A claude run can report `success` having posted NOTHING (action issue #1087 — the
 #   buffered-comment result-capture grabs a TodoWrite response instead of the review),
 #   which is indistinguishable from a genuinely-clean run by run status. So "completed
-#   + zero inline" is a FALSE-CLEAN vector, NOT a clean signal. clean iff claude POSTED
-#   a clean summary (case-insensitive substring "no issues found"; substring not full
-#   sentence per the copilot two-phrasing lesson, find_copilot_comments.sh:182-189)
-#   AND zero inline findings. The fixed workflow (assets/claude-code-review.yml —
-#   classify_inline_comments:false + claude_args + a prompt forcing a posted summary
-#   even when clean) is what makes a genuinely-clean run POST that summary.
+#   + zero inline" is a FALSE-CLEAN vector, never a clean signal — a no-verdict run is
+#   held RUNNING (A3 below) and never reaches the judge. When material IS posted, the
+#   adapter does NOT classify it: it surfaces every verdict body + inline finding, and
+#   the /review-loop model-judge decides clean/blocking/non-blocking (engine-claude.md
+#   § Verdict judge). The regex classifier (CLEAN/FINDING patterns) was REMOVED — it
+#   false-FINDING'd clean prose and false-CLEAN'd marker-less prose findings.
 #
 # A3 / LAYER-2 — RACE + SILENT GUARD (load-bearing). A `completed` run with NO readable
-#   verdict (no posted findings AND no clean summary) is held as STATUS=in_progress
-#   (RUNNING) so the orchestrator's "DONE + zero findings = CLEAN" can't fire on it.
+#   verdict (nothing posted) is held as STATUS=in_progress (RUNNING) so the
+#   orchestrator's "DONE + zero findings = CLEAN" can't fire on it.
 #   CONCLUSION is never consulted (claude concludes `success` regardless of findings).
 #   The settle window (CLAUDE_REVIEW_SETTLE_SECONDS, default 180) only picks the marker:
 #   within → CLAUDE_REVIEW_PENDING (comments may still land); elapsed → CLAUDE_REVIEW_SILENT
@@ -56,17 +56,24 @@
 #   emits CLAUDE_NOT_INSTALLED=true and exits 0 so the orchestrator's default
 #   resolution can self-exclude claude (degrade loudly) rather than hang to HUNG.
 #
-# Output contract (engine-adapter-contract.md):
-#   - CLAUDE_CHECKRUN=<run-id> COMMIT=<sha> STATUS=<queued|in_progress|completed> CONCLUSION=<...> AT=<iso8601>
-#     (synthesized from the Actions run; STATUS RUNNING vs DONE; CONCLUSION never a verdict)
-#   - CLAUDE_LATEST_REVIEW=<anchor-id> COMMIT=<sha> AT=<iso8601> [CLEAN=<bool>]
-#     (anchor = summary-comment id, or newest head-SHA inline comment id if no summary)
-#   - CLAUDE_CLEAN_SIGNAL=... (legacy / non-authoritative — orchestrator derives clean structurally)
-#   - inline finding blocks each carrying the mandatory `(comment id <cid>, review <rid>)` token
+# Output contract (engine-adapter-contract.md) — IDEA-022: this script SURFACES
+# review material; it computes NO clean/findings verdict (that is the /review-loop
+# model-judge's call, engine-claude.md § Verdict judge). Markers:
+#   - CLAUDE_CHECKRUN=<run-id> COMMIT=<sha> STATUS=<queued|in_progress|completed> CONCLUSION=<...> AT=<iso8601> RUNS=<n> WINDOW_START=<iso8601>
+#     (synthesized from the Actions runs; STATUS RUNNING vs DONE aggregated across all
+#      head-SHA runs; CONCLUSION never a verdict)
+#   - CLAUDE_VERDICT_SET_PROVEN=<true|false> (structural fail-closed: the judge may
+#     return CLEAN only when the whole head-SHA verdict set was provably seen)
+#   - CLAUDE_HEAD_VERDICTS=<n> CLAUDE_VERDICT_IDS=<id,...|none> (in-window verdict enumeration)
+#   - CLAUDE_LATEST_REVIEW=<anchor-id> COMMIT=<sha> AT=<iso8601>
+#     (anchor = summary-comment id, or newest head-SHA inline comment id if no summary;
+#      NO CLEAN= token — the adapter computes no verdict)
+#   - verdict-body MATERIAL blocks (every in-window summary body, verbatim) + inline
+#     finding blocks, each carrying the mandatory `(comment id <cid>, review <rid|summary>)` token
 #   - CLAUDE_NOT_INSTALLED=true (reachability) / CLAUDE_DRAFT_NOOP=true (draft PR — no
 #     review posted; un-draft for a verdict) / CLAUDE_REVIEW_PENDING=... (race guard)
 #   - CLAUDE_REVIEW_SILENT=... (run `success` but posted nothing after settle — NOT
-#     clean; #1087 / read-only perms / un-fixed workflow. Loop hands back as uncertain.)
+#     clean; #1087 / read-only perms / un-fixed workflow. Held RUNNING, never judged.)
 #   Exit 0 on success.
 #
 # Usage: ./tools/find_claude_comments.sh [PR_NUMBER]
@@ -119,9 +126,35 @@ else
     fi
 fi
 
+# ── Test seam (IDEA-022) ──────────────────────────────────────────────────────
+# When CLAUDE_FIXTURE_DIR is set, read captured GitHub API payloads from files
+# instead of calling `gh api`, so tests/test_claude_material_surfacing.sh runs
+# deterministically offline. The production path (var unset) is unchanged — every
+# fetch below falls through to its original `gh` call. Fixture files (all
+# optional, each defaulting to its empty shape): workflows.json, pr.json
+# ({"draft":bool,"head":{"sha":...}}), inline_comments.json, issue_comments.json,
+# workflow_runs.json. Invoke tests with a numeric PR arg so PR resolution never
+# calls `gh pr list`.
+gh_payload() {
+    # $1 = fixture filename, $2 = empty-shape default; remaining args = the `gh`
+    # argv for the production fetch. Both paths default to $2 on any failure so
+    # the python passes never receive empty stdin.
+    local fname="$1" default="$2"; shift 2
+    if [ -n "${CLAUDE_FIXTURE_DIR:-}" ]; then
+        cat "$CLAUDE_FIXTURE_DIR/$fname" 2>/dev/null || printf '%s' "$default"
+    else
+        gh "$@" 2>/dev/null || printf '%s' "$default"
+    fi
+}
+
 # Repo identifier
-REPO_OWNER=$(gh repo view --json owner -q '.owner.login')
-REPO_NAME=$(gh repo view --json name -q '.name')
+if [ -n "${CLAUDE_FIXTURE_DIR:-}" ]; then
+    REPO_OWNER=testowner
+    REPO_NAME=testrepo
+else
+    REPO_OWNER=$(gh repo view --json owner -q '.owner.login')
+    REPO_NAME=$(gh repo view --json name -q '.name')
+fi
 
 if [ -z "$REPO_OWNER" ] || [ -z "$REPO_NAME" ]; then
     echo "❌ Could not determine repository owner/name"
@@ -143,7 +176,7 @@ fi
 # it) would NOT add this workflow file, so this also correctly reports "not the
 # action path" in that case.
 CLAUDE_WORKFLOW_FILE="claude-code-review.yml"
-WORKFLOWS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/actions/workflows?per_page=100" 2>/dev/null || echo '{"workflows":[]}')
+WORKFLOWS=$(gh_payload workflows.json '{"workflows":[]}' api "repos/$REPO_OWNER/$REPO_NAME/actions/workflows?per_page=100")
 ACTION_INSTALLED=$(echo "$WORKFLOWS" | CLAUDE_WORKFLOW_FILE="$CLAUDE_WORKFLOW_FILE" python3 -c "
 import json, os, sys
 try:
@@ -174,7 +207,11 @@ fi
 # SKILL.md § Pre-flight); this is the belt-and-suspenders net for a skipped/failed
 # un-draft: emit CLAUDE_DRAFT_NOOP + exit 0 so the loop reports "no claude verdict until
 # ready" (un-draft the PR), never SILENT/HUNG/clean.
-PR_IS_DRAFT=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER" -q '.draft' 2>/dev/null || echo "")
+if [ -n "${CLAUDE_FIXTURE_DIR:-}" ]; then
+    PR_IS_DRAFT=$(gh_payload pr.json '{}' api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER" | python3 -c "import json,sys; d=json.load(sys.stdin); print(str(d.get('draft', False)).lower())" 2>/dev/null || echo "")
+else
+    PR_IS_DRAFT=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER" -q '.draft' 2>/dev/null || echo "")
+fi
 if [ "$PR_IS_DRAFT" = "true" ]; then
     echo "CLAUDE_DRAFT_NOOP=true"
     echo -e "${YELLOW}⚠️  PR #$PR_NUMBER is a DRAFT — claude's action runs but posts NO review on drafts (no summary, no inline). This is the draft no-op, NOT a clean or SILENT verdict.${NC}"
@@ -187,19 +224,23 @@ echo ""
 
 # Head SHA — anchors both the Actions-run filter and the head-SHA-aware finding
 # precheck. Degrade gracefully to empty if the fetch fails.
-PR_HEAD_SHA=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER" -q '.head.sha' 2>/dev/null || echo "")
+if [ -n "${CLAUDE_FIXTURE_DIR:-}" ]; then
+    PR_HEAD_SHA=$(gh_payload pr.json '{}' api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('head') or {}).get('sha',''))" 2>/dev/null || echo "")
+else
+    PR_HEAD_SHA=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER" -q '.head.sha' 2>/dev/null || echo "")
+fi
 
 # Fetch comment + run endpoints up-front (each defaults to []/empty-shape on
 # failure so the python passes never receive empty stdin). per_page=100 avoids
 # the default-30 cap dropping the most recent comment on a long-iteration PR.
-INLINE_COMMENTS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/comments?per_page=100" 2>/dev/null || echo "[]")
-ISSUE_COMMENTS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments?per_page=100" 2>/dev/null || echo "[]")
+INLINE_COMMENTS=$(gh_payload inline_comments.json '[]' api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/comments?per_page=100")
+ISSUE_COMMENTS=$(gh_payload issue_comments.json '[]' api "repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments?per_page=100")
 
 # Actions runs for the claude-code-review workflow (A7/R2). If `actions: read`
 # is unreadable for the user's gh auth we degrade to summary-comment-only state
 # (lose the RUNNING signal) — Q3, resolved at dogfood. Empty-shape default keeps
 # the python pass honest.
-WORKFLOW_RUNS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/actions/workflows/$CLAUDE_WORKFLOW_FILE/runs?per_page=100" 2>/dev/null || echo '{"workflow_runs":[]}')
+WORKFLOW_RUNS=$(gh_payload workflow_runs.json '{"workflow_runs":[]}' api "repos/$REPO_OWNER/$REPO_NAME/actions/workflows/$CLAUDE_WORKFLOW_FILE/runs?per_page=100")
 
 # ==============================================================================
 # CALIBRATED — dogfood step 9 on PR #167 (claude-code-action run 26834423838,
@@ -252,6 +293,12 @@ WORKFLOW_RUNS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/actions/workflows/$CLAUDE_W
 # ==============================================================================
 # Single source of truth — exported once, read by every python pass via env.
 #
+# ⚠️ IDEA-022 — the CLEAN / FINDING-MARKER bullets below describe the REMOVED regex
+#    classifier; clean/blocking/non-blocking is now the model-judge's call. The LOGIN /
+#    HEADING-SIGNATURE / NO-OP calibration here is STILL LIVE (it selects which comments
+#    are claude's, feeding the material surfacer). Read the clean/marker bullets as
+#    historical "what claude's prose looks like" — judge input, not regex to match.
+#
 # ── SUMMARY CALIBRATION — CONFIRMED on a downstream PR (2026-06-03, the first
 #    high-volume findings-bearing claude review observed in the wild — 13 summary
 #    bodies). This SUPERSEDES several PR-#167 guesses with real data; see
@@ -275,29 +322,19 @@ WORKFLOW_RUNS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/actions/workflows/$CLAUDE_W
 #    a verdict is read (else a draft/duplicate no-op masquerades as a real summary).
 export CLAUDE_LOGINS='github-actions[bot] claude[bot] claude-code-action[bot]'
 export CLAUDE_BODY_SIGNATURES='claude code review|generated by claude|reviewed by claude|code[ -]?review'
-# Clean = a POSITIVE clean phrase (CLAUDE_CLEAN_PATTERNS) AND zero finding markers
-# (CLAUDE_FINDING_MARKERS). Both calibrated downstream. CLAUDE_CLEAN_SUBSTRING kept
-# as a legacy alias (first pattern) for any external reader; the pass uses the family.
-export CLAUDE_CLEAN_SUBSTRING='no issues found'
-export CLAUDE_CLEAN_PATTERNS='no issues found|no bugs found|no problems found|no security issues'
-# Finding markers — narrowed role. The SURFACE decision is now catch-everything
-# (posted ∧ ¬provably-clean → findings; see the classify pass), so markers are NO LONGER
-# the sole findings signal. They do two narrower jobs: (1) the MIXED-review guard — a body
-# with a clean phrase ("Bugs: no issues found") AND a finding marker ("Docstrings missing")
-# is NOT clean; (2) severity in the render. They're STRUCTURAL, not security-keyword-prose
-# (a clean review NAMES the concepts it checked — "the privilege-escalation guard looks
-# correct" — so privilege/escalation/security would false-positive on clean prose):
-#   • numbered/sectioned headers `#### ` / `### [0-9]`; file-grouped header `### ` + backtick
-#     (clean section headers are `### Bugs` / `### Security`, NO backtick);
-#   • the count line `<N> issue(s)/bug(s)/… found` with a NON-"no" quantifier ("One issue
-#     found.") — the clean phrase "No … found" is in CLAUDE_CLEAN_PATTERNS, no collision;
-#   • report-list words `missing` / `violation` / ❌.
-# Because the surface default is now "not-provably-clean → surface", a marker MISSING on a
-# findings body no longer false-cleans it (it's surfaced anyway) — markers can only fail
-# in the SAFE direction now. (Format is non-deterministic — PR #169 posted "One issue
-# found." + "### `file`", downstream posted "#### 1." numbered; the catch-everything
-# default is what makes an unseen 3rd format safe.)
-export CLAUDE_FINDING_MARKERS='\bmissing\b|\bviolation\b|❌|#### |### [0-9]|### `|[0-9]+ (issue|bug|problem|finding)s? found|(one|two|three|four|five|six|seven|eight|nine|ten) (issue|bug|problem|finding)s? found'
+# ── IDEA-022: NO PROSE CLASSIFIER ────────────────────────────────────────────
+# CLAUDE_CLEAN_PATTERNS / CLAUDE_FINDING_MARKERS / CLAUDE_CLEAN_SUBSTRING were
+# REMOVED. Regex cannot reliably classify claude's model-generated prose — it
+# false-FINDING'd on unrecognized clean phrasing (the IDEA-021 dogfood) and
+# false-CLEAN'd on marker-less prose findings (the architect hole). The
+# clean/blocking/non-blocking decision is now the /review-loop model-judge
+# (engine-claude.md § Verdict judge). This script is reduced to SURFACING the
+# review material the judge reads: RUNNING/DONE, the in-window verdict-body
+# enumeration (verbatim, UNclassified), inline findings, and the structural
+# CLAUDE_VERDICT_SET_PROVEN fail-closed gate. CLAUDE_NOOP_PATTERNS (below) and
+# the SILENT/draft guards STAY — they are structural "did claude post a real
+# review at all" gates that run BEFORE material ever reaches the judge.
+#
 # Signature-matching bodies that are claude NO-OPs, never verdicts. Anchored to the
 # skip-preamble SHAPE — the "## Code review" heading immediately followed by skip prose —
 # matched with re.MULTILINE so `^` is a line start. claude phrases the skip BOTH ways:
@@ -364,11 +401,11 @@ print(f'CLAUDE_CHECKRUN={rid} COMMIT={sha} STATUS={status} CONCLUSION={conclusio
 # Identity (calibrated PR #167): INLINE = login-only (github-actions[bot]; the
 # safe direction — see the CALIBRATED block above); SUMMARY = BOTH-AND (login AND
 # body signature, so a stray github-actions[bot] "no issues" issue comment can't
-# fake a clean). Inline findings are the staleness corpus + the zero-inline clean
-# signal; the summary comment (if the action ever posts one) carries the substring. Emit:
+# fake a claude summary). Inline findings are the staleness corpus + material; the
+# summary comment is the newest-verdict anchor + presence signal. Emit (IDEA-022 —
+# presence/anchor only; NO clean/findings classification):
 #   - CLAUDE_HEAD_INLINE_COUNT  — # of claude inline comments ON the head SHA
-#   - CLAUDE_SUMMARY_PRESENT / CLAUDE_SUMMARY_CLEAN — for the clean OR-arm + race guard
-#   - CLAUDE_ANCHOR_ID / CLAUDE_ANCHOR_AT — the LATEST_REVIEW anchor
+#   - CLAUDE_SUMMARY_JSON / SUMMARY_ID — newest non-no-op summary (presence + anchor + body material)
 #   - CLAUDE_INLINE_JSON — claude inline comments (head SHA) for the finding render
 CLAUDE_INLINE_JSON=$(echo "$INLINE_COMMENTS" | PR_HEAD_SHA="$PR_HEAD_SHA" python3 -c "
 import json, os, sys
@@ -436,11 +473,12 @@ claude.sort(key=lambda c: c.get('created_at') or '', reverse=True)
 print(json.dumps(claude[0]))
 " 2>/dev/null || true)
 
-# Classify the selected summary in one pass: PROVABLY-clean (positive clean phrase AND
-# no finding marker) vs surface-as-findings (everything else posted — catch-everything,
-# marker-independent; see the has_findings note below). Single source of truth.
+# Presence + anchor of the NEWEST non-no-op summary. The adapter does NOT classify
+# it clean/findings (IDEA-022 — that is the model-judge's call); this line is the
+# staleness anchor + the RUNNING/DONE gate's "a verdict was posted" signal. The body
+# itself is surfaced verbatim as material in the verdict-body render below.
 CLAUDE_SUMMARY_LINE=$(echo "${CLAUDE_SUMMARY_JSON:-}" | python3 -c "
-import json, os, re, sys
+import json, sys
 raw = sys.stdin.read().strip()
 if not raw:
     sys.exit(0)
@@ -450,49 +488,32 @@ except Exception:
     sys.exit(0)
 cid = c.get('id') or ''
 at = c.get('created_at') or ''
-body = c.get('body') or ''
-clean_re = re.compile(os.environ.get('CLAUDE_CLEAN_PATTERNS', 'a^'), re.IGNORECASE)
-finding_re = re.compile(os.environ.get('CLAUDE_FINDING_MARKERS', 'a^'), re.IGNORECASE)
-has_clean_phrase = bool(clean_re.search(body))
-has_finding_marker = bool(finding_re.search(body))
-# WHOLE-REVIEW clean: a positive clean phrase AND no finding marker anywhere.
-# Mixed reviews (one section clean, another flags 'missing'/'violation') → NOT clean.
-is_clean = has_clean_phrase and not has_finding_marker
-# CATCH-EVERYTHING surface decision (marker-INDEPENDENT): claude review format is NOT
-# deterministic -- count-line + backtick-file-header here, numbered hash sections
-# downstream, future runs may differ again. So findings is NOT matched-a-known-marker;
-# it is posted-AND-not-provably-clean. A posted non-no-op summary is therefore ALWAYS
-# either clean (provably) or surfaced-as-findings; an unrecognized future finding shape
-# can never read SILENT (the unsafe direction). Markers now only gate is_clean (the
-# mixed-review guard) and drive severity below. (NOTE: keep this -c block free of double
-# quotes -- it runs inside a bash double-quoted python -c string.)
-has_findings = not is_clean
-print(f'CLAUDE_SUMMARY_ID={cid} AT={at} CLEAN={str(is_clean).lower()} FINDINGS={str(has_findings).lower()}')
+print(f'CLAUDE_SUMMARY_ID={cid} AT={at}')
 " 2>/dev/null || true)
 
-# Derive presence/clean/anchor scalars from the two passes (bash side; `|| true`
-# on every grep -oE because empty captures would make grep exit 1 under -eo pipefail).
+# Derive presence/anchor scalars (bash side; `|| true` on every grep -oE because
+# empty captures would make grep exit 1 under -eo pipefail). No CLEAN/FINDINGS
+# scalars — the adapter computes no verdict; SUMMARY_ID presence is the readable-
+# verdict signal the settle gate keys on.
 SUMMARY_ID=$(echo "$CLAUDE_SUMMARY_LINE" | grep -oE 'CLAUDE_SUMMARY_ID=[^ ]+' | cut -d= -f2 || true)
 SUMMARY_AT=$(echo "$CLAUDE_SUMMARY_LINE" | grep -oE 'AT=[^ ]+' | cut -d= -f2 || true)
-SUMMARY_CLEAN=$(echo "$CLAUDE_SUMMARY_LINE" | grep -oE 'CLEAN=[^ ]+' | cut -d= -f2 || true)
-SUMMARY_FINDINGS=$(echo "$CLAUDE_SUMMARY_LINE" | grep -oE 'FINDINGS=[^ ]+' | cut -d= -f2 || true)
 
 # ------------------------------------------------------------------------------
-# Pass 2b — ALL head-SHA verdicts (dual-verdict rule, engine-claude.md § dual
-# substantive verdicts): the newest-wins selection above is the verdict SURFACE,
-# but an earlier findings-bearing summary on the SAME SHA must never be masked by
-# a newer clean roll. Classify EVERY substantive non-no-op summary inside the
-# head-SHA window (created_at >= earliest head-SHA run start — issue comments
-# carry no commit id, so the run window is the SHA scope) and emit:
+# Pass 2b — ENUMERATE every head-SHA verdict body as raw material (IDEA-022). The
+# dual-verdict rule (engine-claude.md § dual substantive verdicts) is now applied by
+# the model-judge, NOT by regex here: the adapter surfaces EVERY substantive non-no-op
+# summary inside the head-SHA window (created_at >= earliest head-SHA run start —
+# issue comments carry no commit id, so the run window is the SHA scope) verbatim, so
+# the judge sees a masked earlier verdict alongside any newer clean roll and applies
+# the masking rule itself. The adapter classifies NONE of them. Emits:
 #   CLAUDE_HEAD_VERDICTS=<n> — substantive summaries in the window
-#   CLAUDE_HAS_FINDINGS=<bool> — true iff ANY of them is findings-bearing
-#   CLAUDE_FINDINGS_SUMMARY_IDS=<id,id,...|none> — the findings-bearing ids
-# No window (runs fetch failed / blank timestamps) → pass emits nothing and the
-# clean signal is WITHHELD fail-closed below (CLAUDE_VERDICT_SET_PROVEN) — an
-# unproven verdict set must never re-open the masking hole. Findings-bearing
-# reads are unaffected (they only ever ADD caution).
+#   CLAUDE_VERDICT_IDS=<id,id,...|none> — their comment ids (oldest-first)
+#   + a second JSON line = the full verdict objects, for the verbatim material render.
+# No window (runs fetch failed / blank timestamps) → pass emits nothing → the
+# verdict set is UNPROVEN (CLAUDE_VERDICT_SET_PROVEN=false below), which structurally
+# forbids the judge returning CLEAN (it can't rule out a masked earlier verdict).
 WINDOW_START=$(echo "${CLAUDE_CHECKRUN_LINE:-}" | grep -oE 'WINDOW_START=[^ ]+' | cut -d= -f2 || true)
-CLAUDE_VERDICTS_OUT=$(echo "$ISSUE_COMMENTS" | WINDOW_START="$WINDOW_START" NEWEST_SUMMARY_ID="${SUMMARY_ID:-}" python3 -c "
+CLAUDE_VERDICTS_OUT=$(echo "$ISSUE_COMMENTS" | WINDOW_START="$WINDOW_START" python3 -c "
 import json, os, re, sys
 window = os.environ.get('WINDOW_START', '')
 if not window:
@@ -504,9 +525,6 @@ except Exception:
 logins = set(os.environ.get('CLAUDE_LOGINS', '').split())
 sig_re = re.compile(os.environ.get('CLAUDE_BODY_SIGNATURES', 'a^'), re.IGNORECASE)
 noop_re = re.compile(os.environ.get('CLAUDE_NOOP_PATTERNS', 'a^'), re.IGNORECASE | re.MULTILINE)
-clean_re = re.compile(os.environ.get('CLAUDE_CLEAN_PATTERNS', 'a^'), re.IGNORECASE)
-finding_re = re.compile(os.environ.get('CLAUDE_FINDING_MARKERS', 'a^'), re.IGNORECASE)
-newest_id = os.environ.get('NEWEST_SUMMARY_ID', '')
 def in_window(c):
     # ISO-8601 UTC Z strings compare lexicographically.
     return (c.get('created_at') or '') >= window
@@ -515,39 +533,26 @@ def is_claude_summary(c):
     body = c.get('body') or ''
     return login in logins and bool(sig_re.search(body)) and not noop_re.search(body)
 verdicts = [c for c in comments if is_claude_summary(c) and in_window(c)]
-finding_ids, masked = [], []
-for c in verdicts:
-    body = c.get('body') or ''
-    is_clean = bool(clean_re.search(body)) and not finding_re.search(body)
-    if not is_clean:
-        cid = str(c.get('id') or '')
-        finding_ids.append(cid)
-        # Masked = findings-bearing AND not the newest summary (which the
-        # standard render path already emits as a finding block).
-        if cid != newest_id:
-            masked.append(c)
-ids = ','.join(finding_ids) if finding_ids else 'none'
-has = 'true' if finding_ids else 'false'
-print(f'CLAUDE_HEAD_VERDICTS={len(verdicts)} CLAUDE_HAS_FINDINGS={has} CLAUDE_FINDINGS_SUMMARY_IDS={ids}')
-if masked:
-    # Second output line: masked findings-bearing summaries as a JSON array —
-    # the render section emits a mandatory finding block for EACH (a masked
-    # verdict the loop cannot triage would reproduce the false-CLEAN).
-    print(json.dumps(masked))
+# Oldest-first so the material render reads chronologically (earlier verdict before
+# a newer clean one — the judge applies the masking rule over the whole sequence).
+verdicts.sort(key=lambda c: c.get('created_at') or '')
+ids = ','.join(str(c.get('id') or '') for c in verdicts) if verdicts else 'none'
+print(f'CLAUDE_HEAD_VERDICTS={len(verdicts)} CLAUDE_VERDICT_IDS={ids}')
+if verdicts:
+    print(json.dumps(verdicts))
 " 2>/dev/null || true)
 CLAUDE_VERDICTS_LINE=$(printf '%s\n' "${CLAUDE_VERDICTS_OUT:-}" | grep '^CLAUDE_HEAD_VERDICTS=' || true)
-CLAUDE_MASKED_JSON=$(printf '%s\n' "${CLAUDE_VERDICTS_OUT:-}" | grep '^\[' || true)
-CLAUDE_HAS_FINDINGS=$(echo "${CLAUDE_VERDICTS_LINE:-}" | grep -oE 'CLAUDE_HAS_FINDINGS=[^ ]+' | cut -d= -f2 || true)
+CLAUDE_VERDICTS_JSON=$(printf '%s\n' "${CLAUDE_VERDICTS_OUT:-}" | grep '^\[' || true)
 CLAUDE_HEAD_VERDICTS_N=$(echo "${CLAUDE_VERDICTS_LINE:-}" | grep -oE 'CLAUDE_HEAD_VERDICTS=[^ ]+' | cut -d= -f2 || true)
-# Fail-closed single-verdict proof: the clean signal may only stand when Pass 2b
-# actually ran AND the newest (clean) summary itself counted as an in-window
-# verdict (HEAD_VERDICTS >= 1). No window / empty verdict set = the script
-# CANNOT prove the clean summary isn't masking an earlier head-SHA verdict —
-# withhold clean rather than fall back to the pre-dual-verdict read
-# (bugbot 3399604441: blank timestamps → WINDOW_START='' → pass skipped →
-# UNPROVEN. Run-list gaps are NOT defended here — same-SHA runs are expected
-# to co-appear in the API response for a fresh push; a paginated-out earlier
-# run would narrow the window undetected.)
+# Fail-closed verdict-set proof (structural, kept from the dual-verdict work): the
+# judge may return CLEAN only when Pass 2b actually ran AND counted >= 1 in-window
+# verdict. No window / empty verdict set = the adapter CANNOT prove it saw the whole
+# head-SHA verdict set (paginated-out / blank run timestamps) — so the judge is
+# forbidden CLEAN (engine-claude.md § Verdict judge, proven-set fail-closed).
+# (bugbot 3399604441: blank timestamps → WINDOW_START='' → pass skipped → UNPROVEN.
+# Run-list gaps are NOT defended here — same-SHA runs are expected to co-appear in the
+# API response for a fresh push; a paginated-out earlier run would narrow the window
+# undetected.)
 CLAUDE_VERDICT_SET_PROVEN=false
 if [ -n "${CLAUDE_VERDICTS_LINE:-}" ] && [ "${CLAUDE_HEAD_VERDICTS_N:-0}" -ge 1 ] 2>/dev/null; then
     CLAUDE_VERDICT_SET_PROVEN=true
@@ -585,26 +590,18 @@ INLINE_ANCHOR_AT=$(echo "$INLINE_ANCHOR_LINE" | grep -oE 'AT=[^ ]+' | cut -d= -f
 # A claude run can report `success` having posted NOTHING: the plugin buffers inline
 # comments for a post-session step whose result-capture can grab a TodoWrite response
 # instead of the review → empty → no comment, run still `success`. That "success +
-# silent" state is INDISTINGUISHABLE from a genuinely-clean run by run status alone,
-# so we must NOT infer clean from "completed + zero inline" — that is the false-CLEAN
-# vector. A verdict is readable ONLY when claude POSTED something definitive:
-#   - inline findings (HEAD_INLINE_COUNT > 0)        → not clean; triage them
-#   - a clean summary comment (SUMMARY_CLEAN==true)  → clean (the fixed workflow's
-#                                                       prompt forces a posted "no
-#                                                       issues found" summary even
-#                                                       when clean — see assets/)
-# A readable verdict is anything claude POSTED definitively:
-#   - inline findings (HEAD_INLINE_COUNT > 0)        → not clean; triage them
-#   - a findings-bearing summary (SUMMARY_FINDINGS)  → not clean; triage the body (C1 —
-#                                                       convention/cross-file findings
-#                                                       claude can't line-anchor)
-#   - a clean summary comment (SUMMARY_CLEAN==true)  → clean
-# Anything else — nothing posted, or a summary that isn't a recognized clean OR findings
-# signal, with zero inline — is SILENT/uncertain: surfaced, NEVER auto-cleaned. (With the
-# fixed workflow a genuinely-clean run POSTS a clean summary, so SILENT means
-# #1087-drop / read-only perms / un-fixed workflow, not "clean".)
+# silent" state is INDISTINGUISHABLE from a genuinely-clean run by run status alone, so
+# we must NOT release a no-verdict run to DONE — it would let the orchestrator read a
+# #1087-dropped run as the absence of findings. A verdict is readable ONLY when claude
+# POSTED material the judge can read (IDEA-022 — the adapter no longer classifies it):
+#   - inline findings (HEAD_INLINE_COUNT > 0), OR
+#   - a posted non-no-op summary comment (SUMMARY_ID non-empty).
+# Either is "material exists for the judge" — window-independent (so an unprovable
+# verdict set still counts as readable; the proven-set gate handles its safety, not the
+# settle valve). Anything else — nothing posted at all — is SILENT/uncertain: held
+# RUNNING, surfaced, NEVER auto-cleaned, and never handed to the judge (nothing to read).
 VERDICT_READABLE=false
-if [ "$HEAD_INLINE_COUNT" -gt 0 ] 2>/dev/null || [ "$SUMMARY_CLEAN" = "true" ] || [ "$SUMMARY_FINDINGS" = "true" ]; then
+if [ "$HEAD_INLINE_COUNT" -gt 0 ] 2>/dev/null || [ -n "${SUMMARY_ID:-}" ]; then
     VERDICT_READABLE=true
 fi
 
@@ -669,30 +666,24 @@ except Exception:
 
     echo "$CLAUDE_CHECKRUN_LINE"
 
+    # CLAUDE_VERDICT_SET_PROVEN — structural fail-closed gate the model-judge reads
+    # (engine-claude.md § Verdict judge): the judge may return CLEAN only when the
+    # whole head-SHA verdict set was provably seen. Emitted whenever a checkrun exists,
+    # for BOTH the proven (true) and unprovable (false) paths.
+    echo "CLAUDE_VERDICT_SET_PROVEN=${CLAUDE_VERDICT_SET_PROVEN}"
     if [ "$cr_status" = "completed" ]; then
-        # Reached ONLY with a readable verdict (inline findings, a findings-bearing
-        # summary, or a clean summary) — no-verdict cases held as RUNNING (PENDING/SILENT).
-        echo -e "${GREEN}✅ Claude Actions run completed with a posted verdict for PR head.${NC}"
-        if [ "$HEAD_INLINE_COUNT" -gt 0 ] 2>/dev/null || [ "$SUMMARY_FINDINGS" = "true" ]; then
-            : # findings present (inline and/or summary body) — rendered below; emit NO clean signal
-        elif [ "$SUMMARY_CLEAN" = "true" ] && [ "$CLAUDE_HAS_FINDINGS" = "true" ]; then
-            # Dual-verdict masking: the NEWEST summary reads clean, but an earlier
-            # substantive verdict in the head-SHA window carries findings. A clean
-            # verdict never overrides a findings verdict — no clean signal; the
-            # orchestrator must read every id in CLAUDE_FINDINGS_SUMMARY_IDS.
-            echo -e "${RED}⚠️  DUAL-VERDICT MASKING: newest head-SHA summary is clean, but earlier head-SHA verdict(s) carry findings (${CLAUDE_VERDICTS_LINE:-}). STILL_FINDING — findings are addressed by fixes, never by a newer clean roll. See engine-claude.md § dual substantive verdicts.${NC}"
-        elif [ "$SUMMARY_CLEAN" = "true" ] && [ "$CLAUDE_VERDICT_SET_PROVEN" != "true" ]; then
-            # Fail-closed: a clean newest summary WITHOUT a proven head-SHA verdict
-            # set (no run window, blank run timestamps, or the summary itself fell
-            # outside the window) cannot rule out a masked earlier verdict. Withhold
-            # the clean signal — the orchestrator keeps polling / re-triggers; it
-            # must never read this state as CLEAN (bugbot 3399604441).
-            echo -e "${YELLOW}⚠️  Newest summary reads clean but the head-SHA verdict set is UNPROVEN (${CLAUDE_VERDICTS_LINE:-no run window}) — clean signal withheld, fail-closed. Verify the Actions run list for the head SHA.${NC}"
-        elif [ "$SUMMARY_CLEAN" = "true" ]; then
-            # Posted clean summary ("no issues found") + zero inline + proven
-            # verdict set with no earlier findings-bearing head-SHA verdict → clean.
-            # (LAYER 2: clean now requires a POSITIVE posted signal — never zero-inline alone.)
-            echo "CLAUDE_CLEAN_SIGNAL=${SUMMARY_ID:-checkrun-${cr_id}} COMMIT=${cr_sha} AT=${SUMMARY_AT:-$cr_at}"
+        # Reached ONLY with a readable verdict (inline findings and/or a posted
+        # summary) — no-verdict cases are held as RUNNING (PENDING/SILENT). The
+        # adapter emits NO clean/findings verdict (IDEA-022): every head-SHA inline
+        # finding + every in-window summary body is surfaced verbatim below as the
+        # material the /review-loop model-judge classifies (engine-claude.md
+        # § Verdict judge → {CLEAN | BLOCKING | NON_BLOCKING[]}).
+        echo -e "${GREEN}✅ Claude Actions run completed with posted material for PR head — verdict is the /review-loop judge's call (see surfaced material below).${NC}"
+        if [ "$CLAUDE_VERDICT_SET_PROVEN" != "true" ] && [ "$HEAD_INLINE_COUNT" -eq 0 ] 2>/dev/null; then
+            # Summary present but the head-SHA verdict set is UNPROVEN (no run window /
+            # blank run timestamps): the judge is forbidden CLEAN here (fail-closed),
+            # because a masked earlier verdict can't be ruled out. Surfaced, not cleaned.
+            echo -e "${YELLOW}⚠️  Head-SHA verdict set UNPROVEN (${CLAUDE_VERDICTS_LINE:-no run window}) — judge MUST NOT return CLEAN (fail-closed). Verify the Actions run list for the head SHA.${NC}"
         fi
     elif [ -n "$CLAUDE_SILENT" ]; then
         echo "CLAUDE_REVIEW_SILENT=run-${cr_id} COMMIT=${cr_sha} SETTLE=${SETTLE}s"
@@ -710,30 +701,19 @@ fi
 # Anchor = summary-comment id if present, else newest head-SHA inline comment id
 # (Q1: inline comments may share a pull_request_review_id; we anchor on comment id
 # either way). Mandatory when ANY claude activity exists so the orchestrator's
-# staleness rule has a reference. CLEAN= is legacy/ignored by the orchestrator.
+# staleness rule has a reference. NO CLEAN= token (IDEA-022 — the adapter computes
+# no verdict; the staleness anchor carries the id/at only, the judge reads the body).
 LATEST_ANCHOR_ID="$SUMMARY_ID"
 LATEST_ANCHOR_AT="$SUMMARY_AT"
-LATEST_CLEAN="$SUMMARY_CLEAN"
-# Dual-verdict masking: the legacy CLEAN= hint must not read true off the newest
-# summary while an earlier head-SHA verdict carries findings. (The orchestrator
-# ignores CLEAN= anyway — this just stops the hint from lying.)
-if [ "$CLAUDE_HAS_FINDINGS" = "true" ]; then
-    LATEST_CLEAN=false
-fi
 if [ -z "$LATEST_ANCHOR_ID" ]; then
     LATEST_ANCHOR_ID="$INLINE_ANCHOR_ID"
     LATEST_ANCHOR_AT="$INLINE_ANCHOR_AT"
-    # No summary comment → no positive clean signal. LAYER 2: zero-inline is NOT
-    # clean (could be a #1087 silent drop), so the legacy CLEAN= hint is false here
-    # absent a posted clean summary. (The orchestrator ignores CLEAN= anyway — clean
-    # is structural; this just stops the hint from lying.)
-    LATEST_CLEAN=false
 fi
 if [ -n "$LATEST_ANCHOR_ID" ]; then
-    echo "CLAUDE_LATEST_REVIEW=${LATEST_ANCHOR_ID} COMMIT=${PR_HEAD_SHA} AT=${LATEST_ANCHOR_AT} CLEAN=${LATEST_CLEAN:-false}"
-    # Dual-verdict marker (Pass 2b): every substantive head-SHA verdict, not just
-    # the newest — the orchestrator reads CLAUDE_FINDINGS_SUMMARY_IDS when
-    # CLAUDE_HAS_FINDINGS=true even if the LATEST_REVIEW anchor reads clean.
+    echo "CLAUDE_LATEST_REVIEW=${LATEST_ANCHOR_ID} COMMIT=${PR_HEAD_SHA} AT=${LATEST_ANCHOR_AT}"
+    # In-window verdict enumeration (Pass 2b): the count + ids of every substantive
+    # head-SHA verdict, so the judge applies the masking rule over the whole set (not
+    # just the anchor). The verdict BODIES are surfaced verbatim as material below.
     if [ -n "${CLAUDE_VERDICTS_LINE:-}" ]; then
         echo "$CLAUDE_VERDICTS_LINE"
     fi
@@ -809,103 +789,53 @@ for i, comment in enumerate(comments, 1):
 fi
 
 # ------------------------------------------------------------------------------
-# Summary-body findings (C1) — claude posts convention / cross-file findings it
-# can't line-anchor in the `## Code review` summary BODY, not as inline comments.
-# Surface that body as a finding so the loop triages it (previously dropped → claude's
-# convention review was invisible). Carries the mandatory contract token
+# Verdict-body MATERIAL (IDEA-022) — surface EVERY in-window head-SHA summary body
+# VERBATIM, unclassified. claude posts convention / cross-file findings it can't
+# line-anchor in the `## Code review` summary BODY, AND posts clean recaps, AND
+# (install-dependent) can post two disagreeing verdicts on one SHA. The adapter no
+# longer decides which is a finding — it hands ALL of them to the /review-loop
+# model-judge, which applies the masking rule and emits {CLEAN|BLOCKING|NON_BLOCKING[]}
+# (engine-claude.md § Verdict judge). Each block carries the mandatory contract token
 #   (comment id <cid>, review summary)
-# — `summary` is the synthetic review id for a body-anchored finding; the orchestrator's
-# staleness filter matches it against CLAUDE_LATEST_REVIEW (which anchors on this same id).
+# so the orchestrator's staleness filter matches it against CLAUDE_LATEST_REVIEW.
+# Oldest-first (Pass 2b sort) so the judge reads the verdict sequence chronologically.
 # ------------------------------------------------------------------------------
-if [ "$SUMMARY_FINDINGS" = "true" ] && [ -n "$CLAUDE_SUMMARY_JSON" ]; then
-    echo -e "${RED}🐛 Claude summary-body finding(s) — review report posted as an issue comment (no inline anchor):${NC}"
-    echo ""
-    echo "$CLAUDE_SUMMARY_JSON" | python3 -c "
-import json, re, sys
-try:
-    c = json.loads(sys.stdin.read())
-except Exception:
-    sys.exit(0)
-body = c.get('body', '') or ''
-cid = c.get('id', '')
-url = c.get('html_url', '')
-# Severity heuristic mirrors the inline render (UNCONFIRMED stamp; common spellings).
-# Bias HIGH when the body names a security failure mode; the loop re-triages anyway.
-# NOTE: bare keyword substrings (privilege/escalation/violation/missing) are SAFE here
-# even though they are deliberately NOT used as CLAUDE_FINDING_MARKERS (where a keyword
-# in clean prose would false-classify clean-vs-findings). This block runs ONLY when the
-# body is already classified findings (SUMMARY_FINDINGS=true), so a keyword in a mixed
-# review's clean section can at worst over-stamp severity — and the loop re-triages
-# severity regardless. The classify-vs-render asymmetry is intentional. (claude #169 NF1)
-b = body.lower()
-if 'critical' in b:
-    severity, color = 'CRITICAL', '\033[0;31m'
-elif 'privilege' in b or 'escalation' in b or '❌' in body:
-    severity, color = 'HIGH', '\033[0;31m'
-elif 'violation' in b or 'missing' in b or '⚠️' in body:
-    severity, color = 'MEDIUM', '\033[1;33m'
-else:
-    severity, color = 'INFO', ''
-# Title = first FINDING heading; skip the review-level heading whose text is just
-# Code review (constant across every summary — claude #169 F1). Fall back to any
-# heading, then a default. Handles both the auto and @-mention summary formats.
-# (NOTE: no double quotes in this -c block — they break the bash-wrapped python.)
-headings = re.findall(r'^#{1,6}\s+(.+)$', body, re.MULTILINE)
-finding_headings = [h.strip() for h in headings if not re.match(r'code[ -]?review\b', h.strip(), re.I)]
-title = (finding_headings or [h.strip() for h in headings] or ['Claude summary review'])[0]
-separator = '━' * 80
-print(f'{color}{separator}\033[0m')
-# Mandatory contract token — verbatim '(comment id <cid>, review summary)'.
-print(f'{color}Severity: {severity} (comment id {cid}, review summary)\033[0m')
-print('\033[0;34m**File:**\033[0m (summary body — not line-anchored)')
-print(f'\033[0;34m**Title:**\033[0m {title}')
-print('\033[0;34m**Description:**\033[0m')
-print(body.strip())
-print('')
-print(f'\033[0;34m**Link:**\033[0m {url}')
-print('')
-"
+# Fall back to the newest non-no-op summary (window-independent) when the in-window
+# enumeration is empty — i.e. the verdict set is UNPROVEN (no run window). The judge
+# still needs the body to assess BLOCKING; the proven-set gate independently forbids
+# CLEAN, so surfacing the body here is safe and strictly more informative.
+CLAUDE_MATERIAL_JSON="${CLAUDE_VERDICTS_JSON:-}"
+if [ -z "$CLAUDE_MATERIAL_JSON" ] && [ -n "${CLAUDE_SUMMARY_JSON:-}" ]; then
+    CLAUDE_MATERIAL_JSON=$(printf '%s' "$CLAUDE_SUMMARY_JSON" | python3 -c "import json,sys; print(json.dumps([json.load(sys.stdin)]))" 2>/dev/null || true)
 fi
-
-# ------------------------------------------------------------------------------
-# MASKED head-SHA summaries (dual-verdict rule) — every findings-bearing summary
-# that is NOT the newest gets its own mandatory finding block. Without this, a
-# masked verdict is listed in CLAUDE_FINDINGS_SUMMARY_IDS but never rendered,
-# the loop counts zero triageable findings, and the false-CLEAN reproduces.
-# ------------------------------------------------------------------------------
-if [ -n "${CLAUDE_MASKED_JSON:-}" ]; then
-    echo -e "${RED}🐛 MASKED head-SHA verdict(s) — earlier findings-bearing summaries on this SHA (dual-verdict rule; newest summary does NOT retire these):${NC}"
+if [ -n "${CLAUDE_MATERIAL_JSON:-}" ]; then
+    echo -e "${BLUE}📝 Claude review material — ${CLAUDE_HEAD_VERDICTS_N:-1} head-SHA summary verdict(s), verbatim for the /review-loop judge (UNclassified — clean/blocking/non-blocking is the judge's call):${NC}"
     echo ""
-    echo "$CLAUDE_MASKED_JSON" | python3 -c "
+    echo "$CLAUDE_MATERIAL_JSON" | python3 -c "
 import json, re, sys
 try:
-    masked = json.loads(sys.stdin.read())
+    verdicts = json.loads(sys.stdin.read())
 except Exception:
     sys.exit(0)
-for c in masked:
+n = len(verdicts)
+for i, c in enumerate(verdicts, 1):
     body = c.get('body', '') or ''
     cid = c.get('id', '')
     url = c.get('html_url', '')
-    # Severity heuristic mirrors the newest-summary render (see note there).
-    b = body.lower()
-    if 'critical' in b:
-        severity, color = 'CRITICAL', '\033[0;31m'
-    elif 'privilege' in b or 'escalation' in b or '❌' in body:
-        severity, color = 'HIGH', '\033[0;31m'
-    elif 'violation' in b or 'missing' in b or '⚠️' in body:
-        severity, color = 'MEDIUM', '\033[1;33m'
-    else:
-        severity, color = 'INFO', ''
+    at = c.get('created_at', '') or ''
+    # Title = first non-'Code review' heading, else first heading, else a default.
+    # Render-only convenience; NOT a classification. (No double quotes in this -c
+    # block — they break the bash-wrapped python.)
     headings = re.findall(r'^#{1,6}\s+(.+)$', body, re.MULTILINE)
     finding_headings = [h.strip() for h in headings if not re.match(r'code[ -]?review\b', h.strip(), re.I)]
-    title = (finding_headings or [h.strip() for h in headings] or ['Claude summary review'])[0]
+    title = (finding_headings or [h.strip() for h in headings] or ['Claude review summary'])[0]
     separator = '━' * 80
-    print(f'{color}{separator}\033[0m')
+    print(f'\033[0;34m{separator}\033[0m')
     # Mandatory contract token — verbatim '(comment id <cid>, review summary)'.
-    print(f'{color}Severity: {severity} (comment id {cid}, review summary) [MASKED by newer same-SHA verdict]\033[0m')
+    print(f'\033[0;34m[verdict {i}/{n}] (comment id {cid}, review summary) @ {at}\033[0m')
     print('\033[0;34m**File:**\033[0m (summary body — not line-anchored)')
     print(f'\033[0;34m**Title:**\033[0m {title}')
-    print('\033[0;34m**Description:**\033[0m')
+    print('\033[0;34m**Body (verbatim — judge reads this):**\033[0m')
     print(body.strip())
     print('')
     print(f'\033[0;34m**Link:**\033[0m {url}')
@@ -914,22 +844,12 @@ for c in masked:
 fi
 
 # ------------------------------------------------------------------------------
-# Summary comment surface (top-level) — informational, by id
+# Summary comment surface (top-level) — informational, by id. NO verdict banner:
+# clean/blocking/non-blocking is the judge's call (IDEA-022), not the adapter's.
 # ------------------------------------------------------------------------------
 if [ -n "$CLAUDE_SUMMARY_LINE" ]; then
     echo "$CLAUDE_SUMMARY_LINE"
-    if [ "$SUMMARY_CLEAN" = "true" ] && [ "$CLAUDE_HAS_FINDINGS" = "true" ]; then
-        # Dual-verdict masking: NEVER print the green clean banner while an
-        # earlier head-SHA verdict carries findings — contradictory signals are
-        # how the false CLEAN slips past prose-weighting readers.
-        echo -e "${RED}⚠️  Newest summary reads clean but is MASKING earlier findings-bearing head-SHA verdict(s) — see the MASKED blocks above. NOT clean.${NC}"
-    elif [ "$SUMMARY_CLEAN" = "true" ]; then
-        echo -e "${GREEN}✅ Claude summary comment is whole-review clean (positive phrase, no finding markers).${NC}"
-    elif [ "$SUMMARY_FINDINGS" = "true" ]; then
-        echo -e "${YELLOW}💬 Claude summary comment carries findings (id $SUMMARY_ID) — rendered above.${NC}"
-    else
-        echo -e "${BLUE}💬 Claude summary comment present (id $SUMMARY_ID) — see body for verdict.${NC}"
-    fi
+    echo -e "${BLUE}💬 Claude summary comment present (id $SUMMARY_ID) — body surfaced above as material; verdict is the /review-loop judge's call.${NC}"
     echo ""
 fi
 

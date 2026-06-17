@@ -38,9 +38,14 @@ no_progress_map:
   bugbot:  { <category>: <count> }
   claude:  { <category>: <count> }
   copilot: { <category>: <count> }
+# Prose-only-engine slots (claude — IDEA-022; see SKILL.md § Per-engine model-judge):
+claude_judge_verdict: CLEAN|BLOCKING|NON_BLOCKING @ <sha>   # cached judge result per head SHA
+claude_non_blocking: [ { title, why, where } ]             # recorded non-blocking items, pending disposition
 ```
 
 Each engine's `<engine>_review_state` is tracked independently — under multi-engine mode one engine can be `DONE` while another is still `RUNNING`. The orchestrator waits for the slowest to reach `DONE` before reading any verdict (the Phase 4 sync gate). For `claude`, `<engine>_review_state` is synthesized from its **Actions job** status (no native check-run — see [`engine-claude.md`](engine-claude.md)), but the orchestrator reads it through the same RUNNING/DONE state machine.
+
+**Convergence-gate composition with a prose-only engine (claude — IDEA-022).** claude's adapter posts no clean/findings verdict; once it's `DONE`, the SKILL.md § Per-engine model-judge emits `{CLEAN | BLOCKING | NON_BLOCKING[]}`. For the all-engines convergence gate, **`CLEAN` and `NON_BLOCKING`-only both count as clean** — only `BLOCKING` keeps claude STILL_FINDING. So an all-engines-clean batch may include a claude `NON_BLOCKING` verdict; its items are carried to the hand-back (interactive) or auto-formalized into committed IDEA files + batch-summary lines (sprint-auto), per the disposition mode-split. The proven-set fail-closed gate (`CLAUDE_VERDICT_SET_PROVEN`) still applies: an unprovable verdict set cannot read `CLEAN`, so claude stays non-clean (re-poll/re-trigger) until proven.
 
 ## Retrigger discipline — different per engine, fired in deterministic order
 
