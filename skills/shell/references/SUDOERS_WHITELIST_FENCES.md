@@ -1,10 +1,12 @@
-# Sudoers command whitelists on heterogeneous fleets — the three matching traps
+# Sudoers command whitelists on heterogeneous fleets — three matching traps + one self-refusal
 
 Load when building or debugging a NOPASSWD command-whitelist for a service account
 (read-only auditor, metrics collector, deploy bot) that must work across a fleet of
 mixed-age hosts. All three traps below produced the same misleading symptom in the
 field: `sudo: a password is required` against a freshly installed, `visudo`-validated
-drop-in — on some hosts only.
+drop-in — on some hosts only. (Trap 4 is the opposite beast — the entry matches and runs,
+then the binary self-refuses with rc=128; it's grouped here because it's the same
+"authoring the whitelisted command" surface.)
 
 The architecture this assumes: declared commands in code are the single source of
 truth, rendered into both a runner-side exact-argv check and the generated
@@ -46,7 +48,13 @@ sudoers matches command arguments with glob semantics where `*` also spans `/` a
    `grep -E '^[[:space:]]*(server_name|listen)' /etc/nginx/sites-enabled` puts
    `[`/`]`/`*` into the entry — sudo reinterprets them as globs, the literal
    command line no longer matches its own whitelist entry, and the live call is
-   denied. Keep declared arguments **fnmatch-clean** (`|` is safe; `*?[]` are not):
+   denied. (Backslash carries no globbing risk, but it is no safer: it is the sudoers
+   **escape character** (`sudoers(5)`), so `visudo -cf` accepts `\n` / `\.` silently —
+   parsing `\x` as an escaped literal `x` — and the declared argument then fails to **match**
+   at runtime exactly like `*?[]` do. `visudo -cf` does **not** catch it for you; the only loud
+   failures it rejects are structural (unterminated lines). Same remedy: a plain-word
+   `--get-regexp`/`grep` pattern, re-anchored in the parser.) Keep
+   declared arguments **fnmatch-clean** (`|` is safe; `*?[]` are not):
    over-collect remotely with a plain word pattern (`grep -R -w -E
    'server_name|listen|proxy_pass' <dir>`) and re-anchor precisely in the parser
    that consumes the output.
@@ -69,6 +77,46 @@ never as absence.
 content, denial shows as a **uniform stderr length across different target paths**
 (the denial message doesn't vary with the path); ENOENT lengths vary with the path.
 One glance distinguishes them after the fact.
+
+**Caveat — the length heuristic inverts when the tool embeds the path in its error.** A
+binary whose *fatal message contains the target path* breaks the "uniform length = denial"
+signature: git's dubious-ownership fatal names the repo (`detected dubious ownership in
+repository at '<path>'`), so its stderr length **varies with the path even on failure** —
+looking exactly like the ENOENT case it isn't. Length-uniformity proves denial only for
+tools with path-independent error text; when the probed binary is path-naming (git, many
+language toolchains), fall back to rc + the message (rc=128 fatal ≠ rc=1 sudo denial ≠
+rc=127 missing-binary). This exact inversion is Trap 4.
+
+## Trap 4 — the matched command FIRES but the privileged binary self-refuses (git "dubious ownership")
+
+Traps 1–3 are about the command never matching. Trap 4 is the opposite: the entry matches,
+`sudo -n` runs it, and the *binary itself* aborts. `git ≥ 2.35.2` refuses to operate on a
+repository whose worktree / `.git` is owned by a **different user** than the one running it
+(CVE-2022-24765 — "detected dubious ownership", rc=128). A read-only fleet probe runs git as
+**root** (the service account can't read another user's checkout, so the read is whitelisted
+with `sudo`); deploy/app checkouts are routinely owned by a deploy user, so root-git aborts on
+exactly the hosts whose repos aren't root-owned — while root-owned repos elsewhere succeed,
+giving a maddening per-host split that looks like flaky inventory.
+
+**Rule: declare `-c safe.directory='*'` in the whitelisted command** —
+`git -c safe.directory='*' -C <repo> <read>`. Safe **only for pure reads that execute no
+repo-controlled code**: `rev-parse`, `config --get` / `--get-regexp` (never `config --list` —
+it can surface a token-bearing `http.extraheader`), `-c core.fsmonitor= --no-optional-locks
+status --porcelain` (`--no-optional-locks` only skips the index write-back lock — it does **not**
+gate fsmonitor, which is driven solely by `core.fsmonitor`; you must neutralise that hook
+explicitly with `-c core.fsmonitor=`, or root would execute the repo's fsmonitor program).
+NEVER add it to a command that can run
+hooks / `core.fsmonitor` / pager / aliases as root — `safe.directory` disables precisely the
+ownership check that stops root executing a non-root user's repo config. `safe.directory=*` is
+a literal in the declared argv, so Trap 2 applies: the `*` renders as a sudoers wildcard
+(acceptable — the rest of the command stays pinned); pin to the discovered repo path instead
+if your fence can carry the extra slot.
+
+**Diagnostic fingerprint:** rc=128 with a path-naming fatal — distinct from rc=1 (`sudo -n`
+denial, Trap 3) and rc=127 (missing binary, Trap 1). A *silently-failing* read here is the
+Trap-3 disaster in a new disguise: a probe that maps the failed `status` to "clean tree"
+reports a **false clean** (uncommitted/untracked drift goes unseen) — guard the same way,
+classify the rc=128 fatal as `UNREADABLE`, never as clean/absent.
 
 ## Deploy + verify discipline
 

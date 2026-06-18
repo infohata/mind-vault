@@ -10,6 +10,17 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.3.2 — shell: root-via-sudo git "dubious ownership" trap + denial-vs-ENOENT path caveat
+
+Patch release (2026-06-18, compound, [#210](https://github.com/infohata/mind-vault/pull/210)). Extends `skills/shell/references/SUDOERS_WHITELIST_FENCES.md` from field experience building a read-only audit probe that shells `git`/`find` as root through the sudoers fence. Sequences after v5.3.1 ([#209](https://github.com/infohata/mind-vault/pull/209)) — no substantive-file overlap (only the shared CHANGELOG anchor, resolved on rebase).
+
+### Added
+- **Trap 4 — a whitelisted `sudo -n git …` that matches and runs can still abort rc=128.** Run as root on a non-root-owned repo, `git ≥ 2.35.2` refuses with "detected dubious ownership" (CVE-2022-24765) — so a root probe fails on exactly the hosts whose deploy checkouts aren't root-owned, while root-owned repos elsewhere succeed (a maddening per-host split). Remedy: declare `-c safe.directory='*'` in the whitelisted command, safe **only** for pure reads that execute no repo-controlled code (no hook / fsmonitor / pager / alias; never `config --list`). A silently-failed `status` otherwise false-reads a dirty tree as **clean** — the Trap-3 disaster in a new disguise.
+
+### Changed
+- Trap 3 forensic shortcut: the "uniform stderr length ⇒ denial" heuristic **inverts** for tools whose fatal embeds the target path (git names the repo) — stderr length varies with path even on failure, looking like the ENOENT case it isn't. Fall back to rc + message (rc=128 fatal ≠ rc=1 sudo denial ≠ rc=127 missing-binary).
+- Trap 2 caveat: a backslash carries no globbing risk, but it is the sudoers **escape character** (`sudoers(5)`), so `visudo -cf` parses `\n` / `\.` silently as an escaped letter and the command then fails to **match** at runtime — the same silent mis-match as `*?[]`, not a loud parse error. Remedy unchanged: keep declared arguments to plain-word patterns.
+
 ## v5.3.1 — RULE_cross-idea-amendments: review-engine carve-out for IDEA-attribution comments
 
 2026-06-17. Single-PR section.
