@@ -10,6 +10,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.3.1 — RULE_cross-idea-amendments: review-engine carve-out for IDEA-attribution comments
+
+2026-06-17. Single-PR section.
+
+### Changed
+
+- **`RULE_cross-idea-amendments` step 2 gains a review-engine carve-out.** The `IDEA-NNN` attribution prefixes the rule mandates on amended-file inline comments get flagged by review engines (Claude Code Review, Bugbot) running a generic "no unnecessary comments" instinct — a non-convergent cosmetic nit that survives every review-loop fix cycle. The rule now tells projects to pre-empt it by **documenting the carve-out in their `CLAUDE.md`/`AGENTS.md`** so the engine reads it as context, and to **never strip the prefixes** (that breaks the greppable amendment trail the rule exists to preserve) — the `COSMETIC_NONCONVERGENCE` hard-stop applies.
+
 ## v5.3 — review-loop: claude verdict by model-judge, not regex
 
 Minor release ([IDEA-022](docs/archive/2026-06-idea-022-claude-findings-heuristic/IDEA-022-claude-findings-heuristic-false-positive.md), [#208](https://github.com/infohata/mind-vault/pull/208)). The claude review engine's verdict classification moves from a prose **regex classifier** to an orchestrator-inline **model-judge** emitting `{CLEAN | BLOCKING | NON_BLOCKING[]}`. Regex can't classify model-generated prose — it false-FINDING'd a clean "all resolved" recap (a convergence-blocker, surfaced in the IDEA-021 dogfood on PR #207) and false-CLEAN'd a marker-less prose finding (the architect hole); same root failure in both directions. `find_claude_comments.sh` is reduced to surfacing review material; the `/review-loop` judge classifies. The carve-out is typed to *prose-only verdict surface* (claude has no structured surface — its verdict IS prose), not the engine name — structured-surface engines (bugbot/copilot) keep the structural "clean, never prose" rule untouched, and a future prose-only engine inherits the judge path. Architect-reviewed ×2. Also folds the IDEA-021 Monitor-robustness compound (this PR's branch). The verdict judge ships unproven against live prose — its first real exercise is the `/review-loop` over this very PR.
