@@ -10,6 +10,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.3.3 — shell + deployment: live-host nginx/TLS maintenance patterns
+
+Compound from a live apex-redirect + Let's Encrypt rollout on a busy reverse proxy (2026-06-19). General live-host-ops machinery split into the shell maintenance-script contract; nginx/TLS specifics into a new deployment reference (the DRY-RUN/`--apply`/`--verify` machinery is good practice independent of nginx, so it lives in the language layer, not the domain one).
+
+### Added
+
+- **`skills/deployment/references/NGINX_TLS_REDIRECT_AND_CERTS.md`** — redirect vhost + Let's Encrypt on a proxy with many vhosts: the apex is often served by `default_server`/first-`ssl` *fallthrough* (so the change is **additive**, not replace — a new explicit `server_name` block wins `:80` by name and `:443` by SNI, nothing disabled); two-phase `:80`→issue→append-`:443` (a `:443` block can't reference a cert that isn't issued yet); ACME-`location`-before-`301` as a **standing** renewal precondition; the served mismatched/expired default cert is not yours. Pointer added to the deployment SKILL.md References.
+
+### Changed
+
+- **`skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md`** — four general additions: (1) `--verify` **polls** the served effect after a graceful reload / eventual-consistency lag rather than one-shotting (old workers drain on the previous state → false negative on busy hosts); (2) keep the **full** stream in the evidence log but filter *named known-benign* per-item warning floods off the operator terminal (`tee … | grep -vE "$NOISE"`), never a blanket `2>/dev/null`; (3) **locate by exact token, refuse on ambiguity** — a `\bname\b` regex false-matches `sub.name` (punctuation is a word boundary), and a shared target gets a fail-safe stop, not a guess; (4) **detect the mechanism, don't hardcode one variant** — the same capability ships under different unit/tool names (renewer: `certbot.timer` vs `snap.certbot.renew.timer` vs `cron.d/certbot`; firewall: ufw/firewalld/nftables), so a check keyed on one name false-fails the others.
+
 ## v5.3.2 — shell: root-via-sudo git "dubious ownership" trap + denial-vs-ENOENT path caveat
 
 Patch release (2026-06-18, compound, [#210](https://github.com/infohata/mind-vault/pull/210)). Extends `skills/shell/references/SUDOERS_WHITELIST_FENCES.md` from field experience building a read-only audit probe that shells `git`/`find` as root through the sudoers fence. Sequences after v5.3.1 ([#209](https://github.com/infohata/mind-vault/pull/209)) — no substantive-file overlap (only the shared CHANGELOG anchor, resolved on rebase).
