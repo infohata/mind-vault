@@ -59,25 +59,37 @@ issuance fails `nginx -t` (cannot load cert) and aborts the first-ever `--apply`
 (symlink + `sites-available` file), `nginx -t && reload` → reverts to the prior
 `default_server`/first-`ssl` fallthrough. There's no prior vhost or cert to "restore."
 
-## ACME location must sort ahead of the catch-all redirect — and stay there
+## ACME challenge must be served by a more-specific location than the redirect
 
-A redirect vhost whose `location / { return 301 …; }` precedes the ACME exemption will
-301 the http-01 challenge and **issuance/renewal fails**. Put the challenge first:
+A redirect vhost that swallows `/.well-known/acme-challenge/...` with a 301 will fail
+the http-01 challenge and **issuance/renewal fails**. Keep the redirect as a *prefix*
+`location /` and the ACME exemption as a more-specific prefix:
 
 ```nginx
 server {
     listen 80;
     server_name example.com www.example.com;
-    location /.well-known/acme-challenge/ { root /var/www/acme; }   # MUST be matched first
+    location /.well-known/acme-challenge/ { root /var/www/acme; }   # longest-prefix wins
     location / { return 301 https://target.example/; }
 }
 ```
 
-This is **not** a one-time concern: `certbot.timer` re-runs the same webroot challenge
-every renewal (~60-day cadence), so the exemption is a *standing* precondition — a later
-"cleanup" that removes it silently breaks renewal ~60 days on. Assert the ordering in
-DRY-RUN, and let cert-expiry monitoring (it exists precisely because this path is
-fragile) catch a missed renewal at the <21d/<7d thresholds.
+Note the mechanism: nginx picks the **longest matching prefix** location *regardless of
+file order*, so `/.well-known/acme-challenge/` already beats `/` for a challenge request
+even if `location /` is written first — source order only decides precedence among
+**regex** (`~`) locations. So the real ways to break this aren't reordering these two
+blocks; they're (a) a `return 301` at the **server** level (outside any `location`,
+which applies to every request including the challenge), or (b) a *regex* catch-all
+(`location ~ /`) that outranks the prefix ACME block. Avoid both; keep the redirect a
+plain prefix `location /`.
+
+This is **not** a one-time concern: certbot *renews* roughly every 60 days (the timer
+fires twice daily; an actual issuance happens once the cert is inside its 30-day-to-expiry
+window), re-running the same webroot challenge each time — so the exemption is a
+*standing* precondition. A later "cleanup" that removes it silently breaks renewal ~60
+days on. Assert the exemption is present and reachable in DRY-RUN, and let cert-expiry
+monitoring (it exists precisely because this path is fragile) catch a missed renewal at
+the <21d/<7d thresholds.
 
 ## Renewal mechanism varies by install
 

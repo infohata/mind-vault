@@ -33,9 +33,10 @@ after the reload can read the **pre-change** state and report a false failure (o
 effect is observed or a bounded timeout elapses:
 
 ```bash
-for attempt in $(seq 1 "${MAX_TRIES:-15}"); do
+MAX_TRIES="${MAX_TRIES:-15}"; POLL_S="${POLL_S:-2}"
+for attempt in $(seq 1 "$MAX_TRIES"); do
     if probe_shows_new_state; then ok=1; break; fi    # measure the SERVED state
-    sleep "${POLL_S:-2}"
+    sleep "$POLL_S"
 done
 [ "${ok:-0}" = 1 ] || { echo "effect not live after $((MAX_TRIES*POLL_S))s" >&2; exit 1; }
 ```

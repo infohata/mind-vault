@@ -16,7 +16,7 @@ Compound from a live apex-redirect + Let's Encrypt rollout on a busy reverse pro
 
 ### Added
 
-- **`skills/deployment/references/NGINX_TLS_REDIRECT_AND_CERTS.md`** — redirect vhost + Let's Encrypt on a proxy with many vhosts: the apex is often served by `default_server`/first-`ssl` *fallthrough* (so the change is **additive**, not replace — a new explicit `server_name` block wins `:80` by name and `:443` by SNI, nothing disabled); two-phase `:80`→issue→append-`:443` (a `:443` block can't reference a cert that isn't issued yet); ACME-`location`-before-`301` as a **standing** renewal precondition; the served mismatched/expired default cert is not yours. Pointer added to the deployment SKILL.md References.
+- **`skills/deployment/references/NGINX_TLS_REDIRECT_AND_CERTS.md`** — redirect vhost + Let's Encrypt on a proxy with many vhosts: the apex is often served by `default_server`/first-`ssl` *fallthrough* (so the change is **additive**, not replace — a new explicit `server_name` block wins `:80` by name and `:443` by SNI, nothing disabled); two-phase `:80`→issue→append-`:443` (a `:443` block can't reference a cert that isn't issued yet); the ACME-challenge `location` must stay a more-specific prefix than the `301` redirect (nginx picks longest-prefix, not file order) as a **standing** renewal precondition; the served mismatched/expired default cert is not yours. Pointer added to the deployment SKILL.md References.
 
 ### Changed
 
