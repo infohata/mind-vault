@@ -23,6 +23,28 @@ it without re-reading the source.
          (wrong file order, service not reloaded, fault cause elsewhere).
 ```
 
+**Poll the served effect; don't one-shot it.** When `--apply` ends in a *graceful*
+reload (`systemctl reload`, `nginx -s reload`, any drain-then-swap) or any change
+that takes effect with eventual-consistency lag, the old state can still answer for
+a window after the command returns 0 — old workers finish in-flight requests on the
+*previous* config before the new ones take over. A single probe fired immediately
+after the reload can read the **pre-change** state and report a false failure (or, in
+`--apply`, abort a later step that depended on the effect being live). Poll until the
+effect is observed or a bounded timeout elapses:
+
+```bash
+MAX_TRIES="${MAX_TRIES:-15}"; POLL_S="${POLL_S:-2}"
+for attempt in $(seq 1 "$MAX_TRIES"); do
+    if probe_shows_new_state; then ok=1; break; fi    # measure the SERVED state
+    sleep "$POLL_S"
+done
+[ "${ok:-0}" = 1 ] || { echo "effect not live after $((MAX_TRIES*POLL_S))s" >&2; exit 1; }
+```
+
+The drain window scales with how much the daemon reloads — a proxy with hundreds of
+vhosts (config re-parse + name-hash rebuild) can take several seconds to fully cut
+over. One-shot probing is the classic intermittent false-negative on busy hosts.
+
 ## The interactive precondition-acknowledgement gate
 
 When a script's safe operation depends on **operator-side** preconditions the
@@ -111,6 +133,24 @@ for "what exactly did the rollout do on host N". **This wrapper is why the
 precondition gate must read `/dev/tty`**: after the `exec`, stdio is owned by
 the log plumbing.
 
+**Keep the full stream in the log; filter known-benign floods off the terminal.**
+A validator or reload that emits *one benign warning per managed item* (a config
+test on a host with hundreds of vhosts, a linter walking thousands of files) can dump
+hundreds of lines into the operator's scrollback in a single step — blowing the
+terminal buffer and burying the real errors. Don't suppress at the source (you lose
+the evidence) and don't let it flood the operator. Tee the **full** stream to the log,
+but filter the *named, known-benign* lines off the terminal only:
+
+```bash
+# one benign warning per vhost (deprecation notes, hash-size tuning) drowns real errors
+readonly NOISE='directive is deprecated|could not build optimal .*_hash|conflicting server name'
+exec > >(tee -a "$LOG" | grep --line-buffered -vE "$NOISE") 2>&1
+```
+
+The log keeps everything; the terminal shows only what the operator must act on.
+Filter by an explicit allow-known-benign list (real errors still surface) — never a
+blanket `2>/dev/null`.
+
 ## `set -euo pipefail`
 
 Standard prologue on every ops script. One non-obvious interaction: commands
@@ -155,3 +195,52 @@ fi
 The three-way state matters: DRY-RUN reports it, `--apply`'s no-op fast path
 keys off it, and `--revert` refuses to "un-comment" a line that was never
 commented by this script.
+
+## Locate by exact token; refuse on ambiguity
+
+A script that finds the thing it will mutate by matching an **identifier** must match
+a whole delimited token, not a substring. A word-boundary regex (`\bname\b`) is *not*
+exact-token: punctuation is a word boundary, so `\bexample\.com\b` matches the
+`example.com` inside `sub.example.com` — the locator silently targets a *subdomain's*
+config when it meant the apex (or any superstring entry). Split on the field
+delimiter and compare whole tokens:
+
+```bash
+# ❌ DON'T: substring/word-boundary — matches sub.example.com, api.example.com, …
+grep -lE 'server_name[^;]*\bexample\.com\b' "$dir"/*
+
+# ✅ DO: whole-token compare (awk splits the directive's value into fields;
+#        strip the trailing ';' so the last name on the line still matches)
+awk '/^[[:space:]]*server_name/ { for (i=2;i<=NF;i++) { t=$i; sub(/;$/,"",t); if (t=="example.com") f=1 } }
+     END { exit(f?0:1) }' "$file"
+```
+
+And when the located target turns out to be **shared** — the file/block also serves
+unrelated entries, so mutating or disabling it would take out bystanders — the script
+must **refuse and exit non-zero with a clear message** ("X is shared with Y/Z; split
+it or apply by hand"), not guess. A blind operator-side run is exactly where a
+greedy match silently does the wrong thing; the fail-safe converts that into a stop.
+(This is the locate-side twin of the precondition gate: when the script can't be sure
+it's about to touch *only* the intended target, it doesn't proceed.)
+
+## Detect the mechanism; don't hardcode one variant
+
+The same capability ships under different unit/tool names across installs, and a check
+that asserts **one** name false-FAILs (or false-PASSes) on the others. The canonical
+case: a scheduled certificate renewer is `certbot.timer` on the distro package,
+`snap.certbot.renew.timer` on the snap, and `/etc/cron.d/certbot` on older setups —
+a `--verify` that only tests `systemctl is-active certbot.timer` reports "renewal not
+scheduled" on a perfectly healthy snap host. Probe for **any** known variant:
+
+```bash
+renewal_scheduled() {            # echo which mechanism; return 0 if any is active
+  systemctl is-active --quiet certbot.timer            && { echo certbot.timer; return 0; }
+  systemctl is-active --quiet snap.certbot.renew.timer && { echo snap.certbot.renew.timer; return 0; }
+  [ -f /etc/cron.d/certbot ]                           && { echo cron.d/certbot; return 0; }
+  return 1
+}
+```
+
+Same shape for "which firewall is active" (ufw / firewalld / nftables / raw iptables),
+"which init owns this service", "apt vs dnf vs apk". The DRY-RUN should *report the
+detected variant* so the operator sees which mechanism the host actually uses.
