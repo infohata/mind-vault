@@ -209,8 +209,9 @@ delimiter and compare whole tokens:
 # ❌ DON'T: substring/word-boundary — matches sub.example.com, api.example.com, …
 grep -lE 'server_name[^;]*\bexample\.com\b' "$dir"/*
 
-# ✅ DO: whole-token compare (awk splits the directive's value into fields)
-awk '/^[[:space:]]*server_name/ { for (i=2;i<=NF;i++) if ($i=="example.com") f=1 }
+# ✅ DO: whole-token compare (awk splits the directive's value into fields;
+#        strip the trailing ';' so the last name on the line still matches)
+awk '/^[[:space:]]*server_name/ { for (i=2;i<=NF;i++) { t=$i; sub(/;$/,"",t); if (t=="example.com") f=1 } }
      END { exit(f?0:1) }' "$file"
 ```
 
