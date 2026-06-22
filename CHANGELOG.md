@@ -10,6 +10,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.3.4 — deployment + review-loop: GitHub App deploy/automation credentials
+
+Compound from a read-only GitHub App deploy-credential pilot that replaced a personal SSH key standing on a production server, expanded mid-flight into a two-App program (a read-only deploy box + a write-capable automation host). The reusable patterns: the security invariant behind needing two Apps, the on-box token-mint helper shape, the unprivileged deploy-user wiring, and the CI-config gotchas that bit during the rollout.
+
+### Added
+
+- **`skills/deployment/references/GITHUB_APP_DEPLOY_CREDENTIALS.md`** — replace personal SSH keys / PATs on servers with **short-lived GitHub App installation tokens minted on-box** (stateless git credential helper; openssl RS256 JWT → `/app/installations/<id>/access_tokens`, no `jq`/`gh`, no token at rest; per-mint scope env can only down-scope). The **two-Apps-not-one invariant** — an App's permission set is the *ceiling for any holder of its private key*, so per-mint down-scoping is hygiene not a boundary, and a read-only deploy box + a write automation host must be **separate Apps**. Deploy (read-only) vs automation (write + gh-less PR via the installation token) cases; the **unprivileged deploy-user wiring** (`$HOME`-relative paths need the `!`-shell helper form so `$HOME` expands; `credential.useHttpPath` host-vs-path silent no-op); mint hardening (numeric-id validation, `--max-time`/`--connect-timeout`). Pointer added to the deployment SKILL.md References.
+
+### Changed
+
+- **`skills/review-loop/references/engine-claude-onboarding.md`** — new **`allowed_bots`** section: `claude-code-action` aborts the review on a **bot-opened PR** ("non-human actor") unless the bot is allow-listed via `allowed_bots: '<app-slug>[bot]'` on the **default branch** (the action reads the workflow from the default branch, not the PR copy); scope to the specific bot, not `'*'`, so dependabot/renovate don't burn metered Actions minutes. The review-side half of an App-opens-PR automation loop actually getting reviewed; distinct from the `@claude` author-association gate (which *blocks* untrusted bot triggers).
+- **`skills/review-loop/references/engine-claude.md`** — Silent-run failure-mode row gains a confirming anchor: a *first* un-draft/initial auto-run can come back SILENT (#1087) and a single explicit `claude_retrigger.sh` then produces a full verdict — the retrigger recovery works on the first review too, not only after a fix push (its first response may be the in-progress checklist, so wait for a substantive verdict before judging).
+
 ## v5.3.3 — shell + deployment: live-host nginx/TLS maintenance patterns
 
 Compound from a live apex-redirect + Let's Encrypt rollout on a busy reverse proxy (2026-06-19). General live-host-ops machinery split into the shell maintenance-script contract; nginx/TLS specifics into a new deployment reference (the DRY-RUN/`--apply`/`--verify` machinery is good practice independent of nginx, so it lives in the language layer, not the domain one).
