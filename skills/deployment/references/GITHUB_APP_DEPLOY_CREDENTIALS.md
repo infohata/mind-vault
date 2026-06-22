@@ -45,15 +45,16 @@ ceiling is the real boundary; the helper's per-mint scope env is defense-in-dept
 
 git invokes a configured credential helper with the operation appended, so a helper sees its
 configured arg(s) plus `get|store|erase` as the final arg. On `get` it mints a short-lived
-installation token and prints `username=x-access-token` / `password=<token>`; `store`/`erase`
-are no-ops. **Nothing is cached to disk** — no token at rest.
+installation token and prints `username=x-access-token` / `password=<token>` (an installation
+token, `ghs_`-prefixed — what the verify block greps for); `store`/`erase` are no-ops.
+**Nothing is cached to disk** — no token at rest.
 
 The mint is dependency-light (`openssl` + `curl` + `python3`; no `jq`, no `gh`, no stored
 token): build an RS256 JWT (`{"alg":"RS256","typ":"JWT"}` header; payload `iat`=now−60,
 `exp`≤now+600, `iss`=App ID; sign with `openssl dgst -sha256 -sign <key.pem>`, base64url each
-part), then `POST /app/installations/<install-id>/access_tokens` with `Authorization: Bearer
-<jwt>` and a body of `{"permissions":<scope-json>}` to down-scope. Extract `.token` from the
-JSON.
+part — `python3` does the base64url + JSON assembly in lieu of `jq`), then `POST
+/app/installations/<install-id>/access_tokens` with `Authorization: Bearer <jwt>` and a body
+of `{"permissions":<scope-json>}` to down-scope. Extract `.token` from the JSON.
 
 Make the per-mint scope an env var (default `{"contents":"read"}`), passed straight to the
 `access_tokens` call. **It can only down-scope** — the API caps the request at the App's
