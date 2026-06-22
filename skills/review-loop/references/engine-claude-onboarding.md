@@ -107,3 +107,29 @@ author-association gate fixes:
   blocks both (bots/outside users don't carry a trusted association). These
   `action_required` runs are harmless if they slip through — leave them unapproved;
   they stop once the workflow files leave the active PR diff.
+
+## Reviewing bot-opened PRs — the `allowed_bots` gotcha
+
+`anthropics/claude-code-action` **aborts the review on any PR opened by a bot actor**
+("Workflow initiated by non-human actor") unless that bot is explicitly allow-listed. So a
+**fully-automated flow** — an App / automation host opens a PR, and you expect claude-review
+to review it — ships the PR **un-reviewed**, silently, until you set:
+
+```yaml
+# claude-code-review.yml — on the DEFAULT branch (the action validates against the
+# default-branch copy of the workflow, not the PR's copy)
+allowed_bots: '<app-slug>[bot]'
+```
+
+Two load-bearing details:
+
+- **Set it on the default branch.** Like the perms change, the action reads the workflow from
+  the default branch, so an `allowed_bots` added only on the feature branch has no effect.
+- **Scope to the specific bot, not `'*'`.** `'*'` would also greenlight `dependabot`/`renovate`
+  PRs and burn metered Actions minutes reviewing every dep bump. Name the exact App bot slug
+  (`<app-slug>[bot]`) you want reviewed.
+
+This pairs with the all-App-driven automation pattern (an automation App opening PRs gh-less);
+it's the review-side half of making that loop actually get reviewed. Distinct from the
+`@claude` author-association gate above — that *blocks* untrusted bot **triggers** for security;
+`allowed_bots` *permits* a chosen bot's PR to be **reviewed**.
