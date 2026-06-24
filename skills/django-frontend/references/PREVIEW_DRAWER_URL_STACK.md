@@ -585,6 +585,26 @@ When a link inside the drawer means "navigate to a sibling/parent surface" rathe
 
 The drawer's click router checks `data-preview-route`; absent attribute stays default-push for back-compat. Apply to: parent-backlinks, "switch entity" navigation between two siblings in the same frame, "navigate up the hierarchy" links. Future routing consolidation: a single `routeIntent({ frame, intent })` dispatcher absorbs all routing decisions — the attribute becomes one of N intents.
 
+## A third-party render hook can ride the drawer's `htmx:afterSettle` dispatch
+
+The drawer swaps frame content with an in-page `host.innerHTML = html` (same
+document, NOT an iframe), then **dispatches a synthetic `htmx:afterSettle` on
+`document` with `detail.elt = host`** so per-component auto-mount handlers re-scan
+the swapped subtree. Any client library that already initialises on
+`htmx:afterSwap`/`htmx:afterSettle` (Mermaid diagram render, KaTeX math render,
+syntax highlight, Alpine re-init) therefore renders inside the drawer **for free,
+with zero preview-specific code** — it just needs to read `evt.detail.target ||
+evt.detail.elt` to scope its work to the swapped container.
+
+Consequence for a NEW render hook: don't write a preview-drawer-specific call
+site. Bind the canonical render helper (`window.<lib>Render(el)`) to
+`DOMContentLoaded` + `htmx:afterSwap` + `htmx:afterSettle` (mirroring the existing
+diagram/highlight init), scope it to `detail.elt`, and the preview drawer + every
+other htmx swap surface are covered by the same binding. Load the heavy lib
+per-surface (see [`LAZY_LOAD_HEAVY_ASSETS_ON_HTMX_NAV.md`](LAZY_LOAD_HEAVY_ASSETS_ON_HTMX_NAV.md)),
+and make the helper a no-op when the lib global is absent so non-lib surfaces that
+still fire the event are unharmed.
+
 ## Reference
 
 When this contract is added by a downstream IDEA on top of an upstream preview-drawer foundation IDEA, file the cross-IDEA backref per [`RULE_cross-idea-amendments`](../../../rules/RULE_cross-idea-amendments.md).

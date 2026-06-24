@@ -175,6 +175,7 @@ If only one isolated PR remains and its review window is short, fold the docs co
 - **Real `.env` copy into a worktree.** Worktree must use sentinels (per `RULE_parallel-worktree-docker`); only the credentials file backing a specific SDK smoke gets copied bytewise — and only into the worktree where that smoke runs.
 - **Skipping live-staging for SDK bumps.** Test suites typically mock SDK clients. Real-API smoke against the upgraded floor is the only signal that the new SDK shape works in production.
 - **Force-pushing the dep PR mid-review.** Forward-sync via `git merge origin/main` + regular push, not rebase + force-push. Review threads survive.
+- **Driving `@dependabot recreate`/`rebase` from a bot/App actor.** When a base-branch move invalidates the open dep PRs (a big merge rewrote the files they touch → conflicts that don't auto-resolve), the fix is `@dependabot recreate` on each — but **dependabot rejects the command from a bot/App** (*"only users with push access can use that command"*), even one with write access. A `<your-app>[bot]`-issued recreate is silently refused; a **human** push-access user must post it. Same human-only-actor class as the other App-driven-automation gaps — see [`../review-loop/references/GITHUB_APP_DRIVEN_LOOP.md`](../review-loop/references/GITHUB_APP_DRIVEN_LOOP.md). (Recreate AFTER the conflicting base PRs have all merged, so the regenerated PR branches off a settled base.)
 
 ## Composes with
 
