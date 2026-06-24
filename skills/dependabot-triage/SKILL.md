@@ -1,6 +1,6 @@
 ---
 name: dependabot-triage
-description: Triage and batch-merge accumulated Dependabot PRs in multi-requirements-file Python repos (web + lsp + dev + per-workspace) — diff-based duplicate detection across the root vs per-workspace ecosystems, risk-tier batching for git-bisect cleanliness, worktree-isolated verification, live-staging smoke, post-merge forward-sync of remaining branches. TRIGGER when the user says "review dependabot PRs", "merge dependabot batch", "dependabot sweep", "what to do with these dep PRs", "clean up the dep updates", or asks for a roadmap merging multiple `chore(deps)` PRs.
+description: Triage and batch-merge accumulated Dependabot PRs in multi-requirements-file Python repos (web + lsp + dev + per-workspace) — diff-based duplicate detection across the root vs per-workspace ecosystems, risk-tier batching for git-bisect cleanliness, worktree-isolated verification, live-staging smoke, post-merge forward-sync of remaining branches. TRIGGER when the user says "review dependabot PRs", "merge dependabot batch", "dependabot sweep", "what to do with these dep PRs", "clean up the dep updates", or asks for a roadmap merging multiple `chore(deps)` PRs. Includes the vendored-static variant — synthetic npm-ecosystem manifest tracking vendored browser assets + a re-vendor CI workflow (stuck "unstable" PRs, major-bump map src changes, re-vendor reproduction, consolidation-as-unblock).
 license: Apache-2.0
 metadata:
   author: mind-vault
@@ -10,6 +10,14 @@ metadata:
 # dependabot-triage
 
 A workflow for processing 5–20 accumulated Dependabot PRs as one coherent sweep instead of one-PR-at-a-time fatigue. The non-obvious pieces are (1) **two PRs touching the same package are not necessarily duplicates** when the repo has multiple requirements files served by separate dependabot ecosystems, and (2) **risk-tier batching with one commit per dep** preserves `git bisect` even when the PR ships a bundle.
+
+> **Vendored-static variant.** If the repo tracks **vendored browser assets** via a
+> synthetic `package.json` (npm ecosystem) + a re-vendor CI workflow that commits
+> refreshed `static/` bytes onto the PR branch, the sweep has its own failure modes
+> (PRs stuck `unstable` on stale map `src` paths; major bumps need a `revendor-map`
+> src change, not a byte refresh; consolidation as the unblock when CI is wedged and
+> the bot can't recreate). Read [`references/VENDORED_STATIC_REVENDOR.md`](references/VENDORED_STATIC_REVENDOR.md)
+> alongside the steps below.
 
 ## When to use
 
@@ -175,9 +183,11 @@ If only one isolated PR remains and its review window is short, fold the docs co
 - **Real `.env` copy into a worktree.** Worktree must use sentinels (per `RULE_parallel-worktree-docker`); only the credentials file backing a specific SDK smoke gets copied bytewise — and only into the worktree where that smoke runs.
 - **Skipping live-staging for SDK bumps.** Test suites typically mock SDK clients. Real-API smoke against the upgraded floor is the only signal that the new SDK shape works in production.
 - **Force-pushing the dep PR mid-review.** Forward-sync via `git merge origin/main` + regular push, not rebase + force-push. Review threads survive.
+- **Driving `@dependabot recreate`/`rebase` from a bot/App actor.** When a base-branch move invalidates the open dep PRs (a big merge rewrote the files they touch → conflicts that don't auto-resolve), the fix is `@dependabot recreate` on each — but **dependabot rejects the command from a bot/App** (*"only users with push access can use that command"*), even one with write access. A `<your-app>[bot]`-issued recreate is silently refused; a **human** push-access user must post it. Same human-only-actor class as the other App-driven-automation gaps — see [`../review-loop/references/GITHUB_APP_DRIVEN_LOOP.md`](../review-loop/references/GITHUB_APP_DRIVEN_LOOP.md). (Recreate AFTER the conflicting base PRs have all merged, so the regenerated PR branches off a settled base.)
 
 ## Composes with
 
+- [`references/VENDORED_STATIC_REVENDOR.md`](references/VENDORED_STATIC_REVENDOR.md) — the vendored-browser-asset variant (npm-ecosystem synthetic manifest + re-vendor CI): why those PRs stick, major-bump dist-layout traps, local re-vendor reproduction, consolidation-as-unblock.
 - [`../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md`](../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — the worktree + override-file + sentinel-env mechanics this skill leans on for verification isolation.
 - [`rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — forward-sync is allowed; merge-into-main is HITL.
 - [`skills/wrap/SKILL.md`](../wrap/SKILL.md) — for the docs sweep at step 9 when the dep sweep was non-trivial enough to deserve a devlog entry.

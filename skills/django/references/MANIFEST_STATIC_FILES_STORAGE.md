@@ -78,3 +78,30 @@ def find_static_asset(body: str, stem: str, ext: str = 'js') -> int:
 ```
 
 Put the helper in the project's shared test-utils package and grep the suite for existing `'.js'` / `'.css'` substring assertions when introducing it — this class of fragility accumulates invisibly because suites overwhelmingly run on DEBUG=True machines. Negative assertions (`assertNotContains(response, 'legacy.js')`) need the regex form too (`assertNotRegex`), or a hashed `legacy.<hash>.js` slips through.
+
+## Vendoring a CSS that references fonts: vendor EVERY format the CSS names
+
+`ManifestStaticFilesStorage` post-processes CSS at `collectstatic` and **rewrites
+every `url(...)` reference to its hashed name** — which means it must *resolve* each
+referenced file. A missing target is a **hard `collectstatic` failure** (`ValueError:
+The file 'fonts/X.woff' could not be found`), not a warning. So when you vendor a
+third-party CSS whose `@font-face` blocks list several formats —
+
+```css
+@font-face{src:url(fonts/Lib-Regular.woff2) format("woff2"),
+               url(fonts/Lib-Regular.woff)  format("woff"),
+               url(fonts/Lib-Regular.ttf)   format("truetype")}
+```
+
+— you must vendor **all** listed formats, even though browsers only ever fetch woff2.
+A "woff2-only subset to save space" (a tempting optimisation, and correct for a lib
+whose *own* CSS already references only woff2, e.g. Font Awesome 7) **breaks the build**
+for a lib whose stock CSS references woff/ttf too (e.g. KaTeX): the woff/ttf `url()`s
+have no target → `collectstatic` 500s. The faithful-re-vendor rule reinforces this:
+editing the vendored CSS to drop the woff/ttf `src` entries makes it diverge from the
+upstream dist and breaks any integrity/`--check` step that re-copies it verbatim.
+
+Decision: **vendor the full font set the CSS names** (read the `@font-face` `src`
+lists, don't assume which formats browsers use). The disk cost (a few dozen extra
+files) is cheaper than a staging-only `collectstatic` failure. Verify with a
+`DEBUG=False` `collectstatic` run after vendoring — the dev box won't catch it.

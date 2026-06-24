@@ -50,6 +50,17 @@ jobs:
         uses: anthropics/claude-code-action@v1.0.133
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Allow our own write App to trigger the review. Agent-driven PRs (the
+          # GitHub-App credential program) open as `teisutis-agent[bot]`; without
+          # this, claude-code-action's non-human-actor guard aborts the run
+          # ("Workflow initiated by non-human actor") and bot-opened PRs ship
+          # UN-REVIEWED. Scoped to our App only — NOT '*' — so dependabot/renovate
+          # PRs don't auto-trigger reviews and burn metered Actions minutes. The
+          # fork-PR `if:` guard above still applies. NOTE: must live on the DEFAULT
+          # branch to take effect (the action runs the workflow from the
+          # default-branch ref and validates against it) — so this PR's own review
+          # still needs one manual retrigger until it merges.
+          allowed_bots: 'teisutis-agent[bot]'
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           # Post inline comments immediately rather than buffering for a
