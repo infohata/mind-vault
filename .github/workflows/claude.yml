@@ -12,6 +12,16 @@
 #      action_required and spams the maintainer with "approve to run" prompts.
 # Gating each event on a trusted author_association (OWNER/MEMBER/COLLABORATOR)
 # fixes BOTH: bots and outside users don't carry a trusted association.
+#
+# DELIBERATE EXCEPTION (GitHub-App-driven review loop): our own write App
+# `teisutis-agent[bot]` is ALSO admitted, by exact login match in the if: gate +
+# `allowed_bots` on the action below. An App comment carries
+# author_association=NONE, so without this the agent-issued `@claude review once`
+# retrigger is silently dropped and the App can't drive its own review loop on
+# this repo. This is NOT a general bot opening: it's ONE trusted first-party App
+# whose key only the geras agent holds — a random review bot (Copilot[bot], etc.)
+# still fails the login match, so the false-trigger concern in #2 above still
+# holds. Must live on the DEFAULT branch to take effect.
 name: Claude Code
 
 on:
@@ -28,13 +38,17 @@ jobs:
   claude:
     if: |
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') &&
-        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+        (contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+          || github.event.comment.user.login == 'teisutis-agent[bot]')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') &&
-        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+        (contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+          || github.event.comment.user.login == 'teisutis-agent[bot]')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') &&
-        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)) ||
+        (contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)
+          || github.event.review.user.login == 'teisutis-agent[bot]')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
-        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
+        (contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+          || github.event.issue.user.login == 'teisutis-agent[bot]'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -53,6 +67,13 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Allow our own write App to drive the review-loop retrigger. The
+          # `@claude review once` bootstrap is posted by `teisutis-agent[bot]` in
+          # agent-driven sessions; without this, claude-code-action's
+          # non-human-actor guard aborts the run even after the job `if:` above
+          # admits the bot. Scoped to our App only — NOT '*' — mirroring
+          # claude-code-review.yml. Must live on the DEFAULT branch.
+          allowed_bots: 'teisutis-agent[bot]'
           # Optional: lets Claude read CI results on PRs
           additional_permissions: |
             actions: read
