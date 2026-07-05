@@ -72,6 +72,12 @@ DENY_CASES = [
     "gh api repos/o/r/merges -f base=main -f head=feat",
     "gh api -X PATCH repos/o/r/git/refs/heads/main -f sha=abc123",
     "gh api -X DELETE repos/o/r/git/refs/heads/production",
+    # break-glass only counts as a PREFIX env-assignment token (claude review finding:
+    # the old raw-string regex was bypassable via a trailing comment)
+    "git push origin main # GIT_SAFETY_ALLOW=1",
+    'git push origin main "GIT_SAFETY_ALLOW=1"',
+    "git push origin main GIT_SAFETY_ALLOW=1",
+    "echo GIT_SAFETY_ALLOW=1; git push origin main",
     # shell-wrapper indirection (still a lapse-shaped form, so covered)
     'bash -c "git push origin main"',
     "sh -lc 'git push origin main'",
@@ -121,6 +127,8 @@ ALLOW_CASES = [
     # break-glass
     "GIT_SAFETY_ALLOW=1 git push origin main",
     "GIT_SAFETY_ALLOW=1 gh pr merge 214 --squash",
+    "cd /x && GIT_SAFETY_ALLOW=1 git push origin main",
+    "sudo GIT_SAFETY_ALLOW=1 git push origin main",
 ]
 
 

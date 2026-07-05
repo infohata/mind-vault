@@ -55,8 +55,13 @@ it never has a legitimate reason to.
 
 BREAK-GLASS: prepend  GIT_SAFETY_ALLOW=1  to the command to bypass — a deliberate, visible,
 grep-able opt-in for the rare time the human genuinely means to move a protected branch from
-the session. The agent must not add it on its own initiative; a human asking to "merge" is
-NOT license to add it (that's the exact reasoning the hook exists to stop).
+the session. It is honoured ONLY as an env-assignment token in the command's prefix
+(`GIT_SAFETY_ALLOW=1 git push …`, incl. after `&&`/`;` or an `env`/`sudo` prefix) — the
+token appearing in a trailing `# comment`, a quoted string, or anywhere after the command
+word does NOT count (comments are stripped at tokenization, so `git push origin main
+# GIT_SAFETY_ALLOW=1` is still denied). The agent must not add it on its own initiative;
+a human asking to "merge" is NOT license to add it (that's the exact reasoning the hook
+exists to stop).
 
 INSTALL (plugin channel — mind-vault ships this in hooks/hooks.json as a PreToolUse(Bash)
 hook, alongside the SessionStart rule-loader). It is a PYTHON script executed via its
@@ -158,9 +163,14 @@ def segments(tokens):
 
 def command_slices(seg):
     """Yield token slices starting at each `git`/`gh` word in the segment, ending at the
-    next one — handles env-var/sudo prefixes and newline-joined commands in one segment."""
+    next one — handles env-var/sudo prefixes and newline-joined commands in one segment.
+    A slice whose prefix carries the break-glass env-assignment token is NOT yielded:
+    that is the only position where the opt-out counts (comments were already stripped
+    at tokenization, and post-command / quoted occurrences never reach a prefix)."""
     starts = [i for i, t in enumerate(seg) if os.path.basename(t) in ("git", "gh")]
     for n, s in enumerate(starts):
+        if "GIT_SAFETY_ALLOW=1" in seg[:s]:
+            continue
         end = starts[n + 1] if n + 1 < len(starts) else len(seg)
         yield seg[s:end]
 
@@ -296,10 +306,8 @@ def main():
     if not cmd:
         return
 
-    # Break-glass: deliberate, visible opt-in.
-    if re.search(r"\bGIT_SAFETY_ALLOW=1\b", cmd):
-        return
-
+    # Break-glass is token-level, not string-level — see command_slices(). A raw-string
+    # regex here was bypassable via `… # GIT_SAFETY_ALLOW=1` (review finding).
     scan(cmd, data.get("cwd") or "", protected_matcher())
     return  # allow
 
