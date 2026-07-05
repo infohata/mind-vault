@@ -69,7 +69,7 @@ group (e.g. `docker-ops`) who manage it via `sudo -u docker …` — **not** the
 (which is a host-root backdoor) — two traps follow from what that scoped sudoers does and does *not*
 grant. A typical grant is only:
 
-```
+```text
 %docker-ops ALL=(docker) /usr/bin/systemctl --user *, (docker) /usr/bin/docker *
 ```
 
@@ -78,7 +78,7 @@ grant. A typical grant is only:
   `env_reset` refuses a caller-set env var unless the command is tagged `SETENV:`:
   `sudo: sorry, you are not allowed to set the following environment variables: XDG_RUNTIME_DIR`.
   Fix — scope `SETENV:` to the systemctl grant only (list `docker` first so the tag doesn't carry):
-  ```
+  ```text
   %docker-ops ALL=(docker) /usr/bin/docker *, (docker) SETENV: /usr/bin/systemctl --user *
   ```
   Then `sudo -u docker XDG_RUNTIME_DIR=/run/user/$(id -u docker) systemctl --user start <unit>`
