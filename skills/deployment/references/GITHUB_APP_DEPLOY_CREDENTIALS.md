@@ -41,6 +41,28 @@ deploys" — a deploy-box compromise would mint write. **Two trust levels → tw
 Install each App on **only** the repo(s) that box touches, never "all repositories". The App
 ceiling is the real boundary; the helper's per-mint scope env is defense-in-depth on top.
 
+### Granularity across a fleet — one App per repo, run-as the repo's existing account
+
+Rolling this across many repos/hosts, two refinements keep the blast radius minimal and the
+change invisible to the running service:
+
+- **One read-only Deploy App *per repo*, not one estate-wide App.** The two-trust-levels split
+  is the floor, not the ceiling — a single shared `contents:read` App installed on every repo
+  means one leaked deploy key clones the *whole* fleet. A per-repo App caps a deploy-box
+  compromise at that one repo's source. The cost is more Apps to create (only the org owner
+  can create org Apps; delegate an App-manager for the rest), which is cheap relative to the
+  containment. Fan the same mint helper out per host with a per-repo key.
+- **Run the deploy as the repo's *existing* deploy account, not a new one.** The checkout on a
+  server is already owned by some account (`www-data`, a per-app service user). Wire the
+  credential helper for *that* account (`sudo -u <existing-account>` when installing the git
+  config), so the migration swaps the credential mechanism without changing filesystem
+  ownership or the service's runtime identity — nothing about the deploy's identity moves,
+  only *how it authenticates* to GitHub.
+- **Per-developer install when the "box" is a workstation.** For an App that a team of devs
+  each run locally (vs. one shared server), install it **per-developer** (each dev installs
+  the App to their own account/repos) rather than a shared install — same "only the repos that
+  actor touches" principle, applied to people instead of hosts.
+
 ## The on-box mint — a stateless credential helper
 
 git invokes a configured credential helper with the operation appended, so a helper sees its

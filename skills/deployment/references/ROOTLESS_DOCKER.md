@@ -62,4 +62,4 @@ never switches. `export` propagates to a script `exec`'d from the entrypoint.
 - [ ] Runbook does **not** claim "the profile exports DOCKER_HOST so it just works" — true only for interactive shells; automated deploys are non-login.
 - [ ] Old rootful `/var/lib/docker` purge is a *separate, deferred* step (kept as the soak-window rollback), not part of the deploy.
 
-Related: [SCREEN_SESSIONS.md](SCREEN_SESSIONS.md) (non-login `screen … bash -c` is the most common trigger), [HARDENING.md](HARDENING.md) (the rootless migration + docker-group removal that creates this state).
+Related: [SCREEN_SESSIONS.md](SCREEN_SESSIONS.md) (non-login `screen … bash -c` is the most common trigger), [HARDENING.md](HARDENING.md) (the rootless migration + docker-group removal that creates this state), [ROOTLESS_DOCKER_OPENVZ.md](ROOTLESS_DOCKER_OPENVZ.md) (getting the daemon to *run at all* on a stripped cgroup-v1 OpenVZ node — a separate problem from this socket-resolution trap).
