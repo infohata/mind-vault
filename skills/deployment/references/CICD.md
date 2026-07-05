@@ -218,4 +218,5 @@ Moving a *live* service onto a durable git-pulled checkout without an outage or 
    would burn CA rate limits and briefly serve a fresh/untrusted cert). Confirm the live volume's
    literal name (`docker volume ls`) *before* the first `up -d`.
 3. **Verify green BEFORE any teardown**, then decommission the old placement. (Cert issuer is
-   production + unchanged `notBefore` = reused; routing checks pass — see the project's verify script.)
+   production + unchanged `notBefore` = reused; routing checks pass — script these as a
+   repeatable verify step.)

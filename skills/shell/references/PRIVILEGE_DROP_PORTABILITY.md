@@ -6,22 +6,27 @@ repo as the `docker` service user during setup — commonly reaches for `runuser
 `util-linux` omits it). On a Debian target the script dies with `runuser: command not found` — and if
 it's inside `set -e` it aborts mid-setup.
 
-Confirmed on a Debian 13 host: `runuser` NOT FOUND; `setpriv` and `su` present (both `util-linux`).
+Confirmed on Debian 13 and Debian 12 hosts: `runuser` NOT FOUND; `setpriv` and `su` present (both
+`util-linux`).
 
 ## Portable choices (both on Debian)
 
 ### `setpriv` — the clean `runuser` equivalent (preferred in scripts)
 
 ```bash
-# args passed DIRECTLY to the target — no shell re-parse, so no quoting fragility:
-setpriv --reuid "$UID" --regid "$GID" --init-groups -- <cmd> <args...>
+# args passed DIRECTLY to the target — no shell re-parse, so no quoting fragility.
+# (Don't name the variables UID/GID — bash reserves both as READONLY builtins holding
+# the CALLER's ids, so assignment fails and "$UID" is root's 0, a silent root→root no-drop.)
+setpriv --reuid "$TARGET_UID" --regid "$TARGET_GID" --init-groups -- <cmd> <args...>
 ```
 
 - Passes argv straight through (unlike `su -c "<string>"`), so a value containing spaces / `!` / `=`
   (e.g. a `git -c credential.https://…helper=!/path …` config) stays **one argument** — no nested
   quoting to get wrong.
-- Sets **no environment** by default. If the command reads `$HOME` (git global config) or needs a
-  runtime dir, wrap with `env`: `setpriv --reuid U --regid G --init-groups -- env HOME=/home/svc <cmd>`.
+- Inherits the **caller's environment untouched** (no PAM session, unlike `su`/`runuser`) — the
+  target still sees root's `HOME=/root`, `XDG_RUNTIME_DIR`, etc. If the command reads `$HOME` (git
+  global config) or needs a runtime dir, override with `env`:
+  `setpriv --reuid U --regid G --init-groups -- env HOME=/home/svc <cmd>`.
 - Requires root (needs `CAP_SETUID`/`CAP_SETGID`) — which the break-glass setup context already has.
 - `--reuid`/`--regid` accept names on modern util-linux (≥2.33); numeric uid/gid is the safest.
 

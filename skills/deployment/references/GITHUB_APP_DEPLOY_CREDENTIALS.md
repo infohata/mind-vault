@@ -130,7 +130,8 @@ Two wiring gotchas that silently no-op if missed:
   false). A path-qualified key (`credential.https://github.com/<owner>/<repo>.helper`) is
   **silently ignored** on a single-repo box — use the **host-level**
   `credential.https://github.com.helper`. (Multi-repo host: set `useHttpPath=true` + one
-  path-qualified key per repo.)
+  path-qualified key per repo — keyed to the exact request path **including** the `.git` suffix,
+  e.g. `credential.https://github.com/<owner>/<repo>.git.helper`; see Gotcha 6.)
 - **A `$HOME`-relative helper value only expands when run via a shell** — i.e. prefix the
   value with `!`. A bare absolute path is `exec`'d **without** a shell, so `$HOME`/`~` would
   not expand. So the home-relative form needs the `!`-shell prefix:
@@ -183,17 +184,19 @@ credential.helper would mint App tokens for every github.com pull on the box.
    quotes → the value becomes `{contents:read}` → the POST body is `{"permissions":{contents:read}}`
    → GitHub returns **HTTP 400** ("token mint failed"), *not* 401/403, so it doesn't look like an
    auth problem. Always `DEPLOY_TOKEN_PERMISSIONS='{"contents":"read"}'` (single-quoted). A
-   hand-written or heredoc-generated env file is the usual culprit; the shipped `*.env.template`
-   quotes it correctly — copy that shape rather than retyping.
+   hand-written or heredoc-generated env file is the usual culprit; copy the quoted shape from
+   Case B above rather than retyping.
 
 6. **Wire the credential helper HOST-LEVEL, not path-qualified, for clone URLs.** A path-qualified
    key `credential.https://github.com/OWNER/REPO.helper` **plus** `credential.useHttpPath=true`
    does **not** match a clone against `https://github.com/OWNER/REPO.git` — the config path
-   (`OWNER/REPO`) differs from the request path (`OWNER/REPO**.git**`), so git associates no
-   helper, falls through to prompting, and dies with `could not read Username for '…': No such
-   device or address` (looks like a missing credential, is actually a non-matching config). Use
-   `credential.https://github.com.helper=…` (host-level) — a single-repo deploy box makes host-level
-   both correct and simplest, and the App's install scope is the real boundary anyway.
+   (`OWNER/REPO`) differs from the request path (`OWNER/REPO.git`) by the **`.git`** suffix, so
+   git associates no helper, falls through to prompting, and dies with `could not read Username
+   for '…': No such device or address` (looks like a missing credential, is actually a
+   non-matching config). Use `credential.https://github.com.helper=…` (host-level) — a
+   single-repo deploy box makes host-level both correct and simplest, and the App's install
+   scope is the real boundary anyway. (On a multi-repo host where path-qualified keys are the
+   point, the key must include `.git` — see the wiring-gotcha note above.)
 
 ## Verify (the load-bearing proof)
 
