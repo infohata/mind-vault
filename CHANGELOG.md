@@ -10,7 +10,7 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
-## v5.3.7 — deployment+shell: git-pull deploy cutover + rootless-sudoers + privilege-drop portability
+## v5.3.7 — deployment+shell: git-pull deploy cutover + rootless-sudoers + privilege-drop portability + compound self-bump backstop
 
 Compounded 2026-07-05 from an edge deploy-productionization session (git-pull-as-service-account cutover onto a rootless-Docker box); single-PR section, provenance in the PR.
 
@@ -23,6 +23,7 @@ Compounded 2026-07-05 from an edge deploy-productionization session (git-pull-as
 - **`skills/deployment/references/GITHUB_APP_DEPLOY_CREDENTIALS.md`** — two more Gotchas: (5) the stateless helper **`. source`s** its env file, so `DEPLOY_TOKEN_PERMISSIONS` **MUST be single-quoted** (`'{"contents":"read"}'`) — unquoted, the shell strips the inner quotes → POST body `{"permissions":{contents:read}}` → GitHub **HTTP 400** "token mint failed" (not 401/403, so it doesn't read as auth); (6) wire the helper **host-level** (`credential.https://github.com.helper`), not path-qualified + `useHttpPath` — a clone URL's `.git` suffix defeats the path match, git skips the helper and dies `could not read Username` (a path-qualified key on a multi-repo host must include `.git`).
 - **`skills/deployment/references/ROOTLESS_DOCKER.md`** — new "scoped-sudoers operator model" section: `sudo -u <svc> systemctl --user` needs **`SETENV:`** on the grant or sudo's `env_reset` refuses the required `XDG_RUNTIME_DIR` (scoped to the systemctl grant, `docker` listed first so the tag doesn't carry); and first-time setup *as* the service account needs **break-glass root** (the scoped grant permits `(svc) docker` + `(svc) systemctl --user`, not `git`/a login shell), while routine ops stay scoped-sudo.
 - **`skills/deployment/references/CICD.md`** — an idempotent-setup-script-over-multi-context-runbook section (self-test the credential *before* relying on it; handle re-runs; safe `base64` transfer) and a durable-checkout **cutover** section (reconcile the running stack's compose project name or a parallel `up -d` collides on published ports; reuse a literal-named state volume so a TLS cert is reused, not re-issued; verify green before teardown); plus anti-patterns for multi-privilege-context runbooks and destructive cleanup before verification.
+- **`skills/compound/SKILL.md` + `references/mind-vault-promotion.md`** — self-mode bump hardening, prompted by this PR's own review sweep: the branch step now does a **single `git fetch origin` before branching off `origin/main`** (the whole freshness protocol — a stale local ref is how colliding versions get computed; compound runs are minutes, so no push-time re-fetch ceremony), and the bump step gains a **mechanical pre-commit assertion** — the staged CHANGELOG diff must ADD a new `## v` header (bullets appended into the released top section are the recurring miss) and `jq -r '.version' .claude-plugin/plugin.json` must equal the new top CHANGELOG version. Both halves were missed in the wild (PR #214 → fix PR #215; PR #216 pre-sweep) — a prose instruction alone did not hold.
 
 ## v5.3.6 — git-safety structural enforcement + rootless-Docker-on-OpenVZ + review-loop zero-row guard
 
