@@ -1,22 +1,27 @@
-# Privilege-drop portability: `runuser` is not on Debian — use `setpriv` or `su`
+# Privilege-drop portability: unqualified `runuser` dies off-PATH — use `setpriv` or `su`
 
 A root script that needs to run a command **as another (usually service) account** — e.g. clone a
 repo as the `docker` service user during setup — commonly reaches for `runuser -u <user> -- <cmd>`.
-**`runuser` is a Red-Hat/`util-linux`-on-Fedora convention that Debian/Ubuntu do not ship** (Debian's
-`util-linux` omits it). On a Debian target the script dies with `runuser: command not found` — and if
-it's inside `set -e` it aborts mid-setup.
+The trap is **PATH, not packaging**: Debian ships `runuser` in **`/usr/sbin`** (util-linux, since
+at least buster), and `/usr/sbin` is NOT on the default PATH for non-root users and many
+non-login / sanitized-PATH contexts (cron, CI runners, `su` without `-l`, `sudo -u <svc>` with
+`secure_path` variants). An unqualified `runuser` there dies `runuser: command not found` — reading
+as "Debian doesn't have it" when the binary is installed all along — and inside `set -e` it aborts
+mid-setup.
 
-Confirmed on Debian 13 and Debian 12 hosts: `runuser` NOT FOUND; `setpriv` and `su` present (both
-`util-linux`).
+Confirmed on Debian 13 and Debian 12 hosts: `/usr/sbin/runuser` present (shipped by `util-linux`),
+but `command -v runuser` fails from a non-root shell whose PATH omits `/usr/sbin`; `setpriv` and
+`su` live in **`/usr/bin`** — on PATH in every context.
 
-## Portable choices (both on Debian)
+## Robust choices (`/usr/bin`, on PATH everywhere)
 
 ### `setpriv` — the clean `runuser` equivalent (preferred in scripts)
 
 ```bash
 # args passed DIRECTLY to the target — no shell re-parse, so no quoting fragility.
-# (Don't name the variables UID/GID — bash reserves both as READONLY builtins holding
-# the CALLER's ids, so assignment fails and "$UID" is root's 0, a silent root→root no-drop.)
+# (Don't name the variables UID/GID: in bash, UID is a READONLY builtin holding the
+# CALLER's uid — as root that's 0, a silent root→root no-drop — and GID is a zsh-ism,
+# unset in bash, so --regid "" errors.)
 setpriv --reuid "$TARGET_UID" --regid "$TARGET_GID" --init-groups -- <cmd> <args...>
 ```
 
@@ -46,7 +51,9 @@ su -s /bin/bash <user> -c '<command string>'
 
 ## Rule of thumb
 
-In scripts that must be portable across distros, **do not use `runuser`**. Use `setpriv … -- env
-HOME=… <cmd>` for a clean argv-preserving drop, or `su -s /bin/bash <user> -c '…'` when you accept the
-shell-string form. Add the tool you chose to the script's dependency preflight so a missing binary
-fails loudly and early, not mid-run.
+In scripts that must run across distros and execution contexts, **do not rely on an unqualified
+`runuser`** — it's sbin-homed and off-PATH exactly in the automated contexts setup scripts run in.
+Either invoke it by absolute path (`/usr/sbin/runuser`), or prefer `setpriv … -- env HOME=… <cmd>`
+for a clean argv-preserving drop / `su -s /bin/bash <user> -c '…'` when you accept the shell-string
+form — both `/usr/bin`-homed. Whichever you choose, add it to the script's dependency preflight so
+a missing or unreachable binary fails loudly and early, not mid-run.

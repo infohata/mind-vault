@@ -16,7 +16,7 @@ Compounded 2026-07-05 from an edge deploy-productionization session (git-pull-as
 
 ### Added
 
-- **`skills/shell/references/PRIVILEGE_DROP_PORTABILITY.md`** — `runuser` is a Red-Hat-ism **absent from Debian's `util-linux`** (confirmed on Debian 13 + 12 hosts: not found; `setpriv`/`su` present), so a `runuser`-based privilege-drop in a setup script dies `command not found` mid-run. Portable choices: `setpriv --reuid … --regid … --init-groups -- env HOME=… <cmd>` (argv passed directly → no quoting fragility; inherits the caller's env untouched, so override `HOME`) or `su -s /bin/bash <user> -c '…'` (shell-string; mind nested quoting + the "prompts for the target's password when run non-root" trap). Add the chosen tool to the dep preflight. Pointer added to the shell SKILL.md References.
+- **`skills/shell/references/PRIVILEGE_DROP_PORTABILITY.md`** — an unqualified `runuser` in a setup script dies `command not found` on Debian in non-root / non-login contexts — a **PATH trap, not packaging**: Debian ships it in `/usr/sbin` (off the default PATH exactly in the automated contexts setup scripts run in), while `setpriv`/`su` are `/usr/bin`-homed and reachable everywhere (confirmed on Debian 13 + 12 hosts). Prefer `setpriv --reuid … --regid … --init-groups -- env HOME=… <cmd>` (argv passed directly → no quoting fragility; inherits the caller's env untouched, so override `HOME`) or `su -s /bin/bash <user> -c '…'` (shell-string; mind nested quoting + the "prompts for the target's password when run non-root" trap) — or absolute-path `/usr/sbin/runuser` — and add the chosen tool to the dep preflight. Pointer added to the shell SKILL.md References.
 
 ### Changed
 
