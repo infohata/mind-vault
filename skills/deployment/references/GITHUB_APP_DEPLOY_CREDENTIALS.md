@@ -177,6 +177,24 @@ credential.helper would mint App tokens for every github.com pull on the box.
    note. A fully-automated "App opens PR → engine reviews it" flow ships **un-reviewed** until
    that's set.
 
+5. **`DEPLOY_TOKEN_PERMISSIONS` (and any JSON value) in the helper's env file MUST be
+   single-quoted.** The stateless helper **`. source`s** the env file, so an unquoted
+   `DEPLOY_TOKEN_PERMISSIONS={"contents":"read"}` is shell-parsed and loses its inner double
+   quotes → the value becomes `{contents:read}` → the POST body is `{"permissions":{contents:read}}`
+   → GitHub returns **HTTP 400** ("token mint failed"), *not* 401/403, so it doesn't look like an
+   auth problem. Always `DEPLOY_TOKEN_PERMISSIONS='{"contents":"read"}'` (single-quoted). A
+   hand-written or heredoc-generated env file is the usual culprit; the shipped `*.env.template`
+   quotes it correctly — copy that shape rather than retyping.
+
+6. **Wire the credential helper HOST-LEVEL, not path-qualified, for clone URLs.** A path-qualified
+   key `credential.https://github.com/OWNER/REPO.helper` **plus** `credential.useHttpPath=true`
+   does **not** match a clone against `https://github.com/OWNER/REPO.git` — the config path
+   (`OWNER/REPO`) differs from the request path (`OWNER/REPO**.git**`), so git associates no
+   helper, falls through to prompting, and dies with `could not read Username for '…': No such
+   device or address` (looks like a missing credential, is actually a non-matching config). Use
+   `credential.https://github.com.helper=…` (host-level) — a single-repo deploy box makes host-level
+   both correct and simplest, and the App's install scope is the real boundary anyway.
+
 ## Verify (the load-bearing proof)
 
 ```bash

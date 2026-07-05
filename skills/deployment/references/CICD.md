@@ -183,3 +183,39 @@ Slack on deploy result:
 - ❌ Embedding the deploy key in the repo (even encrypted) — use the CI secret store.
 - ❌ Silent rollback on failure — leaves the human unaware the state changed.
 - ❌ `chmod 777` anywhere in the pipeline — if permissions are wrong, fix the cause.
+- ❌ **A copy-paste runbook that spans privilege contexts** (dev → root → scoped-sudo). Each context switch is a place to get root/quoting/ordering wrong; a human hand-copying 20 commands across three shells foot-guns repeatedly. Prefer one **idempotent, self-testing setup script** (below).
+- ❌ **Destructive cleanup (`shred`/`rm`) inline with the step that produced the artifact**, before the end-to-end result is verified. If a later step fails, the shredded key/temp/backup is exactly what the retry needs. Gate all destruction on a green verification; put it in a "housekeeping — only once green" step at the end.
+
+## Prefer an idempotent setup script over a multi-context runbook
+
+For first-time provisioning that touches several privilege contexts, ship a single **idempotent,
+re-runnable** script instead of a runlist:
+
+- **Self-test the credential before relying on it.** e.g. mint a token and assert it succeeds
+  *before* the `git clone` that depends on it — a half-failed setup then aborts with a clear cause
+  instead of an opaque downstream error.
+- **Handle re-runs.** `install -d` is idempotent; a partial checkout dir needs `rm -rf` before a
+  fresh `git clone` (clone refuses a non-empty target); reused → `fetch && checkout && pull --ff-only`.
+- **No destructive steps inside it.** Setup places and verifies; a *separate* post-verify step cleans
+  up. (See the destructive-cleanup anti-pattern above.)
+- **Transfer safely.** When a host has no easy way to receive a script file, a `base64 -d > f <<'B64'`
+  one-liner (verify the sha256 after decode) beats pasting raw multi-heredoc scripts that a terminal
+  can mangle.
+
+## Cutover onto a durable git-pull checkout (from `/tmp`, rsync, or a rehearsal placement)
+
+Moving a *live* service onto a durable git-pulled checkout without an outage or a re-issued cert:
+
+1. **Reconcile the RUNNING stack's compose project name first.**
+   `docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' <container>`. If the
+   new `up -d --project-name X` uses a **different** project name than the live stack, compose starts
+   a **parallel** stack that collides on the published ports (`:80/:443`) and fails — it is *not* an
+   in-place recreate. Match the project name (→ in-place recreate) or plan an explicit stop-old →
+   start-new with stated brief downtime.
+2. **Reuse the literal-named state volume so stateful data isn't regenerated.** A named volume
+   pinned by literal `name:` (not the compose-project-prefixed default) lets the new stack reuse the
+   old one — e.g. an ACME `acme.json` volume so the **prod TLS cert is reused, not re-issued** (which
+   would burn CA rate limits and briefly serve a fresh/untrusted cert). Confirm the live volume's
+   literal name (`docker volume ls`) *before* the first `up -d`.
+3. **Verify green BEFORE any teardown**, then decommission the old placement. (Cert issuer is
+   production + unchanged `notBefore` = reused; routing checks pass — see the project's verify script.)
