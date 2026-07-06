@@ -40,6 +40,12 @@ Compound from a public Traefik-v3-on-rootless-Docker edge sprint (dotfile-deny +
   (permission-layer patterns, outdated naive hooks — NOT the shipped per-segment hook, which allows
   the chain) hit on compound commands (`git push <feature> && gh pr create --base main …`) → split
   the push and the pr-create into separate invocations (not a break-glass case).
+- **`skills/compound/`** — fact-check discipline for version-gated claims: verify "added in vN" /
+  "absent until vN" assertions against release notes or the introducing PR (never version-pinned doc
+  pages), demote unverifiable gates to observations-with-provenance, and attribute an observed
+  block/denial to the right guard layer before documenting it. Stub in SKILL step 3 + full section in
+  `references/mind-vault-promotion.md` (born from this PR's own review sweep, which caught both
+  failure shapes).
 
 ## v5.3.7 — deployment+shell: git-pull deploy cutover + rootless-sudoers + privilege-drop portability + compound self-bump backstop
 

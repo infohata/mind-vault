@@ -69,6 +69,8 @@ Six destinations, each with its own emit procedure:
 
 For project-local: write and stop. No branch management — this is the target project's own journal.
 
+**Version-gated claims get fact-checked before they're written** ("added in vN" / "absent until vN" / "unchanged across A–B"): verify against release notes or the introducing PR — never version-pinned doc pages — and demote unverifiable gates to observations-with-provenance. See [`references/mind-vault-promotion.md`](references/mind-vault-promotion.md) § Fact-check version-gated claims.
+
 For mind-vault destinations: apply step 4 before emitting.
 
 For auto-memory: write into the memory filesystem at `~/.claude/projects/<project-id>/memory/` and update `MEMORY.md`'s one-line index. Honour the type classification (feedback / project / user / reference) from the global `CLAUDE.md` auto-memory rules.
