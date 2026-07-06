@@ -8,9 +8,9 @@ plugin supply-chain surface) and **no on-box responder container**.
 ## 1. Return a true 404 for a path with NO plugin and NO backend
 
 Traefik v3 core has **no "return fixed status" middleware**. The only primitive that emits a
-configurable status by itself is **`ipAllowList` + `rejectStatusCode`** (default 403; settable to
-**404 only in v3.5+** — absent v3.0–v3.4, where it silently stays 403). Combine it with a
-high-priority catch-all router:
+configurable status by itself is **`ipAllowList` + `rejectStatusCode`** (default 403; in core since
+**v3.0** — but **undocumented until late-v3.x doc pages**, so its absence from an older version's
+docs does NOT mean unsupported). Combine it with a high-priority catch-all router:
 
 ```yaml
 http:
@@ -28,7 +28,7 @@ http:
     deny-404:
       ipAllowList:
         sourceRange: ["255.255.255.255/32"]   # a sentinel range no real client can match → every request rejected
-        rejectStatusCode: 404                  # v3.5+; without it you get 403
+        rejectStatusCode: 404                  # omit → 403 (option is in core since v3.0)
   services:
     noop:
       loadBalancer:
@@ -45,7 +45,7 @@ forgotten negation silently exposes that route).
 **Alternatives and why they lose:** an `ipAllowList` gives **403** by default (fine if you don't need
 404); routing to a **zero-server service gives 503**, an unreachable server gives **502** — neither is
 a 404. A static-responder container (nginx `return 404;`) works but adds image surface to the edge —
-unnecessary at v3.5+.
+unnecessary on any v3.
 
 ## 2. The `.well-known` carve-out is load-bearing — never block cert renewal
 
@@ -102,6 +102,6 @@ A public edge holds a real prod cert in a persistent `acme.json` volume — an u
   the deploy branch), with a labeled break-glass exception for an edge that's down.
 
 Pairs with [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md) (the daemon this edge usually runs on) and
-[NGINX_TLS_REDIRECT_AND_CERTS.md](NGINX_TLS_REDIRECT_AND_CERTS.md) (the same ACME-challenge-must-stay-
-reachable precondition, nginx flavor). Verify-script discipline:
+[NGINX_TLS_REDIRECT_AND_CERTS.md](NGINX_TLS_REDIRECT_AND_CERTS.md) (the same
+ACME-challenge-must-stay-reachable precondition, nginx flavor). Verify-script discipline:
 [../../shell/references/MAINTENANCE_SCRIPT_CONTRACT.md](../../shell/references/MAINTENANCE_SCRIPT_CONTRACT.md).

@@ -109,10 +109,13 @@ by **load-testing and reading what the backend echoes** (a `whoami`-style backen
 `X-Real-Ip` will show the gateway IP, not your public IP). The proxy's `sourceCriterion`/`RemoteAddr`
 config is **correct**; the fix is below it, in the host's rootless networking:
 
-- Switch the port driver to one that **preserves source IP**: `slirp4netns`
-  (`DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=slirp4netns` / `ROOTLESSKIT_PORT_DRIVER=slirp4netns`) or
-  the newer **`pasta`** — both preserve the client IP at a throughput cost. This is a **daemon-config
-  change** (the rootless installer), not app config; weigh throughput vs. correctness for an edge.
+- Switch to a driver combo that **preserves source IP**: port driver **`slirp4netns`**
+  (`DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=slirp4netns` — throughput cost vs `builtin`), or the
+  newer **`pasta` *network* driver** (`DOCKERD_ROOTLESS_ROOTLESSKIT_NET=pasta` + port driver
+  `implicit` — faster, still experimental). On Docker ≥ v29.5 (RootlessKit v3.0) the default
+  `builtin` port driver propagates **TCP** source IPs when the daemon sets
+  `{"userland-proxy": false}`. All are **daemon-config changes** (systemd override on the rootless
+  daemon unit), not app config; weigh throughput vs. correctness for an edge.
 - Verify after: a request from a known external IP shows **that IP** in the backend echo, and a
   per-IP limit throttles one client without touching a second.
 

@@ -63,17 +63,23 @@ On any non-protected branch the agent commits freely. **No per-commit approval p
 - ❌ Deleting or resetting a branch the agent doesn't recognise — it may be someone else's in-progress work.
 - ❌ Committing files that likely contain secrets (`.env`, `credentials.json`, private keys). Warn the user if a commit includes any.
 
-### Enforcement-hook gotcha: the "main" over-match in compound commands
+### Compound-command gotcha: the "main" over-match in *string-level* guards
 
-The protected-branch enforcement hook inspects the **whole Bash command string**, so it can
-false-positive on a **legitimate feature-branch operation** when the literal `main` appears elsewhere
-in a chained command — classically `git push origin <feature> && gh pr create --base main …`, or any
-`… --base main …` batched after a push. The hook blocks the **entire** invocation (so an earlier
-`git add`/`git commit` in the same chain doesn't run either), reporting a protected-branch push that
-you never intended.
+A guard that matches the **whole Bash command string** can false-positive on a **legitimate
+feature-branch operation** when the literal `main` appears elsewhere in a chained command —
+classically `git push origin <feature> && gh pr create --base main …`, or any `… --base main …`
+batched after a push. The block kills the **entire** invocation (so an earlier `git add`/`git commit`
+in the same chain doesn't run either), reporting a protected-branch push that you never intended.
+
+The string-level matchers that trip this are the **tool-permission layer** (settings.json allow/deny
+patterns match over the full command string) and **outdated naive guards**. Mind-vault's shipped hook
+(`hooks/block-protected-branch-writes.py`) is **per-segment and quote-aware** — it ALLOWS this chain
+(covered by its self-test), so if it appears to fire here the plugin is stale: update it rather than
+working around it.
 
 **Fix: split the push and the PR-create into separate Bash invocations** — push the feature branch
-alone, then run `gh pr create --base main …` on its own. Don't reach for the break-glass override
-(`GIT_SAFETY_ALLOW=1`) for this — the operation is genuinely allowed; it's only the compound-string
-match that trips. (Same applies to any command that legitimately names `main`/`master`/`production` as
-a *target-of* rather than a *push-to*.)
+alone, then run `gh pr create --base main …` on its own. Universally safe, and single-purpose calls
+match permission allowlists cleanly anyway. Don't reach for the break-glass override
+(`GIT_SAFETY_ALLOW=1`) — the operation is genuinely allowed, and a permission-layer match wouldn't
+honour it anyway. (Same applies to any command that legitimately names `main`/`master`/`production`
+as a *target-of* rather than a *push-to*.)

@@ -27,19 +27,19 @@ Compound from a public Traefik-v3-on-rootless-Docker edge sprint (dotfile-deny +
 ### Changed
 - **`skills/deployment/references/ROOTLESS_DOCKER.md`** — rootless Docker's default port driver
   **masquerades the client source IP** to the bridge gateway (per-IP rate-limit collapses to global;
-  logs/geo/allowlists blind) → `slirp4netns`/`pasta` port driver; plus driving `systemctl --user` for
-  the service account **from root** via `su` (not `--machine`, whose `journalctl` needs machined).
+  logs/geo/allowlists blind) → `slirp4netns` port driver / `pasta` network driver; plus driving
+  `systemctl --user` for the service account **from root** via `su` (not `--machine`, whose
+  `journalctl` needs machined).
 - **`skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md`** — remote black-box `--verify` must
   assert the **positive** code (`= 200`), so `curl … || true` → `000` on an unreachable target fails
   **closed** (a negated `!= 404` false-passes while the service is down); rate-limit load-tests need
   **concurrency**; `openssl x509 -dates`/`-startdate`, not the nonexistent `-notBefore`.
 - **`skills/deployment/references/CICD.md`** — `gh pr edit --title/--body` aborts on Projects-classic
   (GraphQL `projectCards`) → patch via `gh api … -X PATCH` (REST).
-
-### Fixed
-- **`rules/RULE_git-safety.md`** — documented the enforcement-hook **`main` over-match** in compound
-  commands (`git push <feature> && gh pr create --base main …`) → split the push and the pr-create
-  into separate invocations (not a break-glass case).
+- **`rules/RULE_git-safety.md`** — documented the **`main` over-match** that *string-level* guards
+  (permission-layer patterns, outdated naive hooks — NOT the shipped per-segment hook, which allows
+  the chain) hit on compound commands (`git push <feature> && gh pr create --base main …`) → split
+  the push and the pr-create into separate invocations (not a break-glass case).
 
 ## v5.3.7 — deployment+shell: git-pull deploy cutover + rootless-sudoers + privilege-drop portability + compound self-bump backstop
 
