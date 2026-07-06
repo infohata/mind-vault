@@ -62,4 +62,35 @@ never switches. `export` propagates to a script `exec`'d from the entrypoint.
 - [ ] Runbook does **not** claim "the profile exports DOCKER_HOST so it just works" — true only for interactive shells; automated deploys are non-login.
 - [ ] Old rootful `/var/lib/docker` purge is a *separate, deferred* step (kept as the soak-window rollback), not part of the deploy.
 
-Related: [SCREEN_SESSIONS.md](SCREEN_SESSIONS.md) (non-login `screen … bash -c` is the most common trigger), [HARDENING.md](HARDENING.md) (the rootless migration + docker-group removal that creates this state), [ROOTLESS_DOCKER_OPENVZ.md](ROOTLESS_DOCKER_OPENVZ.md) (getting the daemon to *run at all* on a stripped cgroup-v1 OpenVZ node — a separate problem from this socket-resolution trap).
+## The scoped-sudoers operator model (no host-root hatch)
+
+When the rootless daemon runs as a neutral **service account** (e.g. `docker`) and operators are a
+group (e.g. `docker-ops`) who manage it via `sudo -u docker …` — **not** the `docker` unix group
+(which is a host-root backdoor) — two traps follow from what that scoped sudoers does and does *not*
+grant. A typical grant is only:
+
+```text
+%docker-ops ALL=(docker) /usr/bin/systemctl --user *, (docker) /usr/bin/docker *
+```
+
+- **`systemctl --user` via `sudo -u` needs `SETENV:` for `XDG_RUNTIME_DIR`.** `systemctl --user`
+  must be told which user-manager to reach via `XDG_RUNTIME_DIR=/run/user/<uid>`, but sudo's
+  `env_reset` refuses a caller-set env var unless the command is tagged `SETENV:`:
+  `sudo: sorry, you are not allowed to set the following environment variables: XDG_RUNTIME_DIR`.
+  Fix — scope `SETENV:` to the systemctl grant only (list `docker` first so the tag doesn't carry):
+  ```text
+  %docker-ops ALL=(docker) /usr/bin/docker *, (docker) SETENV: /usr/bin/systemctl --user *
+  ```
+  Then `sudo -u docker XDG_RUNTIME_DIR=/run/user/$(id -u docker) systemctl --user start <unit>`
+  works. Without it, triggering a `systemd --user` deploy unit is impossible for operators.
+
+- **First-time setup that runs *as* the service account needs break-glass ROOT, not scoped sudo.**
+  The scoped grant permits `(docker) docker` and `(docker) systemctl --user` — **not** `git`, a
+  login shell, or arbitrary file placement. So the one-time bootstrap (clone the repo as `docker`,
+  place `~docker/.config/<app>/app.pem`, install the user unit) **cannot** be done via scoped sudo;
+  it's a root/break-glass action (`su`/`setpriv` from root — see
+  [../../shell/references/PRIVILEGE_DROP_PORTABILITY.md](../../shell/references/PRIVILEGE_DROP_PORTABILITY.md)).
+  Routine ops afterward (`docker compose up -d`, `systemctl --user start`) *are* scoped-sudo. Design
+  the runbook to separate the two: "one-time, root" vs "routine, scoped-sudo".
+
+Related: [SCREEN_SESSIONS.md](SCREEN_SESSIONS.md) (non-login `screen … bash -c` is the most common trigger), [HARDENING.md](HARDENING.md) (the rootless migration + docker-group removal that creates this state), [ROOTLESS_DOCKER_OPENVZ.md](ROOTLESS_DOCKER_OPENVZ.md) (getting the daemon to *run at all* on a stripped cgroup-v1 OpenVZ node — a separate problem from this socket-resolution trap), [../../shell/references/SUDOERS_WHITELIST_FENCES.md](../../shell/references/SUDOERS_WHITELIST_FENCES.md) (sudoers whitelist hygiene), [../../shell/references/PRIVILEGE_DROP_PORTABILITY.md](../../shell/references/PRIVILEGE_DROP_PORTABILITY.md) (`setpriv`/`su` for dropping to the service account).
