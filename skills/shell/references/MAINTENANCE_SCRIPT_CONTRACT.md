@@ -273,11 +273,13 @@ limit** (each request pays RTT + a fresh TLS handshake), so it never drains the 
 429". Fire the requests **concurrently and in volume** (drain `burst` faster than `average` refills):
 
 ```bash
-codes="$(seq 1 500 | xargs -P50 -n1 sh -c "curl -s -o /dev/null -w '%{http_code}\n' --max-time 8 '<url>' 2>/dev/null" _)"
+codes="$(seq 1 500 | xargs -P50 -n1 sh -c 'curl -s -o /dev/null -w "%{http_code}\n" --max-time 8 "<url>" 2>/dev/null' _)"
 n429="$(printf '%s\n' "$codes" | grep -c '^429$' || true)"   # expect > 0
 ```
 
-The trailing `_` gives `sh -c` a `$0` so the xargs-fed item isn't interpolated into the command. Gate
+The trailing `_` gives `sh -c` a `$0` so the xargs-fed item isn't interpolated into the command.
+Single-quote the `sh -c` script so the *outer* shell can't expand anything in it (a real URL's `$`
+or query string stays literal until the inner `sh` sees it). Gate
 `RATELIMIT_PROBE=1` (it floods the target; on a shared/global limiter it briefly throttles *all*
 clients — run against a sandbox / off-hours).
 
