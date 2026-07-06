@@ -93,4 +93,45 @@ grant. A typical grant is only:
   Routine ops afterward (`docker compose up -d`, `systemctl --user start`) *are* scoped-sudo. Design
   the runbook to separate the two: "one-time, root" vs "routine, scoped-sudo".
 
+## Published ports MASQUERADE the client source IP (silently breaks per-IP anything)
+
+Rootless Docker's **default port driver** (rootlesskit "builtin") source-NATs inbound connections to
+published ports: the app behind the port sees the **bridge gateway** (`172.18.0.1`-style) as the
+client, **not the real remote IP**. So a reverse proxy behind a rootless-published `:443` sees
+**every external client as one address**, and:
+
+- **per-IP rate-limiting collapses to global** — one shared bucket for the whole internet; one abuser
+  throttles everyone, and legit aggregate traffic shares one budget.
+- **access logs / geo rules / IP allow-deny lists are blind** — everything reads the gateway IP.
+
+This bites **only under real external traffic** and is invisible on a single-client test — surface it
+by **load-testing and reading what the backend echoes** (a `whoami`-style backend's `X-Forwarded-For` /
+`X-Real-Ip` will show the gateway IP, not your public IP). The proxy's `sourceCriterion`/`RemoteAddr`
+config is **correct**; the fix is below it, in the host's rootless networking:
+
+- Switch the port driver to one that **preserves source IP**: `slirp4netns`
+  (`DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=slirp4netns` / `ROOTLESSKIT_PORT_DRIVER=slirp4netns`) or
+  the newer **`pasta`** — both preserve the client IP at a throughput cost. This is a **daemon-config
+  change** (the rootless installer), not app config; weigh throughput vs. correctness for an edge.
+- Verify after: a request from a known external IP shows **that IP** in the backend echo, and a
+  per-IP limit throttles one client without touching a second.
+
+## Driving `systemctl --user` for the service account FROM root — `su`, not `--machine`
+
+To trigger a `systemd --user` unit owned by the (lingering) service account as **root** (break-glass,
+when the scoped `SETENV:` grant isn't in place):
+
+- `systemctl --machine=<user>@ --user start|status <unit>` **works** for start/status, BUT
+  **`journalctl --machine=<user>@ --user`** commonly **FAILS** — `org.freedesktop.machine1 … No route
+  to host` — it needs `systemd-machined`'s journal path, absent on many minimal hosts.
+- **Robust, machined-independent path (use uniformly):**
+  ```bash
+  u=$(id -u <svcuser>)
+  su -s /bin/bash <svcuser> -c "XDG_RUNTIME_DIR=/run/user/$u systemctl --user start <unit>"
+  su -s /bin/bash <svcuser> -c "XDG_RUNTIME_DIR=/run/user/$u journalctl --user -u <unit> -n 60 --no-pager"
+  ```
+  `su` makes the uid the service account, so `systemctl/journalctl --user` reach that account's user
+  manager via `XDG_RUNTIME_DIR` with no machined dependency. A `Type=oneshot` `start` **blocks until
+  done** → verify the **outcome** (unit's effect), since a completed oneshot shows `inactive (dead)`.
+
 Related: [SCREEN_SESSIONS.md](SCREEN_SESSIONS.md) (non-login `screen … bash -c` is the most common trigger), [HARDENING.md](HARDENING.md) (the rootless migration + docker-group removal that creates this state), [ROOTLESS_DOCKER_OPENVZ.md](ROOTLESS_DOCKER_OPENVZ.md) (getting the daemon to *run at all* on a stripped cgroup-v1 OpenVZ node — a separate problem from this socket-resolution trap), [../../shell/references/SUDOERS_WHITELIST_FENCES.md](../../shell/references/SUDOERS_WHITELIST_FENCES.md) (sudoers whitelist hygiene), [../../shell/references/PRIVILEGE_DROP_PORTABILITY.md](../../shell/references/PRIVILEGE_DROP_PORTABILITY.md) (`setpriv`/`su` for dropping to the service account).

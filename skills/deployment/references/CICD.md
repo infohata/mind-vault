@@ -220,3 +220,20 @@ Moving a *live* service onto a durable git-pulled checkout without an outage or 
 3. **Verify green BEFORE any teardown**, then decommission the old placement. (Cert issuer is
    production + unchanged `notBefore` = reused; routing checks pass — script these as a
    repeatable verify step.)
+
+## `gh pr edit --title/--body` can abort on Projects-classic — patch via the REST API
+
+On repos that still have **Projects (classic)** enabled, `gh pr edit --title …` / `--body …` fails the
+**whole mutation** — it fetches `repository.pullRequest.projectCards` over GraphQL, which errors with a
+Projects-classic deprecation notice, and `gh` exits non-zero **without applying the title/body change**
+(silently: the command prints the notice, looks like a warning, but nothing changed). Any automation
+that retitles/re-bodies a PR (a review loop, a `/wrap`/`/compound` step) silently no-ops.
+
+**Fix — use the REST endpoint, which doesn't touch Projects:**
+```bash
+gh api "repos/$OWNER/$REPO/pulls/$N" -X PATCH -f title="…"           # title
+gh api "repos/$OWNER/$REPO/pulls/$N" -X PATCH -F body=@body.md       # body from a file (multi-line safe)
+```
+`gh pr ready` / `gh pr create` are unaffected (no projectCards fetch); it's specifically the
+`edit`-existing-PR path. Verify the change actually landed (`gh pr view $N --json title,body`) rather
+than trusting the exit line.

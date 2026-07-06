@@ -62,3 +62,18 @@ On any non-protected branch the agent commits freely. **No per-commit approval p
 - ❌ Force-pushing to a branch with an open PR *without informing the human first* — it invalidates existing review threads.
 - ❌ Deleting or resetting a branch the agent doesn't recognise — it may be someone else's in-progress work.
 - ❌ Committing files that likely contain secrets (`.env`, `credentials.json`, private keys). Warn the user if a commit includes any.
+
+### Enforcement-hook gotcha: the "main" over-match in compound commands
+
+The protected-branch enforcement hook inspects the **whole Bash command string**, so it can
+false-positive on a **legitimate feature-branch operation** when the literal `main` appears elsewhere
+in a chained command — classically `git push origin <feature> && gh pr create --base main …`, or any
+`… --base main …` batched after a push. The hook blocks the **entire** invocation (so an earlier
+`git add`/`git commit` in the same chain doesn't run either), reporting a protected-branch push that
+you never intended.
+
+**Fix: split the push and the PR-create into separate Bash invocations** — push the feature branch
+alone, then run `gh pr create --base main …` on its own. Don't reach for the break-glass override
+(`GIT_SAFETY_ALLOW=1`) for this — the operation is genuinely allowed; it's only the compound-string
+match that trips. (Same applies to any command that legitimately names `main`/`master`/`production` as
+a *target-of* rather than a *push-to*.)
