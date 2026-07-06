@@ -58,7 +58,7 @@ MTA-STS, and critically **`/.well-known/acme-challenge/`**). Blocking it:
 - 404s the discovery endpoints of any auth/OIDC backend, estate-wide.
 
 **RE2 has no lookahead**, so `(?!well-known)` will *not compile*. The carve-out is a rule composition,
-not a regex: **`PathRegexp(…) && !PathPrefix(`/.well-known/`)`**. Belt-and-suspenders: also keep the
+not a regex: **``PathRegexp(…) && !PathPrefix(`/.well-known/`)``**. Belt-and-suspenders: also keep the
 deny router **`websecure`-only** while the ACME `httpChallenge` is served on the `web` (:80)
 entrypoint — the challenge then never even reaches the guard. Gate on it in the verify script
 (`/.well-known/security.txt` must NOT be 404; a bogus `/.well-known/acme-challenge/<x>` on :80 returns
