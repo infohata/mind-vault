@@ -48,9 +48,10 @@ Compound from a public Traefik-v3-on-rootless-Docker edge sprint (dotfile-deny +
   the chain) hit on compound commands (`git push <feature> && gh pr create --base main …`) → split
   the push and the pr-create into separate invocations (not a break-glass case); and the **stacked-PR
   retarget race** — merging a dependent PR seconds after its base can merge it into the obsolete base
-  branch before the platform auto-retargets it to `main`, stranding the work off `main` (diagnose with
-  `merge-base --is-ancestor` + `baseRefName`; recover by cherry-picking onto a fresh main-based branch;
-  avoid by waiting for the retarget before merging the dependent PR).
+  branch, stranding the work off `main` (the auto-retarget fires on head-branch **deletion**, not the
+  merge; diagnose with `baseRefName` + `merge-base --is-ancestor` on the **merge commit** — a squash-
+  merged tip false-alarms; recover by cherry-picking onto a fresh main-based branch; avoid by
+  confirming the retarget or `gh pr edit --base main` before merging the dependent PR).
 - **`skills/compound/`** — fact-check discipline for version-gated claims: verify "added in vN" /
   "absent until vN" assertions against release notes or the introducing PR (never version-pinned doc
   pages), demote unverifiable gates to observations-with-provenance, and attribute an observed

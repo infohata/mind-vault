@@ -87,18 +87,21 @@ as a *target-of* rather than a *push-to*.)
 ### Stacked PRs: merging in quick succession can strand the dependent PR off-base
 
 When PR **B** is opened with PR **A**'s branch as its base (a *stacked* PR — B's diff is only clean on
-top of A), the platform is supposed to **auto-retarget B to the base** (`main`) the moment A merges.
-That retarget is **not instant**. Merge A and then B within the same short window (seconds) and B can
-merge into **A's now-obsolete branch instead of `main`** — because at click-time B's base was still
-A's branch. The result: B's commits land off `main` entirely (into a dangling branch), the work looks
-merged in the PR UI but **`main` never receives it**, and nobody notices until a later `git ls-tree
-origin/main` / "where did that file go?" moment.
+top of A), the platform auto-retargets B to A's base (`main`) **when A's head branch is DELETED** —
+not on the merge itself (auto-delete-on-merge makes deletion, and so the retarget, follow the merge
+near-instantly; without auto-delete it never fires at all). Merge A and then B within the same short
+window (seconds) and B can merge into **A's now-obsolete branch instead of `main`** — because at
+click-time B's base was still A's branch. The result: B's commits land off `main` entirely (into a
+dangling branch), the work looks merged in the PR UI but **`main` never receives it**, and nobody
+notices until a later `git ls-tree origin/main` / "where did that file go?" moment.
 
-Diagnose with `git merge-base --is-ancestor <B-tip> origin/main` (non-zero = **not** on main) and
-`gh pr view <B> --json baseRefName` (still shows A's branch = it never retargeted). **Recover** by
-cherry-picking B's reviewed commits onto a fresh `origin/main`-based branch and opening a new PR that
-targets `main` directly — do **not** try to re-merge the stranded branch.
+Diagnose with `gh pr view <B> --json baseRefName,mergeCommit` — `baseRefName` still showing A's branch
+means it never retargeted, and `git merge-base --is-ancestor <mergeCommit-oid> origin/main` non-zero
+means the merged result is **not** on main. (Test the **merge commit**, not B's branch tip — a squash-
+or rebase-merged tip is never an ancestor of `main`, so the tip test false-alarms on healthy PRs.)
+**Recover** by cherry-picking B's reviewed commits onto a fresh `origin/main`-based branch and opening
+a new PR that targets `main` directly — do **not** try to re-merge the stranded branch.
 
-**Avoid it:** after merging A, **wait for the platform to retarget B to `main`** (its base flips in the
-PR UI / `baseRefName` becomes `main`) before merging B — or rebase B onto `main` first so it's no
-longer stacked. Never batch "merge A, merge B" as one rapid action.
+**Avoid it:** after merging A, confirm B's base actually flipped to `main` (PR UI / `baseRefName`) —
+or force it deterministically with `gh pr edit <B> --base main`, or rebase B onto `main` first so it's
+no longer stacked — before merging B. Never batch "merge A, merge B" as one rapid action.
