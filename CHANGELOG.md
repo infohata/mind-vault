@@ -10,6 +10,55 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.3.8 — deployment+shell: Traefik v3 edge hardening + rootless source-IP masquerade + remote black-box verify
+
+Compounded 2026-07-06 from a public Traefik-v3-on-rootless-Docker edge sprint (dotfile-deny + rate-limit + a version bump); amended 2026-07-07 with the apply/wrap-phase traps ([#217](https://github.com/infohata/mind-vault/pull/217)).
+
+### Added
+- **`skills/deployment/references/TRAEFIK_EDGE_HARDENING.md`** (new) — native dotfile-**404** at a
+  Traefik v3 edge with no plugin/container (high-priority catch-all router + `ipAllowList` sentinel
+  range + `rejectStatusCode`, short-circuiting before a fail-closed dummy-server `noop`); the
+  **`.well-known`/ACME-renewal carve-out** (RE2 no-lookahead → `&& !PathPrefix`; blocking
+  `/.well-known/acme-challenge/` kills HTTP-01 renewal → cert expires → edge down); per-router
+  rate-limit hygiene; and the **version-bump audit drill** (latest-minor-only support, `acme.json`
+  format unchanged v3.4–v3.7 → cert reused, `%2E` pre-routing normalization, cert-reused-first gate +
+  reviewed rollback); plus the **outbound-egress canary** for cert renewal (the carve-out guards only
+  the inbound challenge path; renewal also needs outbound reach to the CA — probe it after any
+  host-network change). Pointer added to the deployment SKILL References list.
+
+### Changed
+- **`skills/deployment/references/ROOTLESS_DOCKER.md`** — rootless Docker's default port driver
+  **masquerades the client source IP** to the bridge gateway (per-IP rate-limit collapses to global;
+  logs/geo/allowlists blind) → `slirp4netns` port driver / `pasta` network driver; the **blast-radius
+  rule** (a net-stack env change reaches only *user-manager*-mode hosts, not *system-unit*/OpenVZ ones —
+  enumerate modes before claiming coverage); and **verify BOTH directions** — a net-stack swap can
+  silently kill *outbound* egress, and since ACME renewal is outbound + deferred to ~30d pre-expiry,
+  broken egress passes every inbound smoke test then expires the cert weeks later → gate on an active
+  in-container egress probe, and read source IP from an external host (hairpin masks it). Plus driving
+  `systemctl --user` for the service account **from root** via `su` (not `--machine`, whose
+  `journalctl` needs machined).
+- **`skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md`** — remote black-box `--verify` must
+  assert the **positive** code (`= 200`), so `curl … || true` → `000` on an unreachable target fails
+  **closed** (a negated `!= 404` false-passes while the service is down); rate-limit load-tests need
+  **concurrency**; `openssl x509 -dates`/`-startdate`, not the nonexistent `-notBefore`.
+- **`skills/deployment/references/CICD.md`** — `gh pr edit --title/--body` aborts on Projects-classic
+  (GraphQL `projectCards`) → patch via `gh api … -X PATCH` (REST).
+- **`rules/RULE_git-safety.md`** — documented the **`main` over-match** that *string-level* guards
+  (permission-layer patterns, outdated naive hooks — NOT the shipped per-segment hook, which allows
+  the chain) hit on compound commands (`git push <feature> && gh pr create --base main …`) → split
+  the push and the pr-create into separate invocations (not a break-glass case); and the **stacked-PR
+  retarget race** — merging a dependent PR seconds after its base can merge it into the obsolete base
+  branch, stranding the work off `main` (the auto-retarget fires on head-branch **deletion**, not the
+  merge; diagnose with `baseRefName` + `merge-base --is-ancestor` on the **merge commit** — a squash-
+  merged tip false-alarms; recover by cherry-picking onto a fresh main-based branch; avoid by
+  confirming the retarget or `gh pr edit --base main` before merging the dependent PR).
+- **`skills/compound/`** — fact-check discipline for version-gated claims: verify "added in vN" /
+  "absent until vN" assertions against release notes or the introducing PR (never version-pinned doc
+  pages), demote unverifiable gates to observations-with-provenance, and attribute an observed
+  block/denial to the right guard layer before documenting it. Stub in SKILL step 3 + full section in
+  `references/mind-vault-promotion.md` (born from this PR's own review sweep, which caught both
+  failure shapes).
+
 ## v5.3.7 — deployment+shell: git-pull deploy cutover + rootless-sudoers + privilege-drop portability + compound self-bump backstop
 
 Compounded 2026-07-05 from an edge deploy-productionization session (git-pull-as-service-account cutover onto a rootless-Docker box); single-PR section, provenance in the PR.

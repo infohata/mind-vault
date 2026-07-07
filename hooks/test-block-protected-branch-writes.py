@@ -100,6 +100,7 @@ ALLOW_CASES = [
     "git push origin main:feature-review",
     # chains where only a NON-push segment names a protected branch (review finding 4)
     "git push origin feature && git checkout main",
+    "git push origin feature && gh pr create --base main --fill",
     "git branch -D compound/old && git checkout main && git pull",
     "git checkout main && git pull && git branch -d feature-x",
     # forward-sync + read-only

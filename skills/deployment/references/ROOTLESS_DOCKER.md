@@ -93,4 +93,68 @@ grant. A typical grant is only:
   Routine ops afterward (`docker compose up -d`, `systemctl --user start`) *are* scoped-sudo. Design
   the runbook to separate the two: "one-time, root" vs "routine, scoped-sudo".
 
+## Published ports MASQUERADE the client source IP (silently breaks per-IP anything)
+
+Rootless Docker's **default port driver** (rootlesskit "builtin") source-NATs inbound connections to
+published ports: the app behind the port sees the **bridge gateway** (`172.18.0.1`-style) as the
+client, **not the real remote IP**. So a reverse proxy behind a rootless-published `:443` sees
+**every external client as one address**, and:
+
+- **per-IP rate-limiting collapses to global** — one shared bucket for the whole internet; one abuser
+  throttles everyone, and legit aggregate traffic shares one budget.
+- **access logs / geo rules / IP allow-deny lists are blind** — everything reads the gateway IP.
+
+This bites **only under real external traffic** and is invisible on a single-client test — surface it
+by **load-testing and reading what the backend echoes** (a `whoami`-style backend's `X-Forwarded-For` /
+`X-Real-Ip` will show the gateway IP, not your public IP). The proxy's `sourceCriterion`/`RemoteAddr`
+config is **correct**; the fix is below it, in the host's rootless networking:
+
+- Switch to a driver combo that **preserves source IP**: port driver **`slirp4netns`**
+  (`DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=slirp4netns` — throughput cost vs `builtin`), or the
+  newer **`pasta` *network* driver** (`DOCKERD_ROOTLESS_ROOTLESSKIT_NET=pasta` + port driver
+  `implicit` — faster, still experimental). On Docker ≥ v29.5 (RootlessKit v3.0) the default
+  `builtin` port driver propagates **TCP** source IPs when the daemon sets
+  `{"userland-proxy": false}`. All are **daemon-config changes** (systemd override on the rootless
+  daemon unit), not app config; weigh throughput vs. correctness for an edge.
+- **Blast radius — know which hosts the change even reaches.** A net-stack env change applies to only
+  one of the installer's two run modes: *user-manager* mode (full-kernel box, cgroup-v2, daemon under
+  the user's `systemd --user`) — where the override lands and the fix takes — versus *system-unit* mode
+  (container-guest box, e.g. OpenVZ with a read-only cgroup-v1, daemon from a root-owned
+  `docker-rootless.service`), a bespoke fragile net stack that must be **carved out** of a rollout
+  unless separately proven (see [ROOTLESS_DOCKER_OPENVZ.md](ROOTLESS_DOCKER_OPENVZ.md)). "Switch the
+  fleet to `pasta`" really means "switch the user-manager hosts" — enumerate each host's mode **before**
+  claiming coverage.
+- **Verify BOTH directions — a net-stack swap can silently kill EGRESS.** Changing the rootless net
+  stack re-plumbs the container's *outbound* path too, and it can break egress while inbound still
+  serves (rootlesskit #434-class). For a TLS edge this is a delayed-action failure: **ACME renewal is
+  outbound HTTPS to the CA and isn't attempted until ~30 days pre-expiry**, so broken egress **passes
+  every inbound smoke test** (`:443` serves, source IP correct, rate-limit per-IP) and then **expires
+  the cert weeks later → edge down**. Inbound liveness ≠ egress health — gate the rollout on an
+  **active outbound probe from inside the container**, e.g.
+  `docker exec <proxy> wget -qO- https://acme-v02.api.letsencrypt.org/directory`, returning the
+  CA directory JSON (no pipe after it — without `pipefail` a pipe masks `wget`'s exit code and the
+  gate fails open; with `pipefail`, a `| head` can SIGPIPE a healthy fetch into a false alarm).
+  Then confirm inbound: a request from a known external IP shows **that IP** in the
+  backend echo, and a per-IP limit throttles one client without touching a second — and **read the
+  source IP from an external host**, since a box curling its own public IP hairpins and won't
+  round-trip HTTP (the TLS handshake can still complete, masking it).
+
+## Driving `systemctl --user` for the service account FROM root — `su`, not `--machine`
+
+To trigger a `systemd --user` unit owned by the (lingering) service account as **root** (break-glass,
+when the scoped `SETENV:` grant isn't in place):
+
+- `systemctl --machine=<user>@ --user start|status <unit>` **works** for start/status, BUT
+  **`journalctl --machine=<user>@ --user`** commonly **FAILS** — `org.freedesktop.machine1 … No route
+  to host` — it needs `systemd-machined`'s journal path, absent on many minimal hosts.
+- **Robust, machined-independent path (use uniformly):**
+  ```bash
+  u=$(id -u <svcuser>)
+  su -s /bin/bash <svcuser> -c "XDG_RUNTIME_DIR=/run/user/$u systemctl --user start <unit>"
+  su -s /bin/bash <svcuser> -c "XDG_RUNTIME_DIR=/run/user/$u journalctl --user -u <unit> -n 60 --no-pager"
+  ```
+  `su` makes the uid the service account, so `systemctl/journalctl --user` reach that account's user
+  manager via `XDG_RUNTIME_DIR` with no machined dependency. A `Type=oneshot` `start` **blocks until
+  done** → verify the **outcome** (unit's effect), since a completed oneshot shows `inactive (dead)`.
+
 Related: [SCREEN_SESSIONS.md](SCREEN_SESSIONS.md) (non-login `screen … bash -c` is the most common trigger), [HARDENING.md](HARDENING.md) (the rootless migration + docker-group removal that creates this state), [ROOTLESS_DOCKER_OPENVZ.md](ROOTLESS_DOCKER_OPENVZ.md) (getting the daemon to *run at all* on a stripped cgroup-v1 OpenVZ node — a separate problem from this socket-resolution trap), [../../shell/references/SUDOERS_WHITELIST_FENCES.md](../../shell/references/SUDOERS_WHITELIST_FENCES.md) (sudoers whitelist hygiene), [../../shell/references/PRIVILEGE_DROP_PORTABILITY.md](../../shell/references/PRIVILEGE_DROP_PORTABILITY.md) (`setpriv`/`su` for dropping to the service account).

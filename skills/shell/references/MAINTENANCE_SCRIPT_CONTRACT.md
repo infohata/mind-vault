@@ -244,3 +244,51 @@ renewal_scheduled() {            # echo which mechanism; return 0 if any is acti
 Same shape for "which firewall is active" (ufw / firewalld / nftables / raw iptables),
 "which init owns this service", "apt vs dnf vs apk". The DRY-RUN should *report the
 detected variant* so the operator sees which mechanism the host actually uses.
+
+## Remote black-box `--verify`: assert the POSITIVE code, so an unreachable target fails CLOSED
+
+A verify script that probes a service over the network (`curl … || true` to tolerate a down target)
+captures **`000`** in the status var when curl can't connect. The trap is asserting the *negative*:
+
+```bash
+code="$(curl -s -o /dev/null -w '%{http_code}' … || true)"   # 000 when unreachable
+[ "$code" != 404 ] && ok "path served"      # ❌ 000 != 404 → FALSE-PASSES while the edge is DOWN
+```
+
+A whole edge can be offline and this check reports green. **Assert the positive expected code** so
+`000` (and a wrong code) both fail:
+
+```bash
+[ "$code" = 200 ] && ok "path served" || no "want 200 — broken, or edge unreachable"   # ✅ fails closed
+```
+
+Same discipline as `--verify` re-measuring the symptom: a black-box probe must **prove the good state**
+(`= 200`), never merely **fail to observe the bad one** (`!= 404`). `= 404` assertions are inherently
+safe (`000 ≠ 404` correctly fires the failure); it's the negated ones that false-pass.
+
+### Load-testing a rate-limit needs CONCURRENCY (a serial loop won't trip it)
+
+To assert a rate-limiter engages, a **sequential** `curl` loop over the network is **slower than the
+limit** (each request pays RTT + a fresh TLS handshake), so it never drains the burst → false "0 got
+429". Fire the requests **concurrently and in volume** (drain `burst` faster than `average` refills):
+
+```bash
+codes="$(seq 1 500 | xargs -P50 -n1 sh -c 'curl -s -o /dev/null -w "%{http_code}\n" --max-time 8 "<url>" 2>/dev/null || true' _)"
+n429="$(printf '%s\n' "$codes" | grep -c '^429$' || true)"   # expect > 0
+```
+
+The trailing `_` occupies `sh -c`'s `$0` slot, so the xargs-fed token lands in `$1` — deliberately
+unused here (`seq` only drives the request *count*); the `_` keeps the token out of `$0` and leaves
+`$1` free for adaptations that do consume it (a per-URL probe list).
+Single-quote the `sh -c` script so the *outer* shell can't expand anything in it (a real URL's `$`
+or query string stays literal until the inner `sh` sees it). The inner `|| true` keeps one timed-out
+`curl` (rc ≠ 0 → `xargs` rc 123) from killing a strict-mode (`set -e`) caller mid-probe — failed
+requests still surface as `-w`'s `000` lines. Gate
+`RATELIMIT_PROBE=1` (it floods the target; on a shared/global limiter it briefly throttles *all*
+clients — run against a sandbox / off-hours).
+
+### `openssl x509` has no `-notBefore` flag
+
+To read a served cert's validity window: `openssl x509 -noout -startdate` (prints `notBefore=…`) or
+`-dates` (both `notBefore=`/`notAfter=`). **`-notBefore` is not an option** — it errors `x509: Unknown
+option`. Cheap to get wrong when hand-writing a "did the cert change?" (reused-vs-re-issued) check.

@@ -45,6 +45,24 @@ Write all target files for the routing decision. Common cases:
 - **Command:** new `commands/<verb>.md` following the shape of existing `commands/*.md` files.
 - **Script:** new `tools/<script>.sh` with `chmod +x`. Include a brief header comment.
 
+## Fact-check version-gated claims before emitting
+
+A live sprint yields claims of the form "X exists only in v≥N", "flag Y was added in Z", "format
+unchanged across A–B". These are the highest-error-rate content a compound promotes: the sprint
+observed ONE version under ONE config, and the natural failure is over-generalizing that observation
+into a version gate. Two consecutive compound PRs shipped confidently-wrong claims of exactly this
+shape (PR #217: a "v3.5+" gate on a v3.0 feature; a hook blamed for a permission-layer block).
+
+- **Verify against a primary source** — release notes, the changelog, the PR/commit that introduced
+  the feature — NOT version-pinned doc pages. Docs lag features: a field absent from the vN docs
+  page may have shipped in v(N−k) undocumented (Traefik `rejectStatusCode`: in core since v3.0 via
+  traefik#10130, absent from doc pages until late 3.x — the "v3.5+" misread came from the docs gap).
+- **Can't verify** (offline run, ambiguous sources)? **Demote the claim to an observation with
+  provenance** — "observed on v3.5; introduction version unverified" — never assert the gate.
+- **Attribute a block/denial to the right layer before documenting it.** A guard firing once has
+  several candidate sources (harness permission matcher, plugin hook, repo hook, server-side rule).
+  Reproduce against the specific component you're about to blame — if it has a self-test, run it.
+
 ## Self-mode CHANGELOG bump (mind-vault self-promotion only)
 
 When `/compound` writes to mind-vault **itself** (a self-promotion — not a project-local `docs/solutions/` write), maintain `CHANGELOG.md` in the SAME commit:
