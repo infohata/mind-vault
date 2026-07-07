@@ -88,7 +88,7 @@ as a *target-of* rather than a *push-to*.)
 
 When PR **B** is opened with PR **A**'s branch as its base (a *stacked* PR — B's diff is only clean on
 top of A), the platform auto-retargets B to A's base (`main`) **when A's head branch is DELETED** —
-not on the merge itself (auto-delete-on-merge makes deletion, and so the retarget, follow the merge
+not on the merge itself (auto-delete-on-merge makes deletion — and so the retarget — follow the merge
 near-instantly; without auto-delete it never fires at all). Merge A and then B within the same short
 window (seconds) and B can merge into **A's now-obsolete branch instead of `main`** — because at
 click-time B's base was still A's branch. The result: B's commits land off `main` entirely (into a
