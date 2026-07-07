@@ -22,12 +22,19 @@ Compound from a public Traefik-v3-on-rootless-Docker edge sprint (dotfile-deny +
   `/.well-known/acme-challenge/` kills HTTP-01 renewal → cert expires → edge down); per-router
   rate-limit hygiene; and the **version-bump audit drill** (latest-minor-only support, `acme.json`
   format unchanged v3.4–v3.7 → cert reused, `%2E` pre-routing normalization, cert-reused-first gate +
-  reviewed rollback). Pointer added to the deployment SKILL References list.
+  reviewed rollback); plus the **outbound-egress canary** for cert renewal (the carve-out guards only
+  the inbound challenge path; renewal also needs outbound reach to the CA — probe it after any
+  host-network change). Pointer added to the deployment SKILL References list.
 
 ### Changed
 - **`skills/deployment/references/ROOTLESS_DOCKER.md`** — rootless Docker's default port driver
   **masquerades the client source IP** to the bridge gateway (per-IP rate-limit collapses to global;
-  logs/geo/allowlists blind) → `slirp4netns` port driver / `pasta` network driver; plus driving
+  logs/geo/allowlists blind) → `slirp4netns` port driver / `pasta` network driver; the **blast-radius
+  rule** (a net-stack env change reaches only *user-manager*-mode hosts, not *system-unit*/OpenVZ ones —
+  enumerate modes before claiming coverage); and **verify BOTH directions** — a net-stack swap can
+  silently kill *outbound* egress, and since ACME renewal is outbound + deferred to ~30d pre-expiry,
+  broken egress passes every inbound smoke test then expires the cert weeks later → gate on an active
+  in-container egress probe, and read source IP from an external host (hairpin masks it). Plus driving
   `systemctl --user` for the service account **from root** via `su` (not `--machine`, whose
   `journalctl` needs machined).
 - **`skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md`** — remote black-box `--verify` must
@@ -39,7 +46,11 @@ Compound from a public Traefik-v3-on-rootless-Docker edge sprint (dotfile-deny +
 - **`rules/RULE_git-safety.md`** — documented the **`main` over-match** that *string-level* guards
   (permission-layer patterns, outdated naive hooks — NOT the shipped per-segment hook, which allows
   the chain) hit on compound commands (`git push <feature> && gh pr create --base main …`) → split
-  the push and the pr-create into separate invocations (not a break-glass case).
+  the push and the pr-create into separate invocations (not a break-glass case); and the **stacked-PR
+  retarget race** — merging a dependent PR seconds after its base can merge it into the obsolete base
+  branch before the platform auto-retargets it to `main`, stranding the work off `main` (diagnose with
+  `merge-base --is-ancestor` + `baseRefName`; recover by cherry-picking onto a fresh main-based branch;
+  avoid by waiting for the retarget before merging the dependent PR).
 - **`skills/compound/`** — fact-check discipline for version-gated claims: verify "added in vN" /
   "absent until vN" assertions against release notes or the introducing PR (never version-pinned doc
   pages), demote unverifiable gates to observations-with-provenance, and attribute an observed

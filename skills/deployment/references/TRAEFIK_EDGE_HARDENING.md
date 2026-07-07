@@ -64,6 +64,14 @@ entrypoint — the challenge then never even reaches the guard. Gate on it in th
 (`/.well-known/security.txt` must NOT be 404; a bogus `/.well-known/acme-challenge/<x>` on :80 returns
 the ACME handler's 404, not a redirect — a `301` there means HTTP-01 renewal is at risk).
 
+> ⚠ The carve-out only protects the **inbound** challenge path. Renewal also needs **outbound** egress
+> from the proxy container to the CA API — invisible to every inbound test, and not exercised until
+> ~30 days pre-expiry, so a host-network change (e.g. a rootless net-stack swap) that breaks egress
+> passes all smoke tests and expires the cert weeks later. After **any** host-network change, actively
+> probe egress from inside the container
+> (`docker exec <proxy> wget -qO- https://acme-v02.api.letsencrypt.org/directory`) and gate on it. See
+> [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md) § *Verify BOTH directions*.
+
 ## 3. `noop` needs a dummy unreachable server, not zero servers (fail CLOSED)
 
 The deny router's `service` is never dialed (the middleware short-circuits), so it's a schema-satisfier

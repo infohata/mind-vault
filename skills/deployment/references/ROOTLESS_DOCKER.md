@@ -116,8 +116,26 @@ config is **correct**; the fix is below it, in the host's rootless networking:
   `builtin` port driver propagates **TCP** source IPs when the daemon sets
   `{"userland-proxy": false}`. All are **daemon-config changes** (systemd override on the rootless
   daemon unit), not app config; weigh throughput vs. correctness for an edge.
-- Verify after: a request from a known external IP shows **that IP** in the backend echo, and a
-  per-IP limit throttles one client without touching a second.
+- **Blast radius — know which hosts the change even reaches.** A net-stack env change applies to only
+  one of the installer's two run modes: *user-manager* mode (full-kernel box, cgroup-v2, daemon under
+  the user's `systemd --user`) — where the override lands and the fix takes — versus *system-unit* mode
+  (container-guest box, e.g. OpenVZ with a read-only cgroup-v1, daemon from a root-owned
+  `docker-rootless.service`), a bespoke fragile net stack that must be **carved out** of a rollout
+  unless separately proven (see [ROOTLESS_DOCKER_OPENVZ.md](ROOTLESS_DOCKER_OPENVZ.md)). "Switch the
+  fleet to `pasta`" really means "switch the user-manager hosts" — enumerate each host's mode **before**
+  claiming coverage.
+- **Verify BOTH directions — a net-stack swap can silently kill EGRESS.** Changing the rootless net
+  stack re-plumbs the container's *outbound* path too, and it can break egress while inbound still
+  serves (rootlesskit #434-class). For a TLS edge this is a delayed-action failure: **ACME renewal is
+  outbound HTTPS to the CA and isn't attempted until ~30 days pre-expiry**, so broken egress **passes
+  every inbound smoke test** (`:443` serves, source IP correct, rate-limit per-IP) and then **expires
+  the cert weeks later → edge down**. Inbound liveness ≠ egress health — gate the rollout on an
+  **active outbound probe from inside the container**, e.g.
+  `docker exec <proxy> wget -qO- https://acme-v02.api.letsencrypt.org/directory | head`, returning the
+  CA directory JSON. Then confirm inbound: a request from a known external IP shows **that IP** in the
+  backend echo, and a per-IP limit throttles one client without touching a second — and **read the
+  source IP from an external host**, since a box curling its own public IP hairpins and won't
+  round-trip HTTP (the TLS handshake can still complete, masking it).
 
 ## Driving `systemctl --user` for the service account FROM root — `su`, not `--machine`
 
