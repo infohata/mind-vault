@@ -132,8 +132,9 @@ config is **correct**; the fix is below it, in the host's rootless networking:
   the cert weeks later → edge down**. Inbound liveness ≠ egress health — gate the rollout on an
   **active outbound probe from inside the container**, e.g.
   `docker exec <proxy> wget -qO- https://acme-v02.api.letsencrypt.org/directory`, returning the
-  CA directory JSON (no `| head` — a pipe would mask `wget`'s exit code and the gate would fail
-  open). Then confirm inbound: a request from a known external IP shows **that IP** in the
+  CA directory JSON (no pipe after it — without `pipefail` a pipe masks `wget`'s exit code and the
+  gate fails open; with `pipefail`, a `| head` can SIGPIPE a healthy fetch into a false alarm).
+  Then confirm inbound: a request from a known external IP shows **that IP** in the
   backend echo, and a per-IP limit throttles one client without touching a second — and **read the
   source IP from an external host**, since a box curling its own public IP hairpins and won't
   round-trip HTTP (the TLS handshake can still complete, masking it).
