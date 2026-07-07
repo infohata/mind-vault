@@ -12,7 +12,7 @@ _(none)_
 
 ## v5.3.8 — deployment+shell: Traefik v3 edge hardening + rootless source-IP masquerade + remote black-box verify
 
-Compound from a public Traefik-v3-on-rootless-Docker edge sprint (dotfile-deny + rate-limit + a version bump).
+Compounded 2026-07-06 from a public Traefik-v3-on-rootless-Docker edge sprint (dotfile-deny + rate-limit + a version bump); amended 2026-07-07 with the apply/wrap-phase traps ([#217](https://github.com/infohata/mind-vault/pull/217)).
 
 ### Added
 - **`skills/deployment/references/TRAEFIK_EDGE_HARDENING.md`** (new) — native dotfile-**404** at a
