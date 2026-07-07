@@ -49,7 +49,7 @@ unnecessary on any v3.
 
 ## 2. The `.well-known` carve-out is load-bearing — never block cert renewal
 
-`PathRegexp((?:^|/)\.)` matches **any** dot-prefixed segment, which **includes `/.well-known/`** — an
+``PathRegexp(`(?:^|/)\.`)`` matches **any** dot-prefixed segment, which **includes `/.well-known/`** — an
 IANA-standard, legitimately-served prefix (`security.txt`, OIDC `/.well-known/openid-configuration`,
 MTA-STS, and critically **`/.well-known/acme-challenge/`**). Blocking it:
 

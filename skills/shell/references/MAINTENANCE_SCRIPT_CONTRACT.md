@@ -277,8 +277,9 @@ codes="$(seq 1 500 | xargs -P50 -n1 sh -c 'curl -s -o /dev/null -w "%{http_code}
 n429="$(printf '%s\n' "$codes" | grep -c '^429$' || true)"   # expect > 0
 ```
 
-The trailing `_` occupies `sh -c`'s `$0` slot, so the xargs-fed token lands in `$1` — referenceable
-from the script, instead of being silently swallowed as `$0`.
+The trailing `_` occupies `sh -c`'s `$0` slot, so the xargs-fed token lands in `$1` — deliberately
+unused here (`seq` only drives the request *count*); the `_` keeps the token out of `$0` and leaves
+`$1` free for adaptations that do consume it (a per-URL probe list).
 Single-quote the `sh -c` script so the *outer* shell can't expand anything in it (a real URL's `$`
 or query string stays literal until the inner `sh` sees it). Gate
 `RATELIMIT_PROBE=1` (it floods the target; on a shared/global limiter it briefly throttles *all*
