@@ -10,6 +10,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.3.9 — laravel: composer build-PHP ≠ runtime-PHP platform pin
+
+Compounded 2026-07-09 from a containerized-Laravel deploy that fataled on first request with a
+`platform_check.php` gate.
+
+### Added
+- `skills/laravel/references/CONTAINER_BUILD_PLATFORM.md` — the `composer:N` build image tracks the latest
+  PHP, so a lockless `composer update` resolves deps against a PHP newer than the `php:X-fpm` runtime and
+  bakes a `platform_check.php` gate that fatals on first request. Fix: pin `config.platform.php` in the
+  **build stage only** (not the repo-wide `composer.json`, which would break other-PHP consumers) and use
+  `--ignore-platform-req='ext-*'` so `php` stays enforced while only the runtime-installed extensions the
+  composer image lacks are ignored. References-list pointer added to `skills/laravel/SKILL.md`.
+
 ## v5.3.8 — deployment+shell: Traefik v3 edge hardening + rootless source-IP masquerade + remote black-box verify
 
 Compounded 2026-07-06 from a public Traefik-v3-on-rootless-Docker edge sprint (dotfile-deny + rate-limit + a version bump); amended 2026-07-07 with the apply/wrap-phase traps ([#217](https://github.com/infohata/mind-vault/pull/217)).
