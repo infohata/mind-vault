@@ -63,6 +63,40 @@ Reserve the recipe below for boxes that fail that probe.
    *run-as-the-docker-user* (NOT root) sudoers for daemon management
    (`sudo -u <docker-user> systemctl …`).
 
+## The socket ACL survives reboots — but the *directory* ACL's mask silently doesn't
+
+Layer 6 grants `docker-ops` via **two** `ExecStartPost setfacl` lines — one on the socket, one on its
+parent runtime dir (`/run/docker-rootless`, a `0700` dir the daemon owns). The socket grant survives
+every restart; the **directory** grant silently doesn't, and the daemon goes unreachable to the whole
+`docker-ops` group *after each restart/reboot*:
+
+```text
+$ getfacl /run/docker-rootless
+group:docker-ops:r-x    #effective:---     ← the grant is present…
+mask::---                                   ← …but the mask caps it to nothing
+$ namei -l /run/docker-rootless/docker.sock
+drwx------ docker docker docker-rootless    ← 0700; no group traverse → sock unreachable
+```
+
+Cause: the daemon `chmod`s that runtime dir to `0700` **after** `ExecStartPost` runs, and a `chmod` of
+the group bits **rewrites the POSIX ACL mask to `---`**, which caps every *named* ACL entry to nothing
+(`#effective:---`). The socket's own ACL is perfect — you just can't `x` into the directory holding it →
+`docker info` → `Cannot connect to the Docker daemon … permission denied`. It reads like a dropped
+grant; it's a **masked** one. The socket line escapes this only because it `[ -S <sock> ]`-**waits** for
+the socket before its `setfacl`, landing *after* the daemon's chmod.
+
+Fix — make the directory `ExecStartPost` (a) wait like the socket line does and (b) set the mask
+explicitly so a later chmod can't neuter it:
+
+```ini
+ExecStartPost=/bin/sh -c 'for _ in $(seq 1 50); do [ -S %t/docker.sock ] && break; sleep 0.1; done; \
+  /usr/bin/setfacl -m g:docker-ops:rx -m m::rx %t && /usr/bin/setfacl -m g:docker-ops:rw -m m::rw %t/docker.sock'
+```
+
+One-shot repair on a live box (no restart): `setfacl -m g:docker-ops:rx -m m::rx /run/docker-rootless`.
+General rule: **an ACL entry on a mode-0700 object is a trap — any `chmod` resets the mask to `---` and
+silences it. Set `m::` alongside the named entry, and re-assert both after anything that chmods.**
+
 ## Ports below 1024
 
 Rootless can't bind `<1024` unless `net.ipv4.ip_unprivileged_port_start` is lowered, and
@@ -91,8 +125,9 @@ enough for a web tier; you don't need it at 0.
 - [ ] `dockerd-cgroupless` wrapper overmounts an empty tmpfs on `/sys/fs/cgroup` in the rootlesskit ns.
 - [ ] `daemon.json`: `storage-driver: vfs`.
 - [ ] `tmpfiles.d` recreates `/dev/net/tun` on boot.
-- [ ] `docker-rootless.service` (root-owned, `User=<docker-user>`, `RuntimeDirectory`), socket
-      ACL re-applied by `ExecStartPost`.
+- [ ] `docker-rootless.service` (root-owned, `User=<docker-user>`, `RuntimeDirectory`); **both** the
+      socket AND its parent-dir ACL re-applied by `ExecStartPost` — each *waiting for the socket* and
+      setting `m::` explicitly (a 0700 dir's ACL mask is clobbered by the daemon's chmod otherwise).
 - [ ] Port strategy decided (`ip_unprivileged_port_start` lowered, or rootful/edge proxy for 80/443).
 
 Related: [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md) (the deploy-shell socket-resolution trap that
