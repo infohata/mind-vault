@@ -10,6 +10,39 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.3.10 — deployment: rootless docker-ops ACL mask + operator-vs-service-account + host-write subuid ownership
+
+Compounded 2026-07-13 from a rootless-Docker monitoring-stack adaptation on a stripped-OpenVZ bastion (a `stack.sh` that wrapped the now-masked rootful daemon), via [#218](https://github.com/infohata/mind-vault/pull/218).
+
+### Added
+- `skills/deployment/references/ROOTLESS_DOCKER_OPENVZ.md` — **the socket ACL survives reboots but the
+  parent-*directory* ACL's mask doesn't.** The `0700` runtime dir gets `chmod`'d by the daemon *after*
+  `ExecStartPost setfacl`, which rewrites the POSIX mask to `---` → the `docker-ops` entry reads
+  `#effective:---` → daemon unreachable to the whole group after every restart (looks like a dropped
+  grant; it's a masked one). Fix: the dir `ExecStartPost` must wait-for-socket and set `m::` explicitly
+  (`setfacl -m g:docker-ops:rx -m m::rx`); one-shot live repair is the same setfacl. Checklist tightened.
+- `skills/deployment/references/ROOTLESS_DOCKER.md` — two rootless-identity traps. (1) **Operator-owned
+  config ↔ `sudo -u docker` don't mix**: the service account can't traverse the operator's `0700`/`0750`
+  home to read the compose file/`.env` (`stat …/.env: permission denied`) → pick run-as-service-account
+  (config under `~docker/`) OR operator-as-self (compose via the socket ACL), and `sudo rsync` to seed a
+  service-account-owned mount root. (2) **Host-written, container-read files need the container SUBUID,
+  not the in-image uid**: the userns remap makes a host-`65534` `0600` secret "other" to a container
+  running in-image `65534` (host `subuid_base+65533`) → perm-denied config-load crash; own it as the
+  subuid and preserve that across re-renders.
+
+## v5.3.9 — laravel: composer build-PHP ≠ runtime-PHP platform pin
+
+Compounded 2026-07-09 from a containerized-Laravel deploy that fataled on first request with a
+`platform_check.php` gate, via [#218](https://github.com/infohata/mind-vault/pull/218).
+
+### Added
+- `skills/laravel/references/CONTAINER_BUILD_PLATFORM.md` — the `composer:N` build image tracks the latest
+  PHP, so a lockless `composer update` resolves deps against a PHP newer than the `php:X-fpm` runtime and
+  bakes a `platform_check.php` gate that fatals on first request. Fix: pin `config.platform.php` in the
+  **build stage only** (not the repo-wide `composer.json`, which would break other-PHP consumers) and use
+  `--ignore-platform-req='ext-*'` so `php` stays enforced while only the runtime-installed extensions the
+  composer image lacks are ignored. References-list pointer added to `skills/laravel/SKILL.md`.
+
 ## v5.3.8 — deployment+shell: Traefik v3 edge hardening + rootless source-IP masquerade + remote black-box verify
 
 Compounded 2026-07-06 from a public Traefik-v3-on-rootless-Docker edge sprint (dotfile-deny + rate-limit + a version bump); amended 2026-07-07 with the apply/wrap-phase traps ([#217](https://github.com/infohata/mind-vault/pull/217)).

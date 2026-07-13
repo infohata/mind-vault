@@ -244,6 +244,7 @@ echo __('booking.confirmation_intro'); // resolves: DB override → file fallbac
 - [Policies & Gates](references/POLICIES_GATES.md) — policies/gates, auto-discovery, `spatie/laravel-permission` as RBAC storage, structural 403, the `viewAny` gap.
 - [Pest testing](references/PEST_TESTING.md) — Pest as the conventional default, Feature vs Unit, `RefreshDatabase`, factories, `--parallel`.
 - [Conventions](references/CONVENTIONS.md) — paraphrased Laravel Boost + Spatie style guidelines (defer to the target project's Boost CLAUDE.md if installed).
+- [Container build platform pin](references/CONTAINER_BUILD_PLATFORM.md) — build-PHP ≠ runtime-PHP in a multi-stage Dockerfile: the `composer:N` image floats to the newest PHP, so a lockless `composer update` bakes a `platform_check.php` gate that fatals the older runtime. Pin `config.platform.php` in the build stage only + `--ignore-platform-req='ext-*'` (keeps `php` enforced).
 - [Laravel Documentation](https://laravel.com/docs/12.x)
 - [Eloquent Relationships](https://laravel.com/docs/12.x/eloquent-relationships)
 - [Pest](https://pestphp.com/docs/installation)

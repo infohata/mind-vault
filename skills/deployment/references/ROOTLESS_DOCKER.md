@@ -93,6 +93,38 @@ grant. A typical grant is only:
   Routine ops afterward (`docker compose up -d`, `systemctl --user start`) *are* scoped-sudo. Design
   the runbook to separate the two: "one-time, root" vs "routine, scoped-sudo".
 
+## Operator-owned config ↔ `sudo -u docker` don't mix — pick one identity for the whole stack
+
+A subtler fork in the scoped model: **who owns the compose files, `.env`, and config the daemon
+mounts?** Two coherent choices, and mixing them wedges you:
+
+- **Run-as-service-account:** config lives under `~<docker-user>/` (service-account-owned), driven via
+  `sudo -u docker … docker compose …`. The account reads its own config and reaches its own daemon.
+  Clean, but every config edit is a `sudo -u docker`/root write.
+- **Operator-as-self:** config lives in the *operator's* checkout, driven **as the operator** — reaching
+  the daemon through the shared-socket ACL (`DOCKER_HOST` + `docker-ops`, no `sudo`). The operator reads
+  its own checkout; the daemon (service account) does the container ops.
+
+The trap is `sudo -u docker docker compose` while the config is **operator-owned**: the service account
+**cannot traverse the operator's `0700`/`0750` home** to read the compose file or `.env` →
+`stat /home/<operator>/…/.env: permission denied`, and compose never starts. So don't `sudo -u docker`
+against an operator-owned checkout — either move config under `~<docker-user>/` (fully
+run-as-service-account) or drive compose as the operator via the socket ACL. Config the daemon mounts
+from an operator-owned path also needs a privileged copy step (`sudo rsync` into the mount root), since
+the operator can't write under a service-account-owned parent dir.
+
+## Host-written, container-read files need the container's SUBUID, not its in-image uid
+
+A file written **on the host** and read by an **unprivileged rootless container** is subject to the
+userns remap: the container's in-image uid `N` is **not** host uid `N` — it maps to host
+`subuid_base + N − 1` (`/etc/subuid`). So a secret placed `install -o 65534 -g 65534 -m 0600 …` (host uid
+65534) is **"other"** to a container running as in-image `65534` (host `subuid_base+65533`) → `0600`
+denies it → config-load **permission-denied crash** that looks like a bad file, not a uid one. Own it as
+the **subuid** (read the live file's owner with `stat -c %u:%g`, or compute from `/etc/subuid`), keep
+`0600`. This is the rootless twin of the ordinary "chown the bind mount to the container uid" rule — the
+number is just remapped. A render step that re-`install`s the file every deploy must **preserve the
+subuid owner** (`stat` the live file), not re-hardcode the in-image uid.
+
 ## Published ports MASQUERADE the client source IP (silently breaks per-IP anything)
 
 Rootless Docker's **default port driver** (rootlesskit "builtin") source-NATs inbound connections to
