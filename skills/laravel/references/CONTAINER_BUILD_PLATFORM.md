@@ -2,14 +2,15 @@
 
 A multi-stage PHP/Laravel Dockerfile typically installs dependencies in a `FROM composer:N` stage and
 runs in a separate `FROM php:X-fpm` runtime. **The `composer:N` official image tracks the *latest* PHP**
-(it is rebuilt as new PHP releases land), so its PHP can be **newer** than your pinned runtime. When the
+(it builds `FROM` a floating `php:8`-series tag and is rebuilt as new PHP releases land — there is no
+PHP-pinned variant), so its PHP can be **newer** than your pinned runtime. When the
 lockfile is not committed (a deliberate float model) — or you otherwise run `composer update` — composer
 resolves dependencies against the **build image's** PHP and pulls package versions that floor at a PHP
 newer than your runtime. Composer bakes the highest resolved platform requirement into
 `vendor/composer/platform_check.php`, which the autoloader runs on **every** request/boot. On the older
 runtime it throws:
 
-```
+```text
 RuntimeException: Composer detected issues in your platform:
 Your Composer dependencies require a PHP version ">= 8.4.1". You are running 8.3.x.
   in .../vendor/composer/platform_check.php
@@ -20,8 +21,10 @@ Your Composer dependencies require a PHP version ">= 8.4.1". You are running 8.3
 ## Why the usual `--ignore-platform-reqs` makes it worse
 
 The blanket `--ignore-platform-reqs` ignores the `php` constraint **too**, so composer will happily
-select packages incompatible with the real runtime and nothing complains during the build. The mismatch
-is simply deferred to runtime, where `platform_check.php` fails. It hides the bug instead of preventing it.
+select packages incompatible with the real runtime — and worse, ignored requirements are **excluded from
+the generated `platform_check.php`**, so the gate itself is silenced. The mismatch then surfaces as
+arbitrary undiagnosed breakage deep inside a newer-PHP-floored package (parse/feature errors), not as
+one clear platform fatal. It hides the bug instead of preventing it.
 
 ## The fix — two parts
 
@@ -47,10 +50,10 @@ is simply deferred to runtime, where `platform_check.php` fails. It hides the bu
 
 ## Verify
 
-Resolve inside the composer image and read the generated gate — it should match your **runtime** series,
-not the build image's:
+Resolve inside the composer image and read the generated gate — its floor must **not exceed your
+runtime** series (it reflects the highest package floor, so after pinning it's ≤ the pin, often lower):
 ```bash
-grep PHP_VERSION_ID vendor/composer/platform_check.php   # want >= 80300, not >= 80400
+grep PHP_VERSION_ID vendor/composer/platform_check.php   # <= 80300 (e.g. >= 80100) ok; >= 80400 fatals the runtime
 ```
 A quick before/after in the `composer:N` image also shows a floored transitive dependency dropping from
 its newer-PHP major to a runtime-compatible version.
@@ -59,11 +62,20 @@ its newer-PHP major to a runtime-compatible version.
 
 - **Applies:** any multi-stage PHP build where the build-stage PHP can float above the runtime **and** the
   lockfile isn't committed (so `composer update` runs at build and resolution can drift).
-- **Committed lockfile + `composer install`:** resolution is frozen, so it can't silently drift — but the
-  build-image-PHP mismatch still means `install` should either run under the runtime PHP or carry the
-  same `config.platform.php` build-scoped pin, so `platform_check.php` is generated for the runtime.
+- **Committed lockfile + `composer install`:** resolution is frozen, so it can't silently drift at build —
+  but if the lock was *updated* on a newer PHP, the baked gate follows the **lock's** floor and the
+  build-stage pin does NOT rescue it (probed on Composer 2.10: `install` bakes the lock's requirement into
+  `platform_check.php` regardless of `config.platform.php`). The working guard is running `install` under
+  the **runtime** PHP, which fails the *build* ("Your lock file does not contain a compatible set of
+  packages") instead of fataling at runtime.
 - **Same PHP in both stages:** no mismatch, nothing to pin.
 
 The root shape is general: **whenever the toolchain that resolves/generates artifacts runs a different
 platform version than the target that executes them, pin the resolver to the target — and scope the pin
 to the build, not the shared manifest.**
+
+## Version note
+
+`platform_check.php` generation is Composer 2.0+; the `--ignore-platform-req` wildcard (`ext-*`) is
+Composer 2.2+ — any current `composer:2` image satisfies both (behavior above probed on Composer 2.10).
+Container-build-level pattern, not Laravel-version-sensitive — no L13 drift expected.

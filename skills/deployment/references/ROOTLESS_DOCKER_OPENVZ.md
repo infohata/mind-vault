@@ -57,8 +57,9 @@ Reserve the recipe below for boxes that fail that probe.
    on every boot: `c! /dev/net/tun … 10:200 -` (plus a boot-time `mknod` for the current
    session).
 
-6. **The usual usability layer, unchanged.** Socket ACL to a `docker-ops` group (re-applied
-   by an `ExecStartPost` each daemon start so it survives reboots), `/etc/profile.d` pointing
+6. **The usual usability layer, unchanged.** Socket **and runtime-dir** ACLs to a `docker-ops`
+   group (two `ExecStartPost setfacl` grants, re-applied each daemon start so they survive
+   reboots — see the mask trap below), `/etc/profile.d` pointing
    `DOCKER_HOST` at the socket for group members (so `docker compose up` needs no sudo), and a
    *run-as-the-docker-user* (NOT root) sudoers for daemon management
    (`sudo -u <docker-user> systemctl …`).
@@ -85,17 +86,21 @@ the group bits **rewrites the POSIX ACL mask to `---`**, which caps every *named
 grant; it's a **masked** one. The socket line escapes this only because it `[ -S <sock> ]`-**waits** for
 the socket before its `setfacl`, landing *after* the daemon's chmod.
 
-Fix — make the directory `ExecStartPost` (a) wait like the socket line does and (b) set the mask
-explicitly so a later chmod can't neuter it:
+Fix — merge both grants into one `ExecStartPost` that (a) waits for the socket (as the socket line
+already did) and (b) sets the mask explicitly so a later chmod can't neuter it. Note the paths: in a
+*system* unit `%t` is `/run` (the runtime-directory *root*), so the `RuntimeDirectory=docker-rootless`
+subdir must be spelled out:
 
 ```ini
-ExecStartPost=/bin/sh -c 'for _ in $(seq 1 50); do [ -S %t/docker.sock ] && break; sleep 0.1; done; \
-  /usr/bin/setfacl -m g:docker-ops:rx -m m::rx %t && /usr/bin/setfacl -m g:docker-ops:rw -m m::rw %t/docker.sock'
+ExecStartPost=/bin/sh -c 'for _ in $(seq 1 50); do [ -S %t/docker-rootless/docker.sock ] && break; sleep 0.1; done; \
+  /usr/bin/setfacl -m g:docker-ops:rx -m m::rx %t/docker-rootless && \
+  /usr/bin/setfacl -m g:docker-ops:rw -m m::rw %t/docker-rootless/docker.sock'
 ```
 
 One-shot repair on a live box (no restart): `setfacl -m g:docker-ops:rx -m m::rx /run/docker-rootless`.
-General rule: **an ACL entry on a mode-0700 object is a trap — any `chmod` resets the mask to `---` and
-silences it. Set `m::` alongside the named entry, and re-assert both after anything that chmods.**
+General rule: **an ACL entry on a mode-0700 object is a trap — any `chmod` rewrites the mask to its
+group bits, so a `0700` re-assert resets it to `---` and silences every named entry. Set `m::`
+alongside the named entry, and re-assert both after anything that chmods.**
 
 ## Ports below 1024
 

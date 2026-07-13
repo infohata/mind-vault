@@ -33,7 +33,7 @@ Compounded 2026-07-13 from a rootless-Docker monitoring-stack adaptation on a st
 ## v5.3.9 — laravel: composer build-PHP ≠ runtime-PHP platform pin
 
 Compounded 2026-07-09 from a containerized-Laravel deploy that fataled on first request with a
-`platform_check.php` gate.
+`platform_check.php` gate, via [#218](https://github.com/infohata/mind-vault/pull/218).
 
 ### Added
 - `skills/laravel/references/CONTAINER_BUILD_PLATFORM.md` — the `composer:N` build image tracks the latest
