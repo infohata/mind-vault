@@ -10,7 +10,7 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
-## v5.5.0 — deployment: Loki/promtail pipeline traps + rootless dual-port wedge
+## v5.4.1 — deployment: Loki/promtail pipeline traps + rootless dual-port wedge
 
 Compounded 2026-07-14 from a live estate log-aggregation bring-up (Loki + promtail for auth/SSH),
 where every item below shipped past config review AND a passing dry-run, and was caught only by

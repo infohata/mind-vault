@@ -117,6 +117,15 @@ enough for a web tier; you don't need it at 0.
   cgroup version + per-user-manager availability per box, not once for the fleet.
 - **Non-fatal `mknod`/tmpfiles noise at boot** is expected on some nodes — the tmpfiles entry
   is the persistent fix; the boot `mknod` just covers the current session.
+- **Container stuck in `Created`, `compose up` hangs, `slirp4netns` spins?** That is NOT an OpenVZ
+  quirk — it is the generic rootlesskit **dual-port-publish wedge** (same host port on two IPs). It
+  just tends to surface here first, because stripped boxes force the slirp4netns/builtin driver combo.
+  See [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md).
+- **After restarting the daemon here** (system-unit mode: `systemctl restart <your-unit>`, not
+  `systemctl --user restart docker`), re-check `docker ps -a` — containers exiting non-zero on SIGTERM
+  stay down despite `restart: unless-stopped`. Generic Docker behaviour, documented in
+  [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md); it bites harder here because the system-unit path makes
+  daemon restarts a routine part of the recipe.
 - Kernel version alone is NOT the discriminator — a 4.19 OpenVZ box and a 6.x one can *both*
   need this recipe or *both* not; unprivileged user namespaces being enabled is necessary but
   the withheld pieces (per-user manager, cgroup delegation, FUSE, tun) are what decide. Gate
