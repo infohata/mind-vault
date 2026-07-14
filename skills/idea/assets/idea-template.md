@@ -4,7 +4,7 @@ title: "{{TITLE}}"       # QUOTED — an unquoted `:` in the title breaks the wh
 status: idea          # idea | in-progress | complete | superseded
 priority: {{PRIORITY}}   # high | medium | low
 supersedes: {{SUPERSEDES_LIST}}       # QUOTED ids, e.g. ["012"] — or []
-superseded_by: null
+superseded_by: null                   # when set: QUOTED id, e.g. "042"
 depends_on: {{DEPENDS_ON_LIST}}       # QUOTED ids, e.g. ["015"] — or []
 related: {{RELATED_LIST}}             # QUOTED ids, e.g. ["007", "013"] — or []
 created: {{TODAY}}

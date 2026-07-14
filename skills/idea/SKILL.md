@@ -73,7 +73,7 @@ When invoked with a slug argument that matches an existing file (`/idea sprint-w
 | Transition | Action |
 | --- | --- |
 | `idea` → `in-progress` | `mkdir docs/archive/YYYY-MM-idea-NNN-<slug>/` + `git mv docs/ideas/IDEA-NNN-<slug>.md <dir>/IDEA-NNN-<slug>.md` + `status: in-progress`. Usually triggered by `/plan`, not directly. |
-| `idea` → `superseded` \| `rejected` | Same move (fresh archive dir, `YYYY-MM` = rejection month) + `status: superseded \| rejected` + `superseded_by: NNN` if known. |
+| `idea` → `superseded` \| `rejected` | Same move (fresh archive dir, `YYYY-MM` = rejection month) + `status: superseded \| rejected` + `superseded_by: "NNN"` if known. |
 | `in-progress` → `complete` \| `superseded` \| `rejected` | **Frontmatter-only.** File stays in its archive dir. Triggered by `/work` (on merge) or `/compound` (on rejection). |
 | Reverse (`complete`/`superseded` → active) | Refuse by default. Require explicit `--resurrect` flag; reviewed by human; may involve `git mv` back to `docs/ideas/` and creating a new IDEA number for the resumed work. |
 
@@ -177,11 +177,13 @@ str(29).zfill(3)                            # -> '029'  ← now IDEA-035 collide
 
 **Rules:**
 - Write `id: "{{NNN}}"` — quoted, always.
-- Quote id lists too: `related: ["007", "013"]`, `depends_on: ["015"]`, `supersedes: ["012"]`.
+- Quote id lists too: `related: ["007", "013"]`, `depends_on: ["015"]`, `supersedes: ["012"]` — and
+  the scalar `superseded_by: "112"` when set.
 - **Quote `title:` as well.** Separate bug, same root cause (unquoted scalars): an inner colon —
-  `title: Reference bootstrap — read-only App credential (pilot: teisutis.com)` — raises
+  `title: Reference bootstrap — read-only App credential (pilot: client.example.com)` — raises
   `ScannerError: mapping values are not allowed here` and kills the *whole* frontmatter block, not just
-  the title.
+  the title. If the title itself contains a double quote, escape it (`title: "Fix \"ghost\" buttons"`)
+  or rephrase — never emit an unescaped `"` inside the quoted title.
 - When reading ids programmatically, **derive from the FILENAME** (`IDEA-(\d+)-`), not the frontmatter —
   it is octal-immune and works on files whose frontmatter is broken.
 
@@ -198,9 +200,10 @@ filename number). This `sed` handles both and is idempotent:
 find docs/ideas docs/archive -name 'IDEA-*.md' -print0 2>/dev/null | xargs -0 --no-run-if-empty \
   sed -i -E 's/^id:[[:space:]]*"?(IDEA-)?([0-9]{1,3})"?[[:space:]]*$/id: "\2"/'
 
-# Find unquoted titles containing a colon — these RAISE and kill the whole frontmatter. Fix by hand
-# (quote the title); a blind sed here would maul titles that legitimately contain quotes.
-grep -rlE '^title:[[:space:]]*[^"'"'"'].*:' docs/ideas docs/archive --include='IDEA-*.md' || true
+# Find unquoted titles with a colon followed by a space (or at line end) — these RAISE and kill the
+# whole frontmatter (a colon inside a word, like `1:1`, is legal YAML). Fix by hand (quote the
+# title); a blind sed here would maul titles that legitimately contain quotes.
+grep -rlE '^title:[[:space:]]*[^"'"'"'[:space:]].*:([[:space:]]|$)' docs/ideas docs/archive --include='IDEA-*.md' 2>/dev/null || true
 
 # Verify: every id is now a quoted string, and each matches its own filename.
 python3 - <<'EOF'
@@ -218,9 +221,9 @@ print('OK — all ids parse as strings matching their filenames' if not bad else
 EOF
 ```
 
-Also hand-quote any `related:` / `depends_on:` / `supersedes:` lists (`[007, 013]` → `["007", "013"]`)
-and any `title:` containing a colon — the `sed` above deliberately only touches `id:`, since those
-fields need judgement.
+Also hand-quote any `related:` / `depends_on:` / `supersedes:` lists (`[007, 013]` → `["007", "013"]`),
+any set `superseded_by:` (`112` → `"112"`), and any `title:` containing a colon — the `sed` above
+deliberately only touches `id:`, since those fields need judgement.
 
 ## When NOT to use these patterns
 

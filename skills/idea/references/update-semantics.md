@@ -57,7 +57,7 @@ These are referential — they point at other IDEA ids. The skill does not enfor
 - Warn if the referenced id does not exist in `docs/ideas/`.
 - Never silently delete an entry because the target is missing.
 
-Bi-directional relationships are **not automatically mirrored**. If IDEA-112 is set `supersedes: [091, 109]`, the skill does **not** automatically set `superseded_by: 112` on IDEAs 091 and 109. Ask the user whether to update the other end; if yes, do it in a second pass.
+Bi-directional relationships are **not automatically mirrored**. If IDEA-112 is set `supersedes: ["091", "109"]`, the skill does **not** automatically set `superseded_by: "112"` on IDEAs 091 and 109. Ask the user whether to update the other end; if yes, do it in a second pass.
 
 ## Re-indexing
 
