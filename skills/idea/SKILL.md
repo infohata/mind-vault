@@ -147,10 +147,22 @@ The zero-padding above is what makes this bite. **A bare zero-padded id is YAML-
 `depends_on:`, and `supersedes:` (also bare id lists), a project's frontmatter quietly reports the
 wrong idea numbers.
 
-**It is a sub-100 problem, which is why it survives.** Of the ids `001`–`099`, the **64** whose digits
-are all `0`–`7` misparse; those containing an `8` or `9` (`008`, `029`, `019`…) happen to parse as
-decimal and are correct **by luck**; `100`+ has no leading zero and is safe. So a young project is
-wrong on ~2/3 of its ideas and a mature one looks fine — the bug ages out before anyone catches it.
+**It is a sub-100 problem, which is why it survives.** Precisely, for ids `001`–`099`:
+
+| ids | count | result |
+|---|---|---|
+| `010`–`077`, all digits `0`–`7` | **56** | **wrong value** — `035`→`29`, `020`→`16`, `016`→`14`. The dangerous set. |
+| `001`–`007` | 7 | int `1`–`7` — value right, type wrong; a `zfill(3)` recovers them. |
+| any id containing an `8` or `9` (`008`, `029`, `099`) | 36 | stays a **string** — correct **by luck** (8/9 are invalid octal, so no coercion). |
+| `100`+ | — | no leading zero → safe. |
+
+So a young project is wrong on most of its ideas and a mature one looks fine — **the bug ages out before
+anyone catches it.**
+
+**The collision is subtle.** Raw, `035`→`29` (int) and `029`→`'029'` (str) are *different* dict keys. But
+normalise them to 3 digits — `str(v).zfill(3)`, the obvious move when building a status table — and `29`
+becomes `'029'`, which **collides with the real IDEA-029**. One silently overwrites the other. That is
+the actual observed failure.
 
 It also stays invisible because **nothing in the workflow parses idea frontmatter** — `/idea` writes it,
 humans read it, and YAML never gets a chance to raise. It only surfaces the moment someone writes a
@@ -158,7 +170,9 @@ script or an agent builds a status table, and then it does so as *silently wrong
 
 ```python
 # The failure mode. No exception — the wrong answer.
-yaml.safe_load('id: 035')['id']   # -> 29   (029 and 035 COLLIDE in a dict keyed by id)
+yaml.safe_load('id: 035')['id']            # -> 29     (int)
+yaml.safe_load('id: 029')['id']            # -> '029'  (str — 9 is invalid octal, so no coercion)
+str(29).zfill(3)                            # -> '029'  ← now IDEA-035 collides with IDEA-029
 ```
 
 **Rules:**

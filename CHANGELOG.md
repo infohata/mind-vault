@@ -29,9 +29,11 @@ IDEA-035 silently overwrote IDEA-029 — the second time the same bug surfaced i
 
 ### Why it hid for so long
 
-It is a **sub-100 problem**. Of ids `001`–`099`, the **64** whose digits are all `0`–`7` misparse; those
-containing an `8` or `9` (`008`, `029`) parse as decimal and are right **by luck**; `100`+ has no leading
-zero and is safe — so the bug ages out before a project is old enough to notice. And **nothing in the
+It is a **sub-100 problem**. Of ids `001`–`099`: **56** (`010`–`077`, digits all `0`–`7`) get a **wrong
+value**; `001`–`007` become int `1`–`7` (value right, type wrong); the **36** containing an `8` or `9`
+stay strings and are right **by luck**; `100`+ has no leading zero and is safe — so the bug ages out
+before a project is old enough to notice. The collision needs one more step: raw, `035`→`29` (int) and
+`029`→`'029'` (str) differ — but `str(29).zfill(3)` == `'029'`, so any normalising reader collides them. And **nothing in the
 workflow parses idea frontmatter** (`/idea` writes it, humans read it), so YAML never gets a chance to
 raise. It surfaces only when someone writes tooling — and then as *silently wrong data*, not an error.
 
