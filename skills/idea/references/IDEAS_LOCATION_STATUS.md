@@ -57,7 +57,7 @@ The word "archive" is a slight misnomer in this model — it's really "this idea
                         │
                         │  or (rejected path) → frontmatter edits:
                         │    status: superseded | rejected
-                        │    superseded_by: NNN  (if known)
+                        │    superseded_by: "NNN"  (if known — QUOTED, bare 0NN is YAML octal)
                         │
                         ▼
                  Same directory, same path. No file move.
@@ -88,7 +88,7 @@ completed: 2026-04-22
 ```yaml
 # On rejection during /compound
 status: rejected
-# optionally superseded_by: 123
+# optionally superseded_by: "123"
 ```
 
 No `git mv` on the second transition. That's the whole point.
@@ -102,7 +102,7 @@ mkdir -p docs/archive/YYYY-MM-idea-NNN-<slug>/
 git mv docs/ideas/IDEA-NNN-<slug>.md \
        docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md
 # Update frontmatter: status: superseded | rejected
-# + superseded_by: NNN (if known)
+# + superseded_by: "NNN" (if known — quoted)
 ```
 
 `YYYY-MM` in this case = month of rejection. Same move, same commit.

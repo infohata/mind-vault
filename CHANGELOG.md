@@ -10,6 +10,41 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.4.0 — idea: quote frontmatter ids (`id: "035"`) — the silent YAML-1.1 octal misparse
+
+Compounded 2026-07-14 from an estate-monitoring project where an agent built an idea-status table and
+IDEA-035 silently overwrote IDEA-029 — the second time the same bug surfaced in one session.
+
+### Fixed
+
+- **`skills/idea/assets/idea-template.md` now quotes `id:` and `title:`.** A bare zero-padded id is
+  **YAML-1.1 octal**: `id: 035` parses to the integer **29**, with no error. `/idea`'s own
+  zero-pad-to-3-digits rule is what triggers it. `035` comes back as IDEA-029's number, so the two
+  collide as soon as tooling normalises ids — one silently overwrites the other. `title:` is quoted
+  for a second, same-root-cause bug: an inner
+  colon (`(pilot: client.example.com)`) raises `ScannerError` and kills the *entire* frontmatter block.
+- **`skills/idea/SKILL.md` §4** documents the failure mode, the reason it survives, and a **verified
+  migration** for existing projects (both `id: 017` and legacy `id: IDEA-017` forms → `id: "017"`,
+  idempotent, plus a detector for colon-bearing unquoted titles). Also: **read ids from the FILENAME,
+  not the frontmatter** — it is octal-immune and survives an unparseable block.
+- **`superseded_by:` quoted everywhere the skill models it** — the status-transition table, the
+  template comment, and the reference docs (`IDEAS_LOCATION_STATUS.md`, `update-semantics.md`) now all
+  show quoted ids, so no instruction in the skill surface re-teaches the bare form it just killed.
+
+### Why it hid for so long
+
+It is a **sub-100 problem**. Of ids `001`–`099`: **56** (`010`–`077`, digits all `0`–`7`) get a **wrong
+value**; `001`–`007` become int `1`–`7` (value right, type wrong); the **36** containing an `8` or `9`
+stay strings and are right **by luck**; `100`+ has no leading zero and is safe — so the bug ages out
+before a project is old enough to notice. The collision needs one more step: raw, `035`→`29` (int) and
+`029`→`'029'` (str) differ — but `str(29).zfill(3)` == `'029'`, so any normalising reader collides them.
+And **nothing in the workflow parses idea frontmatter** (`/idea` writes it, humans read it), so YAML
+never gets a chance to raise. It surfaces only when someone writes tooling — and then as *silently
+wrong data*, not an error.
+
+Migration verified against a 37-idea project: 34/37 ids misparsed before, 36/37 correct after, with the
+remaining one correctly flagged by the title-colon detector for a hand-fix.
+
 ## v5.3.10 — deployment: rootless docker-ops ACL mask + operator-vs-service-account + host-write subuid ownership
 
 Compounded 2026-07-13 from a rootless-Docker monitoring-stack adaptation on a stripped-OpenVZ bastion (a `stack.sh` that wrapped the now-masked rootful daemon), via [#218](https://github.com/infohata/mind-vault/pull/218).
