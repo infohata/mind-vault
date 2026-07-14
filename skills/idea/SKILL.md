@@ -140,6 +140,74 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
 ✅ DO: `IDEA-001`, `IDEA-042`, `IDEA-112` (zero-padded to 3 digits).
 ❌ DON'T: `IDEA-1`, `IDEA-42`, `IDEA-0042` (inconsistent width).
 
+#### ⚠️ ALWAYS QUOTE the id in frontmatter — `id: "035"`, never `id: 035`
+
+The zero-padding above is what makes this bite. **A bare zero-padded id is YAML-1.1 OCTAL**, so
+`id: 035` parses to the integer **29** — silently, with no error. Combined with `related: [007, 013]`,
+`depends_on:`, and `supersedes:` (also bare id lists), a project's frontmatter quietly reports the
+wrong idea numbers.
+
+**It is a sub-100 problem, which is why it survives.** Of the ids `001`–`099`, the **64** whose digits
+are all `0`–`7` misparse; those containing an `8` or `9` (`008`, `029`, `019`…) happen to parse as
+decimal and are correct **by luck**; `100`+ has no leading zero and is safe. So a young project is
+wrong on ~2/3 of its ideas and a mature one looks fine — the bug ages out before anyone catches it.
+
+It also stays invisible because **nothing in the workflow parses idea frontmatter** — `/idea` writes it,
+humans read it, and YAML never gets a chance to raise. It only surfaces the moment someone writes a
+script or an agent builds a status table, and then it does so as *silently wrong data*, not an error:
+
+```python
+# The failure mode. No exception — the wrong answer.
+yaml.safe_load('id: 035')['id']   # -> 29   (029 and 035 COLLIDE in a dict keyed by id)
+```
+
+**Rules:**
+- Write `id: "{{NNN}}"` — quoted, always.
+- Quote id lists too: `related: ["007", "013"]`, `depends_on: ["015"]`, `supersedes: ["012"]`.
+- **Quote `title:` as well.** Separate bug, same root cause (unquoted scalars): an inner colon —
+  `title: Reference bootstrap — read-only App credential (pilot: teisutis.com)` — raises
+  `ScannerError: mapping values are not allowed here` and kills the *whole* frontmatter block, not just
+  the title.
+- When reading ids programmatically, **derive from the FILENAME** (`IDEA-(\d+)-`), not the frontmatter —
+  it is octal-immune and works on files whose frontmatter is broken.
+
+#### Migrating an existing project (do this once, per project)
+
+Any project onboarded before this fix has bare ids. Migrate all of them to `"0XX"` strings:
+
+Expect **two** legacy conventions in the same project — a bare `id: 017` *and* a prefixed
+`id: IDEA-017` (only the bare one octal-misparses, but normalise both so the id always equals the
+filename number). This `sed` handles both and is idempotent:
+
+```bash
+# From the project root. Covers both idea locations. Normalises `017`, `IDEA-017`, `"IDEA-017"` → "017".
+find docs/ideas docs/archive -name 'IDEA-*.md' -print0 2>/dev/null | xargs -0 --no-run-if-empty \
+  sed -i -E 's/^id:[[:space:]]*"?(IDEA-)?([0-9]{1,3})"?[[:space:]]*$/id: "\2"/'
+
+# Find unquoted titles containing a colon — these RAISE and kill the whole frontmatter. Fix by hand
+# (quote the title); a blind sed here would maul titles that legitimately contain quotes.
+grep -rlE '^title:[[:space:]]*[^"'"'"'].*:' docs/ideas docs/archive --include='IDEA-*.md' || true
+
+# Verify: every id is now a quoted string, and each matches its own filename.
+python3 - <<'EOF'
+import pathlib, re, yaml
+bad = 0
+for p in list(pathlib.Path('docs/ideas').glob('IDEA-*.md')) + list(pathlib.Path('docs/archive').glob('*/IDEA-*.md')):
+    fid = re.match(r'IDEA-(\d+)', p.name).group(1)
+    try:
+        got = yaml.safe_load(p.read_text().split('---')[1]).get('id')
+    except Exception as e:
+        print(f'RAISES {p.name}: {e.__class__.__name__} — quote the title?'); bad += 1; continue
+    if str(got) != fid:
+        print(f'MISMATCH {p.name}: frontmatter id={got!r} != filename {fid!r}'); bad += 1
+print('OK — all ids parse as strings matching their filenames' if not bad else f'{bad} file(s) need fixing')
+EOF
+```
+
+Also hand-quote any `related:` / `depends_on:` / `supersedes:` lists (`[007, 013]` → `["007", "013"]`)
+and any `title:` containing a colon — the `sed` above deliberately only touches `id:`, since those
+fields need judgement.
+
 ## When NOT to use these patterns
 
 - **Mind-vault itself is not a target project.** The sprint workflow runs against projects that consume mind-vault. Inside mind-vault, ideas about mind-vault's own evolution live in `mind-vault/docs/ideas/` — the skill treats mind-vault as just another project when explicitly invoked there (e.g. for dogfooding).

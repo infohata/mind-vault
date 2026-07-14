@@ -1,7 +1,7 @@
 {
   "name": "mv",
   "displayName": "Mind-Vault",
-  "version": "5.3.10",
+  "version": "5.4.0",
   "description": "Centralized AI-agent configuration: the mind-vault sprint-workflow skills (/idea /plan /work /wrap /land /compound and more), the 8 mv:* persona subagents, and slash-commands. Commands namespace under /mv:.",
   "author": {
     "name": "Kestutis Januskevicius",
