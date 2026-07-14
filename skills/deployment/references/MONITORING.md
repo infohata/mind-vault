@@ -548,6 +548,72 @@ output {
 }
 ```
 
+#### Loki + promtail: four traps that make the pipeline lie rather than fail
+
+Log pipelines fail *silently and plausibly* — they keep shipping, so dashboards look alive while the
+data underneath is wrong. All four below shipped past config review and a passing dry-run, and were
+only caught by querying live data. Test every one with `promtail -dry-run` against **real log lines
+from the target host**, not invented ones.
+
+**1. No `timestamp` stage ⇒ promtail stamps INGESTION time.** On first run promtail reads the whole
+existing file, so **days of history are replayed into one window** at install time. Consequences:
+every stored timestamp is wrong (which destroys the forensic value the pipeline exists for), any
+rate/burst alert fires spuriously on install, Loki's `reject_old_samples_max_age` is inert (everything
+looks fresh), and — worst — a **historical** security event replays as a **live critical** (a
+month-old `Accepted publickey for root` paging you as if it just happened). Always add the stage:
+
+```yaml
+pipeline_stages:
+  - regex:
+      expression: '^(?P<ts>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.?\d*[+-]\d{2}:\d{2}|[A-Z][a-z]{2}\s+\d{1,2} \d{2}:\d{2}:\d{2})'
+  - timestamp:
+      source: ts
+      format: RFC3339Nano
+      fallback_formats: ['Jan _2 15:04:05']   # traditional rsyslog: no year
+      location: Europe/Vilnius                # REQUIRED for the year-less form (else UTC ⇒ hours of skew)
+```
+
+Journald sources are immune (the journal carries real event times) — this is a **file-source** trap.
+**One estate routinely runs BOTH rsyslog formats** (RFC3339 vs `RSYSLOG_TraditionalFileFormat`);
+check `/etc/rsyslog.conf` per host, because a format miss is **silent** and falls back to ingest time.
+
+**2. promtail's `replace` substitutes CAPTURE GROUPS — `${1}` backrefs do NOT work.** That is
+sed/Go-Expand syntax. `expression: '(KEY)(VALUE)'` + `replace: '${1}<redacted>'` emits the **literal**
+text `${1}<redacted>` for *both* groups: the line is mangled **and the secret is not redacted**.
+Capture only the value; text outside the group is preserved automatically:
+
+```yaml
+- replace:
+    expression: '(?i)(?:password|passwd|secret|token|api[-_]?key|authorization|bearer)[=:]\s*(\S+)'
+    replace: '<redacted>'
+```
+
+**3. A redaction regex that over-matches BLINDS your alert rules — worse than the leak.** Make the
+separator **required** (`[=:]`, not `[=:]?`). With it optional, `password` + a space matches ordinary
+prose, so `Accepted password for root from 1.2.3.4` is rewritten and no longer contains `for root ` —
+the exact substring the root-login alert greps for. You trade a leak for **blindness**. Accept the
+residual (a separator-less `Bearer abc123` goes unredacted) and document it: auth logs carry secrets
+as `key=value`/`key: value`, and a blinded alert is the worse failure.
+
+**4. LogQL `count by (x) (count_over_time(...))` counts SERIES, not distinct label values.** A series
+is the WHOLE label set — including Loki's own **`__stream_shard__`**, plus `filename`,
+`detected_level`, `service_name`. One source present in two shards is counted **twice**. To count
+distinct values of a parsed label, collapse everything else first:
+
+```logql
+count by (host) (                                  # distinct src per host
+  sum by (host, src) (                             # ← LOAD-BEARING: collapses shard/filename/etc.
+    count_over_time({job="auth"} | regexp `(?P<src>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})` | __error__ = `` [5m])))
+```
+
+**Narrow-scraping journald: filter on `__journal__comm`, NOT `__journal_syslog_identifier`.** The
+syslog tag is user-settable, so an identifier-based keep lets any user forge a match —
+`logger -t sshd "Accepted publickey for root"` becomes a **critical alert**. `comm` is the real
+binary name and is spoof-resistant. Consequence to design around: a `logger`-emitted verification
+marker has `comm=logger` and is **dropped by your own filter** — so a `logger` smoke-test
+false-negatives on journald hosts while the agent is perfectly healthy. Verify those hosts by
+asserting the agent is active **and** its stream has a recent line instead.
+
 #### Application Logging Standards
 **Structured logging patterns:**
 ```python

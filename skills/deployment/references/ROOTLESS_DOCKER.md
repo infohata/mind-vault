@@ -125,6 +125,59 @@ the **subuid** (read the live file's owner with `stat -c %u:%g`, or compute from
 number is just remapped. A render step that re-`install`s the file every deploy must **preserve the
 subuid owner** (`stat` the live file), not re-hardcode the in-image uid.
 
+## Publishing the SAME host port on TWO IPs WEDGES the daemon (rootlesskit builtin port driver)
+
+Rootless Docker cannot publish one container port on two host IPs. This:
+
+```yaml
+ports:
+  - "127.0.0.1:3100:3100"      # operator convenience
+  - "${VLAN_IP}:3100:3100"     # the one clients actually need
+```
+
+**deadlocks rootlesskit's builtin port driver** (`--net=slirp4netns --port-driver=builtin`). Each
+publish ALONE is fine; the pair is fatal.
+
+**Symptoms** — none of which point at ports, which is why this costs hours:
+- the container sits in **`Created`** forever and never starts (so it has **no logs** — nothing ran);
+- `docker logs` / `inspect` / `rm -f` **on that container hang** (the daemon holds its lock) while
+  `docker ps`, `docker volume inspect`, and other containers are perfectly responsive;
+- `docker compose up` blocks indefinitely; `slirp4netns` spins at 100% CPU.
+
+**Diagnose in 30s** with a throwaway — this is the whole test:
+
+```bash
+docker run -d --rm -p 127.0.0.1:13199:80 busybox sleep 60              # fine
+docker run -d --rm -p 10.0.0.5:13198:80  busybox sleep 60              # fine
+docker run -d --rm -p 127.0.0.1:13197:80 -p 10.0.0.5:13197:80 busybox sleep 60   # WEDGES
+```
+
+**Fix:** publish ONE IP. If the host needs local access, reach the service on the same non-loopback
+address it already publishes — the host can always talk to its own IP. Drop the loopback line.
+
+**Recovery:** only a daemon restart clears the lock (`systemctl restart docker-rootless`), then
+`docker rm -f` the `Created` husk. See the restart trap below before you do it.
+
+## A rootless daemon restart can silently leave services DOWN (`unless-stopped` is not a guarantee)
+
+After `systemctl restart docker-rootless`, containers that exit **0** on SIGTERM are restarted by
+Docker; containers that exit **non-zero** (observed: **255**) are **left stopped** — even with
+`restart: unless-stopped`. Observed on a monitoring stack: Prometheus + Grafana came back, while
+**Alertmanager + blackbox_exporter stayed down**, so alerting died silently while the dashboards
+looked healthy.
+
+**Always `docker ps -a` after restarting the daemon** and start what didn't return:
+
+```bash
+systemctl restart docker-rootless
+docker ps -a --format '{{.Names}}\t{{.Status}}'        # look for Exited, not just Up
+docker start <the ones that stayed down>                # no compose needed
+```
+
+Restarting the daemon to clear a wedge (above) is exactly when this bites: you fix one container and
+take down two others without noticing. Prefer `docker start` over `compose up` here — if the wedge
+came from a bad compose file, `up` re-triggers it.
+
 ## Published ports MASQUERADE the client source IP (silently breaks per-IP anything)
 
 Rootless Docker's **default port driver** (rootlesskit "builtin") source-NATs inbound connections to
