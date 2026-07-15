@@ -32,6 +32,11 @@ Compounded 2026-07-15 from br-docs IDEA-029 Phase 3 (an on-estate Loki backup: o
 
 - `skills/deployment/SKILL.md` — `metadata.version` 2.0 → **2.1** (skill touched). `skills/deployment/VERSION` stays **2.0**: that file is the **stack** version (Docker Compose v2), mirroring `django`→5.5 and `laravel`→12 — not the skill's.
 
+### Fixed
+
+- `tools/find_claude_comments.sh` — **the @-mention task shape (`**Claude finished @user's task…**`) is now recognized as a full verdict surface**: `claude finished` (the action-generated stable header) added to `CLAUDE_BODY_SIGNATURES`. Dogfooded on this very PR: the `@claude review` retrigger answers via `claude.yml` in the task shape, whose body carried a real blocking finding **four cycles in a row** while the BOTH-AND summary filter dropped it (no "code review" phrase in the body → `CLAUDE_HEAD_VERDICTS=0` → UNPROVEN/SILENT; the coexisting auto-run "No issues found" summary false-CLEANed the two cycles it posted). Regression fixture `tests/fixtures/claude/task-shape-retrigger/` (clean summary + task-shape finding on one SHA must enumerate both); new calibration section in `skills/review-loop/references/engine-claude.md`.
+- `skills/deployment/references/HARDENING.md` — the capability-gate example itself carried an `A && B || C` trap (the finding above): a failed `install_dropin` both fired the destructive `|| rm -f` branch AND was masked (chain exits 0 under `set -e`). Now an explicit `if`/`else`, with the trap called out inline.
+
 ### Security
 
 - **Never claim a security property you have not tested.** The `nologin` shell in pattern 20 was documented as one of four *controls* bounding a privileged (`docker-ops`) grant. It was not a control — it made the feature **inert** while *looking* correctly bounded, which is the failure mode you don't notice, because "no backups yet" is indistinguishable from "not scheduled yet". The real bounds were the forced command, `restrict`, a root-owned wrapper, and no password. Corollary from the same cycle: the `restrict`→`no-pty` control **proved itself** by refusing our own client (pattern 19) — the refusal was correct; the bug was ours.

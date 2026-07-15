@@ -291,7 +291,12 @@ type telling you nothing about it. Evaluate the *real* precondition on the targe
 # estate has no such split; the version gate is the non-negotiable part.
 sdv="$(systemctl --version 2>/dev/null | awk 'NR==1{print $2}' | tr -cd '0-9')"; [ -n "$sdv" ] || sdv=0
 virt="$(systemd-detect-virt 2>/dev/null || echo other)"
-[ "$virt" = kvm ] && [ "$sdv" -ge 240 ] && install_dropin || rm -f "$dropin"
+if [ "$virt" = kvm ] && [ "$sdv" -ge 240 ]; then
+    install_dropin        # a failure here now surfaces — `gate && install || rm` would
+                          # both mask the failed install (chain exits 0) AND rm the drop-in
+else
+    rm -f "$dropin"
+fi
 ```
 
 Fail **safe in both directions**, and make the un-gated path `rm -f` the drop-in — so a re-deploy
