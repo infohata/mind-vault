@@ -14,7 +14,7 @@ Cautionary example: PR #59 cycle 9 fixed one `ufw status | head -1` site for the
 
 Applies across all patterns below. When in doubt, `grep` first, fix second.
 
-**Layering note:** the language-general entries below (1–3, 5, 8, 10, 11) are owned by the base [`shell`](../../shell/SKILL.md) layer — each keeps a stub here so the installer catalog numbering stays stable, with the full pattern one link down.
+**Layering note:** the language-general entries below (1–3, 5, 8, 10, 11, 16, 17) are owned by the base [`shell`](../../shell/SKILL.md) layer — each keeps a stub here so the installer catalog numbering stays stable, with the full pattern one link down.
 
 ## Pattern catalog
 
@@ -217,6 +217,61 @@ Configuration the installer touches goes inside `# BEGIN mind-vault-NAME (manage
 Locale generation, new terminfo entries, updated `$PATH` from `.bashrc` edits — none of these take effect in shells that were already running when the installer ran. Post-install output should explicitly tell the user: **close every SSH/mosh session and `tmux kill-server` before the changes apply**. `source ~/.bashrc` is not enough; `tmux` caches terminfo at server start.
 
 *Provenance: learned during PR #59 end-to-end testing on live remote — the script worked but the user's existing session didn't pick up the new locale/terminfo until a full disconnect.*
+
+### 16. `rc=$?` after `if ! cmd` captures the NEGATED status
+
+`if ! ssh …; then rc=$?; …` always reports `rc=0` — `!` has already inverted the status by the time `$?` is read, so a real failure prints success and hides which end of a pipeline broke. Full hazard: [`shell` STRICT_MODE_HAZARDS.md §10](../../shell/references/STRICT_MODE_HAZARDS.md). *Provenance: br-docs IDEA-029 Phase 3 — printed `pull failed (ssh rc=0)` on a genuine failure.*
+
+### 17. Reading `${PIPESTATUS[0]}` RESETS `PIPESTATUS` — snapshot the whole array
+
+The first read is itself a command, so the next read sees a 1-element array — under `set -u` the error *report* becomes a *crash*, on the error path only. Snapshot once: `st=("${PIPESTATUS[@]}")`. Full hazard: [`shell` STRICT_MODE_HAZARDS.md §11](../../shell/references/STRICT_MODE_HAZARDS.md). *Provenance: br-docs IDEA-029 Phase 3 — caught by testing the fix rather than shipping it.*
+
+### 18. `ssh -t` + command substitution = an invisible sudo prompt (silent hang)
+
+**Bad:**
+
+```bash
+PUB="$(ssh -t "$host" 'sudo cat /etc/thing.pub' 2>/dev/null)"   # hangs forever, in silence
+```
+
+With `-t`, the remote's **stderr comes back over the PTY and arrives on ssh's local STDOUT** — so `$( )` captures sudo's `[sudo] password for …` prompt instead of showing it. `2>/dev/null` cannot help: the prompt was never on local stderr. Meanwhile sudo waits for a password the operator was never shown.
+
+Compounding it: with `use_pty` / `tty_tickets` (common on hardened estates), **a new SSH session is a new tty and needs a FRESH password** — there is no credential cache to ride on, so a multi-host script legitimately prompts several times.
+
+**Two fixes, in preference order:**
+
+1. **Delete the second prompt.** Have the step that *already holds* an authenticated sudo stage what you need somewhere unprivileged, then fetch it with a plain (`-T`, `BatchMode=yes`) ssh that *cannot* prompt — and fails fast if it ever tries.
+2. **Show the prompt while capturing** — `out=$(ssh -t … 2>&1 | tee /dev/tty; true)`. Use when you genuinely need an interactive sudo's output. The trailing `; true` deliberately masks the pipeline's rc so `set -e` can't abort mid-capture — judge success from the captured output, never from `$?` (the inner pipeline's `PIPESTATUS` is gone once the substitution returns; capturing it means snapshotting *inside* the `$( )`, pattern 17).
+
+*Provenance: br-docs IDEA-029 Phase 3. Fix 2 already existed in the source repo (br-docs `install-key.sh`) and I didn't look — check for prior art before writing a new remote-sudo helper.*
+
+### 19. Forced-command keys: an explicit PTY request is FATAL; a command-less ssh only warns
+
+A forced-command key hardened with `restrict` (or `no-pty`) refuses PTY requests, and the refusal reads as a mystery:
+
+```text
+PTY allocation request failed on channel 0
+```
+
+What happens next depends on *how* the PTY was requested. `ssh user@host` *without a command* asks for a PTY whenever **stdin is a terminal** — on refusal that is a stderr *warning* and the forced command still runs (tty-less). The session **dies** (exit 255, forced command never runs) only when the PTY was requested *explicitly*: `-t`, `-tt`, or `RequestTTY=yes|force` — easy to inherit from an outer `ssh -t` wrapper (the very chains pattern 18 describes) or from `ssh_config`. Either way the stderr noise pollutes strict wrappers, and a debugger who "fixes" the command-less invocation leaves the inherited `-t` breakage alive.
+
+Use **`ssh -T`** for any forced-command invocation — it suppresses both cases and is mandatory when streaming binary (a PTY also mangles the stream with CR/LF translation). The server is correct to refuse; the client shouldn't ask. *Provenance: br-docs IDEA-029 Phase 3 — the refusal was the security control working; the bug was mine. Fatal-vs-warning split verified live against a `restrict`ed endpoint (OpenSSH 9.2): no-command → warning + forced command ran; `-tt` → exit 255, never ran.*
+
+### 20. A `nologin` shell BREAKS SSH forced commands — it is not a security control
+
+**Bad:**
+
+```bash
+useradd --system --shell /usr/sbin/nologin svc-account     # forced command will never run
+```
+
+sshd invokes a forced command **through the account's login shell**: `$SHELL -c '<command>'` (see `sshd(8)`, AUTHORIZED_KEYS FILE FORMAT, `command=`). `nologin` ignores `-c`, prints `This account is currently not available.` — **to stdout, not stderr** — and exits 1.
+
+The symptoms all point away from the cause: `ssh` exits **1**, remote **stderr is empty**, the wrapper's own diagnostics never appear (it never ran), and the refusal text lands **inside your data stream** — where a `| gzip` will happily compress it.
+
+**Give a forced-command service account a real shell (`/bin/sh`).** What bounds it is the `command="…"` + `restrict` in `authorized_keys` (exactly one program, never a shell), a **root-owned** wrapper the account cannot edit, and no password. The shell is the thing sshd execs *through* — remove it and you remove the feature, not the risk.
+
+**The wider lesson:** this was documented as one of four *security controls* on a privileged grant. It was not a control — it silently made the feature inert while *looking* correctly bounded. **Never claim a security property you have not tested**; an untested control that disables the feature is the failure mode you won't notice, because "no backups yet" looks like "not scheduled yet". *Provenance: br-docs IDEA-029 Phase 3; independently caught by the review engine on the same PR.*
 
 ## Worked examples in-repo
 

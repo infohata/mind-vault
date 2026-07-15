@@ -1,0 +1,13 @@
+{
+  "workflow_runs": [
+    {
+      "id": 221,
+      "head_sha": "beef221aaa000",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-07-15T12:00:00Z",
+      "updated_at": "2026-07-15T12:01:00Z",
+      "created_at": "2026-07-15T12:00:00Z"
+    }
+  ]
+}

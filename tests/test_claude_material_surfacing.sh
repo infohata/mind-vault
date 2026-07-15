@@ -104,6 +104,17 @@ OUT=$(run_case marker-less-prose)
 assert_contains   "marker-less: concern surfaced verbatim"      "$OUT" "no authentication check"
 assert_contains   "marker-less: body surfaced (judge reads it)" "$OUT" "anyone can pull the full"
 
+# task-shape retrigger (PR #221 leak): the `@claude review` retrigger answers in the
+# task shape (`**Claude finished @user's task**`, model-generated heading, findings in
+# body) ALONGSIDE the auto-run's clean `## Code review` summary on the same SHA. The
+# old body-signature dropped the task shape → HEAD_VERDICTS=1 (clean only) → false
+# CLEAN. Adapter MUST enumerate BOTH streams so the judge sees the finding.
+OUT=$(run_case task-shape-retrigger)
+assert_contains   "task-shape: both streams enumerated"         "$OUT" "CLAUDE_HEAD_VERDICTS=2"
+assert_contains   "task-shape: task-shape finding surfaced"     "$OUT" "deletes the drop-in on a failed install"
+assert_contains   "task-shape: coexisting clean summary surfaced" "$OUT" "No issues found"
+assert_contains   "task-shape: verdict set proven"              "$OUT" "CLAUDE_VERDICT_SET_PROVEN=true"
+
 # unprovable verdict set: blank run timestamps → can't prove the whole set was
 # seen → VERDICT_SET_PROVEN MUST be false, structurally forbidding a CLEAN judgment.
 OUT=$(run_case unprovable-verdict-set)

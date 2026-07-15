@@ -10,6 +10,38 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.4.2 — deployment: remote-sudo/forced-command traps + systemd sandbox version gates
+
+Compounded 2026-07-15 from br-docs IDEA-029 Phase 3 (an on-estate Loki backup: one box PULLs a snapshot from the bastion over a forced-command SSH key). Four bugs, and **every one of them lived in a path that only executes when something is unusual** — an error path, or a hardened-account path. A negative test on the *data* path passed and gave false confidence about the rest. That's the unifying theme: the code you exercise least is where these hide. ([#221](https://github.com/infohata/mind-vault/pull/221))
+
+### Added
+
+- `skills/deployment/references/SHELL_INSTALLERS.md` — **patterns 16–20**, extending the catalog to remote-sudo and forced-command territory (16–17 are language-general, so per the file's layering note their full text lives in `skills/shell/references/STRICT_MODE_HAZARDS.md` §10–11 with stubs in the installer catalog):
+  - **16. `rc=$?` after `if ! cmd` captures the NEGATED status** — always reports `rc=0`, so a real failure prints success and hides which end of a pipeline broke.
+  - **17. Reading `${PIPESTATUS[0]}` RESETS `PIPESTATUS`** — the assignment is itself a command, so the next `${PIPESTATUS[1]}` reads a 1-element array and, under `set -u`, **aborts**. Converts an error *report* into a *crash*, on the error path only. Snapshot the whole array: `st=("${PIPESTATUS[@]}")`.
+  - **18. `ssh -t` + command substitution = an invisible sudo prompt (silent hang)** — with `-t` the remote's stderr returns over the PTY and lands on ssh's local **stdout**, so `$( )` captures the `[sudo] password` prompt instead of showing it; `2>/dev/null` can't help because it was never on local stderr. Plus `use_pty`/`tty_tickets`: a new session is a new tty and needs a **fresh** password. Two fixes, preference-ordered (delete the prompt by staging; or `2>&1 | tee /dev/tty` to show *and* capture).
+  - **19. Forced-command keys: an explicit PTY request is FATAL; a command-less ssh only warns** — `restrict`/`no-pty` refuses with the opaque `PTY allocation request failed on channel 0`, but the session dies (exit 255, forced command never runs) only when the PTY was requested *explicitly* (`-t`/`-tt`/`RequestTTY=yes|force` — easy to inherit from an outer `ssh -t` wrapper); a bare `ssh user@host` with tty stdin just warns and runs the forced command tty-less. Use `-T` for both cases; mandatory when streaming binary (a PTY mangles it with CR/LF translation).
+  - **20. A `nologin` shell BREAKS SSH forced commands — it is not a security control.** sshd execs a forced command **through the login shell** (`$SHELL -c '<cmd>'`); `nologin` ignores `-c`, prints to **stdout** (not stderr), and exits 1. Symptoms all point away: ssh rc=1, remote stderr **empty**, the wrapper's own diagnostics absent, and the refusal text lands **inside the data stream** where `| gzip` compresses it.
+- `skills/shell/references/STRICT_MODE_HAZARDS.md` — hazards **10–11**: the full text of installer patterns 16–17 (negated-rc capture after `if !`, PIPESTATUS reset-on-read), hoisted to the base shell layer per the layering note so non-deployment scripts get them too.
+- `skills/deployment/references/HARDENING.md` — **"systemd unit sandboxing — gate on the CAPABILITY, never on a proxy for it"**:
+  - **`SystemCallFilter=@system-service` requires systemd >= 240**, and older systemd does **not reject** it — it silently resolves to a ~40-syscall allowlist with no `openat`/`read`/`mmap`/`socket`. `execve` is allowed, so the process starts and the **dynamic loader** is denied `openat` — with `SystemCallErrorNumber=EPERM` (typical in hardening drop-ins) the service dies with `status=127`; the default action kills with SIGSYS → `signal=SYS`. The 127 signature is maximally misleading: it's the loader, not systemd (whose own sandbox failures are 226/228/203); the binary runs fine by hand; the identical unit works on a newer box. Verify with `systemctl show <unit> -p SystemCallFilter` — a ~40-entry list means the set didn't resolve.
+  - Unknown **directives** degrade gracefully (warn + skip: `ProtectProc` 247, `ProtectClock` 245, `ProtectKernelLogs` 244, `RestrictSUIDSGID` 242); an unknown **set inside `SystemCallFilter`** does not.
+  - **Gate on the capability, not the box's flavour.** `systemd-detect-virt = kvm` is a *proxy* for "modern enough to sandbox", and proxies break: one estate spans systemd **229 → 257**. Evaluate the real precondition on the target, fail safe both ways, and make the un-gated path `rm -f` the drop-in so a re-deploy **repairs** a host rather than needing manual surgery.
+
+### Changed
+
+- `skills/deployment/SKILL.md` — `metadata.version` 2.0 → **2.1** (skill touched). `skills/deployment/VERSION` stays **2.0**: that file is the **stack** version (Docker Compose v2), mirroring `django`→5.5 and `laravel`→12 — not the skill's.
+
+### Fixed
+
+- `tools/find_claude_comments.sh` — **the @-mention task shape (`**Claude finished @user's task…**`) is now recognized as a full verdict surface**: `claude finished` (the action-generated stable header) added to `CLAUDE_BODY_SIGNATURES`. Dogfooded on this very PR: the `@claude review` retrigger answers via `claude.yml` in the task shape, whose body carried a real blocking finding **four cycles in a row** while the BOTH-AND summary filter dropped it (no "code review" phrase in the body → `CLAUDE_HEAD_VERDICTS=0` → UNPROVEN/SILENT; the coexisting auto-run "No issues found" summary false-CLEANed the two cycles it posted). Regression fixture `tests/fixtures/claude/task-shape-retrigger/` (clean summary + task-shape finding on one SHA must enumerate both); new calibration section in `skills/review-loop/references/engine-claude.md`.
+- `skills/deployment/references/HARDENING.md` — the capability-gate example itself carried an `A && B || C` trap (the finding above): a failed `install_dropin` both fired the destructive `|| rm -f` branch AND was masked (chain exits 0 under `set -e`). Now an explicit `if`/`else`, with the trap called out inline.
+
+### Security
+
+- **Never claim a security property you have not tested.** The `nologin` shell in pattern 20 was documented as one of four *controls* bounding a privileged (`docker-ops`) grant. It was not a control — it made the feature **inert** while *looking* correctly bounded, which is the failure mode you don't notice, because "no backups yet" is indistinguishable from "not scheduled yet". The real bounds were the forced command, `restrict`, a root-owned wrapper, and no password. Corollary from the same cycle: the `restrict`→`no-pty` control **proved itself** by refusing our own client (pattern 19) — the refusal was correct; the bug was ours.
+- **Check for prior art before writing a new remote-sudo helper.** Fix 2 in pattern 18 (`2>&1 | tee /dev/tty`) already existed in the source repo (br-docs `install-key.sh`); not looking cost a silent one-minute hang in front of the operator.
+
 ## v5.4.1 — deployment: Loki/promtail pipeline traps + rootless dual-port wedge
 
 Compounded 2026-07-14 from a live estate log-aggregation bring-up (Loki + promtail for auth/SSH),

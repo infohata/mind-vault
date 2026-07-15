@@ -1,0 +1,20 @@
+[
+  {
+    "id": 4010,
+    "user": {
+      "login": "claude[bot]"
+    },
+    "created_at": "2026-07-15T12:02:00Z",
+    "html_url": "https://github.com/testowner/testrepo/pull/1#issuecomment-4010",
+    "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance."
+  },
+  {
+    "id": 4011,
+    "user": {
+      "login": "claude[bot]"
+    },
+    "created_at": "2026-07-15T12:03:00Z",
+    "html_url": "https://github.com/testowner/testrepo/pull/1#issuecomment-4011",
+    "body": "**Claude finished @testuser's task in 1m 9s** —— [View job](https://github.com/testowner/testrepo/actions/runs/221)\n\n---\n### Review complete\n\n- [x] Gather context (PR diff, prior review rounds, prior fix commits)\n- [x] Post review feedback\n\n### Bug still present: gate deletes the drop-in on a failed install\n\nIf `install_dropin` fails while the gate is true, the trailing `|| rm -f \"$dropin\"` still fires — cleanup runs on a failed install, not only on the unmet-gate path."
+  }
+]

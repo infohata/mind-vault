@@ -120,6 +120,30 @@ canonical shell-bug class; guard the cd, don't trust the mode.
 `(( ++i ))` or `i=$((i + 1))`; append `|| true` only when the expression
 legitimately evaluates to 0.
 
+### 10. `rc=$?` after `if ! cmd` captures the NEGATED status
+
+`if ! ssh …; then rc=$?; die "failed (rc=$rc)"; fi` always reports **`rc=0`** —
+`!` has already inverted the status by the time `$?` is read. A real failure
+reports success, and which end of a pipeline broke is hidden. Snapshot
+`PIPESTATUS` (hazard 11) or capture errexit-safely — `rc=0; cmd || rc=$?` —
+then test `rc`. (A bare `cmd; rc=$?` is itself a strict-mode trap: under
+`set -e` the failure exits the script before the capture line runs.)
+
+### 11. Reading `${PIPESTATUS[0]}` RESETS `PIPESTATUS` — snapshot the whole array
+
+```bash
+ssh … | gzip -c > out
+ssh_rc="${PIPESTATUS[0]}"      # this assignment is itself a command…
+gz_rc="${PIPESTATUS[1]}"       # …so PIPESTATUS is now the assignment's 1-element array
+                               # -> under `set -u`: "PIPESTATUS[1]: unbound variable" -> ABORT
+```
+
+✅ DO: snapshot in one assignment — `st=("${PIPESTATUS[@]}")` — then read
+`"${st[0]:-0}"` / `"${st[1]:-0}"`. `PIPESTATUS` is rebuilt after *every*
+command, including a variable assignment. The bug only fires on the error path
+(the second element is only read when reporting a failure), so it converts an
+error *report* into a *crash* — precisely when you least want one.
+
 ## Stance — a judgment call, encoded honestly
 
 The canon itself is split on `set -e` (BashFAQ/105's own contributors disagree:

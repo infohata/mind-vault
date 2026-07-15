@@ -247,6 +247,68 @@ Document your server before and after hardening:
 - [ ] UFW firewall (SSH, HTTP, HTTPS)
 - [ ] Automatic security updates
 
+## systemd unit sandboxing — gate on the CAPABILITY, never on a proxy for it
+
+Sandbox directives (`ProtectSystem`, `SystemCallFilter`, `RestrictNamespaces`, …) are the cheapest
+blast-radius reduction available for a service account. Two traps make them silently harmful.
+
+### `SystemCallFilter=@system-service` requires systemd >= 240 — older systemd does not REJECT it
+
+It **silently** resolves the filter to a ~40-syscall allowlist with **no `openat`/`read`/`mmap`/`socket`**.
+`execve` *is* permitted, so the process starts, and then the dynamic loader is denied `openat`. With
+`SystemCallErrorNumber=EPERM` set — as hardening drop-ins typically do — the denial returns an errno,
+the loader gives up, and the service dies with **`status=127`**. (Default filter action instead kills
+with SIGSYS → `signal=SYS` (31), which at least points at seccomp.)
+
+That `status=127` signature is maximally misleading:
+
+- **127 is the LOADER**, not systemd — systemd's own sandbox failures are **226/228/203**, so the
+  exit code points away from the sandbox.
+- the binary **runs fine by hand** (no seccomp outside the unit),
+- the **identical unit works** on a newer box.
+
+Confirm what systemd actually *parsed*, rather than what you wrote:
+
+```bash
+systemctl show <unit> -p SystemCallFilter    # a ~40-entry list == the set didn't resolve
+```
+
+**Unknown DIRECTIVES degrade gracefully** (systemd warns and skips: `ProtectProc` 247, `ProtectClock`
+245, `ProtectKernelLogs` 244, `RestrictSUIDSGID` 242). **An unknown SET inside `SystemCallFilter`
+does not.** Check "Added in version" in `systemd.exec(5)` against the **oldest** host in the roster —
+not your dev box.
+
+### Gate on the capability, not on the box's flavour
+
+A drop-in gated on `systemd-detect-virt = kvm` is gating on a **proxy** for "modern enough to
+sandbox". Proxies break: an estate can span **systemd 229 (Ubuntu 16.04) → 257 (Debian 13)** with virt
+type telling you nothing about it. Evaluate the *real* precondition on the target:
+
+```bash
+# Capability gate (systemd >= 240) plus this estate's roster policy (KVM guests only —
+# its non-KVM nodes are OpenVZ containers where namespace sandboxing fails anyway).
+# Anything unmet -> portable baseline, never a crash-loop. Drop the virt term if your
+# estate has no such split; the version gate is the non-negotiable part.
+sdv="$(systemctl --version 2>/dev/null | awk 'NR==1{print $2}' | tr -cd '0-9')"; [ -n "$sdv" ] || sdv=0
+virt="$(systemd-detect-virt 2>/dev/null || echo other)"
+if [ "$virt" = kvm ] && [ "$sdv" -ge 240 ]; then
+    install_dropin        # a failure here now surfaces — `gate && install || rm` would
+                          # both mask the failed install (chain exits 0) AND rm the drop-in
+else
+    rm -f "$dropin"
+fi
+```
+
+Fail **safe in both directions**, and make the un-gated path `rm -f` the drop-in — so a re-deploy
+*repairs* a host that got it under an older, wronger gate instead of needing manual surgery.
+
+Pick the floor by what actually breaks: `>=240` (the `@system-service` floor) keeps a real sandbox on
+242–246 hosts at the cost of one silently-ignored `ProtectProc`; a `>=247` floor would strip the
+sandbox from those hosts to dodge one ignored line.
+
+*Provenance: br-docs IDEA-029 — a `virt=kvm`-only gate crash-looped promtail on an Ubuntu 18.04 /
+systemd 237 host while the identical config ran on systemd 255.*
+
 ## Related Files
 
 - **Script**: `scripts/harden_server.sh` (in this skill)
