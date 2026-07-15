@@ -218,6 +218,78 @@ Locale generation, new terminfo entries, updated `$PATH` from `.bashrc` edits �
 
 *Provenance: learned during PR #59 end-to-end testing on live remote — the script worked but the user's existing session didn't pick up the new locale/terminfo until a full disconnect.*
 
+### 16. `rc=$?` after `if ! cmd` captures the NEGATED status
+
+`if ! ssh …; then rc=$?; die "failed (rc=$rc)"; fi` always reports **`rc=0`** — `!` has already inverted the status by the time `$?` is read. The error message becomes actively misleading (a real failure reports success) and hides which end of a pipeline broke. Use `PIPESTATUS` (pattern 17) or test the status explicitly. *Provenance: br-docs IDEA-029 Phase 3 — printed `pull failed (ssh rc=0)` on a genuine failure.*
+
+### 17. Reading `${PIPESTATUS[0]}` RESETS `PIPESTATUS` — snapshot the whole array
+
+**Bad:**
+
+```bash
+ssh … | gzip -c > out
+ssh_rc="${PIPESTATUS[0]}"      # this assignment is itself a command…
+gz_rc="${PIPESTATUS[1]}"       # …so PIPESTATUS is now the assignment's 1-element array
+                               # -> under `set -u`: "PIPESTATUS[1]: unbound variable" -> ABORT
+```
+
+**Good:**
+
+```bash
+ssh … | gzip -c > out
+st=("${PIPESTATUS[@]}")        # one assignment, whole array
+ssh_rc="${st[0]:-0}"; gz_rc="${st[1]:-0}"
+```
+
+`PIPESTATUS` is rebuilt after *every* command, including a variable assignment. The bug only fires on the error path (you only read the second element when reporting a failure), so it converts an error *report* into a *crash* — precisely when you least want one. *Provenance: br-docs IDEA-029 Phase 3 — caught by testing the fix rather than shipping it.*
+
+### 18. `ssh -t` + command substitution = an invisible sudo prompt (silent hang)
+
+**Bad:**
+
+```bash
+PUB="$(ssh -t "$host" 'sudo cat /etc/thing.pub' 2>/dev/null)"   # hangs forever, in silence
+```
+
+With `-t`, the remote's **stderr comes back over the PTY and arrives on ssh's local STDOUT** — so `$( )` captures sudo's `[sudo] password for …` prompt instead of showing it. `2>/dev/null` cannot help: the prompt was never on local stderr. Meanwhile sudo waits for a password the operator was never shown.
+
+Compounding it: with `use_pty` / `tty_tickets` (common on hardened estates), **a new SSH session is a new tty and needs a FRESH password** — there is no credential cache to ride on, so a multi-host script legitimately prompts several times.
+
+**Two fixes, in preference order:**
+
+1. **Delete the second prompt.** Have the step that *already holds* an authenticated sudo stage what you need somewhere unprivileged, then fetch it with a plain (`-T`, `BatchMode=yes`) ssh that *cannot* prompt — and fails fast if it ever tries.
+2. **Show the prompt while capturing** — `out=$(ssh -t … 2>&1 | tee /dev/tty; true)`. Use when you genuinely need an interactive sudo's output.
+
+*Provenance: br-docs IDEA-029 Phase 3. Fix 2 was already in-repo (`install-key.sh`) and I didn't look — check for prior art before writing a new remote-sudo helper.*
+
+### 19. `ssh user@host` with NO command requests a PTY — breaks forced-command keys
+
+A forced-command key hardened with `restrict` (or `no-pty`) will **refuse**, and the refusal reads as a mystery:
+
+```
+PTY allocation request failed on channel 0
+```
+
+`ssh user@host` *without a command* is an interactive-login request, so ssh asks for a PTY whenever **stdin is a terminal** — which it is when your script runs under an outer `ssh -t`, a systemd unit with a tty, or an operator shell. The server is correct to refuse; the client shouldn't ask.
+
+Use **`ssh -T`** for any forced-command invocation. It is mandatory when streaming binary (a PTY also mangles the stream with CR/LF translation). *Provenance: br-docs IDEA-029 Phase 3 — the refusal was the security control working; the bug was mine.*
+
+### 20. A `nologin` shell BREAKS SSH forced commands — it is not a security control
+
+**Bad:**
+
+```bash
+useradd --system --shell /usr/sbin/nologin svc-account     # forced command will never run
+```
+
+sshd invokes a forced command **through the account's login shell**: `$SHELL -c '<command>'` (see `sshd_config(5)`, `command=`). `nologin` ignores `-c`, prints `This account is currently not available.` — **to stdout, not stderr** — and exits 1.
+
+The symptoms all point away from the cause: `ssh` exits **1**, remote **stderr is empty**, the wrapper's own diagnostics never appear (it never ran), and the refusal text lands **inside your data stream** — where a `| gzip` will happily compress it.
+
+**Give a forced-command service account a real shell (`/bin/sh`).** What bounds it is the `command="…"` + `restrict` in `authorized_keys` (exactly one program, never a shell), a **root-owned** wrapper the account cannot edit, and no password. The shell is the thing sshd execs *through* — remove it and you remove the feature, not the risk.
+
+**The wider lesson:** this was documented as one of four *security controls* on a privileged grant. It was not a control — it silently made the feature inert while *looking* correctly bounded. **Never claim a security property you have not tested**; an untested control that disables the feature is the failure mode you won't notice, because "no backups yet" looks like "not scheduled yet". *Provenance: br-docs IDEA-029 Phase 3; independently caught by the review engine on the same PR.*
+
 ## Worked examples in-repo
 
 The following scripts implement this reference correctly (most recent first — later scripts have the densest coverage):

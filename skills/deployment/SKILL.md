@@ -4,7 +4,7 @@ description: Deploy Docker Compose web applications across any project — branc
 license: Apache-2.0
 metadata:
   author: mind-vault
-  version: '2.0'
+  version: '2.1'
 ---
 
 # deployment
