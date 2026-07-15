@@ -289,7 +289,7 @@ type telling you nothing about it. Evaluate the *real* precondition on the targe
 # its non-KVM nodes are OpenVZ containers where namespace sandboxing fails anyway).
 # Anything unmet -> portable baseline, never a crash-loop. Drop the virt term if your
 # estate has no such split; the version gate is the non-negotiable part.
-sdv="$(systemctl --version 2>/dev/null | head -1 | awk '{print $2}' | tr -cd '0-9')"; [ -n "$sdv" ] || sdv=0
+sdv="$(systemctl --version 2>/dev/null | awk 'NR==1{print $2}' | tr -cd '0-9')"; [ -n "$sdv" ] || sdv=0
 virt="$(systemd-detect-virt 2>/dev/null || echo other)"
 [ "$virt" = kvm ] && [ "$sdv" -ge 240 ] && install_dropin || rm -f "$dropin"
 ```

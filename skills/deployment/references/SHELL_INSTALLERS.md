@@ -241,7 +241,7 @@ Compounding it: with `use_pty` / `tty_tickets` (common on hardened estates), **a
 **Two fixes, in preference order:**
 
 1. **Delete the second prompt.** Have the step that *already holds* an authenticated sudo stage what you need somewhere unprivileged, then fetch it with a plain (`-T`, `BatchMode=yes`) ssh that *cannot* prompt — and fails fast if it ever tries.
-2. **Show the prompt while capturing** — `out=$(ssh -t … 2>&1 | tee /dev/tty; true)`. Use when you genuinely need an interactive sudo's output. The trailing `; true` deliberately masks the pipeline's rc so `set -e` can't abort mid-capture — judge success from the captured output (or snapshot `PIPESTATUS`, pattern 17), never from `$?`.
+2. **Show the prompt while capturing** — `out=$(ssh -t … 2>&1 | tee /dev/tty; true)`. Use when you genuinely need an interactive sudo's output. The trailing `; true` deliberately masks the pipeline's rc so `set -e` can't abort mid-capture — judge success from the captured output, never from `$?` (the inner pipeline's `PIPESTATUS` is gone once the substitution returns; capturing it means snapshotting *inside* the `$( )`, pattern 17).
 
 *Provenance: br-docs IDEA-029 Phase 3. Fix 2 already existed in the source repo (br-docs `install-key.sh`) and I didn't look — check for prior art before writing a new remote-sudo helper.*
 
