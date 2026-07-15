@@ -10,6 +10,37 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.4.1 — deployment: Loki/promtail pipeline traps + rootless dual-port wedge
+
+Compounded 2026-07-14 from a live estate log-aggregation bring-up (Loki + promtail for auth/SSH),
+where every item below shipped past config review AND a passing dry-run, and was caught only by
+querying live data.
+
+### Added
+
+- **`skills/deployment/references/MONITORING.md` — "Loki + promtail: four traps that make the pipeline
+  lie rather than fail."** (1) No `timestamp` stage ⇒ promtail stamps **ingestion** time, so a
+  first-run backfill replays days of history into one window — spurious burst alerts, worthless
+  timestamps, inert `reject_old_samples_max_age`, and a **historical security event replayed as a live
+  critical**. Includes a stage handling BOTH rsyslog formats (one estate ran both) with the `location`
+  that a year-less format silently needs. (2) promtail's `replace` substitutes **capture groups** —
+  `${1}` backrefs emit literal text, mangling the line while NOT redacting the secret. (3) An
+  over-matching redaction regex **blinds the alert rules** (rewrites `Accepted password for root` so
+  the root-login rule can't match) — a strictly worse trade than the leak; require the separator.
+  (4) LogQL `count by (x) (count_over_time(...))` counts **series** (incl. `__stream_shard__`), not
+  distinct label values — needs an inner `sum by (x, label)`. Plus: narrow-scrape journald on
+  `__journal__comm`, never the user-settable `__journal_syslog_identifier` (or `logger -t sshd` forges
+  criticals) — and the corollary that `logger`-based smoke tests then false-negative.
+- **`ROOTLESS_DOCKER.md` — publishing the same host port on two IPs WEDGES the daemon.** Deadlocks
+  rootlesskit's builtin port driver: container stuck in `Created` with no logs, `docker
+  logs`/`inspect`/`rm -f` on it hang while the rest of the daemon is fine, `compose up` blocks,
+  `slirp4netns` spins. Each publish alone works; the pair is fatal. Includes the 30-second busybox
+  repro and the fix (publish one IP).
+- **`ROOTLESS_DOCKER.md` — a rootless daemon restart can silently leave services DOWN.** Containers
+  exiting **non-zero** on SIGTERM are NOT restarted despite `restart: unless-stopped` (observed:
+  Prometheus/Grafana returned, Alertmanager/blackbox did not — alerting died while dashboards looked
+  healthy). Always `docker ps -a` after a restart; prefer `docker start` over `compose up`.
+
 ## v5.4.0 — idea: quote frontmatter ids (`id: "035"`) — the silent YAML-1.1 octal misparse
 
 Compounded 2026-07-14 from an estate-monitoring project where an agent built an idea-status table and
