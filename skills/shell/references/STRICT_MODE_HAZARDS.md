@@ -125,8 +125,9 @@ legitimately evaluates to 0.
 `if ! ssh …; then rc=$?; die "failed (rc=$rc)"; fi` always reports **`rc=0`** —
 `!` has already inverted the status by the time `$?` is read. A real failure
 reports success, and which end of a pipeline broke is hidden. Snapshot
-`PIPESTATUS` (hazard 11) or test the status explicitly:
-`cmd; rc=$?; if [ "$rc" -ne 0 ]; then …`.
+`PIPESTATUS` (hazard 11) or capture errexit-safely — `rc=0; cmd || rc=$?` —
+then test `rc`. (A bare `cmd; rc=$?` is itself a strict-mode trap: under
+`set -e` the failure exits the script before the capture line runs.)
 
 ### 11. Reading `${PIPESTATUS[0]}` RESETS `PIPESTATUS` — snapshot the whole array
 
