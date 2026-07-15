@@ -14,7 +14,7 @@ Cautionary example: PR #59 cycle 9 fixed one `ufw status | head -1` site for the
 
 Applies across all patterns below. When in doubt, `grep` first, fix second.
 
-**Layering note:** the language-general entries below (1–3, 5, 8, 10, 11) are owned by the base [`shell`](../../shell/SKILL.md) layer — each keeps a stub here so the installer catalog numbering stays stable, with the full pattern one link down.
+**Layering note:** the language-general entries below (1–3, 5, 8, 10, 11, 16, 17) are owned by the base [`shell`](../../shell/SKILL.md) layer — each keeps a stub here so the installer catalog numbering stays stable, with the full pattern one link down.
 
 ## Pattern catalog
 
@@ -220,28 +220,11 @@ Locale generation, new terminfo entries, updated `$PATH` from `.bashrc` edits �
 
 ### 16. `rc=$?` after `if ! cmd` captures the NEGATED status
 
-`if ! ssh …; then rc=$?; die "failed (rc=$rc)"; fi` always reports **`rc=0`** — `!` has already inverted the status by the time `$?` is read. The error message becomes actively misleading (a real failure reports success) and hides which end of a pipeline broke. Use `PIPESTATUS` (pattern 17) or test the status explicitly. *Provenance: br-docs IDEA-029 Phase 3 — printed `pull failed (ssh rc=0)` on a genuine failure.*
+`if ! ssh …; then rc=$?; …` always reports `rc=0` — `!` has already inverted the status by the time `$?` is read, so a real failure prints success and hides which end of a pipeline broke. Full hazard: [`shell` STRICT_MODE_HAZARDS.md §10](../../shell/references/STRICT_MODE_HAZARDS.md). *Provenance: br-docs IDEA-029 Phase 3 — printed `pull failed (ssh rc=0)` on a genuine failure.*
 
 ### 17. Reading `${PIPESTATUS[0]}` RESETS `PIPESTATUS` — snapshot the whole array
 
-**Bad:**
-
-```bash
-ssh … | gzip -c > out
-ssh_rc="${PIPESTATUS[0]}"      # this assignment is itself a command…
-gz_rc="${PIPESTATUS[1]}"       # …so PIPESTATUS is now the assignment's 1-element array
-                               # -> under `set -u`: "PIPESTATUS[1]: unbound variable" -> ABORT
-```
-
-**Good:**
-
-```bash
-ssh … | gzip -c > out
-st=("${PIPESTATUS[@]}")        # one assignment, whole array
-ssh_rc="${st[0]:-0}"; gz_rc="${st[1]:-0}"
-```
-
-`PIPESTATUS` is rebuilt after *every* command, including a variable assignment. The bug only fires on the error path (you only read the second element when reporting a failure), so it converts an error *report* into a *crash* — precisely when you least want one. *Provenance: br-docs IDEA-029 Phase 3 — caught by testing the fix rather than shipping it.*
+The first read is itself a command, so the next read sees a 1-element array — under `set -u` the error *report* becomes a *crash*, on the error path only. Snapshot once: `st=("${PIPESTATUS[@]}")`. Full hazard: [`shell` STRICT_MODE_HAZARDS.md §11](../../shell/references/STRICT_MODE_HAZARDS.md). *Provenance: br-docs IDEA-029 Phase 3 — caught by testing the fix rather than shipping it.*
 
 ### 18. `ssh -t` + command substitution = an invisible sudo prompt (silent hang)
 
@@ -262,17 +245,17 @@ Compounding it: with `use_pty` / `tty_tickets` (common on hardened estates), **a
 
 *Provenance: br-docs IDEA-029 Phase 3. Fix 2 was already in-repo (`install-key.sh`) and I didn't look — check for prior art before writing a new remote-sudo helper.*
 
-### 19. `ssh user@host` with NO command requests a PTY — breaks forced-command keys
+### 19. Forced-command keys: an explicit PTY request is FATAL; a command-less ssh only warns
 
-A forced-command key hardened with `restrict` (or `no-pty`) will **refuse**, and the refusal reads as a mystery:
+A forced-command key hardened with `restrict` (or `no-pty`) refuses PTY requests, and the refusal reads as a mystery:
 
-```
+```text
 PTY allocation request failed on channel 0
 ```
 
-`ssh user@host` *without a command* is an interactive-login request, so ssh asks for a PTY whenever **stdin is a terminal** — which it is when your script runs under an outer `ssh -t`, a systemd unit with a tty, or an operator shell. The server is correct to refuse; the client shouldn't ask.
+What happens next depends on *how* the PTY was requested. `ssh user@host` *without a command* asks for a PTY whenever **stdin is a terminal** — on refusal that is a stderr *warning* and the forced command still runs (tty-less). The session **dies** (exit 255, forced command never runs) only when the PTY was requested *explicitly*: `-t`, `-tt`, or `RequestTTY=yes|force` — easy to inherit from an outer `ssh -t` wrapper (the very chains pattern 18 describes) or from `ssh_config`. Either way the stderr noise pollutes strict wrappers, and a debugger who "fixes" the command-less invocation leaves the inherited `-t` breakage alive.
 
-Use **`ssh -T`** for any forced-command invocation. It is mandatory when streaming binary (a PTY also mangles the stream with CR/LF translation). *Provenance: br-docs IDEA-029 Phase 3 — the refusal was the security control working; the bug was mine.*
+Use **`ssh -T`** for any forced-command invocation — it suppresses both cases and is mandatory when streaming binary (a PTY also mangles the stream with CR/LF translation). The server is correct to refuse; the client shouldn't ask. *Provenance: br-docs IDEA-029 Phase 3 — the refusal was the security control working; the bug was mine. Fatal-vs-warning split verified live against a `restrict`ed endpoint (OpenSSH 9.2): no-command → warning + forced command ran; `-tt` → exit 255, never ran.*
 
 ### 20. A `nologin` shell BREAKS SSH forced commands — it is not a security control
 
@@ -282,7 +265,7 @@ Use **`ssh -T`** for any forced-command invocation. It is mandatory when streami
 useradd --system --shell /usr/sbin/nologin svc-account     # forced command will never run
 ```
 
-sshd invokes a forced command **through the account's login shell**: `$SHELL -c '<command>'` (see `sshd_config(5)`, `command=`). `nologin` ignores `-c`, prints `This account is currently not available.` — **to stdout, not stderr** — and exits 1.
+sshd invokes a forced command **through the account's login shell**: `$SHELL -c '<command>'` (see `sshd(8)`, AUTHORIZED_KEYS FILE FORMAT, `command=`). `nologin` ignores `-c`, prints `This account is currently not available.` — **to stdout, not stderr** — and exits 1.
 
 The symptoms all point away from the cause: `ssh` exits **1**, remote **stderr is empty**, the wrapper's own diagnostics never appear (it never ran), and the refusal text lands **inside your data stream** — where a `| gzip` will happily compress it.
 

@@ -155,7 +155,7 @@ when two gate definitions exist — candidate-set MISMATCH is fail-closed, never
 
 ## References
 
-- [references/STRICT_MODE_HAZARDS.md](references/STRICT_MODE_HAZARDS.md) — `set -euo pipefail` hazard catalog (pipeline-in-assignment, SIGPIPE race, SC2155, condition-context transitivity, SC2164 cd guards, arithmetic-at-zero) + the never-retrofit / explicit-rc-at-destructive-steps stance.
+- [references/STRICT_MODE_HAZARDS.md](references/STRICT_MODE_HAZARDS.md) — `set -euo pipefail` hazard catalog (pipeline-in-assignment, SIGPIPE race, SC2155, condition-context transitivity, SC2164 cd guards, arithmetic-at-zero, negated-rc capture after `if !`, PIPESTATUS reset-on-read) + the never-retrofit / explicit-rc-at-destructive-steps stance.
 - [references/QUOTING_AND_INPUT_HYGIENE.md](references/QUOTING_AND_INPUT_HYGIENE.md) — quoting/arrays/`"$@"`, `printf` over `echo`, `IFS= read -r` + subshell trap, `case`-not-`grep` validation, arg parsing (`$2` guard, getopts vs manual, no `getopt(1)`), heredoc quoting, anchored status greps.
 - [references/CLEANUP_TRAPS_AND_LOCKING.md](references/CLEANUP_TRAPS_AND_LOCKING.md) — mktemp + EXIT-trap pair, composed single cleanup function, `flock` single-instance locking, background-child reaping.
 - [references/MAINTENANCE_SCRIPT_CONTRACT.md](references/MAINTENANCE_SCRIPT_CONTRACT.md) — mode surface (DRY-RUN / `--apply` / `--verify` / `--revert` / `--check`), the interactive precondition-acknowledgement gate, one-target-at-a-time, idempotency, evidence logs, lockout discipline, grep portability.

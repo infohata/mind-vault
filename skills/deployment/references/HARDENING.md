@@ -255,16 +255,17 @@ blast-radius reduction available for a service account. Two traps make them sile
 ### `SystemCallFilter=@system-service` requires systemd >= 240 — older systemd does not REJECT it
 
 It **silently** resolves the filter to a ~40-syscall allowlist with **no `openat`/`read`/`mmap`/`socket`**.
-`execve` *is* permitted, so the process starts, and then the dynamic loader is denied `openat` and the
-service dies with **`status=127`**.
+`execve` *is* permitted, so the process starts, and then the dynamic loader is denied `openat`. With
+`SystemCallErrorNumber=EPERM` set — as hardening drop-ins typically do — the denial returns an errno,
+the loader gives up, and the service dies with **`status=127`**. (Default filter action instead kills
+with SIGSYS → `signal=SYS` (31), which at least points at seccomp.)
 
-That signature is maximally misleading:
+That `status=127` signature is maximally misleading:
 
 - **127 is the LOADER**, not systemd — systemd's own sandbox failures are **226/228/203**, so the
   exit code points away from the sandbox.
 - the binary **runs fine by hand** (no seccomp outside the unit),
-- the **identical unit works** on a newer box,
-- with `SystemCallErrorNumber=EPERM` you get a quiet `EPERM`, not a loud `SIGSYS` kill.
+- the **identical unit works** on a newer box.
 
 Confirm what systemd actually *parsed*, rather than what you wrote:
 
