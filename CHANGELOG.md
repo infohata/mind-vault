@@ -35,7 +35,7 @@ Compounded 2026-07-15 from br-docs IDEA-029 Phase 3 (an on-estate Loki backup: o
 ### Security
 
 - **Never claim a security property you have not tested.** The `nologin` shell in pattern 20 was documented as one of four *controls* bounding a privileged (`docker-ops`) grant. It was not a control — it made the feature **inert** while *looking* correctly bounded, which is the failure mode you don't notice, because "no backups yet" is indistinguishable from "not scheduled yet". The real bounds were the forced command, `restrict`, a root-owned wrapper, and no password. Corollary from the same cycle: the `restrict`→`no-pty` control **proved itself** by refusing our own client (pattern 19) — the refusal was correct; the bug was ours.
-- **Check for prior art before writing a new remote-sudo helper.** Fix 2 in pattern 18 (`2>&1 | tee /dev/tty`) already existed in the same repo; not looking cost a silent one-minute hang in front of the operator.
+- **Check for prior art before writing a new remote-sudo helper.** Fix 2 in pattern 18 (`2>&1 | tee /dev/tty`) already existed in the source repo (br-docs `install-key.sh`); not looking cost a silent one-minute hang in front of the operator.
 
 ## v5.4.1 — deployment: Loki/promtail pipeline traps + rootless dual-port wedge
 
