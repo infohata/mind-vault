@@ -90,6 +90,16 @@ limit. Attach it **per-router** (a rate-limit *value* is backend-specific; an en
 middleware can't be removed per-router). ⚠ Under **rootless Docker** the per-IP intent is defeated by
 source-IP masquerading — see [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md) § source-IP.
 
+**Set the value LOOSE, and know what it does NOT defend.** A per-IP rate-limit only caps a *single
+runaway IP* — a scraper, a broken client in a retry storm. It is **not** distributed-DDoS defense: a
+botnet of N addresses each sending ~1/s sails under **any** per-IP cap (300k IPs × 1/s = 300k/s, every
+bucket legal). So a *tight* value buys ~zero DDoS benefit and carries real downside — one legitimate
+asset-heavy page (a picker pulling 200+ flags/icons in a burst) trips a low `burst` and 429s a real
+user. Size `burst` to comfortably clear your heaviest single-page fan-out and `average` to a human's
+sustained rate (thousands, not tens); lean generous. Distributed volumetric attacks are an
+upstream/network-tier problem (anycast scrubbing, SYN cookies, connection limits), not something a
+per-client L7 counter can solve — don't crank this knob pretending it's the mitigation.
+
 ## 5. Version-bump audit drill (before changing the `traefik:` tag)
 
 A public edge holds a real prod cert in a persistent `acme.json` volume — an upgrade must not lose it.
@@ -108,6 +118,38 @@ A public edge holds a real prod cert in a persistent `acme.json` volume — an u
   unchanged)" the **first** post-deploy gate; state an explicit rollback (pin the prior tag + restore
   `acme.json`). Rollback that edits config = a change → follow the **reviewed** path (revert PR → FF
   the deploy branch), with a labeled break-glass exception for an edge that's down.
+
+## 6. A programmatically-rendered dynamic file must emit `{}` when empty — never empty-but-populated
+
+When a sidecar renders a file-provider fragment (rendering routes from a store), the **empty** case is a
+landmine. Traefik's file provider **rejects** a document that declares the containers but leaves them
+empty —
+
+```json
+{"http": {"routers": {}, "services": {}}}
+```
+
+— with `routers cannot be a standalone element (type map[string]*dynamic.Router)`, and it does **not**
+fail just that fragment: it **aborts the ENTIRE dynamic-config build**. Every `@file` router across all
+watched files — the infra routers, the dotfile guard, TLS options, *everything* — vanishes at once. A
+renderer that serialises its (empty) typed struct produces exactly this poison the first time its store
+is empty, and takes the whole edge down estate-wide.
+
+The accepted "no-op config" forms are a **bare `{}`**, `{"http": null}`, a comment, or an absent file —
+NOT the populated-but-empty struct. Guard it at the top of the renderer:
+
+```go
+if len(entries) == 0 {
+    return []byte("{}\n"), nil   // NOT a marshalled empty {http:{routers:{},services:{}}}
+}
+```
+
+Because routers and services grow together (a renderer emits both or neither), the one `len == 0` guard
+covers the only bad case. This is a different silent-outage trap from the delivery-mount traps in
+[CONTAINER_SINGLE_FILE_MOUNT.md](CONTAINER_SINGLE_FILE_MOUNT.md) but lives in the same render-and-deliver
+pipeline — a rendered fragment can blackhole the whole reload, so **commit the render only after Traefik
+reflects it** (poll `/api/http/routers` for the expected name) and roll back otherwise, so one bad
+fragment can't take routing down.
 
 Pairs with [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md) (the daemon this edge usually runs on) and
 [NGINX_TLS_REDIRECT_AND_CERTS.md](NGINX_TLS_REDIRECT_AND_CERTS.md) (the same

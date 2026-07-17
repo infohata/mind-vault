@@ -10,6 +10,23 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.4.3 — deployment: render-and-deliver traps at a file-provider edge (mount inode-pin, empty-config abort, rate-limit threat model)
+
+Compounded 2026-07-17 from a central Traefik edge's route-onboarding sidecar — a service that programmatically renders a file-provider fragment and delivers it into the proxy container for hot-reload. Three distinct **silent estate-wide outages** in one render-and-deliver pipeline, none of which a bring-up smoke test catches: the writer wrote but the consumer never saw it, the writer emitted an "empty" config that took down *all* routing, and a mount-layout mistake shadowed the static routes. The unifying lesson: **a delivery mechanism that passes "does it load at startup?" can still be fundamentally broken for updates** — test the second write, not the first read. ([#222](https://github.com/infohata/mind-vault/pull/222))
+
+### Added
+
+- `skills/deployment/references/CONTAINER_SINGLE_FILE_MOUNT.md` — delivering ONE rendered file into a consumer container without silent staleness:
+  - **A single-file / `volume.subpath` mount is INODE-bound.** It binds the target's inode at container-create, so an atomic-rename writer (`write tmp; fsync; rename` — the default "safe write" idiom) points the *name* at a new inode while the container stays pinned to the original → the consumer serves the first-ever content forever, no error anywhere. Fix: in-place `O_TRUNC` write (same inode), or mount the parent directory (path-tracked).
+  - **A volume-at-a-directory SHADOWS nested file binds.** Mounting a volume at `/ctr/dir` to slip in one file hides every individually-bound static file under it — an estate-wide route drop from a mount-ordering mistake. Fix: overlay one file over a committed empty-but-parseable placeholder via a single-file/subpath mount, leaving the directory as one normal mount.
+  - **Isolation-test the WRITE cycle, not just container startup.** Startup reads the inode once and passes; the bug is the *second* delivery. The test must drive the real writer's code path against a real consumer and assert the change propagates (+ `stat` the inode if relying on the in-place fix).
+
+### Changed
+
+- `skills/deployment/references/TRAEFIK_EDGE_HARDENING.md` — two additions to the file-provider edge patterns:
+  - **§6 empty-config abort (new).** A programmatically-rendered dynamic fragment must emit a bare `{}` when its table is empty. `{"http":{"routers":{},"services":{}}}` is **rejected** (`routers cannot be a standalone element`) and aborts the **entire** dynamic-config build — every `@file` router estate-wide (infra, dotfile guard, TLS) vanishes at once. A renderer that serialises its empty typed struct produces exactly this poison the first time its store is empty. Guard `if len(entries)==0 { return "{}" }`; commit the render only after Traefik reflects it (poll `/api/http/routers`) and roll back otherwise.
+  - **§4 rate-limit threat model (extended).** A per-IP rate-limit caps only a *single runaway IP*; it is **not** distributed-DDoS defense (a botnet of N IPs each at ~1/s sails under any per-IP cap). So a tight value buys ~zero DDoS benefit and 429s legit asset-heavy pages — size `burst` to clear the heaviest single-page fan-out, lean generous, and treat volumetric attacks as an upstream/network-tier problem.
+
 ## v5.4.2 — deployment: remote-sudo/forced-command traps + systemd sandbox version gates
 
 Compounded 2026-07-15 from br-docs IDEA-029 Phase 3 (an on-estate Loki backup: one box PULLs a snapshot from the bastion over a forced-command SSH key). Four bugs, and **every one of them lived in a path that only executes when something is unusual** — an error path, or a hardened-account path. A negative test on the *data* path passed and gave false confidence about the rest. That's the unifying theme: the code you exercise least is where these hide. ([#221](https://github.com/infohata/mind-vault/pull/221))
