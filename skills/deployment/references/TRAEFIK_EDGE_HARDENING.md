@@ -119,7 +119,7 @@ A public edge holds a real prod cert in a persistent `acme.json` volume — an u
   `acme.json`). Rollback that edits config = a change → follow the **reviewed** path (revert PR → FF
   the deploy branch), with a labeled break-glass exception for an edge that's down.
 
-## 6. A programmatically-rendered dynamic file must emit `{}` when empty — never the populated-but-empty struct
+## 6. Empty-config abort — a rendered dynamic file must emit `{}` when empty, never the populated-but-empty struct
 
 When a sidecar renders a file-provider fragment (rendering routes from a store), the **empty** case is a
 landmine. Traefik's file provider **rejects** a document that declares the containers but leaves them
