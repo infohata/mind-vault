@@ -13,9 +13,11 @@ sudo -iu svc; cd /srv/app; ./deploy.sh          # WRONG (same reason)
 
 does **not** run `cd`/`./deploy.sh` as `svc`. The `&&` / `;` binds in the **caller's** shell; the
 target's interactive shell opens, waits, and only after the operator exits it do the trailing
-commands run — back as the *original* user, in the *original* CWD. In a copy-pasted heredoc/block it's
-worse: every line after the `sudo -i` line is fed to the caller's shell, not the target's, so a
-multi-line block silently executes half its steps under the wrong identity.
+commands run — back as the *original* user, in the *original* CWD. In a pasted or stdin-fed
+multi-line block it's worse: *which* shell consumes the trailing lines is environment-dependent
+(bracketed-paste readline holds them for the caller's shell; a heredoc / raw tty queue feeds them to
+the target's login shell) — the block executes nondeterministically, some steps under the wrong
+identity either way.
 
 This is the interactive sibling of scripted privilege drop (see
 [`PRIVILEGE_DROP_PORTABILITY.md`](PRIVILEGE_DROP_PORTABILITY.md), which covers non-interactive
@@ -27,7 +29,9 @@ behaviour is what breaks the chain.
 ## Two correct forms
 
 **A — become the user, then run the commands *inside* that session** (runbook style: `sudo -i` on its
-own line, commands on following lines, no `&&` across the boundary):
+own line, commands on following lines, no `&&` across the boundary — and the operator types/pastes
+the follow-up lines *after* landing in the target shell; pasting the whole block at once re-triggers
+the trap):
 
 ```bash
 sudo -iu svc
@@ -43,9 +47,14 @@ profile is sourced (PATH / runtime-dir / rootless env), and the commands run as 
 sudo -iu svc bash -lc 'cd /srv/app && ./deploy.sh'
 ```
 
-`sudo -u svc -i -- <cmd> <args>` works too (runs `<cmd>` in a login environment without a nested
-shell string). Prefer B for automation-ish blocks; prefer A when the operator needs to eyeball
-intermediate output between steps.
+`sudo -u svc -i -- <cmd> <args>` works too — sudo passes it to the target's login shell as a `-c`
+string with each word escaped, so there's no hand-written quoting, but also no shell metacharacters:
+it can't carry a `&&` chain. Prefer B for automation-ish blocks; prefer A when the operator needs to
+eyeball intermediate output between steps.
+
+⚠ All `-i` forms run the target's *passwd* shell — for a `nologin` service account every form above
+fails with "This account is currently not available"; use `su -s /bin/bash -l <user>` instead (see
+[`PRIVILEGE_DROP_PORTABILITY.md`](PRIVILEGE_DROP_PORTABILITY.md)).
 
 ## Rule of thumb
 

@@ -56,4 +56,6 @@ In scripts that must run across distros and execution contexts, **do not rely on
 Either invoke it by absolute path (`/usr/sbin/runuser`), or prefer `setpriv … -- env HOME=… <cmd>`
 for a clean argv-preserving drop / `su -s /bin/bash <user> -c '…'` when you accept the shell-string
 form — both `/usr/bin`-homed. Whichever you choose, add it to the script's dependency preflight so
-a missing or unreachable binary fails loudly and early, not mid-run.
+a missing or unreachable binary fails loudly and early, not mid-run. For *interactive* become-user
+lines in runbooks (`sudo -iu` / `sudo -i` / `su -`) and the `&&`-chaining trap they carry, see
+[`INTERACTIVE_SUDO_LOGIN_SHELL.md`](INTERACTIVE_SUDO_LOGIN_SHELL.md).

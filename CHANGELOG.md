@@ -10,9 +10,9 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
-## v5.4.3 — shell: interactive `sudo -i` login-shell `&&`-chaining trap
+## v5.4.4 — shell: interactive `sudo -i` login-shell `&&`-chaining trap
 
-Compounded 2026-07-21 while writing rootless-docker service-user deploy command blocks for a consuming project. `sudo -iu <user> && cmd` runs the trailing commands in the PRE-sudo session, not the target user's — `sudo -i` opens an interactive login shell that must exit first. Silently executes half a pasted block under the wrong identity.
+Compounded 2026-07-21 while writing rootless-docker service-user deploy command blocks for a consuming project. `sudo -iu <user> && cmd` runs the trailing commands in the PRE-sudo session, not the target user's — `sudo -i` opens an interactive login shell that must exit first. Silently executes half a pasted block under the wrong identity. ([#223](https://github.com/infohata/mind-vault/pull/223))
 
 ### Added
 
