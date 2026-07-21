@@ -10,6 +10,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.4.3 — shell: interactive `sudo -i` login-shell `&&`-chaining trap
+
+Compounded 2026-07-21 while writing rootless-docker service-user deploy command blocks for a consuming project. `sudo -iu <user> && cmd` runs the trailing commands in the PRE-sudo session, not the target user's — `sudo -i` opens an interactive login shell that must exit first. Silently executes half a pasted block under the wrong identity.
+
+### Added
+
+- `skills/shell/references/INTERACTIVE_SUDO_LOGIN_SHELL.md` — the interactive sibling of `PRIVILEGE_DROP_PORTABILITY.md`: why `&&`/`;` after `sudo -iu` / `sudo -i` / `su -` binds in the caller's shell, and the two correct forms (become-user on its own line; or `sudo -iu <user> bash -lc '…'` with `-l` sourcing the login env — PATH, `XDG_RUNTIME_DIR`, rootless `DOCKER_HOST`). Pointer added to the `shell` SKILL.md References list.
+
 ## v5.4.2 — deployment: remote-sudo/forced-command traps + systemd sandbox version gates
 
 Compounded 2026-07-15 from br-docs IDEA-029 Phase 3 (an on-estate Loki backup: one box PULLs a snapshot from the bastion over a forced-command SSH key). Four bugs, and **every one of them lived in a path that only executes when something is unusual** — an error path, or a hardened-account path. A negative test on the *data* path passed and gave false confidence about the rest. That's the unifying theme: the code you exercise least is where these hide. ([#221](https://github.com/infohata/mind-vault/pull/221))
