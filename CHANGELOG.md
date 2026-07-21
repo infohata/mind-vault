@@ -16,7 +16,7 @@ Compounded 2026-07-21 while writing rootless-docker service-user deploy command 
 
 ### Added
 
-- `skills/shell/references/INTERACTIVE_SUDO_LOGIN_SHELL.md` — the interactive sibling of `PRIVILEGE_DROP_PORTABILITY.md`: why `&&`/`;` after `sudo -iu` / `sudo -i` / `su -` binds in the caller's shell, and the two correct forms (become-user on its own line; or `sudo -iu <user> bash -lc '…'` with `-l` sourcing the login env — PATH, `XDG_RUNTIME_DIR`, rootless `DOCKER_HOST`). Pointer added to the `shell` SKILL.md References list.
+- `skills/shell/references/INTERACTIVE_SUDO_LOGIN_SHELL.md` — the interactive sibling of `PRIVILEGE_DROP_PORTABILITY.md`: why `&&`/`;` after `sudo -iu` / `sudo -i` / `su -` binds in the caller's shell, and the two correct forms (become-user on its own line; or `sudo -iu <user> bash -lc '…'` with `-l` sourcing bash's login files — PATH, `XDG_RUNTIME_DIR`, rootless `DOCKER_HOST`). Pointer added to the `shell` SKILL.md References list.
 
 ## v5.4.2 — deployment: remote-sudo/forced-command traps + systemd sandbox version gates
 

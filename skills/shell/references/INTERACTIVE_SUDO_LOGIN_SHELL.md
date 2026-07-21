@@ -40,8 +40,10 @@ cd /srv/app
 ./deploy.sh
 ```
 
-**B — one-shot: hand the whole sequence to the login shell.** `-l` makes `bash` a login shell so the
-profile is sourced (PATH / runtime-dir / rootless env), and the commands run as the target:
+**B — one-shot: hand the whole sequence to the login shell.** `-l` makes `bash` a login shell so
+*bash's* login files are sourced (`/etc/profile`, `~/.profile`-family — PATH / runtime-dir / rootless
+env; a target whose passwd shell is zsh/fish keeps its own init out of this), and the commands run as
+the target:
 
 ```bash
 sudo -iu svc bash -lc 'cd /srv/app && ./deploy.sh'
