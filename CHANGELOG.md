@@ -23,6 +23,7 @@ Compounded 2026-07-17 from a central Traefik edge's route-onboarding sidecar —
 
 ### Changed
 
+- `skills/deployment/SKILL.md` — `metadata.version` `'2.1'` → `'2.2'` (skill touched: References entries updated/added).
 - `skills/deployment/references/TRAEFIK_EDGE_HARDENING.md` — two additions to the file-provider edge patterns:
   - **§6 empty-config abort (new).** A programmatically-rendered dynamic fragment must emit a bare `{}` when its table is empty. `{"http":{"routers":{},"services":{}}}` is **rejected** (`routers cannot be a standalone element`) and aborts the **entire** dynamic-config build — every `@file` router estate-wide (infra, dotfile guard, TLS) vanishes at once. A renderer that serialises its empty typed struct produces exactly this poison the first time its store is empty. Guard `if len(entries)==0 { return "{}" }`; commit the render only after Traefik reflects it (poll `/api/http/routers`) and roll back otherwise.
   - **§4 rate-limit threat model (extended).** A per-IP rate-limit caps only a *single runaway IP*; it is **not** distributed-DDoS defense (a botnet of N IPs each at ~1/s sails under any per-IP cap). So a tight value buys ~zero DDoS benefit and 429s legit asset-heavy pages — size `burst` to clear the heaviest single-page fan-out, lean generous, and treat volumetric attacks as an upstream/network-tier problem.
