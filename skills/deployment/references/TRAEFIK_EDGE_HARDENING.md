@@ -135,8 +135,9 @@ watched files — the infra routers, the dotfile guard, TLS options, *everything
 renderer that serialises its (empty) typed struct produces exactly this poison the first time its store
 is empty, and takes the whole edge down estate-wide.
 
-The accepted "no-op config" forms are a **bare `{}`**, `{"http": null}`, a comment, or an absent file —
-NOT the populated-but-empty struct. Guard it at the top of the renderer:
+The accepted "no-op config" forms are a **bare `{}`**, `{"http": null}`, a comment (YAML/TOML
+fragments only — JSON has none), or an absent file — NOT the populated-but-empty struct. Guard it at
+the top of the renderer:
 
 ```go
 if len(entries) == 0 {
@@ -148,10 +149,11 @@ Because routers and services grow together (a renderer emits both or neither), t
 covers the only bad case. This is a different silent-outage trap from the delivery-mount traps in
 [CONTAINER_SINGLE_FILE_MOUNT.md](CONTAINER_SINGLE_FILE_MOUNT.md) but lives in the same render-and-deliver
 pipeline — a rendered fragment can blackhole the whole reload, so **commit the render only after Traefik
-reflects it** (poll `/api/http/routers` for the expected name) and roll back otherwise, so one bad
-fragment can't take routing down.
+reflects it** (poll `/api/http/routers` for the expected name) and roll back otherwise.
 
-Pairs with [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md) (the daemon this edge usually runs on) and
+Pairs with [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md) (the daemon this edge usually runs on),
+[CONTAINER_SINGLE_FILE_MOUNT.md](CONTAINER_SINGLE_FILE_MOUNT.md) (delivering the rendered fragment
+without silent staleness — the other half of §6's pipeline) and
 [NGINX_TLS_REDIRECT_AND_CERTS.md](NGINX_TLS_REDIRECT_AND_CERTS.md) (the same
 ACME-challenge-must-stay-reachable precondition, nginx flavor). Verify-script discipline:
 [../../shell/references/MAINTENANCE_SCRIPT_CONTRACT.md](../../shell/references/MAINTENANCE_SCRIPT_CONTRACT.md).
