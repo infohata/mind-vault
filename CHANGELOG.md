@@ -10,6 +10,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.4.4 — shell: interactive `sudo -i` login-shell `&&`-chaining trap
+
+Compounded 2026-07-21 while writing rootless-docker service-user deploy command blocks for a consuming project. `sudo -iu <user> && cmd` runs the trailing commands in the PRE-sudo session, not the target user's — `sudo -i` opens an interactive login shell that must exit first. Silently executes half a pasted block under the wrong identity. ([#223](https://github.com/infohata/mind-vault/pull/223))
+
+### Added
+
+- `skills/shell/references/INTERACTIVE_SUDO_LOGIN_SHELL.md` — the interactive sibling of `PRIVILEGE_DROP_PORTABILITY.md`: why `&&`/`;` after `sudo -iu` / `sudo -i` / `su -` binds in the caller's shell, and the two correct forms (become-user on its own line; or `sudo -iu <user> bash -lc '…'` with `-l` sourcing bash's login files — PATH, `XDG_RUNTIME_DIR`, rootless `DOCKER_HOST`). Pointer added to the `shell` SKILL.md References list.
+
 ## v5.4.3 — deployment: render-and-deliver traps at a file-provider edge (mount inode-pin, empty-config abort, rate-limit threat model)
 
 Compounded 2026-07-17 from a central Traefik edge's route-onboarding sidecar — a service that programmatically renders a file-provider fragment and delivers it into the proxy container for hot-reload. Three distinct **silent estate-wide outages** in one render-and-deliver pipeline, none of which a bring-up smoke test catches: the writer wrote but the consumer never saw it, the writer emitted an "empty" config that took down *all* routing, and a mount-layout mistake shadowed the static routes. The unifying lesson: **a delivery mechanism that passes "does it load at startup?" can still be fundamentally broken for updates** — test the second write, not the first read. ([#222](https://github.com/infohata/mind-vault/pull/222))
