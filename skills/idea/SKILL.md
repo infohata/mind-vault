@@ -207,7 +207,7 @@ grep -rlE '^title:[[:space:]]*[^"'"'"'[:space:]].*:([[:space:]]|$)' docs/ideas d
 
 # Verify. Also checks the zfill(3) COLLISION, the id LISTS and superseded_by — which the migration
 # sed above deliberately does not touch, so they need eyes (or this) regardless.
-python3 <skills/idea>/assets/check-idea-frontmatter.py .   # <skills/idea> = this skill's directory
+python3 "$SKILL_DIR"/assets/check-idea-frontmatter.py .    # SKILL_DIR = this skill's directory
 ```
 
 Also hand-quote any `related:` / `depends_on:` / `supersedes:` lists (`[007, 013]` → `["007", "013"]`),

@@ -15,9 +15,10 @@ It is also a sub-100 problem: ids 010-077 take a wrong value, 001-007 are right 
 type, and anything containing an 8 or 9 stays a string by luck (8/9 are invalid octal). So a young
 project is wrong on most of its ids and a mature one looks fine — it ages out before anyone notices.
 
-The collision is the part that bites, and it is checked explicitly below. Raw, `012` -> 10 (int) and
-`010` -> '010' (str) are different dict keys. But normalise to 3 digits — `str(v).zfill(3)`, the
-obvious move when building a status table — and 10 becomes '010', colliding with the real IDEA-010.
+The collision is the part that bites, and it is checked explicitly below. Raw, unquoted `012` -> 10
+(int), while the real IDEA-010's *quoted* id is '010' (str) — different dict keys. But normalise to
+3 digits — `str(v).zfill(3)`, the obvious move when building a status table — and 10 becomes '010',
+colliding with the real IDEA-010.
 One silently overwrites the other. This has been observed live in a consuming project, twice in one
 tree.
 
@@ -55,13 +56,22 @@ def main(argv: list[str]) -> int:
         name = path.name
         # Derive the expected id from the FILENAME: octal-immune, and correct even when the
         # frontmatter value has already mis-parsed.
-        file_id = re.match(r"IDEA-(\d+)", name).group(1)
+        id_match = re.match(r"IDEA-(\d+)", name)
+        if not id_match:
+            problems.append(f"{name}: filename carries no numeric id — cannot derive the expected id")
+            continue
+        file_id = id_match.group(1)
+        parts = path.read_text().split("---")
+        if len(parts) < 3:
+            problems.append(f"{name}: no `--- … ---` frontmatter block found")
+            continue
+        raw_front = parts[1]
         try:
-            front = yaml.safe_load(path.read_text().split("---")[1]) or {}
+            front = yaml.safe_load(raw_front) or {}
         except Exception as exc:  # noqa: BLE001 — report any parse failure, never crash the guard
             problems.append(
                 f"{name}: frontmatter RAISES {exc.__class__.__name__} "
-                "— an unquoted title containing a colon kills the whole block"
+                "— an unquoted scalar containing ': ' (title, description, …) kills the whole block"
             )
             continue
 
@@ -80,11 +90,19 @@ def main(argv: list[str]) -> int:
         seen[key] = name
 
         for field in ID_FIELDS:
-            value = front.get(field) or []
+            value = front.get(field)
+            if value is None:
+                continue
             for item in value if isinstance(value, list) else [value]:
                 if not isinstance(item, str):
+                    # NEVER suggest the parsed value back: for 010-077 it is ALREADY corrupted
+                    # (raw `012` reached us as 10). The true digits survive only in the raw text.
+                    raw_line = re.search(rf"^{field}:.*$", raw_front, flags=re.M)
+                    raw = raw_line.group(0).split("#")[0].strip() if raw_line else "?"
                     problems.append(
-                        f'{name}: {field} contains unquoted {item!r} — write ["{str(item).zfill(3)}"]'
+                        f"{name}: {field} contains unquoted {item!r} — quote the ORIGINAL digits "
+                        f"from the raw line ({raw}); "
+                        "do NOT copy the parsed value, it is octal-corrupted"
                     )
 
         superseded_by = front.get("superseded_by")

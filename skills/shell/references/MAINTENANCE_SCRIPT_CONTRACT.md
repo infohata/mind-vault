@@ -167,10 +167,15 @@ still had to be found by executing it:
   path is not in `HEAD`, so there is nothing to restore it to. It needs `git restore --staged` **and**
   `rm`. Emitting the generic recipe for an `A` entry sends the operator in a circle.
 - **Not a pathspec.** Porcelain renders a rename as `old -> new` — a *description*. Splice it into a
-  recipe and you emit `git restore a.css old -> new`, which dies on `pathspec '->' did not match`.
+  recipe and it fails shape-dependently: `pathspec '->' did not match` (after a `--` separator),
+  `unknown switch '>'` (without one), or — pasted unquoted into an interactive shell — `>` becomes a
+  redirect and **clobbers a file named `new`** before git even runs.
 - **Actively destructive.** Unmerged entries (`DD/AU/UD/UA/DU/AA/UU`) match naive "is it added?" /
-  "is it modified?" tests, so an unresolved merge gets offered `git restore` — which **discards**
-  in-progress work. Worse than useless: harmful if obeyed.
+  "is it modified?" tests, so an unresolved merge gets offered the generic unstage-then-restore pair:
+  `git restore --staged` silently collapses the conflict entry (exit 0), and the follow-up
+  `git restore` then **overwrites** the in-progress resolution. (A bare `git restore` alone fails
+  safe — `error: path 'x' is unmerged` — it is the pair that destroys.) Worse than useless: harmful
+  if obeyed.
 
 Two habits prevent the whole class:
 

@@ -17,6 +17,7 @@ recurring "unable to unlink … Permission denied" wall that had been treated sy
 rounds turned out to have one cause: `docker exec` does not inherit the entrypoint's `umask`. The same
 rollout produced four consecutive review catches on a single dirty-tree guard — every one of them a
 recovery recipe that read correctly and could not run.
+([#224](https://github.com/infohata/mind-vault/pull/224))
 
 ### Added
 
@@ -51,6 +52,8 @@ recovery recipe that read correctly and could not run.
   documented in the `idea` SKILL.md: verifies ids are quoted strings matching their filenames, checks
   the `zfill(3)` **collision** (observed live in a consuming project, twice in one tree), and validates
   the id lists and `superseded_by` that the documented migration `sed` deliberately does not touch.
+  Dogfood: mind-vault's own tree failed the guard with 45 problems, three of them live collisions —
+  migrated separately in [#225](https://github.com/infohata/mind-vault/pull/225).
 
 ### Changed
 
