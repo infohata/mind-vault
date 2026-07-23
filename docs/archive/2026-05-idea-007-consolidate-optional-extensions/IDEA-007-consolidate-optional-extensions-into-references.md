@@ -1,12 +1,12 @@
 ---
-id: 007
+id: "007"
 title: Consolidate `Optional extensions` blocks into `## References` across feature-dense skills
 status: complete
 priority: medium
 supersedes: []
 superseded_by: null
 depends_on: []
-related: [002]
+related: ["002"]
 created: 2026-05-22
 completed: 2026-05-22
 auto_safe: true

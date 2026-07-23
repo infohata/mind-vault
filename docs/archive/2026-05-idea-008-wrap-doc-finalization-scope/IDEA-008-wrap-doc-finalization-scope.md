@@ -1,5 +1,5 @@
 ---
-id: 008
+id: "008"
 title: Separate wrap's doc-finalization phase from its merge phase (--scope=docs mode)
 status: complete          # idea | in-progress | complete | superseded
 priority: high   # high | medium | low

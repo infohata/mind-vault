@@ -1,12 +1,12 @@
 ---
-id: 019
+id: "019"
 title: Research gstack — mine sprint-workflow patterns for mind-vault
 status: idea          # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
 depends_on: []       # list of IDEA ids required before starting, or []
-related: [014]             # list of IDEA ids that share context, or []
+related: ["014"]             # list of IDEA ids that share context, or []
 created: 2026-06-08
 completed: null
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning

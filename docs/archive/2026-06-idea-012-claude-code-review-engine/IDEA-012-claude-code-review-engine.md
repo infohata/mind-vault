@@ -1,12 +1,12 @@
 ---
-id: 012
+id: "012"
 title: Integrate Claude Code Review as a third review-loop engine
 status: complete          # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
-depends_on: [5]       # list of IDEA ids required before starting, or []
-related: [5, 6]             # list of IDEA ids that share context, or []
+depends_on: ["005"]       # list of IDEA ids required before starting, or []
+related: ["005", "006"]             # list of IDEA ids that share context, or []
 created: 2026-06-02
 completed: 2026-06-02
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
