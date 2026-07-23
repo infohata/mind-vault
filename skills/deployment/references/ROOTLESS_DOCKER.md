@@ -125,6 +125,41 @@ the **subuid** (read the live file's owner with `stat -c %u:%g`, or compute from
 number is just remapped. A render step that re-`install`s the file every deploy must **preserve the
 subuid owner** (`stat` the live file), not re-hardcode the in-image uid.
 
+## `docker exec` does NOT inherit the entrypoint's `umask` — group-write is silently lost
+
+An entrypoint that sets `umask 002` before `exec "$@"` covers the **main process and everything it
+forks** — umask is per-process state inherited across `fork`/`exec`. It does **not** cover
+`docker exec` / `docker compose exec`: those ask the daemon to spawn a *fresh* process attached to the
+container's namespaces, not a child of PID 1, so it starts at the default **`022`**.
+
+Same image, same in-container user, two different results:
+
+```sh
+# app server (child of the entrypoint)  -> umask 002 -> 0664 / 0775, group-writable
+# docker compose exec ... <build step>  -> umask 022 -> 0644 / 0755, group-READ-only
+```
+
+Under rootless this is the difference between a working shared-group model and a wedged deploy. Build
+artifacts written by an `exec`-ed step land group-read-only; the host deploy user (same group via the
+mapped subgid, but a *different* uid) then cannot unlink them, and the next `git pull` over that tree
+dies with `unable to unlink old '<path>': Permission denied` — mid-update, leaving the tree
+**half-applied**. The failure surfaces as a git problem, several steps from its cause.
+
+The tell that isolates it fast: **the app's own writes are fine and only the exec-ed path is broken.**
+If files created by the running service are group-writable but files created by a maintenance/build
+step are not, stop looking at ownership and look at the umask inheritance boundary.
+
+Fix at every `exec` call site — cheap, explicit, and works even where no ACL is installed:
+
+```sh
+docker compose exec -T <svc> bash -c 'umask 002; <command>'
+```
+
+Belt-and-braces, and the durable half: a **default ACL** on the writable dirs forces group-write on
+every new file regardless of umask (`setfacl -R -d -m g:<group>:rwx <dirs>`). setgid alone is not
+enough — it inherits the *group* but not group-*write*, which still follows the creator's umask. Use
+both: the ACL is the backstop for writers you do not control, the `umask` removes the cause.
+
 ## Publishing the SAME host port on TWO IPs WEDGES the daemon (rootlesskit builtin port driver)
 
 Rootless Docker cannot publish one container port on two host IPs. This:
