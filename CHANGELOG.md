@@ -10,6 +10,58 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.4.5 — container `exec` umask inheritance; the recovery-recipe contract
+
+Compounded 2026-07-23 from a containerized-app staging rollout in a consuming project, where a
+recurring "unable to unlink … Permission denied" wall that had been treated symptomatically for three
+rounds turned out to have one cause: `docker exec` does not inherit the entrypoint's `umask`. The same
+rollout produced four consecutive review catches on a single dirty-tree guard — every one of them a
+recovery recipe that read correctly and could not run.
+([#224](https://github.com/infohata/mind-vault/pull/224))
+
+### Added
+
+- `skills/deployment/references/ROOTLESS_DOCKER.md` — new section: **`docker exec` does NOT inherit the
+  entrypoint's `umask`**. An entrypoint's `umask 002` covers the main process and everything it forks;
+  `docker compose exec` spawns a fresh process attached to the container's namespaces, not a child of
+  PID 1, so it starts at `022`. Build artifacts written by an exec-ed step land group-read-only, the
+  host deploy user cannot unlink them, and the next `git pull` dies mid-update leaving the tree
+  half-applied — surfacing as a git problem several steps from its cause. Includes the isolating tell
+  (the app's own writes are fine, only the exec-ed path is broken) and both fixes: `umask` at every
+  exec call site removes the cause, a default ACL is the backstop for writers you don't control
+  (setgid inherits the group but not group-write).
+- `skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md` — new section: **a recovery recipe must be
+  RUNNABLE in the session that prints it**. A guard's whole value is its recipe, and its characteristic
+  failure is *plausible but unusable* — four shipped, reviewed instances catalogued (wrong identity:
+  a script that guards on being unprivileged then emits `sudo`; wrong state: `git restore` cannot clear
+  a staged addition; not-a-pathspec: splicing a rename's `old -> new` into a command; actively
+  destructive: offering `git restore` on an unresolved merge). Two preventive habits: classify before
+  advising and refuse when no single command fits (explicit "no recipe, here's why" beats a fabricated
+  one), and execute the recipe you emit against real state. Sub-section on parsing structured tool
+  output by documented **columns** rather than whitespace fields, plus not undoing it downstream via
+  unquoted expansion or double-quoting what the tool already quoted.
+- `skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md` — new section: **a generated artifact on a
+  fixed path outlives the code that generated it**. The `--emit-setup` pattern (bake real values into a
+  self-contained script for an operator to run at higher privilege) has two failure modes that both
+  look like success: staleness (a snapshot applies everything *except* the step added since, exits 0,
+  prints a plausible summary) and foreign ownership (a shared `/tmp/<proj>` name already owned by
+  another account fails with a bare `Permission denied`). Fixes: stamp the source commit and warn at
+  run time on drift; default to a per-user path; pre-flight the target so the failure names the owner.
+  Plus the ordering trap — emitting from a checkout *before* the deploy that updates it bakes in old logic.
+- `skills/idea/assets/check-idea-frontmatter.py` — re-runnable guard for the YAML-octal id trap already
+  documented in the `idea` SKILL.md: verifies ids are quoted strings matching their filenames, checks
+  the `zfill(3)` **collision** (observed live in a consuming project, twice in one tree), and validates
+  the id lists and `superseded_by` that the documented migration `sed` deliberately does not touch.
+  Dogfood: mind-vault's own tree failed the guard with 45 problems, three of them live collisions —
+  migrated separately in [#225](https://github.com/infohata/mind-vault/pull/225).
+
+### Changed
+
+- `skills/idea/SKILL.md` — replaced the inline verification heredoc in the migration section with a
+  pointer to the new asset. The snippet only checked id/filename agreement; the asset also catches
+  collisions and unquoted list members. Re-framed as *run after every `/idea` capture*, not once at
+  migration — some `/idea` implementations still emit unquoted ids, so new files reintroduce it.
+
 ## v5.4.4 — shell: interactive `sudo -i` login-shell `&&`-chaining trap
 
 Compounded 2026-07-21 while writing rootless-docker service-user deploy command blocks for a consuming project. `sudo -iu <user> && cmd` runs the trailing commands in the PRE-sudo session, not the target user's — `sudo -i` opens an interactive login shell that must exit first. Silently executes half a pasted block under the wrong identity. ([#223](https://github.com/infohata/mind-vault/pull/223))
