@@ -1,12 +1,12 @@
 ---
-id: 013
+id: "013"
 title: Amend /wrap docs pass to audit + backfill the project's main README
 status: complete   # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []
 superseded_by: null
 depends_on: []
-related: [3, 8, 12]
+related: ["003", "008", "012"]
 created: 2026-06-03
 completed: 2026-06-03
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning

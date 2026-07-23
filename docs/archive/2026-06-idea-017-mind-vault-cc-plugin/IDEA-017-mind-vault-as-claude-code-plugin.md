@@ -1,12 +1,12 @@
 ---
-id: 017
+id: "017"
 title: mind-vault as a Claude Code plugin
 status: complete   # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by:
 depends_on: []       # list of IDEA ids required before starting, or []
-related: [016]             # list of IDEA ids that share context, or []
+related: ["016"]             # list of IDEA ids that share context, or []
 created: 2026-06-06
 completed: 2026-06-08
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning

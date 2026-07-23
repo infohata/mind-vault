@@ -1,12 +1,12 @@
 ---
-id: 016
+id: "016"
 title: Reorganize scripts/ and tools/ by concern
 status: complete      # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by:
 depends_on: []       # list of IDEA ids required before starting, or []
-related: [017]             # list of IDEA ids that share context, or []
+related: ["017"]             # list of IDEA ids that share context, or []
 created: 2026-06-06
 completed: 2026-06-07
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
