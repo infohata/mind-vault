@@ -205,20 +205,9 @@ find docs/ideas docs/archive -name 'IDEA-*.md' -print0 2>/dev/null | xargs -0 --
 # title); a blind sed here would maul titles that legitimately contain quotes.
 grep -rlE '^title:[[:space:]]*[^"'"'"'[:space:]].*:([[:space:]]|$)' docs/ideas docs/archive --include='IDEA-*.md' 2>/dev/null || true
 
-# Verify: every id is now a quoted string, and each matches its own filename.
-python3 - <<'EOF'
-import pathlib, re, yaml
-bad = 0
-for p in list(pathlib.Path('docs/ideas').glob('IDEA-*.md')) + list(pathlib.Path('docs/archive').glob('*/IDEA-*.md')):
-    fid = re.match(r'IDEA-(\d+)', p.name).group(1)
-    try:
-        got = yaml.safe_load(p.read_text().split('---')[1]).get('id')
-    except Exception as e:
-        print(f'RAISES {p.name}: {e.__class__.__name__} — quote the title?'); bad += 1; continue
-    if str(got) != fid:
-        print(f'MISMATCH {p.name}: frontmatter id={got!r} != filename {fid!r}'); bad += 1
-print('OK — all ids parse as strings matching their filenames' if not bad else f'{bad} file(s) need fixing')
-EOF
+# Verify. Also checks the zfill(3) COLLISION, the id LISTS and superseded_by — which the migration
+# sed above deliberately does not touch, so they need eyes (or this) regardless.
+python3 "$SKILL_DIR"/assets/check-idea-frontmatter.py .    # SKILL_DIR = this skill's directory
 ```
 
 Also hand-quote any `related:` / `depends_on:` / `supersedes:` lists (`[007, 013]` → `["007", "013"]`),
@@ -235,6 +224,9 @@ deliberately only touches `id:`, since those fields need judgement.
 ## References
 
 - [assets/idea-template.md](assets/idea-template.md) — the verbatim template written to disk
+- [assets/check-idea-frontmatter.py](assets/check-idea-frontmatter.py) — re-runnable guard for the
+  YAML-octal id trap (quoting, filename match, zfill collisions, id lists). Run it after any `/idea`
+  capture, not just once at migration — some implementations still emit unquoted ids.
 - [references/update-semantics.md](references/update-semantics.md) — detailed rules for editing an existing IDEA file
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](references/IDEAS_LOCATION_STATUS.md) — location-by-status routing contract, including the `git mv` semantics for status transitions
 - [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
