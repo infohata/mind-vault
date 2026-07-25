@@ -151,6 +151,79 @@ The log keeps everything; the terminal shows only what the operator must act on.
 Filter by an explicit allow-known-benign list (real errors still surface) — never a
 blanket `2>/dev/null`.
 
+## A recovery recipe must be RUNNABLE in the session that prints it
+
+A guard's entire value is the recipe it hands over. Its characteristic failure is not being wrong
+about the diagnosis — it is being **plausible but unusable**: advice that reads correctly, gets
+copy-pasted at the worst possible moment, and fails. Every instance below shipped, was reviewed, and
+still had to be found by executing it:
+
+- **Wrong identity.** A script that guards `[ "$(id -u)" -ne 0 ]` — i.e. *knows* it is unprivileged —
+  then emits `sudo rm -rf …`. If that account has no sudo (the usual case for a rootless service
+  account), the recipe cannot run where it is printed. Say **where**: *"run this from a separate
+  operator login, not this session."* Note `sudo -iu <svc> … && sudo …` does not rescue it — the
+  second `sudo` runs in the pre-`sudo` session.
+- **Wrong state.** `git restore <file>` cannot clear a **staged addition** (`A` in porcelain): the
+  path is not in `HEAD`, so there is nothing to restore it to. It needs `git restore --staged` **and**
+  `rm`. Emitting the generic recipe for an `A` entry sends the operator in a circle.
+- **Not a pathspec.** Porcelain renders a rename as `old -> new` — a *description*. Splice it into a
+  recipe and it fails shape-dependently: `pathspec '->' did not match` (after a `--` separator),
+  `unknown switch '>'` (without one), or — pasted unquoted into an interactive shell — `>` becomes a
+  redirect and **clobbers a file named `new`** before git even runs.
+- **Actively destructive.** Unmerged entries (`DD/AU/UD/UA/DU/AA/UU`) match naive "is it added?" /
+  "is it modified?" tests, so an unresolved merge gets offered the generic unstage-then-restore pair:
+  `git restore --staged` silently collapses the conflict entry (exit 0), and the follow-up
+  `git restore` then **overwrites** the in-progress resolution. (A bare `git restore` alone fails
+  safe — `error: path 'x' is unmerged` — it is the pair that destroys.) Worse than useless: harmful
+  if obeyed.
+
+Two habits prevent the whole class:
+
+1. **Classify before advising, and refuse when no single command fits.** Partition state into buckets
+   and give each its own recipe — or explicitly *none*, with the reason. "No recipe is offered on
+   purpose: no single command undoes a rename; finish or abort the merge first" is a better output
+   than a fabricated command. Silence beats a plausible wrong answer.
+2. **Execute the recipe you emit, against real state.** Reasoning about a format's documentation does
+   not catch these; a throwaway fixture exercising every status/edge simultaneously does. `eval` the
+   emitted string in a scratch repo and assert the tool accepts it.
+
+### Parse structured tool output by its documented COLUMNS, not by whitespace fields
+
+`git status --porcelain` is `XY PATH` — two status characters, **no separator between them**, path at
+column 4. `awk`'s default splitting also strips leading whitespace, so ` M path` yields `$1 == "M"`
+(fine) but `AM path` yields `$1 == "AM"`, matching neither an `== "A"` nor an `== "M"` test and
+falling silently into whichever bucket is the default. Use `substr($0,1,1)` / `substr($0,4)`. Column
+parsing also keeps renames whole and survives paths containing spaces, which `$2` truncates.
+
+Then **do not undo it downstream**: an unquoted `$paths` re-splits on `IFS` at the point it reaches
+the operator. Split on newline into an array (`mapfile -t arr < <(…)`) and expand quoted. And do not
+re-quote what the tool already quoted — porcelain C-quotes paths that need it (`"dir with space/f"`),
+and those double quotes are already valid shell; running them through `printf %q` escapes the tool's
+own quotes into a pathspec it can never match.
+
+## A generated artifact on a fixed path outlives the code that generated it
+
+A script that emits a runnable artifact (`--emit-setup`-style: bake the environment's real values into
+a self-contained script, hand it to an operator to run as root) is a good pattern — it removes
+placeholder-substitution errors and multi-line copy-paste across a privilege hop. It has two failure
+modes, both of which look like success:
+
+- **Staleness.** The artifact is a *snapshot*. When the checkout gains a new step, the copy sitting in
+  `/tmp` from last month happily applies everything *except* it, exits 0, and prints a plausible
+  summary — the missing section is the only tell, and only if you know to look for it. Stamp the
+  artifact with the commit it was generated from and have it **warn at run time** when the checkout has
+  since moved. Warn, don't hard-fail: the checkout may legitimately have advanced after a deliberate
+  emit, and refusing to run is worse than saying so.
+- **Foreign ownership.** A fixed per-project path (`/tmp/<proj>-setup.sh`) is a *shared* name. Another
+  account — an audit/read-only user, a colleague, a prior session — may already own it, and the write
+  then dies with a bare `Permission denied` from the redirect, with nothing pointing at why. Default to
+  a **per-user** path (`/tmp/<proj>-setup-$(id -un).sh`), and pre-flight the target so the failure
+  explains itself: name the owner, and distinguish *"someone else owns it"* (remove as them or root)
+  from *"you own it but the mode denies write"* (`chmod u+w`).
+
+Ordering trap when the artifact is generated from the checkout it configures: emitting it **before**
+the deploy that updates that checkout bakes in the *old* logic. Deploy first, then re-emit, then run.
+
 ## `set -euo pipefail`
 
 Standard prologue on every ops script. One non-obvious interaction: commands
