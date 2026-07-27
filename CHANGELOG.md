@@ -16,6 +16,7 @@ Compounded 2026-07-27 from a dead-code removal in a consuming project. The chang
 prove no live references to the deleted file remained, concluded "exactly five", and wrote that count
 into four documents. Two more lived in `.env.*.example` templates — which match no source-code glob,
 so the extension-filtered sweep never opened them. A review bot found what the sweep could not.
+([#226](https://github.com/infohata/mind-vault/pull/226))
 
 ### Changed
 
