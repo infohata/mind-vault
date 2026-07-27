@@ -10,6 +10,41 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.4.7 — deferrals need an expiry trigger, not just a successor ticket
+
+A deferral justified by a claim about the *surrounding context* ("acceptable while all callers are
+trusted") can never fire: the successor ticket waits on backlog priority while the condition that made
+the justification true has already lapsed. Observed in the wild — an authorization gap stayed deferred
+straight through the change that made it a real exposure, and surfaced only because a human asked
+whether anything was left.
+
+### Added
+
+- `skills/plan/references/DEFERRAL_EXPIRY_TRIGGERS.md` — write the **invalidating condition**, not just
+  the successor ticket, so the note argues against itself when the context moves. Carries the
+  inert-vs-self-invalidating contrast, the plan/review check ("what would make this justification
+  wrong?" — environment change ⇒ needs a trigger; someone-does-the-work ⇒ ordinary backlog item), and
+  the reviewer heuristic against **inheriting** a prior deferral's justification, since citing a stale
+  one launders it into the new plan.
+
+- `skills/ideate/references/divergent-scan.md` — **Axis 9, Expired deferrals**: the sweep that *catches*
+  an already-inert deferral, with grep recipes for context-justified language. Writing the condition only
+  helps the next deferral; the ones already in the archive need somebody to notice the trigger fired, and
+  that belongs at ideation — by plan time the work is already chosen.
+
+### Changed
+
+- `skills/plan/SKILL.md` — Scope Boundaries (step 4 of the plan structure) now points at the reference,
+  since out-of-scope is where deferrals are actually written; References list updated.
+- `skills/ideate/SKILL.md` — divergent-scan axis list gains Expired deferrals. Highest-yield axis on a
+  mature codebase: no other axis finds these, because a deferral reads as "covered" (it names the risk,
+  the successor and a reason) so every later scan skips it.
+- Catchment sweep — deferrals get written at almost every workflow stage, not just plan scope
+  boundaries, so every write-site now points at the reference: the plan template's out-of-scope
+  placeholder, `/idea` non-goals (Phase B substitution + References), `/work`'s archive-README punt
+  list (§ 6a), `/wrap`'s follow-up-flag disposition (Step 6), and `/review-loop`'s `NON_BLOCKING`
+  formalize path. The reference's "Where this applies" section lists the wired sites bidirectionally.
+
 ## v5.4.6 — sweep integrity: an `--include` allow-list makes a completeness grep under-report
 
 Compounded 2026-07-27 from a dead-code removal in a consuming project. The change swept the repo to

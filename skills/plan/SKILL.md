@@ -68,7 +68,10 @@ Read [`assets/plan-template.md`](assets/plan-template.md) and fill its sections.
 1. **Context** — why this work, what prompted it, intended outcome.
 2. **Problem Frame** — what's broken or missing, how it hurts today.
 3. **Requirements Trace** — R1, R2, … each traceable back to the IDEA body or the user's request.
-4. **Scope Boundaries** — in-scope / out-of-scope / explicit non-goals.
+4. **Scope Boundaries** — in-scope / out-of-scope / explicit non-goals. When an out-of-scope item is
+   justified by a claim about the *surrounding context* ("acceptable while all callers are trusted"),
+   write the **invalidating condition**, not just the successor ticket — otherwise the deferral can
+   never fire. See [`references/DEFERRAL_EXPIRY_TRIGGERS.md`](references/DEFERRAL_EXPIRY_TRIGGERS.md).
 5. **Context & Research** — existing code and patterns to reuse (with file paths), institutional learnings, external references.
 6. **Key Technical Decisions** — opinionated defaults with one-line rationale each.
 7. **Open Questions** — things that need user input before execution starts. Suggest a default per question; mark resolved questions inline.
@@ -174,6 +177,7 @@ The plan's philosophy stays the same at every scope; the depth scales.
 - [references/thin-input-bootstrap.md](references/thin-input-bootstrap.md) — the interactive brainstorm front-end for thin inputs
 - [references/architect-handoff.md](references/architect-handoff.md) — how to invoke AGENT_architect as a reviewer and integrate findings
 - [references/batching-for-sprint-auto.md](references/batching-for-sprint-auto.md) — opt-in mode for grouping multiple `/plan` outputs onto one feature branch + PR to feed an overnight `/sprint-auto` run
+- [references/DEFERRAL_EXPIRY_TRIGGERS.md](references/DEFERRAL_EXPIRY_TRIGGERS.md) — why "deferred to IDEA-NNN, acceptable for now" never fires; write the condition that invalidates the justification, plus the reviewer heuristic against inheriting a stale deferral's reasoning
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — the location-by-status contract driving step 6's `idea` → `in-progress` move
 - [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
 - [skills/idea/SKILL.md](../idea/SKILL.md) — previous stage; produces the IDEA file this skill consumes
