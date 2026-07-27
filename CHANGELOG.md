@@ -10,6 +10,28 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.4.6 — sweep integrity: an `--include` allow-list makes a completeness grep under-report
+
+Compounded 2026-07-27 from a dead-code removal in a consuming project. The change swept the repo to
+prove no live references to the deleted file remained, concluded "exactly five", and wrote that count
+into four documents. Two more lived in `.env.*.example` templates — which match no source-code glob,
+so the extension-filtered sweep never opened them. A review bot found what the sweep could not.
+([#226](https://github.com/infohata/mind-vault/pull/226))
+
+### Changed
+
+- `rules/RULE_self-sweep-before-push.md` — new **Sweep integrity** section: when a sweep's job is to
+  prove **absence or completeness** ("no references remain", "exactly N sites", "nothing else calls
+  this"), never filter by file extension. `grep -rn "PATTERN" --include='*.py' --include='*.md' .` answers
+  *"hits in the files I thought to look at"* and presents that as zero; config templates, dotfiles,
+  extensionless scripts, unexpectedly-named CI YAML and generated manifests are all invisible to it.
+  Exclude **directories** instead — a false positive from `vendor/` costs a glance, a false negative
+  ships. Notably, trigger 5's existing count-claim check **cannot** catch this class: the count does
+  match the listed set; the *set* is what's short. Generalised as **a negative result is a claim about
+  your search, not about the repo** — before asserting "none remain", ask what the search could not
+  see. Adds a matching "When This Applies" bullet for any commit whose message, PR body, or docs
+  assert absence or a count.
+
 ## v5.4.5 — container `exec` umask inheritance; the recovery-recipe contract
 
 Compounded 2026-07-23 from a containerized-app staging rollout in a consuming project, where a

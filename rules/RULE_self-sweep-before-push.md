@@ -43,9 +43,23 @@ When `make test` reports pre-existing failures unrelated to your change, fix the
 
 When a commit carries substantial doc/markdown changes (IDEA files, ideas index, plan docs, devlogs) — **even alongside code** — sweep the consistency class bots flag one-nit-per-cycle: (1) frontmatter `related`/`depends_on`/`supersedes` ↔ body prose symmetry, every id and every edge; (2) every id in an ordering/recap block has an index-table row; (3) count/range claims match the listed set; (4) domain-terminology precision (e.g. shared-schema vs per-tenant); (5) PR-description ↔ final-diff drift; (6) frontmatter formatting matches repo convention. Grep recipes + detail → rationale doc.
 
+## Sweep integrity — an `--include` allow-list makes a sweep silently under-report
+
+When a sweep's job is to prove **absence** or **completeness** — "no references remain", "exactly N sites corrected", "nothing else calls this" — do **not** filter by file extension. `grep -rn "PATTERN" --include='*.py' --include='*.md' .` answers *"hits in the files I thought to look at"* and presents that as zero. Config templates (`.env.*.example`), dotfiles, extensionless scripts, CI YAML under an unexpected name, and generated manifests match no source-code glob. Exclude **directories** instead — a false positive from `vendor/` costs a glance; a false negative ships:
+
+```bash
+grep -rn "PATTERN" --binary-files=without-match \
+  --exclude-dir=vendor --exclude-dir=node_modules --exclude-dir=.git .
+```
+
+Observed: a dead-file removal swept with an extension allow-list, concluded "exactly five live references", and wrote that count into four documents. Two more lived in `.env.*.example` templates. A review bot found them — precisely the billed cycle this rule exists to prevent, and trigger 5's count-claim check (3) could not have caught it, because the count *did* match the (under-reported) listed set.
+
+The general form: **a negative result is a claim about your search, not about the repo.** Before writing "none remain" or a specific count, ask what the search could not see.
+
 ## When This Applies
 
 - Every commit on a feature branch that touches `.py` or `.js` source.
+- Any commit whose message, PR body, or docs assert **absence or a count** ("no remaining callers", "all N sites updated") — the sweep behind the claim must not be extension-filtered.
 - Every commit that is **doc-heavy** (substantial IDEA / index / plan / devlog markdown), even when it also carries code — trigger 5.
 - Mandatory before push if a review bot (code or doc) is wired up to the PR — saves an entire billed bot cycle per trivial finding.
 - Especially valuable inside `review-loop` skills: between Phase 2 (apply edits) and Phase 3 (commit + push + retrigger).
