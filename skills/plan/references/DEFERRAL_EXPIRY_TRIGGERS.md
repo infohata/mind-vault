@@ -89,7 +89,7 @@ Expired deferrals**: grep the archive for context-justified language, and for ea
 the justification rested on and whether it still holds.
 
 Worth knowing how the observed case actually surfaced: not by a process, but because a human asked "is
-there anything left to do here?" during a backlog review. Axis 9 exists so that is a scan rather than a
+there anything left to do here?" during a backlog review. Axis 9 exists so that catch is a scan rather than a
 lucky question.
 
 ## Related
