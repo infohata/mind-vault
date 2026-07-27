@@ -39,6 +39,11 @@ whether anything was left.
 - `skills/ideate/SKILL.md` — divergent-scan axis list gains Expired deferrals. Highest-yield axis on a
   mature codebase: no other axis finds these, because a deferral reads as "covered" (it names the risk,
   the successor and a reason) so every later scan skips it.
+- Catchment sweep — deferrals get written at almost every workflow stage, not just plan scope
+  boundaries, so every write-site now points at the reference: the plan template's out-of-scope
+  placeholder, `/idea` non-goals (Phase B substitution + References), `/work`'s archive-README punt
+  list (§ 6a), `/wrap`'s follow-up-flag disposition (Step 6), and `/review-loop`'s `NON_BLOCKING`
+  formalize path. The reference's "Where this applies" section lists the wired sites bidirectionally.
 
 ## v5.4.6 — sweep integrity: an `--include` allow-list makes a completeness grep under-report
 

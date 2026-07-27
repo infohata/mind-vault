@@ -54,7 +54,7 @@ ls docs/ideas/IDEA-*.md docs/archive/*/IDEA-*.md 2>/dev/null \
 
 **Phase B — emit the file.**
 
-1. Read [`assets/idea-template.md`](assets/idea-template.md) and substitute the frontmatter fields. Fill `status: idea`, `created: YYYY-MM-DD` (today), `completed: null`.
+1. Read [`assets/idea-template.md`](assets/idea-template.md) and substitute the frontmatter fields. Fill `status: idea`, `created: YYYY-MM-DD` (today), `completed: null`. When filling `{{NON_GOALS}}`: a non-goal justified by a claim about the surrounding context ("fine while all callers are trusted") must state its invalidating condition, not just the reason — see [`skills/plan/references/DEFERRAL_EXPIRY_TRIGGERS.md`](../plan/references/DEFERRAL_EXPIRY_TRIGGERS.md).
 2. Write to `<project>/docs/ideas/IDEA-NNN-<slug>.md` per [`RULE_ideas-location-status`](references/IDEAS_LOCATION_STATUS.md) — `status: idea` always starts in `docs/ideas/`. Create the directory if missing.
 3. Append an index line to `<project>/docs/ideas/README.md` under the matching priority heading. Create the index file with the standard skeleton if missing (see [Index maintenance](#3-index-maintenance)).
 4. Print the created path + the index line for user verification.
@@ -228,6 +228,7 @@ deliberately only touches `id:`, since those fields need judgement.
   YAML-octal id trap (quoting, filename match, zfill collisions, id lists). Run it after any `/idea`
   capture, not just once at migration — some implementations still emit unquoted ids.
 - [references/update-semantics.md](references/update-semantics.md) — detailed rules for editing an existing IDEA file
+- [skills/plan/references/DEFERRAL_EXPIRY_TRIGGERS.md](../plan/references/DEFERRAL_EXPIRY_TRIGGERS.md) — condition form for context-justified non-goals; an "acceptable while X" note that omits the invalidating condition can never fire
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](references/IDEAS_LOCATION_STATUS.md) — location-by-status routing contract, including the `git mv` semantics for status transitions
 - [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
 - [skills/plan/SKILL.md](../plan/SKILL.md) — next stage; consumes the IDEA file and triggers `idea` → `in-progress` move

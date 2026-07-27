@@ -208,7 +208,7 @@ When run as a fallback, append a short summary to `docs/archive/YYYY-MM-idea-NNN
 - What shipped (one-paragraph)
 - PR number(s)
 - Notable deviations from the plan
-- Follow-up work that got punted to new IDEAs
+- Follow-up work that got punted to new IDEAs — when a punt's justification is a claim about the surrounding context ("fine while X"), record the invalidating condition per [`skills/plan/references/DEFERRAL_EXPIRY_TRIGGERS.md`](../plan/references/DEFERRAL_EXPIRY_TRIGGERS.md), not just the successor IDEA
 
 This is the canonical landing page for anyone discovering the idea via grep/index after completion. Keep it short; details live in the plan doc and the DEVELOPMENT_LOG entry.
 

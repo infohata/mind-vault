@@ -48,10 +48,18 @@ Two mechanical rules:
 
 ## Where this applies
 
+Deferrals get written at almost every stage of the workflow cycle; each write-site points back here:
+
 - **Plan `Scope Boundaries` / out-of-scope** — the primary site. Every out-of-scope item justified by a
-  context claim needs the condition form.
-- **IDEA non-goals** — same test.
-- **Wrap's "not done, by design" notes** — these outlive the PR and are read later as settled.
+  context claim needs the condition form. (Wired: plan SKILL step 4 + the plan template's out-of-scope
+  placeholder.)
+- **IDEA non-goals** — same test. (Wired: idea SKILL Phase B template substitution.)
+- **Work's punt list** — follow-up work punted to new IDEAs mid-execution, recorded in the archive-dir
+  README. (Wired: work SKILL § 6a.)
+- **Wrap's "not done, by design" notes and follow-up flags** — these outlive the PR and are read later
+  as settled. (Wired: wrap SKILL Step 6 follow-up disposition.)
+- **Review-loop deferred findings** — a `NON_BLOCKING` finding formalized into an IDEA instead of fixed.
+  (Wired: review-loop SKILL § NON_BLOCKING disposition.)
 
 ## The check, at plan and at review
 
