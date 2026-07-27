@@ -1,12 +1,12 @@
 ---
-id: 011
+id: "011"
 title: Agent Profiles → Recognized Subagent Schema
 status: complete      # idea | in-progress | complete | superseded
 priority: high   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
 depends_on: []       # list of IDEA ids required before starting, or []
-related: [002]             # list of IDEA ids that share context, or []
+related: ["002"]             # list of IDEA ids that share context, or []
 created: 2026-05-31
 completed: 2026-06-01
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning

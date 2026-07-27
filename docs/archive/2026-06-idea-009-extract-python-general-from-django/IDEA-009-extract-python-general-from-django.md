@@ -1,12 +1,12 @@
 ---
-id: 009
+id: "009"
 title: Extract Python-general patterns from the django skill into a python skill
 status: complete   # idea | in-progress | complete | superseded
 priority: low   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by:
 depends_on: []       # list of IDEA ids required before starting, or []
-related: [IDEA-014]             # list of IDEA ids that share context, or []
+related: ["014"]             # list of IDEA ids that share context, or []
 created: 2026-05-27
 completed: 2026-06-06
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning

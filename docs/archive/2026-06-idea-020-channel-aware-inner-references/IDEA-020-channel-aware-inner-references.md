@@ -1,12 +1,12 @@
 ---
-id: 020
+id: "020"
 title: Channel-aware inner command/skill references (plugin-route correctness)
 status: complete   # idea | in-progress | complete | superseded
 priority: high   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
 depends_on: []       # list of IDEA ids required before starting, or []
-related: [017]             # list of IDEA ids that share context, or []
+related: ["017"]             # list of IDEA ids that share context, or []
 created: 2026-06-08
 completed: 2026-06-08
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning

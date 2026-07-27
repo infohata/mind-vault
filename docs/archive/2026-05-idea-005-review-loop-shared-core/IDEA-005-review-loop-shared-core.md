@@ -1,12 +1,12 @@
 ---
-id: 005
+id: "005"
 title: Review-loop shared core — unify /bugbot-loop + /copilot-loop with engine adapters
 status: complete
 priority: high
 supersedes: []
 superseded_by: null
 depends_on: []
-related: [006]
+related: ["006"]
 created: 2026-05-20
 completed: 2026-05-20
 auto_safe: false

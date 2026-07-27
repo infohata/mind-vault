@@ -1,12 +1,12 @@
 ---
-id: 1
+id: "001"
 title: Playwright Direction-1 plumbing — assets, gate, preflight
 status: complete
 priority: high
 supersedes: []
 superseded_by: null
 depends_on: []
-related: [002]
+related: ["002"]
 created: 2026-05-09
 completed: 2026-05-09
 auto_safe: false

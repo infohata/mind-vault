@@ -1,12 +1,12 @@
 ---
-id: 021
+id: "021"
 title: Monitor-accelerated review-loop Phase 4 wait
 status: complete          # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
 depends_on: []       # list of IDEA ids required before starting, or []
-related: [005, 012]             # list of IDEA ids that share context, or []
+related: ["005", "012"]             # list of IDEA ids that share context, or []
 created: 2026-06-17
 completed: 2026-06-17
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning

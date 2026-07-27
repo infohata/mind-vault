@@ -1,12 +1,12 @@
 ---
-id: 015
+id: "015"
 title: "Split /wrap into /wrap (docs) + /land (merge + teardown)"
 status: complete          # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # list of IDEA ids this replaces, or []
 superseded_by: null
 depends_on: []       # list of IDEA ids required before starting, or []
-related: [6, 8, 13, 2]             # list of IDEA ids that share context, or []
+related: ["006", "008", "013", "002"]             # list of IDEA ids that share context, or []
 created: 2026-06-06
 completed: 2026-06-06
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning

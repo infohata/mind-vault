@@ -1,12 +1,12 @@
 ---
-id: 022
+id: "022"
 title: Claude adapter HAS_FINDINGS false-positive on resolved-recap summaries
 status: complete          # idea | in-progress | complete | superseded
 priority: high   # high | medium | low
 supersedes: []
 superseded_by: null
 depends_on: []
-related: [012, 021]
+related: ["012", "021"]
 created: 2026-06-17
 completed: 2026-06-17
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning

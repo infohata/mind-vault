@@ -1,5 +1,5 @@
 ---
-id: 010
+id: "010"
 title: Retroactive review-thread audit hardening + mind-vault stale-thread cleanup
 status: complete          # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low

@@ -1,12 +1,12 @@
 ---
-id: IDEA-014
+id: "014"
 title: Stack-agnostic agent architecture + Laravel proving stack
 status: complete
 priority: medium
 supersedes: []
 superseded_by:
 depends_on: []
-related: [IDEA-011, IDEA-009]
+related: ["011", "009"]
 created: 2026-05-20
 completed: 2026-06-07            # both phases shipped (Phase 2 = Laravel proving stack, PR #183, v5)
 phase_1_completed: 2026-06-06   # craft/stack split + 6/4 contract + detection (PR #178)

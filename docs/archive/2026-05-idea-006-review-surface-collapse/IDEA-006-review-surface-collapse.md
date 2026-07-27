@@ -1,12 +1,12 @@
 ---
-id: 006
+id: "006"
 title: v4.3 review-surface collapse — delete AGENT_bugbot/AGENT_copilot + the /bugbot-loop·/copilot-loop wrappers, leaving only /review-loop
 status: complete
 completed: 2026-05-25
 priority: high
 supersedes: []
 superseded_by: null
-depends_on: [005]
+depends_on: ["005"]
 related: []
 created: 2026-05-20
 target_version: v4.3

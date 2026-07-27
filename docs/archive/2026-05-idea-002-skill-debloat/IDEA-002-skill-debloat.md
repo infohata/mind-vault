@@ -1,12 +1,12 @@
 ---
-id: 002
+id: "002"
 title: Skill debloat — extract over-budget SKILL.md bodies into references/
 status: complete
 priority: high
 supersedes: []
 superseded_by: null
 depends_on: []
-related: [001]
+related: ["001"]
 created: 2026-05-09
 completed: 2026-05-09
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
