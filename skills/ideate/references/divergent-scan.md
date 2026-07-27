@@ -182,10 +182,14 @@ Scope drives axis selection, not the other way around:
 | Scoped area | Priority axes |
 | --- | --- |
 | Test suite health | Bugs, tech debt, tooling, process |
-| A specific app | Bugs, new features, refactors, tech debt |
-| Deploy pipeline | Tooling, observability, process |
+| A specific app | Bugs, new features, refactors, tech debt, expired deferrals |
+| Deploy pipeline | Tooling, observability, process, expired deferrals |
 | Codebase landscape / next sprint | All axes (budget 15–25 candidates, filter hard) |
-| Docs tree | Docs, onboarding, process |
+| Docs tree | Docs, onboarding, process, expired deferrals |
+
+Expired deferrals (Axis 9) rides along in **any** scope whose area has prior plans / IDEAs in the
+archive — add it whenever `docs/archive/` intersects the scoped area, since that's where the inert
+deferral notes live.
 
 ## The generation checklist before handing off to the filter
 
