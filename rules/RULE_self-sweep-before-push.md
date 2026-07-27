@@ -48,8 +48,8 @@ When a commit carries substantial doc/markdown changes (IDEA files, ideas index,
 When a sweep's job is to prove **absence** or **completeness** — "no references remain", "exactly N sites corrected", "nothing else calls this" — do **not** filter by file extension. `grep -rn PATTERN --include='*.py' --include='*.md' .` answers *"hits in the files I thought to look at"* and presents that as zero. Config templates (`.env.*.example`), dotfiles, extensionless scripts, CI YAML under an unexpected name, and generated manifests match no source-code glob. Exclude **directories** instead — a false positive from `vendor/` costs a glance; a false negative ships:
 
 ```bash
-grep -rn "PATTERN" --binary-files=without-match . \
-  | grep -v '^./vendor/\|^./node_modules/\|^./.git/'
+grep -rn "PATTERN" --binary-files=without-match \
+  --exclude-dir=vendor --exclude-dir=node_modules --exclude-dir=.git .
 ```
 
 Observed: a dead-file removal swept with an extension allow-list, concluded "exactly five live references", and wrote that count into four documents. Two more lived in `.env.*.example` templates. A review bot found them — precisely the billed cycle this rule exists to prevent, and trigger 5's count-claim check (3) could not have caught it, because the count *did* match the (under-reported) listed set.
