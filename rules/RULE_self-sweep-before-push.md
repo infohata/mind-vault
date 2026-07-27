@@ -45,7 +45,7 @@ When a commit carries substantial doc/markdown changes (IDEA files, ideas index,
 
 ## Sweep integrity — an `--include` allow-list makes a sweep silently under-report
 
-When a sweep's job is to prove **absence** or **completeness** — "no references remain", "exactly N sites corrected", "nothing else calls this" — do **not** filter by file extension. `grep -rn PATTERN --include='*.py' --include='*.md' .` answers *"hits in the files I thought to look at"* and presents that as zero. Config templates (`.env.*.example`), dotfiles, extensionless scripts, CI YAML under an unexpected name, and generated manifests match no source-code glob. Exclude **directories** instead — a false positive from `vendor/` costs a glance; a false negative ships:
+When a sweep's job is to prove **absence** or **completeness** — "no references remain", "exactly N sites corrected", "nothing else calls this" — do **not** filter by file extension. `grep -rn "PATTERN" --include='*.py' --include='*.md' .` answers *"hits in the files I thought to look at"* and presents that as zero. Config templates (`.env.*.example`), dotfiles, extensionless scripts, CI YAML under an unexpected name, and generated manifests match no source-code glob. Exclude **directories** instead — a false positive from `vendor/` costs a glance; a false negative ships:
 
 ```bash
 grep -rn "PATTERN" --binary-files=without-match \

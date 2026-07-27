@@ -22,7 +22,7 @@ so the extension-filtered sweep never opened them. A review bot found what the s
 
 - `rules/RULE_self-sweep-before-push.md` — new **Sweep integrity** section: when a sweep's job is to
   prove **absence or completeness** ("no references remain", "exactly N sites", "nothing else calls
-  this"), never filter by file extension. `grep -rn P --include='*.py' --include='*.md' .` answers
+  this"), never filter by file extension. `grep -rn "PATTERN" --include='*.py' --include='*.md' .` answers
   *"hits in the files I thought to look at"* and presents that as zero; config templates, dotfiles,
   extensionless scripts, unexpectedly-named CI YAML and generated manifests are all invisible to it.
   Exclude **directories** instead — a false positive from `vendor/` costs a glance, a false negative
