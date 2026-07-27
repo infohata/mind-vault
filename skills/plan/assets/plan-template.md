@@ -31,7 +31,7 @@ project: {{PROJECT_NAME}}
 
 **Out of scope:**
 
-- {{Tempting adjacent work that is explicitly deferred. When the justification is a claim about the surrounding context ("fine while X"), write the invalidating condition and what its expiry obligates — see skills/plan/references/DEFERRAL_EXPIRY_TRIGGERS.md.}}
+- {{Tempting adjacent work that is explicitly deferred. When the justification is a claim about the surrounding context ("fine while X"), write the invalidating condition and what its expiry obligates — see `skills/plan/references/DEFERRAL_EXPIRY_TRIGGERS.md`.}}
 
 **Explicit non-goals:**
 
