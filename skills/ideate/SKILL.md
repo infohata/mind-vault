@@ -52,6 +52,7 @@ Axes to walk (pick the applicable subset per scope):
 - **Docs** — stale README, missing ONBOARDING, outdated architecture diagrams, undocumented conventions the user has to keep re-explaining.
 - **Observability** — gaps in logging, missing metrics, error swallowing, no alert on known-critical paths.
 - **Process** — missing CI checks, test-running friction, PR template gaps.
+- **Expired deferrals** — prior out-of-scope items and non-goals whose justification was a claim about the *surrounding context* ("acceptable while all callers are trusted", "fine at this scale"). Check whether that context still holds; a lapsed one is usually a high-priority candidate, because the work was already assessed as real and only an assumption was holding it closed. Highest-yield axis on a mature codebase — no other axis finds these, since a deferral reads as "covered" and every later scan skips it.
 
 Capture each candidate with a one-sentence summary, a tentative priority, and a rough dependency signal. Reference [`references/divergent-scan.md`](references/divergent-scan.md) for per-axis prompt fragments, grep recipes, and the canonical "good candidate" shape.
 

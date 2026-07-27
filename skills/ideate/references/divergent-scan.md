@@ -140,6 +140,41 @@ Generation prompt to self:
 - Is there a PR template? Does it ask the right questions?
 - Merge discipline — any branches older than 30 days? Any fix that had to land on 3 different branches because of divergence?
 
+## Axis 9 — Expired deferrals
+
+The highest-yield axis on a mature codebase, and the one no other axis finds. Every other axis looks for
+work nobody has *decided* about; this one re-opens decisions that were already made **and justified** —
+where the justification has since quietly stopped being true.
+
+Hunt for deferrals whose stated reason was a claim about the **surrounding context** ("acceptable while
+all callers are trusted", "fine at this scale", "internal-only for now"), then check whether that context
+still holds. See [`../../plan/references/DEFERRAL_EXPIRY_TRIGGERS.md`](../../plan/references/DEFERRAL_EXPIRY_TRIGGERS.md)
+for why these never self-report.
+
+Grep recipes — the language of a context-justified deferral:
+
+```bash
+grep -rniE 'acceptable (for|while|until)|for now|remains until|deferred (to|until)|good enough (for|while)' \
+  docs/ideas/ docs/archive/ CLAUDE.md AGENTS.md
+grep -rn '⚠' docs/archive/*/            # warning markers on out-of-scope / non-goals sections
+grep -rniE 'out of scope|non-goal' docs/archive/*/*plan*.md
+```
+
+Generation prompt to self, for each hit:
+
+- What **condition** was this justification resting on — trust, scale, single-consumer, internal-only,
+  low-traffic, one-team-owns-it?
+- Has that condition changed since it was written? New consumers, a new trust boundary, growth, a
+  component going multi-tenant, third-party contributors?
+- If it changed: this is a **candidate, and usually a high-priority one** — it was already assessed as
+  real work, and the only thing holding it closed was an assumption that has now lapsed.
+- If it hasn't changed: leave it, but note whether the deferral states its trigger. If it doesn't, a
+  cheap candidate is to *rewrite the deferral in condition form* so the next sweep is mechanical.
+
+The tell that this axis is needed: nobody re-reads a deferral once it's written. It reads as "covered" —
+it names the risk, the successor and a reason — so every later scan skips it. Only an explicit sweep
+re-examines the reason.
+
 ## Picking the axis subset
 
 Scope drives axis selection, not the other way around:

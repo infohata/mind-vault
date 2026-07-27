@@ -27,10 +27,18 @@ whether anything was left.
   the reviewer heuristic against **inheriting** a prior deferral's justification, since citing a stale
   one launders it into the new plan.
 
+- `skills/ideate/references/divergent-scan.md` — **Axis 9, Expired deferrals**: the sweep that *catches*
+  an already-inert deferral, with grep recipes for context-justified language. Writing the condition only
+  helps the next deferral; the ones already in the archive need somebody to notice the trigger fired, and
+  that belongs at ideation — by plan time the work is already chosen.
+
 ### Changed
 
 - `skills/plan/SKILL.md` — Scope Boundaries (step 4 of the plan structure) now points at the reference,
   since out-of-scope is where deferrals are actually written; References list updated.
+- `skills/ideate/SKILL.md` — divergent-scan axis list gains Expired deferrals. Highest-yield axis on a
+  mature codebase: no other axis finds these, because a deferral reads as "covered" (it names the risk,
+  the successor and a reason) so every later scan skips it.
 
 ## v5.4.6 — sweep integrity: an `--include` allow-list makes a completeness grep under-report
 

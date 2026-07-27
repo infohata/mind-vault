@@ -68,6 +68,22 @@ the *old* context. Re-verify the assumption against today's before reusing it. A
 correct when written can be wrong when cited, and citing it is what launders the staleness into the
 new plan.
 
+## The other half — catching one that already expired
+
+Writing the condition helps the *next* deferral. It does nothing for the ones already sitting in the
+archive in inert form, and those are the ones that bite. A well-written deferral still needs somebody to
+notice its trigger fired — the note will not announce itself.
+
+That catch belongs at **ideation**, not at plan time: by the time you are planning, you have already
+chosen the work. The sweep is
+[`../../ideate/references/divergent-scan.md`](../../ideate/references/divergent-scan.md) **Axis 9 —
+Expired deferrals**: grep the archive for context-justified language, and for each hit ask what condition
+the justification rested on and whether it still holds.
+
+Worth knowing how the observed case actually surfaced: not by a process, but because a human asked "is
+there anything left to do here?" during a backlog review. Axis 9 exists so that is a scan rather than a
+lucky question.
+
 ## Related
 
 - [`../../../rules/RULE_cross-idea-amendments.md`](../../../rules/RULE_cross-idea-amendments.md) — when
