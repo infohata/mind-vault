@@ -10,6 +10,25 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.4.8 — the OFF position of a kill switch must be faithful per call site; a zero needs a positive control
+
+From a staged rollout of a matching-rule change against a third-party datastore ([PR link in commit trail]).
+
+### Added
+
+- **`skills/deployment/references/DARK_DEPLOY_KILL_SWITCH.md`** — the dark → shadow → live ladder and what each rung actually proves. Headline trap: when N call sites are collapsed behind one flag, **the flag's OFF position must reproduce EACH site's prior behaviour, not the most common one**. Three sites unified behind one helper had *two* different legacy rules; a single `legacy` path would have silently loosened one of them while presenting as "switch off, no behaviour change, tests green". Also: rollback stops future writes but cannot unwind past ones; never leave two hosts running different write policies against one datastore; and shadow-that-logs-only-disagreements makes silence ambiguous between "never ran", "ran and agreed" and "logging broken".
+
+### Changed
+
+- **`skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md`** — five siblings to the existing fail-closed `--verify` section:
+  - **Test the operation, not its guard — break the TARGET, not the input.** Breaking the input trips an earlier precondition, so the stage under test never runs and the test passes vacuously. A restore-on-failure test was reported as passing without the restore ever executing.
+  - **Error paths obey the happy path's contract.** An installer that stages-lints-renames must not restore with a plain `cp` over the live file; plus copy-don't-move the backup, validate it before installing, and note that rollback restores the prior file *mode* too.
+  - **Verify the file you edited, never a glob.** A glob pulled in an unrelated file broken for five years; the `&&` short-circuited and the real verification never ran, while the edit had landed fine.
+  - **A zero is only evidence if the method can produce a non-zero.** Ship a positive control in the same output; if the control is also empty, the instrument is broken, not the traffic.
+  - **Prove a log line LANDS before letting the log inform a decision** — as the runtime user, on every host. A default log destination is a property of the host's config, not the language: one host recorded, another discarded, and the silence would have read as "no differences found". Includes the timezone caveat for cross-host correlation.
+- **`skills/compound/SKILL.md`** + **`references/mind-vault-promotion.md`** — "stay on the feature branch" now requires that branch to still have an **open PR**. A checkout left on a branch whose PR merged weeks ago is the common resting state; committing onto it is worse than branch spam — dead ref, stale base for the version bump, and it reads as success. Reuse the *review surface*, not the branch name.
+
+
 ## v5.4.7 — deferrals need an expiry trigger, not just a successor ticket
 
 A deferral justified by a claim about the *surrounding context* ("acceptable while all callers are
