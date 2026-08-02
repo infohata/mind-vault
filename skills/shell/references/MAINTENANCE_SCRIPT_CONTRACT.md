@@ -410,7 +410,7 @@ restore_atomic() {            # $1 = backup, $2 = live target
 }
 ```
 
-Two more properties for a `--rollback` mode:
+Three more properties for a `--rollback` mode:
 
 - **Copy the backup, never move it.** A `mv` consumes the only copy, so a second rollback has nothing
   to restore.
