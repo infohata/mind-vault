@@ -365,3 +365,128 @@ clients — run against a sandbox / off-hours).
 To read a served cert's validity window: `openssl x509 -noout -startdate` (prints `notBefore=…`) or
 `-dates` (both `notBefore=`/`notAfter=`). **`-notBefore` is not an option** — it errors `x509: Unknown
 option`. Cheap to get wrong when hand-writing a "did the cert change?" (reused-vs-re-issued) check.
+
+## Test the operation, not its guard — break the TARGET, not the input
+
+To prove an error path works, the failure has to land **at the stage you mean to test**. Feeding the
+script bad *input* usually trips an earlier precondition, so the stage never executes and the test
+passes while proving nothing.
+
+A real instance: to test that a failed mid-apply install restores the previous file, the payload was
+made unreadable (`chmod 000`). That failed **pre-flight** — the apply never started, the target was
+never touched, and "restored correctly" was vacuously true. The test was reported as a pass.
+
+The version that actually exercised the path made the **target** unwritable instead, so pre-flight
+passed, step 3 installed, step 4 failed, and the restore ran for real.
+
+```bash
+# ❌ DON'T: breaks the input -> dies at validation, later stages never run
+chmod 000 "$SRC/payload"
+
+# ✅ DO: input is valid, so we reach the stage under test; the TARGET is what fails
+chmod 555 "$APP/lib"      # install of file 2 fails; assert file 1 was rolled back
+```
+
+Assert on **observable end state**, not on the script's own exit code: capture the target's checksum
+before, induce the failure, and compare after. And assert the intermediate temp files are gone —
+a restore that leaves `*.new.$$` behind is a half-finished operation.
+
+## Error paths obey the same contract as the happy path
+
+Whatever discipline the success path uses — atomic rename, lint-before-swap, permission preservation
+— **the restore-on-failure path must use it too.** It is the path that runs while the system is
+already in a bad state, and it is the one nobody exercises.
+
+The recurring shape: an installer stages to `target.new.$$`, lints it, then `mv`s it (a single
+`rename(2)`, so no reader ever sees a partial file) — and then its own failure branch restores with a
+plain `cp` **directly over the live file**, reintroducing exactly the torn-read hazard the design
+existed to prevent.
+
+```bash
+restore_atomic() {            # $1 = backup, $2 = live target
+    local tmp="$2.restore.$$"
+    cp -p "$1" "$tmp" || return 1
+    mv -f "$tmp" "$2"         # same rename(2) guarantee as install
+}
+```
+
+Two more properties for a `--rollback` mode:
+
+- **Copy the backup, never move it.** A `mv` consumes the only copy, so a second rollback has nothing
+  to restore.
+- **Validate the backup before installing it** (`php -l`, `nginx -t`, whatever applies). Restoring a
+  corrupt backup turns a bad deploy into an outage.
+- **A rollback restores the file's prior MODE too.** If the deploy also tightened permissions, rolling
+  back re-loosens them. Fix permissions *before* the deploy so the backup captures the good mode.
+
+## Verify the file you edited — never a glob
+
+A verification step that fails for a reason unrelated to your change is worse than no verification,
+because it reads as a failure *of your change*.
+
+```bash
+# ❌ DON'T: pulls in siblings you never touched; one of them has been broken since 2021,
+#           the && short-circuits, and the real check never runs
+php -l "$APP"/config_*.php && run_verify
+
+# ✅ DO: assert on exactly the file that was modified
+php -l "$APP/config_${SITE}.php" && run_verify
+```
+
+The instance behind this: the glob hit an unrelated tenant config with a five-year-old syntax error.
+The lint failed, the `&&` short-circuited, the verify never printed — and the edit had in fact landed
+correctly. Minutes were spent investigating a change that was fine.
+
+Corollary: in a shared tree, **a red lint over a glob may be pre-existing.** Check the file's mtime
+before treating it as a regression you introduced.
+
+## A zero is only evidence if the method can produce a non-zero
+
+"We found none" is worthless without a **positive control**: the same query, same parser, same log
+files, run against something known to be present. Ship the control in the same output.
+
+```bash
+# the question
+grep -c '/api/target_endpoint' "$LOG"        # -> 0
+
+# the control, SAME method: what IS being hit?
+awk -F'"' '{split($2,a," "); print a[2]}' "$LOG" | cut -d'?' -f1   | sort | uniq -c | sort -rn | head -15
+```
+
+If the control lists busy endpoints and the target is absent, the zero is real. **If the control is
+also empty, the instrument is broken — not the traffic.** This generalises past logs: any "no
+matches / no findings / no differences" claim should carry evidence that the method can produce a
+hit.
+
+Related failure this prevents: a filter that hides what it looks for — counting `POST`s for an API
+that creates over `GET` returns a confident, wrong zero.
+
+## Prove a log line LANDS before letting the log inform a decision
+
+Before any decision rests on "the log is empty", write a line and see it arrive — **as the user the
+runtime runs as, on every host.**
+
+The trap is that a language's default log destination is not a property of the language, it is a
+property of the host's config. Same code, two hosts: one has an explicit `error_log` path set and
+records everything; the other has it unset, so output goes to the service manager's log and is
+effectively discarded. The host that swallowed the messages carried ~98% of the traffic — and the
+resulting silence would have read as *"no differences found"*.
+
+Two rules:
+
+1. **Write to an explicit path** the deployment controls, identical on every host, rather than
+   inheriting whatever the runtime defaults to. Fall back to the default logger if that write fails —
+   losing the *destination* is survivable, losing the *message* silently is not.
+2. **Smoke-test it as the runtime user**, because the log directory is usually not writable by that
+   user (`root:syslog` on Debian/Ubuntu), and the file must be pre-created:
+
+```bash
+sudo install -o www-data -g adm -m 640 /dev/null /var/log/<app>.log
+sudo -u www-data <runtime> -e 'log("deploy smoke test")'
+sudo tail -1 /var/log/<app>.log        # must show the line, on EVERY host
+```
+
+Also check **timezone** before correlating across hosts: two boxes with the same system zone can
+still stamp differently if the runtime overrides it, so the same instant appears hours apart. Emit
+timestamps **with the offset** (ISO-8601 `date('c')`-style) and entries stay unambiguous and sortable
+regardless.

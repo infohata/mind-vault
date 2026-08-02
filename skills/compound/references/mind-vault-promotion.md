@@ -19,9 +19,24 @@ Probe `git -C <mind-vault-path> branch --show-current`.
 | --- | --- |
 | `main` | `git fetch origin` first, then create `compound/YYYY-MM-DD-<slug>` off `origin/main`. Switch to it. |
 | `production`, `deployment` | Refuse. Protected branches. Ask the user to check out a feature branch first. |
-| Any other branch (feature / sprint / compound/...) | Stay on it. No new branch. No branch spam. |
+| Any other branch (feature / sprint / compound/...) **with an OPEN PR** | Stay on it. No new branch. No branch spam. |
+| Any other branch **with NO open PR** (merged, or closed unmerged) | **Stale — treat as `main`.** `git checkout main && git pull --ff-only`, then create `compound/YYYY-MM-DD-<slug>`. |
 
 The policy is deliberate: compound commits pile into the active sprint branch so a single PR accumulates all learnings from one sprint. Branch spam would split the review surface and make the "keep an open PR alive" contract awkward.
+
+**But "stay on the feature branch" is conditional on that PR still being open** — check it, don't assume:
+
+```bash
+gh pr list --head "$(git branch --show-current)" --state open --json number --jq 'length'
+```
+
+A checkout left on a branch whose PR merged weeks ago is the common resting state, not the exception: the merge happens on GitHub, and nothing moves the local HEAD back to `main`. Committing onto that branch is **worse than branch spam** on three counts:
+
+1. The work lands on a **dead ref** — no open PR, so nothing surfaces for review, and the human never sees it.
+2. The **self-mode CHANGELOG/manifest bump is computed against a stale base**, so the version it derives can collide or regress.
+3. It reads as success. The commit, the push and the "reported back" summary all look normal; only a later `gh pr list` reveals the learning went nowhere.
+
+The rule the failure teaches: **"reuse the existing branch" always means "reuse the existing *review surface*".** When the review surface is gone, the branch is just a name.
 
 The **single up-front `git fetch origin`** is deliberate too: the self-mode bump reads the topmost CHANGELOG version and the manifest from this base, so a stale `origin/main` ref (a checkout that hasn't fetched since the last release) computes a colliding version. One fetch before branching is the whole freshness protocol — a compound run takes minutes, so no push-time re-fetch/re-verify; if compound runs ever get slow enough for main to race ahead mid-run, that's a bigger problem than this protocol.
 

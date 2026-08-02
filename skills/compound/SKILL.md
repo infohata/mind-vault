@@ -122,7 +122,13 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
 2. **Check branch.** `git -C <mind-vault-path> branch --show-current`.
 3. **Branch policy (Q3 resolution):**
    - If the current branch is `main`: `git fetch origin && git checkout -b compound/YYYY-MM-DD-<slug> origin/main`. The single up-front fetch is the version-freshness guarantee — the CHANGELOG/manifest the bump step reads live on this base, so a stale local `origin/main` ref is how version collisions happen. One fetch is enough; a compound run is minutes, so no push-time re-fetch. Surface to the user which branch was created.
-   - If the current branch is any feature branch (e.g. `ce-inspired-evolution`): stay on it. No new branch. No branch spam.
+   - If the current branch is a feature branch, **check whether its PR is still open** —
+     `gh pr list --head <branch> --state open --json number`. Only **stay on it if a PR is open**;
+     that is what "no branch spam" means — fold into work the human can still review in one place.
+     If the branch has **no open PR** (merged, or closed unmerged), it is stale: treat it exactly like
+     `main` — `git checkout main && git pull --ff-only && git checkout -b compound/YYYY-MM-DD-<slug>`.
+     Committing onto a merged branch is worse than branch spam: the work sits on a dead ref, the
+     CHANGELOG/manifest bump is computed against a stale base, and nothing surfaces for review.
    - Never modify `production` / `deployment` branches; refuse if on one.
 4. **Emit the file(s).** Write the target files per step 3.
 5. **Prior-project / customer-data scrub gate — MANDATORY (forcing function).** Mind-vault is a cross-project knowledge store and must contain **zero project/customer-identifying data** — nothing that wouldn't be safe in a public repo (private today, public tomorrow). This gate is **instruction-driven, not blacklist-driven**: there is deliberately *no maintained denylist* of names. A name blacklist's false-positive cost outweighs its value and it ages badly — a well-written instruction the model reasons from wins long-term. Recognise the *category*; do not pattern-match a list.

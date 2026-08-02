@@ -454,6 +454,7 @@ The deploy shape is identical for Django, Rails, Express, FastAPI, Phoenix — o
 - [references/SCREEN_SESSIONS.md](references/SCREEN_SESSIONS.md) — mandatory reading for remote deploys; full screen recipes, monitoring, cleanup
 - [references/CICD.md](references/CICD.md) — GitHub Actions, GitLab CI, secrets, approval gates
 - [references/MONITORING.md](references/MONITORING.md) — Prometheus, Grafana, ELK
+- [references/DARK_DEPLOY_KILL_SWITCH.md](references/DARK_DEPLOY_KILL_SWITCH.md) — dark → shadow → live ladder; why a kill switch's OFF position must be faithful per call site; rollback stops future writes but cannot unwind past ones
 - [references/DJANGO_DEPLOYMENT.md](references/DJANGO_DEPLOYMENT.md) — Django-specific optimisations (migrations, collectstatic, ASGI)
 - [references/HARDENING.md](references/HARDENING.md) — SSH, UFW, fail2ban, unattended upgrades (run before first deploy); systemd unit-sandbox version gates (`SystemCallFilter=@system-service` needs ≥ 240 — older systemd resolves it silently and the loader dies `status=127`; gate drop-ins on the capability, never on virt-type)
 - [references/CONTAINER_DNS_NSS.md](references/CONTAINER_DNS_NSS.md) — `getaddrinfo` shadowing public DNS inside containers; anchor case: `sync_domains` silent drop on fresh Debian VPS when hostname matches domain
