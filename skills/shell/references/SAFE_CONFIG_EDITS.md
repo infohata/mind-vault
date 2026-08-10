@@ -111,7 +111,12 @@ value to another.
 rather than a guess:
 
 ```bash
-# ✅ DO — exactly one occurrence, or refuse
+# ✅ DO — validate the interpolated values, then: exactly one occurrence, or refuse.
+# $KEY/$NEW land inside a regex and a replacement — a metacharacter (or & / \ in $NEW)
+# would silently change what matches or what gets written, so gate their shape first
+# (case-not-grep validation — see QUOTING_AND_INPUT_HYGIENE.md).
+case "$KEY" in (*[!a-z_]*|"") echo "!! REFUSING: KEY not [a-z_]+" >&2; exit 1;; esac
+case "$NEW" in (*[!a-z_]*|"") echo "!! REFUSING: NEW not [a-z_]+" >&2; exit 1;; esac
 hits=$(grep -cE "'$KEY'[[:space:]]*=>[[:space:]]*'[a-z_]+'" "$f" || true)
 if [ "${hits:-0}" -ne 1 ]; then
   echo "!! REFUSING: '$KEY' matches $hits lines, expected exactly 1" >&2
