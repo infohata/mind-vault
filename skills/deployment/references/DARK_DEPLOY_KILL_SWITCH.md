@@ -81,10 +81,10 @@ When the new, safe behaviour is gated on the live value **specifically**:
 
 ```php
 if (write_policy($cfg) === 'protect') {
-    mirror_from_the_stored_record(...);     // the new, non-destructive path
+    mirror_from_the_stored_record(...);      // the new, non-destructive path
 } else {
-    'NAME'  => strtoupper($payload_name),   // the OLD path — still overwriting
-    'PHONE' => $payload_phone,
+    $record['NAME']  = strtoupper($payload_name);   // the OLD path — still overwriting
+    $record['PHONE'] = $payload_phone;
 }
 ```
 

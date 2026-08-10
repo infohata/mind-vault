@@ -42,7 +42,6 @@ From a staged rollout of a matching-rule change against a third-party datastore 
   - **Prove a log line LANDS before letting the log inform a decision** — as the runtime user, on every host. A default log destination is a property of the host's config, not the language: one host recorded, another discarded, and the silence would have read as "no differences found". Includes the timezone caveat for cross-host correlation.
 - **`skills/compound/SKILL.md`** + **`references/mind-vault-promotion.md`** — "stay on the feature branch" now requires that branch to still have an **open PR**. A checkout left on a branch whose PR merged weeks ago is the common resting state; committing onto it is worse than branch spam — dead ref, stale base for the version bump, and it reads as success. Reuse the *review surface*, not the branch name.
 
-
 ## v5.4.7 — deferrals need an expiry trigger, not just a successor ticket
 
 A deferral justified by a claim about the *surrounding context* ("acceptable while all callers are
