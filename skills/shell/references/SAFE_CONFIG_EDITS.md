@@ -92,3 +92,94 @@ Remote variant: when the edit runs on a target over SSH, ship this whole
 sequence as the payload script and run it *on* the target — never stream
 `sed -i` through an ssh one-liner where quoting layers can silently alter the
 regex.
+
+## Flipping a key that may or may not already exist: SUBSTITUTE, never insert
+
+The natural idiom for "make sure this setting is present" is a guarded append:
+
+```bash
+❌ DON'T: grep -q "$KEY" "$f" || printf "%s => '%s',\n" "$KEY" "$NEW" >> "$f"
+```
+
+It is silently wrong the second time and every time after. Once the key exists —
+including when it exists **with the wrong value** — the guard is satisfied and the
+append is skipped, so the operator gets a clean exit and no change. The failure is
+invisible precisely in the case that matters: re-running to move a setting from one
+value to another.
+
+**Gate on the VALUE, not on the key's presence**, and make an ambiguous file an error
+rather than a guess:
+
+```bash
+# ✅ DO — exactly one occurrence, or refuse
+hits=$(grep -cE "'$KEY'[[:space:]]*=>[[:space:]]*'[a-z_]+'" "$f" || true)
+if [ "${hits:-0}" -ne 1 ]; then
+  echo "!! REFUSING: '$KEY' matches $hits lines, expected exactly 1" >&2
+  exit 1
+fi
+sed -i -E "s/('$KEY'[[:space:]]*=>[[:space:]]*')[a-z_]+(')/\1$NEW\2/" "$f"
+```
+
+The count check is not pedantry. A reader function that reports the current value with
+`head -1` shows the operator **one** value, while `sed` without a line restriction
+rewrites **every** matching line — so a duplicate entry, or a commented-out old value with
+the same text shape, is changed without appearing anywhere in the output. Text matching
+does not know PHP/YAML/INI semantics; refuse when the file is ambiguous.
+
+## Stage → validate → `rename(2)`; never validate in place
+
+Even with a validator available, `sed -i` followed by a check leaves a window:
+
+```bash
+❌ DON'T: sed -i …  "$f"          # live file is now the new content
+          <validator> "$f" || cp -a "$BAK" "$f"   # ...but only if we get here
+```
+
+Between those two lines the live file holds **unvalidated** content. A dropped SSH
+session, a `SIGKILL`, an OOM kill — anything that ends the process in that gap leaves the
+new content serving traffic with no revert having run. The window is small and the
+consequence is a broken service until someone notices.
+
+Edit a copy in the **same directory** (so the rename cannot cross a filesystem), validate
+the copy, and only then move it into place:
+
+```bash
+# ✅ DO
+tmp="$f.tmp.$$"
+trap 'rm -f -- "${tmp:-}"' EXIT HUP INT TERM   # see CLEANUP_TRAPS_AND_LOCKING.md
+cp --preserve=all -- "$f" "$tmp" 2>/dev/null || cp -p -- "$f" "$tmp"
+sed -i -E "…" "$tmp"
+
+<validator> "$tmp" || { echo "rejected, live file untouched" >&2; exit 1; }
+grep -q "<expected post-state>" "$tmp" || { echo "value did not land" >&2; exit 1; }
+
+mv -f -- "$tmp" "$f"      # rename(2) within a directory: atomic
+```
+
+`rename(2)` relinks the directory entry to the inode the copy already built, so the live
+name is only ever the old content or the fully-checked new content — and everything
+`--preserve=all` set (mode, owner, ACLs, xattrs) comes across because it is *the same
+inode*, not a second copy. Note `cp -p` alone preserves mode/owner/timestamps but **not**
+ACLs, xattrs or SELinux context; prefer `--preserve=all` with `-p` as the fallback.
+
+Three details that turn this from nearly-safe into safe:
+
+- **A validator that CANNOT RUN is a failure, not a pass.** Three-state it: passed /
+  failed / could-not-run, and treat the third like the second. A missing interpreter
+  reporting "skipped" reads exactly like a clean lint, and the edit ships unchecked.
+- **`trap` the staging file.** It is a full copy of the config — including any credentials
+  it contains — and an orphan left by a kill is both litter and a disclosure. A `.bak`
+  accumulation warning globbing `*.bak` will not mention it.
+- **Serialise with `flock`** when two operators might run the tool at once. Without it,
+  same-second backup filenames collide, and worse: one process's post-edit readback can
+  observe the *other's* write, conclude its own edit failed, and "revert" from its own
+  backup — silently undoing a legitimate concurrent change. See
+  [`CLEANUP_TRAPS_AND_LOCKING.md`](CLEANUP_TRAPS_AND_LOCKING.md).
+
+Backups hold whatever the config holds. When that includes credentials, an unbounded
+`.bak` pile beside the live file is a growing disclosure surface — warn on accumulation
+rather than deleting silently (they are the manual rollback path).
+
+Related: [`CLEANUP_TRAPS_AND_LOCKING.md`](CLEANUP_TRAPS_AND_LOCKING.md) ·
+[`EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md`](EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md) for the
+could-not-run-reads-as-pass family this shares.

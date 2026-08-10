@@ -72,6 +72,67 @@ the resulting mess is attributable to nothing.
   broad enablement maximises the sample.
 - **The live rung is per-tenant / per-dataset, but all hosts serving that dataset flip together.**
 
+## Shadow OBSERVES; it does not PROTECT — so time spent in shadow is not free
+
+The section above is about where it is safe to *enable* shadow. This one is about how long
+to leave it there, and it cuts the other way.
+
+When the new, safe behaviour is gated on the live value **specifically**:
+
+```php
+if (write_policy($cfg) === 'protect') {
+    mirror_from_the_stored_record(...);     // the new, non-destructive path
+} else {
+    'NAME'  => strtoupper($payload_name),   // the OLD path — still overwriting
+    'PHONE' => $payload_phone,
+}
+```
+
+then **every mode that is not `protect` takes the destructive branch — `shadow` included.**
+Shadow records what it *would* have done and lets the old behaviour proceed. That is
+normally the correct design (shadow must not change outcomes), but the consequence is easy
+to state backwards:
+
+> ❌ "We're on shadow, so nothing bad is happening while we gather evidence."
+> ✅ "We're on shadow, so the *old* bad thing is still happening, at a rate we can now measure."
+
+Shadow's output is therefore not hypothetical. A line reading "would have overwritten three
+fields" means **a record was overwritten** — it describes a write that happened, not one
+that was prevented. Writing it up as "what the old path would have done" is a real
+mis-statement; it converts an ongoing loss into a thought experiment.
+
+**Consequences for planning:**
+
+- **A staged rollout has a running cost, and shadow's own logs quantify it.** If shadow
+  reports N divergences a day, staging over a week costs roughly 7N. Say the number out
+  loud when choosing between "flip now" and "one tenant a day" — otherwise caution is
+  scored as free when it is not.
+- **Never call a mode safe / observe-only / read-only without reading what its `else`
+  branch does.** Same family: a "dark" flag whose *evaluation* is itself a live call path,
+  and an "observe-only" mode that still invokes a logger carrying an unmet dependency. A
+  flag cannot protect the code that reads the flag.
+- **Gate the wording on the guard, not the mode's name.** `shadow`, `dark`, `dry-run`,
+  `observe`, `report-only` are labels; the `if` is the specification.
+
+## Do not stage a rollout across tenants of ONE organisation
+
+The datastore rule above covers hosts sharing a schema. This is the adjacent case: separate
+tenants with separate datastores, but **one customer organisation** — a hotel group, a
+franchise, a multi-site operator. Staging tenant-by-tenant there creates a split that is
+invisible infrastructurally and very visible to the customer:
+
+- The same workflow behaves differently at two of that customer's sites — a value is
+  preserved at one and silently replaced at another.
+- **Any incident report becomes unanswerable without first asking which site.** "The name
+  changed on its own" has two correct and opposite answers during the split window.
+- The requirement was specified for the organisation, not per site, so the split is a period
+  of *not meeting the spec* rather than a cautious partial rollout.
+
+**Rule: the staging unit is the ORGANISATION, not the tenant.** Stage across independent
+customers for a gradual rollout; flip all tenants of one customer together. Where a split
+does exist — one tenant flipped first as a canary — treat closing it as urgent rather than
+as a comfortable resting state.
+
 ## Shadow's blind spot: silence is ambiguous
 
 Shadow that logs **only disagreements** cannot distinguish:
