@@ -85,6 +85,13 @@ Token-density is a virtue only on surfaces agents load. On the HITL surfaces it 
 cost of the one review that gates the whole promotion — and a batch-scale harvest multiplies
 that cost by every pattern in the release.
 
+Wired: compound SKILL.md step 3 (destination write-up) · this file § Self-mode CHANGELOG bump
+(section shape) + § Commit format + § PR body skeleton · wrap SKILL.md Step 4 self-mode
+(CHANGELOG bullets) + Step 4b (headline paragraph) · commands/create-pr.md step 5 (PR
+description) · skill-writer SKILL.md § Prose density (the concrete-first floor on the agent
+register). A register rule with one wired write-site is the "one fact, many sites" trap — every
+surface that authors HITL or reference text carries its own one-liner.
+
 ## Fact-check version-gated claims before emitting
 
 A live sprint yields claims of the form "X exists only in v≥N", "flag Y was added in Z", "format
@@ -108,7 +115,7 @@ shape (PR #217: a "v3.5+" gate on a v3.0 feature; a hook blamed for a permission
 When `/compound` writes to mind-vault **itself** (a self-promotion — not a project-local `docs/solutions/` write), maintain `CHANGELOG.md` in the SAME commit:
 
 - **Pure `/compound` PRs increment the patch component by 1** (`vX.Y.Z → vX.Y.(Z+1)` — not a bump *to* `0.0.1`). Mind-vault's policy is per-PR versioning. A compound has no IDEA, so `/wrap` (whose Step 4b would handle the bump for an IDEA PR) never fires — `/compound` owns the bump. Take the topmost `## vMAJOR.MINOR.PATCH` header, increment PATCH, insert the new section above it.
-- **Section shape** (match existing entries' prose density): `## v<X.Y.Z> — <short title>`, a one-paragraph intro, then `### Added` / `### Changed` / etc. (Keep-a-Changelog keys), and a `(YYYY-MM-DD, [#N](https://github.com/infohata/mind-vault/pull/N))` tail.
+- **Section shape**: `## v<X.Y.Z> — <short title>`, a one-paragraph intro, then `### Added` / `### Changed` / etc. (Keep-a-Changelog keys), and a `(YYYY-MM-DD, [#N](https://github.com/infohata/mind-vault/pull/N))` tail. Written in the plain HITL register — what changed, what it prevents — per § Write for the two readers; do NOT match the density of pre-v5.5.1 entries, whose compression is what that section exists to stop.
 - **Bump the plugin-manifest mirror in lockstep.** mind-vault ships `.claude-plugin/plugin.json` whose `version` MUST mirror the top CHANGELOG `## vX.Y.Z` (IDEA-017). In the SAME commit, `jq` in-place `.version` to the new bare `X.Y.Z`. This is the mirror half of `/wrap` Step 4b's "N sync-required sources" contract — `/compound` owns the bump for IDEA-less PRs, so it owns the mirror too. Verify: `jq -r '.version' .claude-plugin/plugin.json` equals the new top CHANGELOG version.
 - **Pre-commit assertion (structural backstop — do not skip; both halves have been missed in the wild, each costing a follow-up fix PR):** two local checks, no network (the fetch already happened at branch time):
   1. `git diff --staged CHANGELOG.md | grep '^+## v'` matches — the staged diff **adds a new section header**. Appending bullets into the released top section is the recurring miss.
@@ -121,7 +128,7 @@ Mind-vault-self-mode ONLY. For every other project, `/compound` writes project-l
 
 ## Commit format
 
-One commit per `/compound` invocation. Scope reflects the destination:
+One commit per `/compound` invocation. The message body is a HITL surface — plain register per § Write for the two readers. Scope reflects the destination:
 
 ```text
 feat(skills): <skill-name> — <one-line summary of addition>
@@ -156,6 +163,8 @@ Never `--no-verify`, never plain `--force`, per `RULE_git-safety`.
 Never `gh pr merge`. Never `git push --force-with-lease origin main`. The human merges the PR when ready.
 
 ## PR body skeleton
+
+The PR body is a HITL surface — fill the skeleton in the plain register per § Write for the two readers.
 
 ```markdown
 ## Compounded learnings

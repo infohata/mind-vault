@@ -215,7 +215,7 @@ See [`references/review-finding-ingest.md`](references/review-finding-ingest.md)
 ## References
 
 - [references/routing-decision-tree.md](references/routing-decision-tree.md) — the 6-destination taxonomy, narrative-probe questions, disambiguation heuristics
-- [references/mind-vault-promotion.md](references/mind-vault-promotion.md) — full branch policy, PR maintenance, commit-message conventions for mind-vault destinations
+- [references/mind-vault-promotion.md](references/mind-vault-promotion.md) — full branch policy, PR maintenance, commit-message conventions, and the two-readers register split (HITL surfaces plain, agent-loaded bodies concrete-first) for mind-vault destinations
 - [references/review-finding-ingest.md](references/review-finding-ingest.md) — parsing rules for review-loop output (engine-agnostic; same shape regardless of engine), de-duplication against prior findings
 - [assets/solution-template.md](assets/solution-template.md) — project-local solution doc structure
 - [assets/skill-scaffold-template.md](assets/skill-scaffold-template.md) — minimal new-skill scaffold to emit when promoting a cross-project pattern
