@@ -87,10 +87,11 @@ that cost by every pattern in the release.
 
 Wired: compound SKILL.md step 3 (destination write-up) · this file § Self-mode CHANGELOG bump
 (section shape) + § Commit format + § PR body skeleton · wrap SKILL.md Step 4 self-mode
-(CHANGELOG bullets) + Step 4b (headline paragraph) · commands/create-pr.md step 5 (PR
-description) · skill-writer SKILL.md § Prose density (the concrete-first floor on the agent
-register). A register rule with one wired write-site is the "one fact, many sites" trap — every
-surface that authors HITL or reference text carries its own one-liner.
+(CHANGELOG bullets) + Step 4 docs-mode (devlog entries) + Step 4b (headline paragraph) ·
+commands/create-pr.md step 5 (PR description) · skill-writer SKILL.md § Prose density (the
+concrete-first floor on the agent register). A register rule with one wired write-site is the
+"one fact, many sites" trap — every surface that authors HITL or reference text carries its own
+one-liner.
 
 ## Fact-check version-gated claims before emitting
 
