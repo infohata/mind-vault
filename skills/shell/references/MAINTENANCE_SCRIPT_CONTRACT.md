@@ -318,6 +318,65 @@ Same shape for "which firewall is active" (ufw / firewalld / nftables / raw ipta
 "which init owns this service", "apt vs dnf vs apk". The DRY-RUN should *report the
 detected variant* so the operator sees which mechanism the host actually uses.
 
+## A precondition must assert a PROPERTY — a forbidden NAME is the author's model
+
+A guard, default or precondition gets written as the author's picture of the world — a
+forbidden identifier, an expected constant, "the only instance is X" — instead of as the
+property that actually decides whether the operation is correct or safe. Because the model
+matches every case in view on the day it is written, the rule reads as principled and **no
+test discriminates it from the right rule**. It stays invisible until a case outside the
+model arrives, and then it fails in both directions at once: it **over-refuses, loudly and
+at the worst moment** — blocking the first deployment whose topology legitimately differs —
+while **under-covering, silently**: the hazard it was reasoned about is still reachable by
+every route the model never enumerated.
+
+The canonical shape is a string comparison against a value the author knows is wrong
+*somewhere*:
+
+```bash
+# ❌ DON'T: encodes "the database is never the stack-local service" — true in ONE topology.
+#           Blocks a deployment where that IS the correct value, and passes every failure
+#           that matters: a typo'd hostname, a deleted DNS record, a container that was
+#           never attached to the network.
+[ "$DB_HOST" = "db" ] && die "DB_HOST must not be 'db' — point it at the database server"
+
+# ✅ DO: probe the property, from the context that will actually use it
+if ! docker exec "$APP" getent hosts "$DB_HOST" >/dev/null 2>&1; then
+    if container_running "$APP"; then
+        die "DB_HOST='$DB_HOST' does not resolve from inside $APP"
+    fi
+    warn "cannot check DB_HOST yet ($APP not running) — continuing"   # can't tell ≠ bad
+fi
+```
+
+Three properties make the difference:
+
+1. **Probe from the consuming context**, not from the script's own shell. "Does this name
+   resolve from inside the process that will dial it" is the deciding property; "is this
+   string equal to a value I distrust" is a picture of one deployment.
+2. **Answer all three states** — *bad*, *good*, and *can't tell*. A probe whose own
+   precondition is missing (the target isn't up yet) must warn and continue rather than
+   block work it cannot judge. Boundary: this half rests on a single incident, and keeping a
+   hard fail is legitimate once the guard reads the property directly and can therefore
+   always answer. It is not a licence to downgrade a guard that *can* answer.
+3. **The failure message carries the model too.** Remediation advice attached to a
+   name-based guard routinely names a component the newer deployment deliberately designed
+   out, so the guard is not merely wrong — it actively steers the operator backwards.
+
+Deliberate tension with the verify-side rule below, and it is not a contradiction:
+a `--verify` must assert the POSITIVE and fail CLOSED, because it certifies work that has
+already happened; a precondition gates work that has *not* happened, so refusing on a
+question it could not ask blocks a correct release for no evidence. Same script, opposite
+default, decided by which side of the mutation the check sits on. (The permissive-failure
+twin — a check that silently scores "could not run" as "passed" — is
+[EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md](EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md); that is the
+failure mode point 2 must not be used to introduce.)
+
+Because a guard is only one expression of the belief, correcting the belief is a
+corpus-wide sweep, not an edit: the same claim typically also sits in the script header, the
+env example, the deploy guide and the README, and it survives longest in a *neighbouring*
+repo's guide after the code is fixed — see `rules/RULE_self-sweep-before-push.md`.
+
 ## Remote black-box `--verify`: assert the POSITIVE code, so an unreachable target fails CLOSED
 
 A verify script that probes a service over the network (`curl … || true` to tolerate a down target)

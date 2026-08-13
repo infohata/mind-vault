@@ -183,8 +183,164 @@ Three details that turn this from nearly-safe into safe:
 
 Backups hold whatever the config holds. When that includes credentials, an unbounded
 `.bak` pile beside the live file is a growing disclosure surface — warn on accumulation
-rather than deleting silently (they are the manual rollback path).
+rather than deleting silently (they are the manual rollback path). Where that pile may
+live is not free either — see the next section.
+
+## The deciding property lives outside the line you wrote
+
+Everything above assumes the hazard is *your* edit being wrong. The other half of the
+class is an edit that is well-formed and says exactly what its author meant, whose
+behaviour is decided by a party that never appears in the diff — so nothing errors, no
+reviewer objects, and a correct-looking artefact produces a different effect. The absent
+decider is one of three: the **consumer's grammar** (how the program that reads this file
+parses lines and selects filenames), the **runtime's attachment semantics** (what the
+kernel or a container runtime does with a path at attach time), or **ambient state and
+ranges** (umask, whether the path already existed, which commit is actually running).
+Identify the deciding party first, read the property FROM it, and assert the span or
+object you actually consumed — not the one you wrote.
+
+### The consumer's grammar decides what your line means
+
+**Inline comments in ignore-file formats.** Where `#` opens a comment only at column 0
+(`.gitignore`, `.dockerignore` and kin), `path/   # why` is stored as ONE literal pattern
+that matches nothing. The rule silently never applies, and "not ignored" is
+indistinguishable from "no rule needed" until something is committed or baked into an
+image — a per-host override one `git add -A` from the repo, a secret directory copied in
+by `COPY . .`. Put the explanation on its own line ABOVE the pattern.
+
+Prove the rule **fires**, not that the line exists:
+
+```bash
+❌ DON'T: touch "$d/x" && git status --short     # short-circuits if $d doesn't exist → PASS, nothing tested
+❌ DON'T: git check-ignore -q "$p"               # exit 0 can come from a BROAD neighbour rule (*.log),
+                                                 # while the rule under test is still dead
+# ✅ DO
+git check-ignore -v "$real_matching_path"        # READ the rule the -v output names
+```
+
+If a broad neighbour answers, retest with a filename only the rule under test can match,
+and compare against a known-working bare pattern in the same file so a green result cannot
+be a broken instrument (same family as
+[`EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md`](EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md)). When one
+ignore file is fixed, sweep every sibling ignore file in the repo in the same commit — the
+habit is author-level, not file-level. The generalisation is **not** "never annotate
+inline": the mirror-image bug is a hand-rolled parser of a data file whose producer emits
+trailing comments unconditionally, which must be taught to STRIP them. Ask how the
+consumer parses, then decide.
+
+**A backup written beside a config file is a config file.** Writing `.bak` next to the
+file it backs up is safe only where the consumer selects configuration by exact name; any
+consumer that **globs its directory** loads the backup as live configuration. Directory-glob
+config is everywhere — `conf.d`, `sites-enabled`, `sudoers.d`, systemd drop-in dirs,
+`profile.d`, IaC module directories — and the same act lands in front of a different filter
+each time: a `.bak` beside an enabled web-server vhost gives a second server block on the
+same listener and the whole reload fails, while the identical act in a sudoers drop-in dir
+is inert *only* because that consumer ignores dot-bearing filenames. The practice works by
+luck until the luck runs out, and every inert instance confirms the habit.
+
+It bites hardest in a batch edit: the backup is the *safety* step, so it is never reviewed
+as a change to the running system, and the first validator run after N edits fails — which
+points suspicion at the edits rather than at the backups sitting beside them.
+
+This **qualifies** the ✅ DO above. Keep the timestamped `.bak` — it is the `--revert`
+input — but write it into a directory the consumer cannot see (outside every include path),
+and name that destination in the runbook. Run the consumer's own validator after a batch
+edit, before reload. When you find an instance that happens to be inert, remove it anyway;
+it is the same act in front of a different filter.
+
+### Assert the SPAN you consumed, not the count
+
+An edit or extraction delimited "from this marker to the next one" takes everything between
+the two whenever the end delimiter is not the true **sibling boundary** of the start: a
+subsection cut to the next *top-level* heading absorbs every subsection between them; a
+non-greedy match whose terminator does not occur inside the intervening siblings runs to a
+distant one; a marker range whose END marker is absent runs to EOF. The end delimiter
+chosen is the one that is easy to name, not the one that bounds the intended unit — and the
+resulting diff still looks proportionate to the stated intent, so it reads fine in review.
+
+The usual guards are blind in distinct ways: a match **count** is right while the single
+match is hundreds of lines too wide, and a non-empty check passes while an unterminated
+range carried off a file's tail. (This is why the diff-shape assertion above tests exact
+line content and equal `wc -l`, not merely that sed matched something.)
+
+- Diff the **inventory** before and after: the heading list (`grep '^#'`, or `grep '^-#'`
+  over the diff), the set of function/query starts, the marker pairs — the changed set must
+  equal the intended set.
+- Deleting a nested section: terminate at the next heading of the **same or shallower
+  level**, and check what that heading actually is on disk rather than assuming the section
+  is last.
+- Programmatic patchers: assert the byte/line **size** of every replaced span, not how many
+  spans matched.
+- Marker ranges: assert the range **closed** — end marker found, known tail content absent
+  — and mutation-test the guard by renaming the END marker; it must fail loudly.
+
+**The same arithmetic, deploy-side.** Where a box pulls a long-lived, hand-advanced deploy
+ref (a fast-forward pull of a mutable branch), what a deploy ships is the range between the
+commit currently **running** and the commit the ref is moved to — not the change that
+motivated the deploy. That ref is routinely not where anyone assumes, and it fails in two
+directions needing **opposite** remedies, so diagnose which one you are in first:
+
+| Direction        | Shape                                                                                                    |
+| ---------------- | -------------------------------------------------------------------------------------------------------- |
+| **Over-shipping**  | Fast-forwarding to a merge commit ships every intervening change at once; a safety claim scoped to one change's delta ("no new mounts, no behaviour change") describes only that delta, and a deliberately phased plan is defeated in one step. |
+| **Under-shipping** | The ref lags (dozens of commits is normal and invisible unless computed), so the pull is a no-op and reads as a clean run — or the checkout simply lacks a file that only ever landed on the mainline. |
+
+Compute the range before deciding anything, as a numbered runbook step, for the back-out
+target too: `git rev-list --count <deployed>..<target>` and `git log <deployed>..<target>`.
+Read the **blob at the target SHA** rather than trusting the branch — a target picked
+mid-change may predate a review fix. Recompute every quoted commit count after changing a
+target; the count that motivated the fix is usually not the count the fix leaves behind.
+Name absolute SHAs for target and back-out **where they can exist** — they cannot for a
+commit the runbook itself instructs you to create, and there you substitute a check on the
+deployed **effect** (a marker only the new code emits, read inside the deployed checkout).
+A correct config file, a set env var, or a migration reporting "nothing to do" is never
+evidence that the code is deployed. State in the runbook that reversing a fast-forward is a
+force push. Scope: none of this applies to tag-pinned deploys or CI-on-merge delivery.
+
+### A missing bind-mount source is created for you — as a root-owned directory
+
+A bind mount whose host source does not exist is auto-created by the container runtime as a
+**directory, owned by root** (short syntax — `-v` and the compose `volumes:` list — where
+host-path creation defaults to on; the explicit `--mount type=bind` form errors instead).
+What you see depends on what the image has at the destination: a **file** there → the mount
+fails and the container dies at init with an opaque runtime "not a directory" error far
+from the missing file; **nothing** there → the mount succeeds and the application fatals
+later on "Is a directory" when it reads or writes the path. Either way the bogus directory
+poisons the checkout — every later `up` hits the same error until it is removed, and the
+deploying user often *cannot* remove it, because the runtime created it as root. The milder
+sibling: a missing **directory** source is auto-created correctly but still root-owned, so
+it mounts fine and fails on the rootless app's first write.
+
+It only ever appears on fresh clones — never on the machine where the file has always
+existed, which is where the author works.
+
+So every ignored bind source (generated, per-host, admin-rewritten, operator-provisioned)
+needs a **type-correct seed before `up`**, and the list of those sources belongs in ONE
+shared library, not per-caller copies: labelling a copy "keep in sync" is demonstrably
+insufficient — the labelled copy drifts while only the shared one gets hardened. Each new
+untracking of an app-regenerated file mints a new source that must be seeded everywhere, so
+this recurs on a schedule set by your untracking, not by your bug fixes.
+
+```bash
+❌ DON'T: [ -d "$f" ] && rm -rf "$f"    # root-owned leftover ⇒ rm fails, and && swallows the status
+# ✅ DO
+if [ -d "$f" ]; then
+    rm -rf -- "$f" 2>/dev/null \
+        || die "leftover DIRECTORY at $f owned by $(stat -c '%U:%G' "$f") — run: sudo rm -rf $f"
+fi
+```
+
+Then assert the **type** of every bind source immediately before `up` as a separate step —
+a run wedged between seed and `up` leaves a directory behind. Make the consuming code
+tolerate absence so it degrades instead of fataling, **but only where an empty fallback is
+safe**: for a file like an IP allow-list, degrading to an empty list silently empties a
+security control, so fail loudly there instead.
 
 Related: [`CLEANUP_TRAPS_AND_LOCKING.md`](CLEANUP_TRAPS_AND_LOCKING.md) ·
 [`EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md`](EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md) for the
-could-not-run-reads-as-pass family this shares.
+could-not-run-reads-as-pass family this shares ·
+[`STRICT_MODE_HAZARDS.md`](STRICT_MODE_HAZARDS.md) for why `&&` and condition contexts
+swallow the status of a cleanup that failed ·
+[`../../deployment/references/CONTAINER_SINGLE_FILE_MOUNT.md`](../../deployment/references/CONTAINER_SINGLE_FILE_MOUNT.md)
+for the sibling traps when the bind source *does* exist (inode pinning, directory
+shadowing).

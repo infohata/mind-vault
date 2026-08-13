@@ -4,6 +4,10 @@ A plan's out-of-scope section is where deferrals get written, and most of them a
 that **cannot ever fire**. This reference is the shape to use instead, and the review question that
 catches the bad form.
 
+A deferral is the most common instance of a wider failure — a written statement standing in for a
+mechanism — and this file is that failure's home. Deferrals first; the general form, and the second
+family of instances, are in [§ The wider mechanism](#the-wider-mechanism--a-record-is-not-a-mechanism).
+
 ## The failure
 
 A deferral is usually recorded as *what* was skipped plus *where it went*:
@@ -91,6 +95,88 @@ the justification rested on and whether it still holds.
 Worth knowing how the observed case actually surfaced: not by a process, but because a human asked "is
 there anything left to do here?" during a backlog review. Axis 9 exists so that catch is a scan rather than a
 lucky question.
+
+## The wider mechanism — a record is not a mechanism
+
+> A written statement is consumed as though it were a live control or a live fact, when **nothing in
+> the system evaluates it at the moment of action** and **nothing invalidates it when the world moves**.
+
+Two halves, and a deferral note manages to be both:
+
+- **Not refreshed.** The record was true when filed, and nothing emits an event when its premise dies —
+  so only drift somebody happened to notice is ever corrected. Everything above is this half; a backlog
+  item's scope statement and a "resolved" question note expire the same way, silently.
+- **Not enforced.** The record is true *right now* and still does nothing, because no code path reads it
+  at the moment it matters. The two instance families below are this half.
+
+One obligation per half: **every deferral needs an expiry trigger, not just a successor ticket; every
+condition you could assert should be asserted rather than printed.**
+
+**Discriminator.** If several live copies of a fact disagree, that is the sweep pattern
+([`../../../rules/RULE_self-sweep-before-push.md`](../../../rules/RULE_self-sweep-before-push.md)) —
+making them agree fixes it. If a single statement is already correct and self-consistent and still
+fails, it is this one, and agreement changes nothing: the missing piece is a trigger or a wire.
+
+### Guidance a tool PRINTS is untested code that runs in the operator's hands
+
+Output that instructs a human — a suggested command, a warning emitted by a dry run, a "consider rolling
+back" hint — is neither tested nor enforced, yet it executes at the moment the operator is already stuck.
+No test in any toolchain runs advice. Three shapes, in ascending severity:
+
+1. **A condition the tool could assert but only prints is not a control at all.** Observed: a repair
+   script's dry run printed *"if the account is already the production one, STOP — do not `--apply`"*,
+   while `--apply` unconditionally reset that account and dropped the artefact it held. The repair was
+   two executable `die` guards ahead of the destructive stage. **Re-assert every precondition a dry run
+   states, programmatically, in the destructive path — die, do not print.** A block pasted into an
+   operator's terminal must `exit`, not warn: pasted blocks carry no strict mode, so a warning that
+   should have been a refusal simply scrolls past into the privileged commands beneath it.
+2. **A recipe rendered from machine status is wrong in exactly the states the author never enumerated** —
+   sometimes plausible *and* destructive. Mechanics and the per-state recipe partition live in
+   [`../../shell/references/MAINTENANCE_SCRIPT_CONTRACT.md`](../../shell/references/MAINTENANCE_SCRIPT_CONTRACT.md).
+   The planning-level rule is the enumeration axis: **enumerate the state space on the axis the FORMAT
+   uses, not the axis your prose uses** — for a two-column status format that is the cross product of
+   both columns, not your four prose categories — and the discriminator is never *"which category is
+   this"* but ***"which command actually clears this entry"***, verified by running the emitted recipe
+   and re-reading status.
+3. **An expected, benign condition recommending the undoing of the change that just succeeded.** Observed:
+   a `--verify` tripped on a lingering established socket and printed *"consider `--rollback`"* — which
+   would have restored the very access the change had just removed. The fix is a WARN plus an explicit
+   *"do NOT roll back for this"*, with `--apply` clearing the transient itself.
+
+**Review will not converge on this on its own.** Asked outright for *"any unaccounted status class"*, a
+reviewer enumerates the full set; left to itself, each round surfaces only the input class it happened to
+construct — four consecutive rounds landed on one ~15-line block and the founding defect was still live
+afterwards, because a fix verified at the point of extraction was undone at the point of use. So ask for
+the enumeration explicitly, and **rank fixes by the severity of following the advice**: "useless" costs a
+detour, "runs and destroys work" is a different class.
+
+### A rule you wrote is not a rule you ran
+
+An entry in an ignore file is an untested assertion that fails silently, and the file parses cleanly
+either way. Two shapes:
+
+1. **Annotation kills the pattern.** Where the format opens comments only at line start, `path   # why`
+   is stored as one literal pattern, prose and spaces included, and matches nothing. Grammar and the
+   proof recipe (assert against a comment-free neighbour so a green result cannot be a broken instrument)
+   are in [`../../shell/references/SAFE_CONFIG_EDITS.md`](../../shell/references/SAFE_CONFIG_EDITS.md).
+2. **DERIVED paths are not covered by the name they derive from.** A pattern keyed on an exact or
+   suffixed name never matches what tooling writes *beside* it: `x.bak.<stamp>`, `x.age`, `x.enc` are
+   matched by neither `x` nor `*x`. A break-glass backup inherits the protected file's directory and the
+   reviewer's *"that's ignored"* while inheriting none of its pattern.
+
+Guardrail: **run the ignore-check on every protected path AND on every path any script writes** —
+backups, encrypted blobs, probe output, logs — and **write break-glass backups outside the repository**,
+into a mode-`700` temp dir, never beside the file they protect. Observed dwell between introduction and
+discovery ran 2 to 19 days and discovery was accidental every time (a review, or an unrelated file turning
+up untracked); one instance was authored weeks *after* the identical lesson had been written down, by the
+person who wrote it. The failure is habitual rather than knowledge-shaped — which is exactly why the
+remedy has to be a check that executes, not a better note.
+
+**State the severity honestly when one of these is found.** In every documented case the gap was *latent*
+rather than a staged secret: the protected artefact did not yet exist, or the run that would have created
+it had never happened, or the gap was caught in review before it reached the default branch. Verify the
+artefact existed inside the window before calling it exposed — a pattern's name is a record of intent, not
+evidence of what was on disk.
 
 ## Related
 
