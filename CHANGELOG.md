@@ -10,6 +10,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.5.1 — compound writes for two readers: plain for the human gate, dense-but-concrete-first for the agent
+
+The v5.5.0 harvest was correct but exhausting to review — the maintainer's merge verdict was "this was a hard read". Root cause: every surface of the PR was written at the same maximum compression, including the surfaces only a human ever reads. (2026-08-13, [#231](https://github.com/infohata/mind-vault/pull/231))
+
+### Added
+
+- **`skills/compound/references/mind-vault-promotion.md` § Write for the two readers** — CHANGELOG sections, PR bodies and commit messages are for the human reviewer: plain sentences, what changed and what it prevents, never a compressed restatement of the reference text. Reference and skill bodies stay token-dense for agent loading, but each pattern opens with the concrete incident or example before the general claim, one claim per sentence. Two-line stub with pointer added to the compound SKILL.md body.
+
 ## v5.5.0 — nine root patterns from one deferred harvest: assertions that never ran, runs that never reached, premises nobody falsified
 
 From a batch harvest of a month's un-compounded engineering work across four repositories of one estate — every lesson counted for independent recurrence, checked against prior art, then attacked by two adversarial reviewers reading primary sources. 553 candidates reduced to 112, of which 23 survived review; those 23 turned out to instantiate **eight** root patterns, all written in this release. Patterns identified across the wider set but whose members did not survive review are deliberately **not** written — including the ninth, attested by 15 members and cleared by none.

@@ -71,6 +71,8 @@ For project-local: write and stop. No branch management — this is the target p
 
 **Version-gated claims get fact-checked before they're written** ("added in vN" / "absent until vN" / "unchanged across A–B"): verify against release notes or the introducing PR — never version-pinned doc pages — and demote unverifiable gates to observations-with-provenance. See [`references/mind-vault-promotion.md`](references/mind-vault-promotion.md) § Fact-check version-gated claims.
 
+**Two readers, two registers**: HITL surfaces (CHANGELOG section, PR body, commit messages) are written plain and concrete for the human reviewer; agent-loaded surfaces (reference/skill bodies) may stay dense but open concrete-first — incident or worked example, then the general claim. See [`references/mind-vault-promotion.md`](references/mind-vault-promotion.md) § Write for the two readers.
+
 For mind-vault destinations: apply step 4 before emitting.
 
 For auto-memory: write into the memory filesystem at `~/.claude/projects/<project-id>/memory/` and update `MEMORY.md`'s one-line index. Honour the type classification (feedback / project / user / reference) from the global `CLAUDE.md` auto-memory rules.
