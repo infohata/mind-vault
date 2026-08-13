@@ -15,7 +15,7 @@ description: |
   <example>
   Context: A drafted plan needs an independent structural read before execution.
   user: "Review this plan for coupling and genericity issues."
-  assistant: "I'll use the architect agent to run its abstraction / coupling / boundary / scaling passes over the plan."
+  assistant: "I'll use the architect agent to run its abstraction / coupling / boundary / scaling / provenance-refutation passes over the plan."
   <commentary>
   Plan review (not authoring) is the architect's reviewer mode in /plan.
   </commentary>

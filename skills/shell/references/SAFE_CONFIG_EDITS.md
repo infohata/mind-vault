@@ -322,7 +322,9 @@ untracking of an app-regenerated file mints a new source that must be seeded eve
 this recurs on a schedule set by your untracking, not by your bug fixes.
 
 ```bash
-❌ DON'T: [ -d "$f" ] && rm -rf "$f"    # root-owned leftover ⇒ rm fails, and && swallows the status
+❌ DON'T: [ -d "$f" ] && rm -rf "$f"    # root-owned leftover ⇒ rm fails: without errexit nothing
+                                        # checks the status; with errexit you die with no hint about
+                                        # who owns the leftover or what the remedy is
 # ✅ DO
 if [ -d "$f" ]; then
     rm -rf -- "$f" 2>/dev/null \
@@ -339,8 +341,8 @@ security control, so fail loudly there instead.
 Related: [`CLEANUP_TRAPS_AND_LOCKING.md`](CLEANUP_TRAPS_AND_LOCKING.md) ·
 [`EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md`](EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md) for the
 could-not-run-reads-as-pass family this shares ·
-[`STRICT_MODE_HAZARDS.md`](STRICT_MODE_HAZARDS.md) for why `&&` and condition contexts
-swallow the status of a cleanup that failed ·
+[`STRICT_MODE_HAZARDS.md`](STRICT_MODE_HAZARDS.md) for why condition contexts and
+non-final list position swallow a failed cleanup's status ·
 [`../../deployment/references/CONTAINER_SINGLE_FILE_MOUNT.md`](../../deployment/references/CONTAINER_SINGLE_FILE_MOUNT.md)
 for the sibling traps when the bind source *does* exist (inode pinning, directory
 shadowing).

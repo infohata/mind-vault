@@ -12,7 +12,7 @@ _(none)_
 
 ## v5.5.0 — nine root patterns from one deferred harvest: assertions that never ran, runs that never reached, premises nobody falsified
 
-From a batch harvest of a month's un-compounded engineering work across four repositories of one estate — every lesson counted for independent recurrence, checked against prior art, then attacked by two adversarial reviewers reading primary sources. 553 candidates reduced to 112, of which 23 survived review; those 23 turned out to instantiate **nine** root patterns, and this release writes the eight that cleared. Patterns identified across the wider set but whose members did not survive review are deliberately **not** written — including one attested by 15 members and cleared by none.
+From a batch harvest of a month's un-compounded engineering work across four repositories of one estate — every lesson counted for independent recurrence, checked against prior art, then attacked by two adversarial reviewers reading primary sources. 553 candidates reduced to 112, of which 23 survived review; those 23 turned out to instantiate **eight** root patterns, all written in this release. Patterns identified across the wider set but whose members did not survive review are deliberately **not** written — including the ninth, attested by 15 members and cleared by none.
 
 ### Changed
 
