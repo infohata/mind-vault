@@ -11,6 +11,11 @@ branch: ce-inspired-evolution
 inspired_by: https://github.com/EveryInc/compound-engineering-plugin
 ---
 
+> **Archived 2026-08-13** — point-in-time founding plan, kept as written (it still describes
+> `AGENT_bugbot`, `/bugbot-loop` and a 4-pass architect, all since superseded). The live
+> description of the workflow is [`docs/guides/SPRINT_WORKFLOW.md`](../../guides/SPRINT_WORKFLOW.md)
+> and the stage skills themselves.
+
 ## Overview
 
 Introduce a six-stage sprint workflow to mind-vault — `ideate → brainstorm → plan → work → review → compound` — inspired by Every Inc's compound-engineering plugin but deliberately pared down and re-centred on mind-vault's unique advantage: **mind-vault is the cross-project knowledge store, so the compound stage has a richer routing surface than CE's project-local `docs/solutions/` pattern.**

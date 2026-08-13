@@ -4,7 +4,7 @@ How `/plan` invokes `AGENT_architect` as a reviewer over a drafted plan, and how
 
 ## Why architect is a reviewer, not an author
 
-`AGENT_architect`'s 4-pass workflow — abstraction/genericity sweep, coupling/dependency probe, boundary contradiction analysis, deployment/scaling pre-check — is shaped around reviewing an existing design, not generating one. Using it as author would degrade both: the plan becomes a verdict document, the architect's review loses its independent read.
+`AGENT_architect`'s 5-pass workflow — abstraction/genericity sweep, coupling/dependency probe, boundary contradiction analysis, deployment/scaling pre-check, provenance/refutation audit — is shaped around reviewing an existing design, not generating one. Using it as author would degrade both: the plan becomes a verdict document, the architect's review loses its independent read.
 
 Plan drafts the design; architect reviews it. Two distinct passes, two distinct outputs.
 
