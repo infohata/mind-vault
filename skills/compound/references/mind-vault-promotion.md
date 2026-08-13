@@ -60,6 +60,31 @@ Write all target files for the routing decision. Common cases:
 - **Command:** new `commands/<verb>.md` following the shape of existing `commands/*.md` files.
 - **Script:** new `tools/<script>.sh` with `chmod +x`. Include a brief header comment.
 
+## Write for the two readers — dense for the agent, plain for the human
+
+The v5.5.0 batch harvest shipped ~650 lines of maximally compressed abstraction ("the deciding
+property usually sits outside the line you wrote…"), and the maintainer's verdict at the merge
+gate was *"this was a hard read"*. The compression was tuned for the wrong reader: reference
+files are loaded by agents on demand, but the merge gate is a human who has to decompress every
+sentence just to judge whether it is true. A compound PR has two reader classes, and each surface
+belongs to exactly one of them:
+
+- **HITL surfaces — the CHANGELOG section, the PR body, commit messages — are written for the
+  human reviewer.** Plain sentences at reading speed: what changed, what failure it prevents.
+  Never a compressed restatement of the reference text — the reviewer must be able to judge each
+  bullet without opening the file it describes. If a bullet needs a second read to parse, it is a
+  summary of a summary; rewrite it as "what changed / what it prevents".
+- **Agent-loaded surfaces — reference and skill bodies — may stay dense, but concrete-first.**
+  Open each pattern with the incident or a worked example, then state the general claim, one
+  claim per sentence or bullet. A chain of three abstractions joined by em-dashes reads fine to
+  its author, who has the incidents in working memory; the next reader has neither the incidents
+  nor the patience. The test: every general sentence should be verifiable against a concrete
+  example sitting beside it.
+
+Token-density is a virtue only on surfaces agents load. On the HITL surfaces it just raises the
+cost of the one review that gates the whole promotion — and a batch-scale harvest multiplies
+that cost by every pattern in the release.
+
 ## Fact-check version-gated claims before emitting
 
 A live sprint yields claims of the form "X exists only in v≥N", "flag Y was added in Z", "format
