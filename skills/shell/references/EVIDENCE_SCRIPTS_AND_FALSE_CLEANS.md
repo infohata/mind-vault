@@ -25,8 +25,8 @@ assertion as evidence only once you have watched it go red against a mutant repr
 original defect's observable behaviour, exit status and output included.
 
 Two neighbours are *not* this failure and take a different fix. An assertion that ran and
-returned a true answer about the wrong object is a proxy problem
-(`PROXY_SURFACES_AND_EFFECTIVE_STATE.md`); re-point the check. A run whose universe could
+returned a true answer about the wrong object is a proxy problem — the check interrogates
+a stand-in for the thing the system consumes; re-point the check. A run whose universe could
 not express the defect is a coverage problem (last section below); widen the population.
 Here an in-scope assertion did not run, or ran and answered benignly — re-pointing and
 widening both change nothing.

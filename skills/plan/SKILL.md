@@ -89,7 +89,7 @@ Plan quality bar:
 
 Once the draft is written, invoke `AGENT_architect` as a reviewer. Not as author — the plan is already drafted. See [`references/architect-handoff.md`](references/architect-handoff.md) for the handoff protocol.
 
-The architect's 4-pass workflow (abstraction/genericity sweep → coupling/dependency probe → boundary contradiction analysis → deployment/scaling pre-check) produces a verdict: ARCHITECTURALLY SOUND, REQUIRES ABSTRACTION, or REJECTED. Incorporate findings before marking the plan `status: ready`.
+The architect's 5-pass workflow (abstraction/genericity sweep → coupling/dependency probe → boundary contradiction analysis → deployment/scaling pre-check → provenance/refutation audit) produces a verdict: ARCHITECTURALLY SOUND, REQUIRES ABSTRACTION, or REJECTED. Incorporate findings before marking the plan `status: ready`.
 
 The reviewer pass is optional for trivial and small plans. Required for medium and large.
 
@@ -177,7 +177,7 @@ The plan's philosophy stays the same at every scope; the depth scales.
 - [references/thin-input-bootstrap.md](references/thin-input-bootstrap.md) — the interactive brainstorm front-end for thin inputs
 - [references/architect-handoff.md](references/architect-handoff.md) — how to invoke AGENT_architect as a reviewer and integrate findings
 - [references/batching-for-sprint-auto.md](references/batching-for-sprint-auto.md) — opt-in mode for grouping multiple `/plan` outputs onto one feature branch + PR to feed an overnight `/sprint-auto` run
-- [references/DEFERRAL_EXPIRY_TRIGGERS.md](references/DEFERRAL_EXPIRY_TRIGGERS.md) — why "deferred to IDEA-NNN, acceptable for now" never fires; write the condition that invalidates the justification, plus the reviewer heuristic against inheriting a stale deferral's reasoning
+- [references/DEFERRAL_EXPIRY_TRIGGERS.md](references/DEFERRAL_EXPIRY_TRIGGERS.md) — why "deferred to IDEA-NNN, acceptable for now" never fires; write the condition that invalidates the justification, plus the reviewer heuristic against inheriting a stale deferral's reasoning; plus the wider "a record is not a mechanism" family — guidance a tool PRINTS instead of asserting, and ignore-rules written but never run
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — the location-by-status contract driving step 6's `idea` → `in-progress` move
 - [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
 - [skills/idea/SKILL.md](../idea/SKILL.md) — previous stage; produces the IDEA file this skill consumes
