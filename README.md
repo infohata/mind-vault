@@ -8,7 +8,7 @@
 
 ______________________________________________________________________
 
-**v5 — demonstrated on a second stack (IDEA-014 Phase 2): `skills/laravel` + `skills/laravel-frontend` fill all 10 [`skills/work/references/SKILL_CONTRACT.md`](skills/work/references/SKILL_CONTRACT.md) contract headings with ZERO edits to any `agents/AGENT_*.md` — the empty `agents/` diff is the proof that the craft/stack split (v4.9, Phase 1: all 8 personas split into a craft core + `## Stack adapter`) is genuinely stack-agnostic, not Django with indirection. A real-repo Laravel dogfood follows as a v5.x fast-follow. Recent line: the `/review-loop` claude engine classifies verdicts with an orchestrator-inline **model-judge** (`{CLEAN \| BLOCKING \| NON_BLOCKING[]}`) instead of a prose regex — the adapter just surfaces material; carve-out typed to *prose-only verdict surface*, not engine name (v5.3, IDEA-022), event-driven `/review-loop` Phase 4 — a bounded, read-only `Monitor` accelerates the `ScheduleWakeup` wait, re-entering the moment an engine verdict lands (v5.2, IDEA-021), installable as a native Claude Code plugin (`/plugin install mv@mind-vault`) alongside the symlink scripts — additive, coexist (v5.1, IDEA-017), new `skills/python` language-base tier beneath the framework skills (v4.8, IDEA-009), split `/wrap` into `/wrap` (docs) + `/land` (merge + teardown) and retire the double-review — canonical chain `/work → /wrap → /review-loop → /land` (v4.7), Claude Code Review as a third `/review-loop` engine (v4.6).**
+**v5 — demonstrated on a second stack (IDEA-014 Phase 2): `skills/laravel` + `skills/laravel-frontend` fill all 10 [`skills/work/references/SKILL_CONTRACT.md`](skills/work/references/SKILL_CONTRACT.md) contract headings with ZERO edits to any `agents/AGENT_*.md` — the empty `agents/` diff is the proof that the craft/stack split (v4.9, Phase 1: all 8 personas split into a craft core + `## Stack adapter`) is genuinely stack-agnostic, not Django with indirection. A real-repo Laravel dogfood follows as a v5.x fast-follow. Recent line: cross-project idea namespacing — bare `IDEA-NNN` is always the current repo's stream, foreign refs are `IDEA-NNN:project`, and inside mind-vault a non-placeholder suffix is a scrub violation by construction (v5.6, IDEA-023); the two-readers register — compound HITL surfaces written plain, agent-loaded reference bodies dense-but-concrete-first, wired at every write-site (v5.5.1–v5.5.2); a ~20-release live-ops hardening corpus in the `shell`/`deployment` references — evidence scripts & false cleans, kill-switch OFF-position fidelity, safe config edits, maintenance-script contract — capped by a nine-root-pattern batch harvest (v5.3.1–v5.5.0); the `/review-loop` claude engine classifies verdicts with an orchestrator-inline **model-judge** instead of a prose regex (v5.3, IDEA-022); event-driven `/review-loop` Phase 4 via a bounded, read-only `Monitor` (v5.2, IDEA-021); installable as a native Claude Code plugin — additive, coexist (v5.1, IDEA-017).**
 
 Cross-host configuration library for AI coding agents — skills, commands, subagent personas, and shared rules, authored once and symlinked into every agent-aware tool.
 
@@ -139,7 +139,9 @@ The four rules under `rules/` are auto-loaded into every session via `~/.claude/
 
 ## Skill references (load on demand)
 
-Domain-specific patterns that used to live in `rules/`. Each is loaded by its owning skill at the moment it's relevant — keeps always-on context lean.
+Domain-specific patterns that live under their owning skill (several used to live in `rules/`). Each is loaded at the moment it's relevant — keeps always-on context lean.
+
+- **[CROSS_PROJECT_IDEA_REFS](skills/idea/references/CROSS_PROJECT_IDEA_REFS.md)** — bare `IDEA-NNN` always means the current repo's stream; foreign refs are `IDEA-NNN:project` (repo's own name, never an alias). Inside mind-vault a non-placeholder suffix is a scrub violation by construction. **Loaded by:** `/idea`; wired from `/compound`'s scrub gate, `/wrap`'s devlog step, and `RULE_cross-idea-amendments`.
 
 - **[I18N_WORKFLOW](skills/django/references/I18N_WORKFLOW.md)** *(was RULE_i18n-workflow)* — Django translation map-first workflow; `.po` files are generated, never hand-edited. Per-app sharded-map ownership rule. **Loaded by:** `/work` when touching translations, `skills/django` + `skills/django-frontend`.
 - **[IDEAS_LOCATION_STATUS](skills/idea/references/IDEAS_LOCATION_STATUS.md)** *(was RULE_ideas-location-status)* — IDEA files live in exactly two places: `docs/ideas/` while in backlog, `docs/archive/YYYY-MM-idea-NNN-<slug>/` thereafter. Single `git mv` at `/plan` time; all subsequent status transitions are frontmatter-only. **Loaded by:** `/idea`, `/plan`, `/work`, `/wrap`, `/compound`, `/ingest-backlog`.
@@ -280,7 +282,7 @@ Commit all non-sensitive configuration to git.
 
 Licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Kestutis Januskevicius.
 
-<!-- wrap:readme-currency-audited 2026-06-17 -->
+<!-- wrap:readme-currency-audited 2026-08-14 -->
 
 <!-- wrap:readme-currency
 N: 5

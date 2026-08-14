@@ -75,7 +75,7 @@ For project-local: write and stop. No branch management — this is the target p
 
 For mind-vault destinations: apply step 4 before emitting.
 
-For auto-memory: write into the memory filesystem at `~/.claude/projects/<project-id>/memory/` and update `MEMORY.md`'s one-line index. Honour the type classification (feedback / project / user / reference) from the global `CLAUDE.md` auto-memory rules.
+For auto-memory: write into the memory filesystem at `~/.claude/projects/<project-id>/memory/` and update `MEMORY.md`'s one-line index. Honour the type classification (feedback / project / user / reference) from the global `CLAUDE.md` auto-memory rules. Memory notes that cite another project's ideas use the namespaced `IDEA-NNN:project` spelling, not ad-hoc `(project) IDEA-N` prose (see [`../idea/references/CROSS_PROJECT_IDEA_REFS.md`](../idea/references/CROSS_PROJECT_IDEA_REFS.md)).
 
 #### Mind-vault placement — references / assets first, body last
 
@@ -146,21 +146,21 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
    A gate you can satisfy *without emitting this classification* is decorative — emit it.
 
    What "foreign" looks like (recognise the class — these are illustrations, NOT an exhaustive list):
-   - Project-name-tagged refs — `(project-x) IDEA-178`, `project-x PR #475`. ← `project-x` is a **deliberate placeholder**; never re-concretise it with a real project name (the gate's own example is the single highest-traffic re-leak vector).
+   - Project-name-tagged refs — `(project-x) IDEA-178`, `project-x PR #475`, and the namespaced form `IDEA-NNN:project-x` (the preferred spelling per [`../idea/references/CROSS_PROJECT_IDEA_REFS.md`](../idea/references/CROSS_PROJECT_IDEA_REFS.md) — self-identifying, so this class is mechanically detectable). ← `project-x` is a **deliberate placeholder**; never re-concretise it with a real project name (the gate's own example is the single highest-traffic re-leak vector).
    - Full URLs to another repo (`https://github.com/<other-repo>/pull/NNN`).
    - Real tenant / customer / org slugs, account / conversation / record / message ids, customer-supplied filenames, customer domain hostnames, internal deployment URLs.
    - Local filesystem paths (`/Users/<name>/...`, `/home/<name>/...`).
 
    Scrub policy (drop the tag, keep the lesson):
    - **Foreign project / repo / client name** → generalise to a neutral descriptor ("a consuming project", "an external Django project") or an obvious placeholder (`project-x`) — never a real name.
-   - **Foreign PR / IDEA refs** → drop, or generalise the narrative ("what IDEA-178 learned" → "what the first-suite stand-up learned"). A bare `IDEA-NNN` / `PR #NNN` that resolves in mind-vault is KEPT (valid own-provenance); one tied to another project (surrounding prose names it, or it doesn't resolve here) is dropped or qualified.
+   - **Foreign PR / IDEA refs** → drop, or generalise the narrative ("what IDEA-178 learned" → "what the first-suite stand-up learned"). A bare `IDEA-NNN` / `PR #NNN` that resolves in mind-vault is KEPT (valid own-provenance); one tied to another project (surrounding prose names it, or it doesn't resolve here) is dropped or qualified — qualified = the namespaced `IDEA-NNN:project` spelling on non-mind-vault surfaces only; in mind-vault bodies, placeholder form per [`../idea/references/CROSS_PROJECT_IDEA_REFS.md`](../idea/references/CROSS_PROJECT_IDEA_REFS.md).
    - **Tenant / record / conversation ids, customer filenames, customer hostnames, local paths** → drop (or `<filename>` / `<tenant-host>`).
    - **mind-vault's own module / class / function names** (`AttachmentSerializer`, `<app>/`) → KEEP (public-API names future readers need; already grep-able from the cited PR).
    - Commit messages MAY keep source-project refs (git history is acknowledged-noisy); the **file body** must be clean.
 
    The "would this be safe in a public repo today?" test is the gate. Answer "no" → scrub before commit.
 
-   *Optional cheap aid (NOT the enforcement mechanism):* `git diff --staged | grep -iE 'conversation [0-9]+|record [0-9]+|/Users/[^/]+/|/home/[^/]+/'` can surface obvious id/path leaks — but the classification above (model judgment, not regex) is what the gate relies on.
+   *Optional cheap aid (NOT the enforcement mechanism):* `git diff --staged | grep -iE 'conversation [0-9]+|record [0-9]+|/Users/[^/]+/|/home/[^/]+/'` can surface obvious id/path leaks — but the classification above (model judgment, not regex) is what the gate relies on. One class IS regex-sufficient: namespaced idea refs self-identify as foreign, so `git diff --staged | grep -E 'IDEA-[0-9]{3,}:[a-z0-9._-]+' | grep -v ':project-'` finding anything is a violation by construction (the full pattern is load-bearing — a truncated `IDEA-[0-9]{3,}:` matches every ordinary idea-title colon).
 
    **Recurring drift.** Provenance accumulates back over time even with this gate. When it does, run the repeatable **provenance-scrub runbook** (in the IDEA-018 archive — grep `PROVENANCE_SCRUB_RUNBOOK`) and append a run-log entry — periodic maintenance, not a fresh IDEA each time.
 
@@ -171,7 +171,7 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
 
 ### 5. Cross-link and index
 
-- Every mind-vault promotion is traceable back to the project-local source that triggered it — but **foreign-project PR links and IDEA numbers go in the commit message only**, never in the skill/rule/agent file body (that's what the scrub gate enforces). In-body provenance is limited to mind-vault's own PR/IDEA refs. The commit's `git log` + body carry the foreign-project trail (review id, source PR URL, etc.).
+- Every mind-vault promotion is traceable back to the project-local source that triggered it — but **foreign-project PR links and IDEA numbers go in the commit message only**, never in the skill/rule/agent file body (that's what the scrub gate enforces). In-body provenance is limited to mind-vault's own PR/IDEA refs. The commit's `git log` + body carry the foreign-project trail (review id, source PR URL, etc.). When prose on a non-mind-vault surface must carry a foreign idea ref, the spelling is the namespaced `IDEA-NNN:project` form per [`../idea/references/CROSS_PROJECT_IDEA_REFS.md`](../idea/references/CROSS_PROJECT_IDEA_REFS.md).
 - Project-local solution docs reference any mind-vault assets they generalised from, so future `/compound` invocations can detect duplicates.
 - Auto-memory entries include their one-line `MEMORY.md` pointer — that's the index.
 

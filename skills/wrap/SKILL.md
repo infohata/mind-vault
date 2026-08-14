@@ -259,7 +259,7 @@ Append a new entry at the **top** of the chronological section (newest first). T
 - [Mind-vault compound PR](…) — if `/compound` has already been run, link its PR; else leave this line for `/compound` to append.
 ```
 
-Use the last two devlog entries in the same file as style anchors for heading structure and linking style. Devlog entries are a HITL surface — plain register, what changed and what it prevents; don't anchor on the density of older entries (see [`../compound/references/mind-vault-promotion.md`](../compound/references/mind-vault-promotion.md) § Write for the two readers). Do **not** cargo-cult the template above verbatim if the project's convention diverges.
+Use the last two devlog entries in the same file as style anchors for heading structure and linking style. Devlog entries are a HITL surface — plain register, what changed and what it prevents; don't anchor on the density of older entries (see [`../compound/references/mind-vault-promotion.md`](../compound/references/mind-vault-promotion.md) § Write for the two readers). When a devlog entry cites another repo's idea (companion PRs, estate-wide work, a mind-vault compound), spell the foreign ref `IDEA-NNN:project` per [`../idea/references/CROSS_PROJECT_IDEA_REFS.md`](../idea/references/CROSS_PROJECT_IDEA_REFS.md) — bare numbers mean the devlog's own repo. Do **not** cargo-cult the template above verbatim if the project's convention diverges.
 
 ### Step 4b — Version-bump consideration (versioned projects only)
 
