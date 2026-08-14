@@ -10,6 +10,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.5.2 — the two-readers rule now reaches every place that writes for the human gate
+
+v5.5.1 created the rule but wired it into only one write-site (the compound skill's destination step). Every other surface that authors CHANGELOG sections, PR bodies, or reference prose never saw it — so the next `/wrap` or `/create-pr` would have reproduced the same dense register the rule exists to prevent. This release is the catchment sweep: a one-line pointer at each remaining write-site, and a `Wired:` list in the reference so the coverage is checkable. (2026-08-13, [#232](https://github.com/infohata/mind-vault/pull/232))
+
+### Changed
+
+- **`skills/compound/references/mind-vault-promotion.md`** — the three sections in the same file that author human-read text (§ Self-mode CHANGELOG bump, § Commit format, § PR body skeleton) now each point at § Write for the two readers. The CHANGELOG section-shape bullet no longer says "match existing entries' prose density" — matching the old entries is exactly how the dense register would have survived. A `Wired:` list at the end of the section names every write-site carrying a pointer.
+- **`skills/wrap/SKILL.md`** — the three places wrap writes human-read log text (self-mode Step 4's CHANGELOG bullets, docs-mode Step 4's devlog entries, Step 4b's headline paragraph) now say: plain register, and don't anchor on older entries. Step 4 carried the match-the-old-density trap twice — "see existing entries for prose-density anchors" (CHANGELOG) and "match prose density" (devlog) — both now removed. The devlog instance was caught by the claude review engine on this PR's first cycle, after the authoring sweep missed it.
+- **`commands/create-pr.md`** — the PR-description step now instructs the plain register: the body is for a human reviewer, reading-speed sentences, never a compressed restatement of the diff.
+- **`skills/skill-writer/SKILL.md`** — § Prose density gains the counterweight the tighten-pass was missing: density has a floor, and it is the concrete incident. A tighten-pass that cuts the worked example anchoring a pattern produces the unverifiable abstraction the v5.5.0 harvest shipped.
+- **`skills/compound/SKILL.md`** — the References one-liner for `mind-vault-promotion.md` now surfaces the two-readers section, so load-on-demand discovery finds it.
+
 ## v5.5.1 — compound writes for two readers: plain for the human gate, dense-but-concrete-first for the agent
 
 The v5.5.0 harvest was correct but exhausting to review — the maintainer's merge verdict was "this was a hard read". Root cause: every surface of the PR was written at the same maximum compression, including the surfaces only a human ever reads. (2026-08-13, [#231](https://github.com/infohata/mind-vault/pull/231))

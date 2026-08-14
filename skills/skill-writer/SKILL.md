@@ -155,6 +155,8 @@ Skills (and references) are token-priced on every activation. Cut explanatory pr
 
 Apply identically to `references/<TOPIC>.md` files — references aren't free, they cost on demand and the user reads them. A 200-line reference that says the same thing in 100 lines is strictly better.
 
+**Density has a floor: concrete-first.** The v5.5.0 batch harvest compressed ~650 reference lines into pure abstraction and the maintainer's verdict was "this was a hard read" — the tighten-pass must never cut the concrete incident or worked example that anchors a pattern. Open each pattern with the incident, then the general claim, one claim per sentence; a general sentence with no concrete example beside it is unverifiable, not tight. See [`../compound/references/mind-vault-promotion.md`](../compound/references/mind-vault-promotion.md) § Write for the two readers.
+
 ## Cross-project portability
 
 A skill in `mind-vault` is consumed by multiple projects. Therefore:

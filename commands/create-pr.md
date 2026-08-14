@@ -35,6 +35,7 @@ Steps to follow:
    - List key changes or features
    - Add context for reviewers
    - Include any breaking changes or migration notes
+   - Write in the plain register — the PR body is read by a human reviewer, so use reading-speed sentences ("what changed / what it prevents"), never a compressed restatement of the diff (see `skills/compound/references/mind-vault-promotion.md` § Write for the two readers)
 
 6. Create the PR:
 
