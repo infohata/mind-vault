@@ -27,7 +27,7 @@ sensitive_paths_cleared_reason: "Documentation/convention change only — touche
 
 **Proposal** (or idea): Adopt a single attribution convention for foreign-project idea references: `IDEA-NNN:project` (e.g. `IDEA-NNN:project-x` — examples here use non-digit `NNN` deliberately, so they sit outside the detector regex), where `project` is the repo's own name, never an alias. Bare `IDEA-NNN` always means *the current project's* stream. Wire the convention into the write-sites that produce cross-project references:
 
-- `/idea` + `/plan` + `/wrap` + `/compound` skill prose — a one-liner each where they mention referencing other projects' ideas (catchment-style, per the PR #227 wired-pointer convention).
+- `/idea` + `/compound` + `/wrap` skill prose and the cross-idea-amendments rule — a one-liner each where they touch foreign idea refs (catchment-style, per the PR #227 wired-pointer convention). `/plan` carries no such prose site — plans that cite a foreign idea inherit the grammar from the reference via `/idea` § 4, so no `/plan` wire exists (reconciled at review time; the as-shipped set is the reference's `Wired:` list).
 - Auto-memory guidance — memory notes spanning projects use the suffix instead of ad-hoc "(project) IDEA-N" prose.
 - Session/report prose — when an agent cites an idea from a repo other than the session's working repo, the suffix is mandatory.
 - Scrub-gate synergy: a namespaced ref self-identifies as foreign, making the `/compound` scrub classification mechanical — a non-placeholder suffix in a staged mind-vault diff is a violation by construction, whereas a bare foreign number needs context to classify.

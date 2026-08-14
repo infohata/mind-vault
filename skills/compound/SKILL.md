@@ -153,7 +153,7 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
 
    Scrub policy (drop the tag, keep the lesson):
    - **Foreign project / repo / client name** → generalise to a neutral descriptor ("a consuming project", "an external Django project") or an obvious placeholder (`project-x`) — never a real name.
-   - **Foreign PR / IDEA refs** → drop, or generalise the narrative ("what IDEA-178 learned" → "what the first-suite stand-up learned"). A bare `IDEA-NNN` / `PR #NNN` that resolves in mind-vault is KEPT (valid own-provenance); one tied to another project (surrounding prose names it, or it doesn't resolve here) is dropped or qualified.
+   - **Foreign PR / IDEA refs** → drop, or generalise the narrative ("what IDEA-178 learned" → "what the first-suite stand-up learned"). A bare `IDEA-NNN` / `PR #NNN` that resolves in mind-vault is KEPT (valid own-provenance); one tied to another project (surrounding prose names it, or it doesn't resolve here) is dropped or qualified — qualified = the namespaced `IDEA-NNN:project` spelling on non-mind-vault surfaces only; in mind-vault bodies, placeholder form per [`../idea/references/CROSS_PROJECT_IDEA_REFS.md`](../idea/references/CROSS_PROJECT_IDEA_REFS.md).
    - **Tenant / record / conversation ids, customer filenames, customer hostnames, local paths** → drop (or `<filename>` / `<tenant-host>`).
    - **mind-vault's own module / class / function names** (`AttachmentSerializer`, `<app>/`) → KEEP (public-API names future readers need; already grep-able from the cited PR).
    - Commit messages MAY keep source-project refs (git history is acknowledged-noisy); the **file body** must be clean.

@@ -12,7 +12,7 @@ _(none)_
 
 ## v5.6.0 — cross-project idea namespacing: bare numbers are local, foreign refs carry the repo's name
 
-Every project numbers its own `IDEA-NNN` stream, so bare numbers collide the moment two projects appear in one conversation or doc — a live session citing another repo's ideas from inside mind-vault made the repo context genuinely ambiguous (both repos have an unrelated IDEA-016/017). This release ships the attribution convention that ends it. (2026-08-14, IDEA-023, [#233](https://github.com/infohata/mind-vault/pull/233))
+Every project numbers its own `IDEA-NNN` stream, so bare numbers collide the moment two projects appear in one conversation or doc — a live session citing another repo's ideas from inside mind-vault made the repo context genuinely ambiguous (both repos have an unrelated IDEA-016/017). This release ships the attribution convention that ends it. Minor bump rather than the per-PR patch default: maintainer-selected per the adopter-magnitude rule — the convention changes how every consuming project writes cross-repo references. (2026-08-14, IDEA-023, [#233](https://github.com/infohata/mind-vault/pull/233))
 
 ### Added
 
@@ -21,7 +21,7 @@ Every project numbers its own `IDEA-NNN` stream, so bare numbers collide the mom
 
 ### Changed
 
-- **Wired one-liners** at the write-sites that produce cross-project refs, with a `Wired:` list in the reference: `skills/idea/SKILL.md` § 4 (citing is the mirror problem of numbering), `skills/compound/SKILL.md` (scrub table, optional grep aid, § 5 Cross-link, auto-memory write-up), `rules/RULE_cross-idea-amendments.md` (Amends-trailers are same-repo by construction).
+- **Wired one-liners** at the write-sites that produce cross-project refs, with a `Wired:` list in the reference: `skills/idea/SKILL.md` § 4 (citing is the mirror problem of numbering), `skills/compound/SKILL.md` (foreign-class illustrations, drop-the-tag policy bullet — "qualified" now defined, optional grep aid, § 5 Cross-link, auto-memory write-up), `skills/wrap/SKILL.md` Step 4 (devlog Related-section refs), `rules/RULE_cross-idea-amendments.md` (Amends-trailers are same-repo by construction).
 
 ## v5.5.2 — the two-readers rule now reaches every place that writes for the human gate
 
