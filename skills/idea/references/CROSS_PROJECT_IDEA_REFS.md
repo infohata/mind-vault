@@ -11,7 +11,7 @@ The incident (2026-08-14): a mind-vault session answered "where were we?" by cit
 
 ## The project token
 
-- The repo's **own name** as its docs refer to it (its checkout dir name in the standard layout), lowercase kebab.
+- The repo's **own name** as its docs refer to it (its checkout dir name in the standard layout), lowercased. The token charset is the detector's suffix class — `[a-z0-9._-]` — since repo names are not kebab-strict (`my_repo`, `repo.js` are legal); a name containing uppercase is written lowercased.
 - **Never an alias**: not a plugin/marketplace name, not an env-var name — `IDEA-NNN:mind-vault`, never `IDEA-NNN:mv`.
 - Tokens must be estate-unique. If two repos ever share a name across orgs, a qualified form is the tiebreak on non-mind-vault surfaces only.
 
