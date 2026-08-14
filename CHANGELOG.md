@@ -10,6 +10,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.6.1 — copilot CLEAN covers only the comments the API shows
+
+On the v5.6.0 PR the review loop converged clean over four cycles — copilot's final verdict said "generated no new comments" — while a suppressed copilot comment held a valid finding the whole time (a charset contradiction between the token prose and the wired regex). Suppressed comments exist only in the PR web UI; they appear on none of the API surfaces the adapter reads, and no API is known to expose them. The maintainer found it by expanding the suppressed set by hand. (2026-08-14, [#234](https://github.com/infohata/mind-vault/pull/234))
+
+### Added
+
+- **`skills/review-loop/references/engine-copilot.md` § Suppressed comments** — the incident, the mechanism (confidence-filter suppression, invisible to `/pulls/N/reviews` and `/pulls/N/comments`), and the mitigations: a standing hand-back caveat telling the human to expand suppressed comments in the UI before merging, user-relayed suppressed findings entering the fix batch as first-class input (verified against the tree first — suppression correlates with lower confidence), and an explicit instruction not to weaken the structural CLEAN verdict over a blind spot the adapter cannot close. Plus a row in the § Failure modes table.
+
+### Changed
+
+- **`skills/review-loop/SKILL.md`** — the final hand-back now carries the suppressed-comments caveat whenever copilot is in the engine set; the References one-liner surfaces the new section.
+
 ## v5.6.0 — cross-project idea namespacing: bare numbers are local, foreign refs carry the repo's name
 
 Every project numbers its own `IDEA-NNN` stream, so bare numbers collide the moment two projects appear in one conversation or doc — a live session citing another repo's ideas from inside mind-vault made the repo context genuinely ambiguous (both repos have an unrelated IDEA-016/017). This release ships the attribution convention that ends it. Minor bump rather than the per-PR patch default: maintainer-selected per the adopter-magnitude rule — the convention changes how every consuming project writes cross-repo references. (2026-08-14, IDEA-023, [#233](https://github.com/infohata/mind-vault/pull/233))

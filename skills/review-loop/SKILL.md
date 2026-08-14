@@ -169,7 +169,7 @@ For each Tier 1 finding (no prompt) and each Tier 2 finding (after explicit `yes
 3. Run targeted test (`make test-fresh ARGS="app.tests.ClassName"` or project equivalent) — class scope only. **Verification routing — see § "Sprint-auto v3.1 verification routing" below for the env-var-driven mode.**
 4. If test fails: revert edit, log to scratch file, move to next finding (do not retry-fix in the same cycle).
 
-Tier 3 findings: skip the fix, log to the scratch file, continue. List all Tier 3 escalations in the final hand-back.
+Tier 3 findings: skip the fix, log to the scratch file, continue. List all Tier 3 escalations in the final hand-back. When the engine set includes copilot, the final hand-back also carries the suppressed-comments caveat — copilot CLEAN covers API-visible comments only; the human expands any suppressed comments in the PR UI before merging (see [`references/engine-copilot.md`](references/engine-copilot.md) § Suppressed comments).
 
 ### Sprint-auto v3.1 verification routing
 
@@ -251,7 +251,7 @@ Under sprint-auto v3.1, the "user" the loop hands back to is sprint-auto itself 
 
 - [`references/engine-adapter-contract.md`](references/engine-adapter-contract.md) — what an engine adapter must implement.
 - [`references/engine-bugbot.md`](references/engine-bugbot.md) — Cursor Bugbot adapter.
-- [`references/engine-copilot.md`](references/engine-copilot.md) — GitHub Copilot adapter.
+- [`references/engine-copilot.md`](references/engine-copilot.md) — GitHub Copilot adapter, incl. § Suppressed comments (a valid finding the API never shows — CLEAN is clean-over-the-visible-set).
 - [`references/engine-claude.md`](references/engine-claude.md) — Claude Code Review adapter (action + `code-review` plugin; push-triggered, comment-anchored — NOT the managed App).
 - [`references/engine-claude-onboarding.md`](references/engine-claude-onboarding.md) — onboarding a project to the claude engine: ship the write-perm + guarded workflow templates ([`assets/claude-code-review.yml`](assets/claude-code-review.yml) + [`assets/claude.yml`](assets/claude.yml)) to the default branch (NOT `/install-github-app`'s read-only default), the anti-tampering bootstrap catch-22, and the fork-PR / author-association guards.
 - [`references/GITHUB_APP_DRIVEN_LOOP.md`](references/GITHUB_APP_DRIVEN_LOOP.md) — running the loop as a **GitHub-App bot actor** (unattended/remote sessions whose pushes ride a scoped write App, not a human `gh auth`): the bot-allowance the `@claude` retrigger needs (`author_association=NONE` → exact-login `if:` clause + `allowed_bots` on both `claude.yml` and `claude-code-review.yml`, default-branch-only); dependabot slash-commands being human-only; the `gh` App-token mint shim for agent hosts; the App-token CI-read scope gap (`checks:read`/`actions:read` 403 → read comments, not check-runs). Load when the loop runs non-interactively as an App.
