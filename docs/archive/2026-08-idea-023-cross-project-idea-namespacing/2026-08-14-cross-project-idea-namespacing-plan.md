@@ -3,7 +3,7 @@ stage: plan
 slug: cross-project-idea-namespacing
 created: 2026-08-14
 source: ./IDEA-023-cross-project-idea-namespacing.md
-status: ready                                # draft | ready | shipped
+status: shipped                                # draft | ready | shipped
 project: mind-vault
 ---
 
@@ -72,6 +72,8 @@ All resolved at plan time (user delegated: "go planning and answering open quest
 - ~~Q4: what about branch names, where `:` is illegal?~~ → **Out-of-scope with a real justification**: the surface exists and is known-ambiguous; its defense is § 4's scan-from-disk rule, cross-linked from the reference (Scope Boundaries).
 
 ## Execution Sequence
+
+_Executed 2026-08-14: steps 1–2 ✅ `9f2ba8a`; steps 3–6 ✅ `b6e68a1` (step 5's routing-test half re-scoped to the "For auto-memory" write-up — the routing test chooses destinations, it doesn't spell refs; Wired list corrected to match); step 7 ✅ swept, zero hits, nothing to update; step 8 → `/wrap` (v5.6.0). Verification: detector grep 0 hits; all wired sites back-grep; frontmatter guard COULD-NOT-RUN (no PyYAML on host) — eye-verified, no ids touched; § 4 consistency re-read clean._
 
 1. **Author `skills/idea/references/CROSS_PROJECT_IDEA_REFS.md`** — the grammar (canonical regex, Decision 1), bare-ref positional semantics (Decision 3), project-token rule with the alias exclusion (Decision 2), the branch-name paragraph (surface exists, colon impossible, § 4 cross-link), the scrub interaction (placeholder-only inside mind-vault, violation-by-construction rule, all examples spelled with non-digit `NNN`), a half-line on YAML-colon safety (a suffixed ref inside an unquoted frontmatter title is one more instance of § 4's quote-your-titles rule; architect note 9), and the closing `Wired:` list. Concrete-first: open with the 2026-08-14 IDEA-016/017 collision incident, placeholder-named. Target ≤60 lines.
 2. **Stub in `skills/idea/SKILL.md`** — 2-line stub + pointer in § 4, extending the existing "never carry a number" rule with "and never cite a foreign number bare — `IDEA-NNN:project`, see reference". Add the reference to the References list.
