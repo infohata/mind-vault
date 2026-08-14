@@ -10,6 +10,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.6.0 — cross-project idea namespacing: bare numbers are local, foreign refs carry the repo's name
+
+Every project numbers its own `IDEA-NNN` stream, so bare numbers collide the moment two projects appear in one conversation or doc — a live session citing another repo's ideas from inside mind-vault made the repo context genuinely ambiguous (both repos have an unrelated IDEA-016/017). This release ships the attribution convention that ends it. (2026-08-14, IDEA-023, [#233](https://github.com/infohata/mind-vault/pull/233))
+
+### Added
+
+- **`skills/idea/references/CROSS_PROJECT_IDEA_REFS.md`** — the grammar: bare `IDEA-NNN` always means the repo the text lives in (or the session's working repo in prose); a foreign ref is written `IDEA-NNN:project`, where the token is the repo's own name, never an alias (`IDEA-NNN:mind-vault`, not `IDEA-NNN:mv`). Branch names are excluded — `:` is illegal in git refnames, and branches stay defended by the § 4 scan-from-disk rule. Frontmatter relationship lists stay same-project bare ids.
+- **Scrub-gate synergy** — inside mind-vault, any namespaced ref whose suffix is not a placeholder is a violation by construction, so the whole class is now catchable with one grep (full pattern `IDEA-[0-9]{3,}:[a-z0-9._-]+` with a `:project-` placeholder carve-out; the truncated pattern is banned — it matched 362 ordinary idea-title colons when dry-run).
+
+### Changed
+
+- **Wired one-liners** at the write-sites that produce cross-project refs, with a `Wired:` list in the reference: `skills/idea/SKILL.md` § 4 (citing is the mirror problem of numbering), `skills/compound/SKILL.md` (scrub table, optional grep aid, § 5 Cross-link, auto-memory write-up), `rules/RULE_cross-idea-amendments.md` (Amends-trailers are same-repo by construction).
+
 ## v5.5.2 — the two-readers rule now reaches every place that writes for the human gate
 
 v5.5.1 created the rule but wired it into only one write-site (the compound skill's destination step). Every other surface that authors CHANGELOG sections, PR bodies, or reference prose never saw it — so the next `/wrap` or `/create-pr` would have reproduced the same dense register the rule exists to prevent. This release is the catchment sweep: a one-line pointer at each remaining write-site, and a `Wired:` list in the reference so the coverage is checkable. (2026-08-13, [#232](https://github.com/infohata/mind-vault/pull/232))

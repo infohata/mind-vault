@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-- [IDEA-023](../archive/2026-08-idea-023-cross-project-idea-namespacing/IDEA-023-cross-project-idea-namespacing.md) ⏳ — Cross-project idea namespacing — attribute foreign ideas as IDEA-NNN:project
+_(none)_
 
 ## 💡 High Priority (backlog)
 
@@ -25,6 +25,11 @@ _(none)_
 _(none)_
 
 ## ✅ References — Implemented
+
+### IDEA-023: Cross-project idea namespacing (`IDEA-NNN:project`) ✅ COMPLETE
+
+**Status**: ✅ **COMPLETE** · **Completed**: 2026-08-14 · **See**: [Archive](../archive/2026-08-idea-023-cross-project-idea-namespacing/IDEA-023-cross-project-idea-namespacing.md), [PR #233](https://github.com/infohata/mind-vault/pull/233).
+One attribution grammar for foreign-project idea refs: bare `IDEA-NNN` = the current repo's stream; foreign refs carry the repo's own name (`IDEA-NNN:project`, never an alias). Shipped as `skills/idea/references/CROSS_PROJECT_IDEA_REFS.md` + catchment-wired one-liners (idea § 4, compound scrub gate/cross-link/auto-memory, cross-idea-amendments rule). Inside mind-vault, a non-placeholder suffix is a scrub violation by construction — the class is now mechanically grep-detectable. Released as v5.6.0.
 
 ### IDEA-022: Claude verdict classification — model-judge, not regex ✅ COMPLETE
 

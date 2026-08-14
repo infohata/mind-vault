@@ -1,14 +1,14 @@
 ---
 id: "023"            # QUOTED — a bare 0NN is YAML-1.1 OCTAL (035 → 29). See SKILL.md §4.
 title: "Cross-project idea namespacing — attribute foreign ideas as IDEA-NNN:project"
-status: in-progress          # idea | in-progress | complete | superseded
+status: complete          # idea | in-progress | complete | superseded
 priority: medium   # high | medium | low
 supersedes: []       # QUOTED ids, e.g. ["012"] — or []
 superseded_by: null                   # when set: QUOTED id, e.g. "042"
 depends_on: []       # QUOTED ids, e.g. ["015"] — or []
 related: []             # QUOTED ids, e.g. ["007", "013"] — or []
 created: 2026-08-14
-completed: null
+completed: 2026-08-14
 # Sprint-auto eligibility gates — both must be `true` with explicit reasoning
 # before sprint-auto can run this idea unattended overnight.
 # Default to `false` at capture; upgrade in `/plan` once the unknowns are nailed down.
@@ -20,7 +20,7 @@ sensitive_paths_cleared_reason: "Documentation/convention change only — touche
 
 # IDEA-023: Cross-project idea namespacing — attribute foreign ideas as IDEA-NNN:project
 
-**Status**: 🚧 In Progress
+**Status**: ✅ Complete (2026-08-14)
 **Priority**: Medium
 
 **Problem** (or opportunity): Every project keeps an independent `IDEA-NNN` stream, so bare idea numbers collide the moment two projects appear in one conversation, doc, or memory note. Live incident (2026-08-14): a mind-vault session answered a "where were we" question by citing another project's IDEAs with bare numbers — mind-vault has its own IDEA-016/017 and that project an unrelated IDEA-016/017 — and the user could not tell which repo the session was even on. The `/idea` skill already carries a defensive rule born of the same ambiguity ("never carry a number from another project's stream"), and memory notes routinely write disambiguators by hand (`(project-x) IDEA-178`, `project-x IDEA-112`).
