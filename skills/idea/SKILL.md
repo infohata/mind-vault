@@ -133,6 +133,7 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
 
 - Scan **both IDEA-file locations** together: `<project>/docs/ideas/IDEA-*.md` and `<project>/docs/archive/*/IDEA-*.md`. Zero-padded three-digit numbers preferred (`IDEA-042` not `IDEA-42`). Scanning only `docs/ideas/` would miss IDEAs in any non-backlog state (`in-progress`, `complete`, `superseded`, `rejected`) — all live in the archive tree per [`RULE_ideas-location-status`](references/IDEAS_LOCATION_STATUS.md) — and produce a collision on the next increment.
 - **Each project's numbering is independent.** Scan ONLY the target project's `docs/ideas/` + `docs/archive/`. Never carry a number from another project's stream (e.g. agent working a `project-x` compound branch checked into mind-vault must NOT pick "next after IDEA-166" — IDEA-166 lives in `project-x`, mind-vault has its own sequence starting at IDEA-001). The branch name (`compound/2026-05-DD-idea-NNN-...`) often references the originating project's IDEA — that is NOT the target project's next number. The scan-from-disk rule is what defines the next number; conversation context referencing other projects' IDEAs is irrelevant.
+- **Citing is the mirror problem of numbering**: never cite a foreign project's idea bare — write `IDEA-NNN:project` (bare = the current repo's stream). Grammar, project-token rule, and the mind-vault scrub interaction: [`references/CROSS_PROJECT_IDEA_REFS.md`](references/CROSS_PROJECT_IDEA_REFS.md).
 - Take max + 1. If no files exist, start at `IDEA-001`.
 - User override: `/idea 200 "Title here"` forces the number. Warn and ask if the number already exists **in either location**.
 - Do **not** attempt to find "gaps" in the numbering. Numbers are append-only; holes from deleted ideas stay as holes.
@@ -227,6 +228,7 @@ deliberately only touches `id:`, since those fields need judgement.
 - [assets/check-idea-frontmatter.py](assets/check-idea-frontmatter.py) — re-runnable guard for the
   YAML-octal id trap (quoting, filename match, zfill collisions, id lists). Run it after any `/idea`
   capture, not just once at migration — some implementations still emit unquoted ids.
+- [references/CROSS_PROJECT_IDEA_REFS.md](references/CROSS_PROJECT_IDEA_REFS.md) — the `IDEA-NNN:project` attribution grammar for foreign-project idea refs, the project-token rule (never an alias), refname/frontmatter exclusions, and the mind-vault violation-by-construction scrub check
 - [references/update-semantics.md](references/update-semantics.md) — detailed rules for editing an existing IDEA file
 - [skills/plan/references/DEFERRAL_EXPIRY_TRIGGERS.md](../plan/references/DEFERRAL_EXPIRY_TRIGGERS.md) — condition form for context-justified non-goals; an "acceptable while X" note that omits the invalidating condition can never fire
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](references/IDEAS_LOCATION_STATUS.md) — location-by-status routing contract, including the `git mv` semantics for status transitions
