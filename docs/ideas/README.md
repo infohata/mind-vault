@@ -6,7 +6,7 @@ differentiated by frontmatter `status:`._
 
 ## 🚧 In Progress
 
-_(none)_
+- [IDEA-023](../archive/2026-08-idea-023-cross-project-idea-namespacing/IDEA-023-cross-project-idea-namespacing.md) ⏳ — Cross-project idea namespacing — attribute foreign ideas as IDEA-NNN:project
 
 ## 💡 High Priority (backlog)
 
@@ -14,7 +14,6 @@ _(none)_
 
 ## 💡 Medium Priority (backlog)
 
-- [IDEA-023](IDEA-023-cross-project-idea-namespacing.md) — Cross-project idea namespacing — attribute foreign ideas as IDEA-NNN:project
 - [IDEA-019](IDEA-019-research-gstack-patterns.md) — Research gstack — mine sprint-workflow patterns for mind-vault
 
 ## 💡 Low Priority (backlog)
