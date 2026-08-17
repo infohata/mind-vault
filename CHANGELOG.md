@@ -10,6 +10,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.6.2 — plans must verify the production path, not just the dev-mode gate
+
+A consuming SPA project's first real deployment surfaced six defect classes that its always-green `unit + e2e` gate could not see: the production compile had been broken for weeks (the dev server never runs the compiler), the minifier broke a computed property key at boot, the fix for that regressed dev mode, the runtime manifest fetched files the build never emitted, a fresh dependency install was crippled and the build plugin hid it, and the UI showed raw translation keys because the e2e fixture had every key the real backend lacked. One meta-cause: every axis on which the shipped artefact differs from what the gate exercises was unverified until the image was built and booted. (2026-08-17, [#235](https://github.com/infohata/mind-vault/pull/235))
+
+### Added
+
+- **`skills/plan/references/PRODUCTION_PATH_VERIFICATION.md`** — the incident, then the rule for plan authors: enumerate the axes on which production differs from the local gate (compiler/minifier mode, install, artefact set, configuration, data, delivery) and name a production-side check per axis; when CI cannot run the production path, the manual gate becomes a named Verification step, not a nice-to-have. Two corollaries: a production-only fix is not done when the pilot boots (re-run the full dev gate on it), and boot-screen stage attribution is a hint, not a fact.
+
+### Changed
+
+- **`agents/AGENT_architect.md` PASS 4** — new probe: which of the plan's Verification commands run against the artefact that will actually be deployed? Dev-mode-only gates on a project with a distinct production build/deploy path are a finding, with the missing check named per axis.
+- **`skills/plan/SKILL.md`** — step 4's Verification bullet points at the new reference; References list gains the one-liner.
+
 ## v5.6.1 — copilot CLEAN covers only the comments the API shows
 
 On the v5.6.0 PR the review loop converged clean over four cycles — copilot's final verdict said "generated no new comments" — while a suppressed copilot comment held a valid finding the whole time (a charset contradiction between the token prose and the wired regex). Suppressed comments exist only in the PR web UI; they appear on none of the API surfaces the adapter reads, and no API is known to expose them. The maintainer found it by expanding the suppressed set by hand. (2026-08-14, [#234](https://github.com/infohata/mind-vault/pull/234))

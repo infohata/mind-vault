@@ -61,6 +61,7 @@ Your structural craft — abstraction, coupling/dependency, boundary contradicti
 
 - Could this component run on 5 load-balanced instances concurrently, or is it fundamentally constrained to a single server instance (e.g., storing state in local `sqlite` or an in-memory variable instead of an isolated Redis instance)?
 - Force architectural horizontal scalability.
+- **Production-path verification probe:** ask which of the plan's Verification commands run against the artefact that will actually be deployed (release build, fresh install, built output only, production config, real backend, through the edge). A plan whose gate is dev-mode only (unit + e2e against source and mocks) on a project with a distinct production compile/build/deploy path has an unverified axis per difference — a finding, with the check to add named per axis (see `skills/plan/references/PRODUCTION_PATH_VERIFICATION.md`).
 
 ### PASS 5: The Provenance & Refutation Audit
 

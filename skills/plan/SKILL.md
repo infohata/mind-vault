@@ -76,7 +76,7 @@ Read [`assets/plan-template.md`](assets/plan-template.md) and fill its sections.
 6. **Key Technical Decisions** — opinionated defaults with one-line rationale each.
 7. **Open Questions** — things that need user input before execution starts. Suggest a default per question; mark resolved questions inline.
 8. **Execution Sequence** — ordered steps (files to create/modify, commands to run, tests to write).
-9. **Verification** — how to confirm the work lands correctly. Commands or checks, not vibes.
+9. **Verification** — how to confirm the work lands correctly. Commands or checks, not vibes. When the shipped artefact is produced by a step the local gate never runs (release build, fresh install, production config, real backend), name a production-side check per axis — [`references/PRODUCTION_PATH_VERIFICATION.md`](references/PRODUCTION_PATH_VERIFICATION.md).
 
 Plan quality bar:
 
@@ -178,6 +178,7 @@ The plan's philosophy stays the same at every scope; the depth scales.
 - [references/architect-handoff.md](references/architect-handoff.md) — how to invoke AGENT_architect as a reviewer and integrate findings
 - [references/batching-for-sprint-auto.md](references/batching-for-sprint-auto.md) — opt-in mode for grouping multiple `/plan` outputs onto one feature branch + PR to feed an overnight `/sprint-auto` run
 - [references/DEFERRAL_EXPIRY_TRIGGERS.md](references/DEFERRAL_EXPIRY_TRIGGERS.md) — why "deferred to IDEA-NNN, acceptable for now" never fires; write the condition that invalidates the justification, plus the reviewer heuristic against inheriting a stale deferral's reasoning; plus the wider "a record is not a mechanism" family — guidance a tool PRINTS instead of asserting, and ignore-rules written but never run
+- [references/PRODUCTION_PATH_VERIFICATION.md](references/PRODUCTION_PATH_VERIFICATION.md) — the dev-mode gate (unit + e2e on source and mocks) proves nothing about the shipped artefact; enumerate the axes on which production differs (compiler, install, artefact set, config, data, delivery) and put a check on the production side of each — six-defect first-deployment incident + the architect PASS 4 probe
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — the location-by-status contract driving step 6's `idea` → `in-progress` move
 - [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
 - [skills/idea/SKILL.md](../idea/SKILL.md) — previous stage; produces the IDEA file this skill consumes
