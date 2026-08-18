@@ -12,11 +12,11 @@ _(none)_
 
 ## v5.6.2 — plans must verify the production path, not just the dev-mode gate
 
-A consuming SPA project's first real deployment surfaced six defect classes that its always-green `unit + e2e` gate could not see: the production compile had been broken for weeks (the dev server never runs the compiler), the minifier broke a computed property key at boot, the fix for that regressed dev mode, the runtime manifest fetched files the build never emitted, a fresh dependency install was crippled and the build plugin hid it, and the UI showed raw translation keys because the e2e fixture had every key the real backend lacked. One meta-cause: every axis on which the shipped artefact differs from what the gate exercises was unverified until the image was built and booted. (2026-08-17, [#235](https://github.com/infohata/mind-vault/pull/235))
+A consuming SPA project's first real deployment surfaced six defect classes its always-green `unit + e2e` gate could not see — a production compile broken for weeks, a minifier-mangled property key at boot, a crippled fresh install the build plugin swallowed, raw translation keys the mocked API hid. One meta-cause: every axis on which the shipped artefact differs from what the gate exercises stayed unverified until the image was built and booted. (2026-08-17, [#235](https://github.com/infohata/mind-vault/pull/235))
 
 ### Added
 
-- **`skills/plan/references/PRODUCTION_PATH_VERIFICATION.md`** — the incident, then the rule for plan authors: enumerate the axes on which production differs from the local gate (compiler/minifier mode, install, artefact set, configuration, data, delivery) and name a production-side check per axis; when CI cannot run the production path, the manual gate becomes a named Verification step, not a nice-to-have. Two corollaries: a production-only fix is not done when the pilot boots (re-run the full dev gate on it), and boot-screen stage attribution is a hint, not a fact.
+- **`skills/plan/references/PRODUCTION_PATH_VERIFICATION.md`** — the rule for plan authors: enumerate the axes on which production differs from the local gate (compiler/minifier mode, install, artefact set, configuration, data, delivery) and name a production-side check per axis. Where CI cannot run the production path, the manual gate becomes a named Verification step, not a nice-to-have.
 
 ### Changed
 
