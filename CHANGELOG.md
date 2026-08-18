@@ -10,6 +10,32 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.6.3 — third frontend stack: `skills/extjs-frontend` (Sencha ExtJS 7 Modern)
+
+A consuming Sencha ExtJS 7.7 Modern SPA (webpack + Sencha Cmd, desktop + phone builds over an
+`app/shared/` layer, REST + WAMP backend) accumulated six solution docs and a season of review
+and pilot-smoke findings — the Modern widgets repeatedly doing less than their names imply
+(unchecked `checkbox` serialising `null`, `formpanel` letting Enter reload the SPA, phantom ids
+on seeded models, the store `load` event delivering an Array), a service layer that turned out to
+be a *precondition* for any error UX, a Jest harness built on a fail-loud `Ext` stub, Playwright
+driving `Ext.ComponentQuery`, translations as backend data with a static key sweep as the gate,
+and a Sencha toolchain whose production compile only the image build proves. This release lifts
+all of it into a stack skill that fills the four frontend contract headings — no persona edits,
+same as the Laravel proof.
+
+### Added
+
+- **`skills/extjs-frontend/`** — `SKILL.md` (frontmatter trigger, stack resolution + fail-open,
+  the four verbatim contract headings, a 14-row ✅/❌ matrix) + `VERSION` `0.1` + seven
+  load-on-demand references: `MODERN_COMPONENT_FOOTGUNS`, `SERVICE_LAYER`,
+  `JEST_EXT_STUB_HARNESS`, `PLAYWRIGHT_COMPONENTQUERY_E2E`, `SENCHA_TOOLCHAIN_AND_BUILD`,
+  `I18N_KEY_SWEEP`, `REFACTOR_CONTRACT_PINNING`. Body ≤ 250 lines; everything project-specific
+  generalised (`App.*`, `<prefix>_*`, wrapper-field family, "entity dialog").
+
+### Changed
+
+- **`README.md`** — skills table gains the `extjs-frontend` row; the slash-invocable list names it.
+
 ## v5.6.2 — plans must verify the production path, not just the dev-mode gate
 
 A consuming SPA project's first real deployment surfaced six defect classes its always-green `unit + e2e` gate could not see — a production compile broken for weeks, a minifier-mangled property key at boot, a crippled fresh install the build plugin swallowed, raw translation keys the mocked API hid. One meta-cause: every axis on which the shipped artefact differs from what the gate exercises stayed unverified until the image was built and booted. (2026-08-17, [#235](https://github.com/infohata/mind-vault/pull/235))
