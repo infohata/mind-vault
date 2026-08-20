@@ -238,7 +238,7 @@ echo __('booking.confirmation_intro'); // resolves: DB override → file fallbac
 ## References
 
 - [Eager loading](references/EAGER_LOADING.md) — N+1 prevention, `with()`/`load()`/`withCount()`, `preventLazyLoading`/`shouldBeStrict` strict mode, `chunkById`/`lazy`/`cursor`, bulk `insert`/`upsert`.
-- [Form Requests & Resources](references/FORM_REQUESTS_RESOURCES.md) — the `validated()`-only controller contract, `authorize()`, API Resources, 422 JSON envelope.
+- [Form Requests & Resources](references/FORM_REQUESTS_RESOURCES.md) — the `validated()`-only controller contract, `authorize()`, API Resources, 422 JSON envelope; plus **update must not re-run the create gauntlet** — validating `$model->toArray()` against create rules holds legacy rows hostage, so even a state flip bounces.
 - [Queues & Horizon](references/QUEUES_HORIZON.md) — `ShouldQueue`, Redis + Horizon, `afterCommit`, `ShouldBeUnique`/`WithoutOverlapping`, supervised workers, IDs-not-models.
 - [Data isolation & tenancy](references/DATA_ISOLATION_TENANCY.md) — global scope + `BelongsToTenant` trait, the create-path stamping gap, `stancl` vs `spatie` comparison, the cross-direction warning expanded.
 - [Policies & Gates](references/POLICIES_GATES.md) — policies/gates, auto-discovery, `spatie/laravel-permission` as RBAC storage, structural 403, the `viewAny` gap.

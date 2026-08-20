@@ -14,7 +14,7 @@ _(none)_
 
 One evening on a consuming project produced one new pattern and four hard-won extensions — a
 duplicate-record UX incident, a legacy-row validation wall, and a fail2ban ban of the operator's
-own IP that took a whole e2e suite down with it (2026-08-20, this PR).
+own IP that took a whole e2e suite down with it (2026-08-20, [#237](https://github.com/infohata/mind-vault/pull/237)).
 
 ### Added
 
@@ -44,6 +44,14 @@ own IP that took a whole e2e suite down with it (2026-08-20, this PR).
   forwarded-IP log lines (bans the end user while the proxy path stays open), never count
   application-level 4xx toward floods, audit ban lists for CDN/private-relay egress, monitor
   from an outside vantage.
+- **References one-liners refreshed for all five extended/added references** —
+  `deployment`, `laravel`, `plan`, and `extjs-frontend` (×2). The one-liner is the
+  load-decision surface: a reference can gain a whole section and stay invisible to an agent
+  scanning References, so extending a body means updating the line that advertises it.
+- **CHANGELOG provenance markers backfilled** — v5.4.7, v5.4.8, v5.4.9 and v5.5.0 carried no
+  PR link, and two of them still held the literal placeholder `([PR link in commit trail])`.
+  All four now carry `(date, [#N](url))` per the preamble's convention.
+- **`.claude-plugin/plugin.json`** — 5.7.0 → 5.7.1, the mirror the version bump left behind.
 
 ## v5.7.0 — third frontend stack: `skills/extjs-frontend` (Sencha ExtJS 7 Modern)
 
@@ -153,7 +161,7 @@ The v5.5.0 harvest was correct but exhausting to review — the maintainer's mer
 
 ## v5.5.0 — nine root patterns from one deferred harvest: assertions that never ran, runs that never reached, premises nobody falsified
 
-From a batch harvest of a month's un-compounded engineering work across four repositories of one estate — every lesson counted for independent recurrence, checked against prior art, then attacked by two adversarial reviewers reading primary sources. 553 candidates reduced to 112, of which 23 survived review; those 23 turned out to instantiate **eight** root patterns, all written in this release. Patterns identified across the wider set but whose members did not survive review are deliberately **not** written — including the ninth, attested by 15 members and cleared by none.
+From a batch harvest of a month's un-compounded engineering work across four repositories of one estate — every lesson counted for independent recurrence, checked against prior art, then attacked by two adversarial reviewers reading primary sources. 553 candidates reduced to 112, of which 23 survived review; those 23 turned out to instantiate **eight** root patterns, all written in this release. Patterns identified across the wider set but whose members did not survive review are deliberately **not** written — including the ninth, attested by 15 members and cleared by none. (2026-08-13, [#230](https://github.com/infohata/mind-vault/pull/230))
 
 ### Changed
 
@@ -168,7 +176,7 @@ From a batch harvest of a month's un-compounded engineering work across four rep
 
 ## v5.4.9 — shadow observes but does not protect; sweep the false-clean CLASS, not the instance
 
-From the live rung of the same staged rollout that produced v5.4.8, plus the review cycle over its evidence tooling ([PR link in commit trail]).
+From the live rung of the same staged rollout that produced v5.4.8, plus the review cycle over its evidence tooling. (2026-08-10, [#229](https://github.com/infohata/mind-vault/pull/229))
 
 ### Added
 
@@ -182,7 +190,7 @@ From the live rung of the same staged rollout that produced v5.4.8, plus the rev
 
 ## v5.4.8 — the OFF position of a kill switch must be faithful per call site; a zero needs a positive control
 
-From a staged rollout of a matching-rule change against a third-party datastore ([PR link in commit trail]).
+From a staged rollout of a matching-rule change against a third-party datastore. (2026-08-02, [#228](https://github.com/infohata/mind-vault/pull/228))
 
 ### Added
 
@@ -204,7 +212,7 @@ A deferral justified by a claim about the *surrounding context* ("acceptable whi
 trusted") can never fire: the successor ticket waits on backlog priority while the condition that made
 the justification true has already lapsed. Observed in the wild — an authorization gap stayed deferred
 straight through the change that made it a real exposure, and surfaced only because a human asked
-whether anything was left.
+whether anything was left. (2026-07-27, [#227](https://github.com/infohata/mind-vault/pull/227))
 
 ### Added
 

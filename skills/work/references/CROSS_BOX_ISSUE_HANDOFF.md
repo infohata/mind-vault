@@ -27,9 +27,9 @@ sessions, and the human can audit the whole exchange in the same place the work 
    numbered list of concrete asks. Written so a fresh agent needs *nothing else* to start.
 2. **Comments = the evidence chain, append-only.** Post corrections as new comments, never edit
    the earlier analysis away — a consuming agent (or human) must be able to replay how the
-   understanding evolved. Tonight's thread: hypothesis → hypothesis withdrawn with the corrected
-   mechanism → final confirmation from logs. Each step named its evidence command so the other
-   side could re-run it.
+   understanding evolved. A worked thread runs: hypothesis → hypothesis withdrawn with the
+   corrected mechanism → final confirmation from logs. Each step names its evidence command so
+   the other side can re-run it.
 3. **Cross-reference from the work records**: the originating project's record cites the issue
    (`the infra follow-up: <repo>#N`); the issue cites the originating IDEA/PR. Either end of the
    thread finds the other.
