@@ -83,7 +83,8 @@ stack:
 ```
 
 A single value (`stack: django`) is shorthand for `backend: django` with the frontend
-left to auto-detect.
+left to auto-detect. A frontend-only stack pins just the one key
+(`frontend: extjs-frontend`) and leaves `backend:` to its own signal.
 
 ### Auto-detect signal table
 
@@ -97,6 +98,22 @@ misdetected as a Node backend.
 | django | `manage.py`, `settings.py` | Django templates + `django-cotton` / `templates/cotton/` |
 | laravel | `composer.json` + `artisan` | `resources/views/*.blade.php` |
 | node | a server entry file (`server.js` / `app.js`) — NOT `package.json`, which stays frontend-only (A2); pin a Node *backend* via `dispatch.md` if the entry file is absent/ambiguous | `package.json` (frontend tooling) |
+| extjs | — (no backend; the API's own stack resolves separately) | `app.json` with `"framework": "ext"` + `"toolkit": "modern"`, `@sencha/ext*` in `package.json`, or `Ext.define(` under `app/**` |
+
+**Precedence rule (A3): a named framework marker outranks the generic `package.json`
+frontend signal.** Every JS-framework repo ships a `package.json`, so that row is the
+*fallback* — it resolves `node` only when no framework marker matched. An ExtJS repo has
+both; it resolves `extjs`, never `node`.
+
+**A3 is a general rule, not an ExtJS carve-out.** It governs every repo carrying a named
+frontend marker *and* a `package.json` — a Laravel app with Vite/Tailwind, a Django app
+with a webpack build. A2 only separated backend from frontend detection; it never ordered
+two competing *frontend* signals, so that case had no rule at all until now. A3 writes
+down the behaviour those repos already depended on: `resources/views/*.blade.php` resolves
+`laravel`, not `node`, however much build tooling sits beside it.
+
+A frontend-only stack (`extjs`) leaves the backend unresolved by design — pin or detect
+the backend independently, or let its adapter announce the gap.
 
 If backend and frontend signals point at different stacks (Laravel backend + JS
 frontend), that is valid — resolve each independently. If signals are absent or
@@ -104,9 +121,9 @@ ambiguous, fall through to step 4 (ask once). Per the fail-open contract, an ada
 whose stack never resolves enforces craft-only and **announces** the gap — it does not
 silently skip the stack rule.
 
-No executable detector ships in Phase 1 — these signals are read by the dispatcher /
-agent directly. A `tools/detect-stack.sh` is deferred until a real third stack justifies
-it.
+No executable detector ships — these signals are read by the dispatcher / agent
+directly. A `tools/detect-stack.sh` stays deferred; the table is short enough to read,
+and the precedence rules (A2/A3) are the part that needs stating, not automating.
 
 ## Parallel worktree setup
 
