@@ -105,6 +105,13 @@ frontend signal.** Every JS-framework repo ships a `package.json`, so that row i
 *fallback* — it resolves `node` only when no framework marker matched. An ExtJS repo has
 both; it resolves `extjs`, never `node`.
 
+**A3 is a general rule, not an ExtJS carve-out.** It governs every repo carrying a named
+frontend marker *and* a `package.json` — a Laravel app with Vite/Tailwind, a Django app
+with a webpack build. A2 only separated backend from frontend detection; it never ordered
+two competing *frontend* signals, so that case had no rule at all until now. A3 writes
+down the behaviour those repos already depended on: `resources/views/*.blade.php` resolves
+`laravel`, not `node`, however much build tooling sits beside it.
+
 A frontend-only stack (`extjs`) leaves the backend unresolved by design — pin or detect
 the backend independently, or let its adapter announce the gap.
 

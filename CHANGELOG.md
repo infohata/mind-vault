@@ -41,7 +41,11 @@ skill filling the four frontend contract headings — no persona edits, same as 
   `app/**`. Without A3 the skill would have been unreachable in practice: every ExtJS repo ships
   a `package.json`, which the `node` row already claimed as the frontend signal, so detection
   resolved `node` and never `extjs`. A3 makes a **named framework marker outrank the generic
-  `package.json`**, which is now explicitly the fallback. `extjs` is also the first
+  `package.json`**, which is now explicitly the fallback. **A3 is general, not an ExtJS
+  carve-out** — it governs every repo carrying a named frontend marker *and* a
+  `package.json` (a Laravel app with Vite/Tailwind, a Django app with a webpack build).
+  A2 had only separated backend from frontend detection; two competing *frontend* signals
+  had no rule at all until now. `extjs` is also the first
   **frontend-only** stack — it leaves `backend:` unresolved by design, and the pin convention
   gains the one-key form (`frontend: extjs-frontend`).
 - **`skills/work/references/SKILL_CONTRACT.md` — the floor is per-side, and absence is a valid
