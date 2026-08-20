@@ -10,31 +10,49 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
-## v5.6.3 — third frontend stack: `skills/extjs-frontend` (Sencha ExtJS 7 Modern)
+## v5.7.0 — third frontend stack: `skills/extjs-frontend` (Sencha ExtJS 7 Modern)
 
-A consuming Sencha ExtJS 7.7 Modern SPA (webpack + Sencha Cmd, desktop + phone builds over an
-`app/shared/` layer, REST + WAMP backend) accumulated six solution docs and a season of review
-and pilot-smoke findings — the Modern widgets repeatedly doing less than their names imply
-(unchecked `checkbox` serialising `null`, `formpanel` letting Enter reload the SPA, phantom ids
-on seeded models, the store `load` event delivering an Array), a service layer that turned out to
-be a *precondition* for any error UX, a Jest harness built on a fail-loud `Ext` stub, Playwright
-driving `Ext.ComponentQuery`, translations as backend data with a static key sweep as the gate,
-and a Sencha toolchain whose production compile only the image build proves. This release lifts
-all of it into a stack skill that fills the four frontend contract headings — no persona edits,
-same as the Laravel proof.
+A season of review and pilot-smoke findings on a consuming Sencha ExtJS 7.7 Modern SPA came down
+to one theme: the Modern widgets do less than their names imply — an unchecked `checkbox`
+serialises `null`, `formpanel` lets Enter reload the SPA, seeded models carry phantom ids, the
+store `load` event delivers an Array. Around that sit a service layer that is a *precondition*
+for any error UX, Jest and Playwright harnesses built for a framework that resists both, and a
+toolchain whose production compile only the image build proves. All of it lifts into a stack
+skill filling the four frontend contract headings — no persona edits, same as the Laravel proof.
+(2026-08-18, [#236](https://github.com/infohata/mind-vault/pull/236))
 
 ### Added
 
 - **`skills/extjs-frontend/`** — `SKILL.md` (frontmatter trigger, stack resolution + fail-open,
-  the four verbatim contract headings, a 14-row ✅/❌ matrix) + `VERSION` `0.1` + seven
+  the four verbatim contract headings, a 14-row ✅/❌ matrix) + `VERSION` `7.7` (framework
+  version, per the `django`/`laravel` convention) + seven
   load-on-demand references: `MODERN_COMPONENT_FOOTGUNS`, `SERVICE_LAYER`,
   `JEST_EXT_STUB_HARNESS`, `PLAYWRIGHT_COMPONENTQUERY_E2E`, `SENCHA_TOOLCHAIN_AND_BUILD`,
   `I18N_KEY_SWEEP`, `REFACTOR_CONTRACT_PINNING`. Body ≤ 250 lines; everything project-specific
-  generalised (`App.*`, `<prefix>_*`, wrapper-field family, "entity dialog").
+  generalised (`App.*`, `<prefix>_*`, wrapper-field family, "entity dialog"). The frontmatter
+  `description` and the `When to use` precondition both state the load gate positively **and**
+  negatively — a Sencha marker must be present, and a plain Jest/Playwright/webpack toolchain is
+  explicitly not one — so the skill stays dark in every repo that is not an ExtJS repo.
 
 ### Changed
 
+- **`skills/work/references/persona-dispatch.md` — the `extjs` auto-detect row + precedence rule
+  A3.** Frontend signal: `app.json` `"framework": "ext"` / `@sencha/ext*` / `Ext.define(` under
+  `app/**`. Without A3 the skill would have been unreachable in practice: every ExtJS repo ships
+  a `package.json`, which the `node` row already claimed as the frontend signal, so detection
+  resolved `node` and never `extjs`. A3 makes a **named framework marker outrank the generic
+  `package.json`**, which is now explicitly the fallback. `extjs` is also the first
+  **frontend-only** stack — it leaves `backend:` unresolved by design, and the pin convention
+  gains the one-key form (`frontend: extjs-frontend`).
+- **`skills/work/references/SKILL_CONTRACT.md` — the floor is per-side, and absence is a valid
+  answer.** "MUST expose every required heading" read as all 10 for any stack skill; a
+  frontend-only skill owes only the 4. Stated explicitly, along with the clause the SPA case
+  forced: a heading may be filled with a **documented absence** — `extjs-frontend`'s
+  *Partial/fragment response* records that an SPA returns JSON envelopes, never HTML fragments,
+  and specifies the envelope contract in place of one. That is a filled heading; a placeholder
+  is not. Stale "future laravel*" tiering diagram refreshed.
 - **`README.md`** — skills table gains the `extjs-frontend` row; the slash-invocable list names it.
+- **`.claude-plugin/plugin.json`** — `extjs` keyword.
 
 ## v5.6.2 — plans must verify the production path, not just the dev-mode gate
 

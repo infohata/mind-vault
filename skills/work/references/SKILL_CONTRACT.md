@@ -13,9 +13,10 @@ swap the skill — the profile is untouched. That is the whole mechanism.
 ## The tiering invariant
 
 ```text
-craft agent  →  framework-stack skill  →  language-base skill
-(AGENT_*.md)     (django, django-frontend,   (python — language-general;
-                  future laravel*)            NOT contract-bearing)
+craft agent  →  framework-stack skill        →  language-base skill
+(AGENT_*.md)     (django, django-frontend,       (python — language-general;
+                  laravel, laravel-frontend,      NOT contract-bearing)
+                  extjs-frontend)
 ```
 
 **Only framework-stack skills expose this contract.** A language-base skill
@@ -26,12 +27,24 @@ same *shape* as the up-pointer `agent → django` defined here, one tier lower.
 
 ## How a stack skill satisfies the contract
 
-A framework-stack skill MUST expose every **required** heading below as a literal
-`###` section so a generic agent resolves it uniformly across stacks (grep-resolvable —
-same string in every stack's skill). It MAY add any number of **optional extras**; the
-contract is a *floor*, not a checklist every stack must exhaust. Forcing empty slots on
-a stack that has no answer is the over-abstraction failure this floor is sized to avoid
-— it is what keeps a new stack (Phase 2 Laravel) a true zero-agent-edit drop-in.
+A framework-stack skill MUST expose every **required** heading **for the side it
+covers** as a literal `###` section, so a generic agent resolves it uniformly across
+stacks (grep-resolvable — same string in every stack's skill). A skill covering one side
+owes only that side's floor: `django`/`laravel` are backend skills and owe the 6;
+`django-frontend`/`laravel-frontend`/`extjs-frontend` are frontend skills and owe the 4.
+A stack need not ship both halves — `extjs-frontend` is frontend-only, and the backend
+adapter resolves against whatever stack serves its API.
+
+**A heading may be answered with a documented absence.** If the stack genuinely has no
+such mechanism, say so under the verbatim heading and name what replaces it — e.g.
+`extjs-frontend`'s *Partial/fragment response* records that an SPA returns JSON
+envelopes, never HTML fragments, and specifies the envelope contract instead. That is a
+filled heading; a heading left as a placeholder is not.
+
+It MAY add any number of **optional extras**; the contract is a *floor*, not a checklist
+every stack must exhaust. Forcing empty slots on a stack that has no answer is the
+over-abstraction failure this floor is sized to avoid — it is what kept the Laravel
+second stack a true zero-agent-edit drop-in.
 
 ### Backend — required floor (6)
 

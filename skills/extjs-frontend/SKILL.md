@@ -1,6 +1,6 @@
 ---
 name: extjs-frontend
-description: Apply Sencha ExtJS 7 Modern SPA conventions — webpack + Sencha Cmd, MVVM ViewModel/ViewController, Ext.Ajax service layer, Jest Ext-stub + Playwright ComponentQuery tests, i18n key sweep, footguns.
+description: Apply Sencha ExtJS 7 Modern-toolkit SPA conventions — MVVM ViewModel/ViewController binds and formulas, a promise service layer over Ext.Ajax with a single JSON-envelope owner, Ext.define + named-`ui` component system, loadmask + native-submit form lock, Jest Ext-stub and Playwright ComponentQuery harnesses, Sencha Cmd/webpack production-build gate, i18n key sweep. Load ONLY in a repo that actually builds a Sencha ExtJS app — `app.json` carrying `"framework": "ext"`, `@sencha/ext*` in `package.json`, or `Ext.define(` under `app/**`. NOT for React/Vue/Angular/Svelte/HTMX frontends, NOT for the ExtJS Classic toolkit, NOT for backend work; a plain Jest + Playwright + webpack toolchain is not an ExtJS signal.
 license: Apache-2.0
 metadata:
   author: mind-vault
@@ -23,6 +23,11 @@ the frontend contract is REST + optional WAMP; nothing here assumes a backend fr
 
 ## When to use
 
+**Precondition — the gate for every trigger below:** the repo actually builds a Sencha ExtJS
+app (`app.json` `"framework": "ext"`, `@sencha/ext*`, or `Ext.define(` under `app/**`; see
+*Stack resolution* below). Without that signal none of the triggers fire, however familiar the
+symptom sounds.
+
 **TRIGGER when:** editing `Ext.define(...)` classes under `app/**` (views, ViewControllers,
 ViewModels, stores, `util`/`service` singletons, overrides); adding a dialog, grid, form field
 or `ui`; touching `app.json`, `workspace.json`, `webpack.config.js`, `build.xml`, `.jdk*`; writing or
@@ -32,7 +37,9 @@ build / deployed image" report; a Sencha dev-server that hangs at *wait until bu
 
 **SKIP for:** ExtJS Classic-only code (`Ext.grid.Panel`, `Ext.window.Window`, `renderTo`
 layouts); React/Vue/HTMX frontends (their own stack skills); backend-only work; native
-mobile clients.
+mobile clients; **any repo with no ExtJS signal at all** — a shared
+Jest/Playwright/webpack toolchain on its own is not a trigger, and neither is the word
+"SPA".
 
 ## Stack resolution + fail-open
 
@@ -86,8 +93,9 @@ prefer the row ViewModel's `record` over a store lookup, or pass `exactMatch: tr
 
 ### Partial/fragment response
 
-**This SPA has none.** The server never returns HTML fragments; every call is JSON in an
-envelope, and the UI re-fetches stores after a write. The de-facto contract:
+**An ExtJS Modern SPA has none.** The server never returns HTML fragments; every call is JSON in an
+envelope, and the UI re-fetches stores after a write. Read the API's actual envelope, then
+pin it; the recurring shape is:
 
 ```jsonc
 { "success": true,  "result": [ … ], "total": 150 }          // reads (paged: total)
@@ -114,9 +122,9 @@ layers of a typical repo: **`app/shared/`** (models, stores, `util`, `service`, 
 dialogs), **`app/desktop/`** and **`app/phone/`** (per-build views; each has its own
 `Application.js` + `Application.scss`); builds never import each other — cross-build code goes to
 `shared`. Styling is the **named `ui` catalogue** (`@include button-ui($ui: 'primary-action-button')`
-in `Application.scss`, applied as `ui: 'primary-action-button'`); default Material components are
-*unstyled* for the product, so **no raw `Ext.*` UI without a `ui`/`cls`**. Form inputs are the
-app-prefixed **wrapper field family** (`apptextfield`, `appselectfield`, `apptogglefield`, …):
+in `Application.scss`, applied as `ui: 'primary-action-button'`); the stock Material components are
+deliberately *unstyled* until a `ui` is applied, so **no raw `Ext.*` UI without a `ui`/`cls`**.
+Form inputs are commonly an app-prefixed **wrapper field family** (`apptextfield`, `appselectfield`, `apptogglefield`, …):
 a container exposing `<xtype>Label/Name/Value/Info/Required/Hidden` configs (labels/info are
 translation keys) that publishes `*Value` back through the wrapper. Wrapper fields typically
 **exist only in the desktop build**; phone styles raw fields via `ui` from *its own* catalogue —
