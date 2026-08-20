@@ -10,6 +10,41 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.7.1 — cross-box agent handoff via repo issues + a night's incident harvest
+
+One evening on a consuming project produced one new pattern and four hard-won extensions — a
+duplicate-record UX incident, a legacy-row validation wall, and a fail2ban ban of the operator's
+own IP that took a whole e2e suite down with it (2026-08-20, this PR).
+
+### Added
+
+- `skills/work/references/CROSS_BOX_ISSUE_HANDOFF.md` — when work surfaces a task for an agent
+  on another machine, the target repo's GitHub issues are the channel: issue body = brief with
+  asks, comments = append-only evidence chain, corrections posted rather than edited; the
+  human's relay burden drops to one line. Pointer added to the work skill's References.
+
+### Changed
+
+- `skills/plan/references/DEFERRAL_EXPIRY_TRIGGERS.md` — new section: staged gates rot. A
+  "backend-gated" phase was un-gated the same evening by reading the dependency's source (a
+  pre-existing endpoint family served everything); re-probe gates from source before honoring
+  them, and write gates as the missing *capability*, not the endpoint that lacks it.
+- `skills/extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md` — footgun #15: stay-open
+  create dialogs must disarm Save (re-entry guard + mask + state-bound button + `saved` event);
+  an unguarded dialog produced twelve duplicate records from repeated clicks.
+- `skills/extjs-frontend/references/PLAYWRIGHT_COMPONENTQUERY_E2E.md` — §9: mock mode still
+  fetches real external hosts (you are load on someone's box; a dead host fails suites that
+  never mention it), and the known-green-commit re-run that splits code-vs-environment in one
+  run.
+- `skills/laravel/references/FORM_REQUESTS_RESOURCES.md` — update must not re-run the create
+  gauntlet: validating `$model->toArray()` against create rules makes legacy rows unupdatable
+  (even a state flip bounces); validate the request's fields, give state transitions their own
+  rules.
+- `skills/deployment/references/HARDENING.md` — fail2ban behind proxies: never act on
+  forwarded-IP log lines (bans the end user while the proxy path stays open), never count
+  application-level 4xx toward floods, audit ban lists for CDN/private-relay egress, monitor
+  from an outside vantage.
+
 ## v5.7.0 — third frontend stack: `skills/extjs-frontend` (Sencha ExtJS 7 Modern)
 
 A season of review and pilot-smoke findings on a consuming Sencha ExtJS 7.7 Modern SPA came down

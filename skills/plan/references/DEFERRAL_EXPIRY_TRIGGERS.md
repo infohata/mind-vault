@@ -178,6 +178,28 @@ it had never happened, or the gap was caught in review before it reached the def
 artefact existed inside the window before calling it exposed — a pattern's name is a record of intent, not
 evidence of what was on disk.
 
+## Staged gates rot — re-probe the dependency's source before honoring one
+
+A phase plan parked a feature set as *"backend-gated — pending amounts are not in the folio
+payload"*. The gate was true as stated and architect-confirmed. The **same evening**, thirty
+minutes of reading the backend repo's source showed the entire feature was served by a
+*different, pre-existing* endpoint family — filterable index, send endpoints, history, template
+list — and the "gated" phase shipped client-only that night. The gate had never been false; it
+had been **scoped to one data path** while an adjacent path already existed.
+
+The lesson generalizes past expiry: an out-of-scope list is a snapshot of what the planner knew,
+and "blocked on X" often means "blocked on the one approach we considered". So:
+
+- **Before honoring a staged gate as the reason to pick different work, re-probe it from the
+  dependency's source** — not from the plan that recorded it. Half an hour of reading the other
+  repo is cheap against a phase parked for weeks. Only possible when the dependency's source is
+  readable; when it isn't, say so in the gate ("verified from the API surface only").
+- **Write gates as the *capability* that is missing, not the *endpoint* that lacks it.** "The
+  folio payload has no pending amounts" invites checking one payload; "no API serves pending
+  request amounts" invites the sweep that would have un-gated it immediately.
+- When a re-probe un-gates a phase, the plan that parked it gets the same closed-with-reason
+  annotation an expired deferral gets — the next reader must not re-derive the gate.
+
 ## Related
 
 - [`../../../rules/RULE_cross-idea-amendments.md`](../../../rules/RULE_cross-idea-amendments.md) — when

@@ -169,3 +169,26 @@ A bare `App.service.Api` at `Ext.isReady` is `undefined` in the dev build unless
 `requires` it; `Ext.syncRequire` it in the spec. A spec that fails only in dev → suspect the build
 mode: check out the base branch detached (the dev server serves the working tree live) and
 re-run; grep the served manifest's `paths` for the namespace.
+
+## 9. Mock mode still fetches real external hosts — and the known-green bisect
+
+"Mock mode" routes the *API*; anything the app loads by absolute URL — an editor bundle from an
+estate media host, CDN fonts — still hits the real network **on every page boot of every test**.
+Two consequences, both observed the hard way:
+
+- **You are load on someone's box.** Repeated suite runs fired hundreds of asset fetches in
+  bursts from one IP — enough to trip the serving host's fail2ban and get the *developer's IP*
+  banned estate-wide. Route every external host in the mock bootstrap (serve a vendored copy or
+  a stub); a mock-mode suite that needs the internet is a latent incident.
+- **A dead external host fails suites that never mention it.** The boot-time loader threw
+  (`EDITOR global not found`) into whichever test happened to be running — cross-suite failures
+  with *varying counts per run*, in specs untouched by the branch. Any spec asserting
+  `pageErrors == []` owns every async throw on the page; filter known boot noise explicitly or
+  eliminate its source.
+
+**The bisect that names the class in one run**: when failures are cross-suite and the count
+varies between runs, re-run the suite on a **known-green commit** *first*. Same failures there =
+environment (external host, box state, network) — stop reading your diff. Only a clean
+known-green run justifies bisecting your own commits. This one command distinguishes "I broke
+the app's boot" from "the world changed under me", and it would have saved an hour of
+diff-staring the night this was learned.

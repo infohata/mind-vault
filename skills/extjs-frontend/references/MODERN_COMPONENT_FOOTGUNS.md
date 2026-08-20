@@ -201,6 +201,27 @@ cross-build logic lives in `app/shared/`. Every Sencha full build regenerates `g
 and drops the *other* profile's manifest — a phone e2e stuck at `LOADING…` after `build:desktop`
 is that ([SENCHA_TOOLCHAIN_AND_BUILD](SENCHA_TOOLCHAIN_AND_BUILD.md)).
 
+## 15. Stay-open dialogs must disarm Save
+
+A create dialog that deliberately **stays open after a successful save** (to enable follow-up
+buttons — send email/SMS, print) inherits none of the close-on-save protection: with no
+in-flight guard, no mask, and Save still armed, every extra click POSTs a fresh duplicate. An
+operator produced **twelve duplicate records** before noticing — the dialog gave zero feedback
+that the first click had already succeeded. The full recipe, all four parts:
+
+1. **Re-entry guard**: `if (this._saving || vm.get('createdRecord')) return;` at the top of
+   `save()` — covers both the in-flight double-click and clicks after success.
+2. **Mask during the POST** (`view.mask({xtype: 'loadmask'})`); the failure path unmasks via the
+   shared error handler's contract, the success path unmasks explicitly.
+3. **Disarm the button by state, not by code path**: `bind: { hidden: '{createdRecord}' }` on
+   Save — once the record exists there is nothing left to save, and the binding survives every
+   route into that state.
+4. **`fireEvent('saved')`** so the opener refreshes — a stay-open dialog otherwise leaves the
+   parent view stale behind it.
+
+The e2e probe that pins it: call `save()` three times (two synchronous, one after success) and
+assert exactly **one** wire POST and the button hidden.
+
 ## Related
 
 - [JEST_EXT_STUB_HARNESS](JEST_EXT_STUB_HARNESS.md) — why the stub cannot catch #2 (define flatten).

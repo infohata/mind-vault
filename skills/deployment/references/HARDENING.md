@@ -309,6 +309,34 @@ sandbox from those hosts to dodge one ignored line.
 *Provenance: br-docs IDEA-029 — a `virt=kvm`-only gate crash-looped promtail on an Ubuntu 18.04 /
 systemd 237 host while the identical config ran on systemd 255.*
 
+## fail2ban behind proxies — never ban what the log merely attributes
+
+A box serving many vhosts sat behind an edge proxy for its API traffic while also serving assets
+and guest-facing pages directly. Its nginx logged the **forwarded client IP**, and fail2ban's
+flood jails acted on those lines. Result, observed end to end: a burst of *application-level
+validation 400s* (a dozen rejected PUTs from one browser console loop, arriving via the proxy)
+banned the **end user's real IP** — while the proxied path that produced the burst stayed open
+(the proxy's own IP was never banned). The user's *direct* traffic died instead: static assets,
+an editor bundle, guest payment pages — breakage surfacing far from its cause, invisible to
+estate-internal monitoring, on a different "service" than the one that triggered it.
+
+The checklist for any fail2ban behind a proxy/CDN:
+
+1. **Filters must not act on forwarded-IP log lines.** Either scope the jails to
+   direct-connection vhosts, or exclude requests whose TCP peer is an estate proxy. Banning an
+   address the log merely *attributes* punishes someone the firewall can't even see.
+2. **Application-level 4xx never counts toward a flood.** A validation reply on `/api/*` is a
+   user having a bad form day, not an attack; a jail counting them bans your own operators and
+   guests first (they generate the most legitimate traffic).
+3. **Audit the ban list for CDN / private-relay egress ranges** (Cloudflare, iCloud Private
+   Relay): those IPs are shared by crowds of legitimate users — their presence means collateral
+   bans are already happening.
+4. **Monitor from an outside vantage.** Internal probes ride allowlisted paths and provably
+   cannot see a ban; one external check on a directly-served asset names this failure class in
+   minutes instead of a night of forensics.
+5. Thresholds sized so that **one page load cannot trip them** — a single app boot can
+   legitimately fire a dozen requests in 40 ms.
+
 ## Related Files
 
 - **Script**: `scripts/harden_server.sh` (in this skill)
