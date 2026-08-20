@@ -240,10 +240,10 @@ Payload shaping is part of the lock: an unchecked Modern `checkbox` serialises `
 
 ## References
 
-- [MODERN_COMPONENT_FOOTGUNS](references/MODERN_COMPONENT_FOOTGUNS.md) — phantom ids, singleton+statics, empty-grid renderers, `emailfield`, native submit, checkbox `null`, deferred-callback teardown, wrapper-field binds, formulas as HTML, custom summaries, desktop/phone split.
+- [MODERN_COMPONENT_FOOTGUNS](references/MODERN_COMPONENT_FOOTGUNS.md) — phantom ids, singleton+statics, empty-grid renderers, `emailfield`, native submit, checkbox `null`, deferred-callback teardown, wrapper-field binds, formulas as HTML, custom summaries, desktop/phone split, stay-open dialogs that must disarm Save (an unguarded one writes a duplicate per click).
 - [SERVICE_LAYER](references/SERVICE_LAYER.md) — Api singleton sketch, FormErrorHandler contract, envelope truth table, migration precondition, `requires` indexing, controller before/after.
 - [JEST_EXT_STUB_HARNESS](references/JEST_EXT_STUB_HARNESS.md) — fail-loud Proxy stub, define flatten, makeModel, per-test registration, controller probes with `fakeThis`, RED-first, structural pins.
-- [PLAYWRIGHT_COMPONENTQUERY_E2E](references/PLAYWRIGHT_COMPONENTQUERY_E2E.md) — ComponentQuery bridge, single-handler mock bootstrap, `syncRequire`+`widget` mounting, toast reading, sentinel/`framenavigated` probe, dev-server collision + port reuse, phone-project skip.
+- [PLAYWRIGHT_COMPONENTQUERY_E2E](references/PLAYWRIGHT_COMPONENTQUERY_E2E.md) — ComponentQuery bridge, single-handler mock bootstrap, `syncRequire`+`widget` mounting, toast reading, sentinel/`framenavigated` probe, dev-server collision + port reuse, phone-project skip, mock mode still fetching real external hosts (a dead one fails suites that never mention it) + the known-green-commit re-run that splits code from environment.
 - [SENCHA_TOOLCHAIN_AND_BUILD](references/SENCHA_TOOLCHAIN_AND_BUILD.md) — JDK 8–11 Nashorn, portable JRE + `npm ci` order, workspace-lock hygiene, production-build gate, Docker image, cache policy, microloader double-launch, autobahn copy, registry token as BuildKit secret, swap-under-live-tab.
 - [I18N_KEY_SWEEP](references/I18N_KEY_SWEEP.md) — keys as backend data, dynamic key families, per-feature `translations.json` → idempotent seed SQL, sweep gate, cache drop.
 - [REFACTOR_CONTRACT_PINNING](references/REFACTOR_CONTRACT_PINNING.md) — `==`→`===` is a contract change, bridge value contracts, exact classifiers in batch scripts.
