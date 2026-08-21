@@ -292,6 +292,10 @@ The §49 note that the explicit retrigger "posts in the @-mention / task format"
 
 ## § calibration update — skip-vs-no-skip is install-STABLE: measure it once, then budget for it (mind-vault self-install, 2026-08-21)
 
+> **Qualified by §326 (same day, third downstream): one install showed all three behaviors on a
+> single PR within hours.** Read that section before treating a probe result as durable — the
+> stability below held across four PRs *on this install*, which makes it a prior, not a guarantee.
+
 §258 established that the skip-no-op is install-dependent and left *why* unresolved, which leaves an
 orchestrator treating each push as a coin flip. Within a single install it is not variable at all.
 

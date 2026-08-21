@@ -10,30 +10,37 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
-## v5.7.4 — 2026-08-21
+## v5.7.4 — a probe result is a prior, not a guarantee: verdict fences, variant axes, invisible chrome
 
-Compound from a downstream billing-sprint session (three destinations, one PR).
+One downstream session, three destinations. Yesterday's release said the claude review-skip is a
+stable property of an install — measure it once and budget for it. A third install then showed all
+three behaviors on a single PR within hours, so the probe stays useful but its answer is a prior,
+not a guarantee. Beside it: a device-split app that shipped five deployments with the phone build
+entirely missing because nothing ever asked for it, and dialog buttons rendered white-on-white by a
+`ui:` name no stylesheet defined — fully functional, completely invisible, and passed by every test
+that ran. (2026-08-21, [#240](https://github.com/infohata/mind-vault/pull/240))
 
 ### Changed
 
-- **`skills/review-loop/references/engine-claude.md`** — a third downstream install
-  produced a counterexample to v5.7.3's install-stability reframe: one PR showed dual
-  disagreeing verdicts, a commented skip, AND a silent skip (green check, no comment)
-  within hours. The class probe stays useful as a prior, not a guarantee; the plannable
-  invariants (enumerate every head-SHA verdict; verdict-or-retrigger after a fix push)
-  carried the incident. Adds the **watcher timestamp-fence rule**: verdict polls must
-  accept only material newer than the fix push — latest-comment matching re-read stale
-  verdicts as fresh results twice in one loop.
-- **`skills/plan/references/PRODUCTION_PATH_VERIFICATION.md`** — runtime-selected
-  variants (build profiles, device manifests, locale bundles) are delivery axes of their
-  own, each needing a production-side probe: a device-split SPA shipped five deployments
-  with the phone profile entirely absent from the image because the build and the verify
-  probe both named only the desktop variant.
-- **`skills/extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md`** §17 — `ui:` names
-  are unchecked strings: an invented one renders an invisible (white-on-white) but fully
-  functional component, and theme variables can resolve dark; grep the SCSS for the ui
-  name, use sibling components' exact pairs, and put new-chrome visibility checks in the
-  pilot smoke (no automated gate sees styling).
+- `skills/review-loop/references/engine-claude.md` gains the counterexample to the install-stability
+  reframe: one PR produced two disagreeing verdicts on one SHA, then a commented skip, then a
+  **silent** skip — green check, no comment at all. The prior section now carries a forward qualifier
+  so its confident reading cannot be taken alone. What survived the incident is what was already
+  written down: enumerate every head-SHA verdict, and after a fix push take a fresh verdict or fire
+  the retrigger, whatever the check conclusion says. New alongside it, the **watcher timestamp
+  fence** — an ad-hoc poll that matches the latest comment re-reads a pre-fix verdict as the fix's
+  result, which happened twice in one loop. Record `T0` at the push and accept only material newer
+  than it. (The shipped adapter already window-fences; this is for orchestrator-side watchers.)
+- `skills/plan/references/PRODUCTION_PATH_VERIFICATION.md` sharpens the artefact-set axis: when the
+  runtime *selects* among variants — build profiles, device manifests, locale bundles — each variant
+  is a delivery axis needing its own production-side probe. A device-split SPA built only the desktop
+  profile and verified only the desktop manifest, so mobile had never booted across five deployments;
+  the phone code was fully tested, the phone artefact never existed. The planning tell: a config
+  listing several builds or targets whose deploy and verify steps name only one of them.
+- `skills/extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md` gains §17 — `ui:` names are
+  unchecked strings, so an invented one renders a component with no styling at all. Grep the SCSS for
+  the name before using it, copy the exact pair a sibling component uses, and put new-chrome
+  visibility in the pilot smoke: no automated gate sees contrast.
 
 ## v5.7.3 — the claude skip-no-op is install-stable, and a US-English pass
 

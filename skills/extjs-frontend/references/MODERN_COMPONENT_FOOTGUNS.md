@@ -250,13 +250,13 @@ make it safe:
 background/color styling at all: observed live as **white-on-white dialog footer buttons**
 (fully functional, completely invisible) that every unit test and mock-mode e2e passed,
 because styling is real-theme-only surface. Same family: a container styled with
-`var(--highlight-color)` assumed a light grey; the Material theme resolves it **dark**,
-producing theme-blue text on dark grey.
+`var(--highlight-color)` assumed a light gray; the Material theme resolves it **dark**,
+producing theme-blue text on dark gray.
 
 - ✅ **DO** copy the exact `ui:` pair from a sibling component of the same kind (dialogs'
   footer buttons have a house pair; grep a neighboring dialog) — and when a name looks
-  plausible, `grep -r "$ui:" --include='*.scss'` (or the generated `$ui` list in the app's
-  SCSS) before using it. Zero hits = invisible component.
+  plausible, `grep -rn '<ui-name>' --include='*.scss' .` (or the generated `$ui` list in
+  the app's SCSS) before using it. Zero hits = invisible component.
 - ✅ **DO** use explicit colors in new SCSS blocks unless you have verified what the theme
   variable resolves to in the *built* theme (dev and production themes can differ).
 - ❌ **DON'T** expect any automated gate to catch this: Ext raises nothing, Jest stubs see
