@@ -5,7 +5,7 @@ description: Turn an IDEA file or rough feature description into a durable techn
 
 # plan
 
-Second stage of the five-stage sprint workflow (`idea → brainstorm/plan → work → review → compound`). Turns an atomic IDEA file or a rough feature description into a durable plan that an agent — or a human — can execute from without re-inventing product behaviour, scope boundaries, or test scenarios.
+Second stage of the five-stage sprint workflow (`idea → brainstorm/plan → work → review → compound`). Turns an atomic IDEA file or a rough feature description into a durable plan that an agent — or a human — can execute from without re-inventing product behavior, scope boundaries, or test scenarios.
 
 This skill merges the brainstorm + plan stages from CE. When input is already specific (a filled-out IDEA file, a bug report with clear repro), the skill skips straight to plan authoring. When input is thin (a one-line description, an IDEA stub), a **thin-input bootstrap** fires — the interactive brainstorm front-end — before the plan is written. Brainstorming is a mode, not a separate skill. `/brainstorm` is an alias for `/plan`.
 
@@ -57,7 +57,7 @@ Before drafting the plan, do the research the plan depends on.
 
 - **Repo pattern scan.** Grep for existing abstractions the work should reuse — base classes, utility functions, similar features. Do not propose new code when a suitable implementation exists.
 - **Institutional-learnings pass.** Check `<project>/docs/solutions/` for prior solved problems tagged with overlapping keywords. Check `mind-vault/skills/*/SKILL.md` and `mind-vault/rules/RULE_*.md` for cross-project patterns that apply.
-- **External-references pass (only when warranted).** If the plan depends on framework behaviour, SDK semantics, or a spec the agent isn't sure of, note the reference; surface ambiguity in the plan's Open Questions section rather than guessing.
+- **External-references pass (only when warranted).** If the plan depends on framework behavior, SDK semantics, or a spec the agent isn't sure of, note the reference; surface ambiguity in the plan's Open Questions section rather than guessing.
 
 Right-size the research — a one-session fix doesn't need a literature review.
 
@@ -114,7 +114,7 @@ After this step's move, step 7 emits the plan file into the same dir. All subseq
 
 ### 7. Emit the plan file into the idea's archive dir
 
-Plans live **alongside the IDEA file they implement**, inside the same `docs/archive/YYYY-MM-idea-NNN-<slug>/` dir per [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md). There is no separate `docs/plans/` tree — that was an earlier draft and was dropped in favour of co-location (cross-refs between plan and IDEA file stay local; no cross-tree paths).
+Plans live **alongside the IDEA file they implement**, inside the same `docs/archive/YYYY-MM-idea-NNN-<slug>/` dir per [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md). There is no separate `docs/plans/` tree — that was an earlier draft and was dropped in favor of co-location (cross-refs between plan and IDEA file stay local; no cross-tree paths).
 
 Step 6's move has already created the archive dir and moved the IDEA file into it, so this step just writes the plan file alongside:
 
@@ -177,7 +177,7 @@ The plan's philosophy stays the same at every scope; the depth scales.
 - [references/thin-input-bootstrap.md](references/thin-input-bootstrap.md) — the interactive brainstorm front-end for thin inputs
 - [references/architect-handoff.md](references/architect-handoff.md) — how to invoke AGENT_architect as a reviewer and integrate findings
 - [references/batching-for-sprint-auto.md](references/batching-for-sprint-auto.md) — opt-in mode for grouping multiple `/plan` outputs onto one feature branch + PR to feed an overnight `/sprint-auto` run
-- [references/DEFERRAL_EXPIRY_TRIGGERS.md](references/DEFERRAL_EXPIRY_TRIGGERS.md) — why "deferred to IDEA-NNN, acceptable for now" never fires; write the condition that invalidates the justification, plus the reviewer heuristic against inheriting a stale deferral's reasoning; plus **staged gates rot** — re-probe a "blocked on X" gate against the dependency's source before honouring it, and write the gate as the missing *capability*, not the endpoint that lacks it; plus the wider "a record is not a mechanism" family — guidance a tool PRINTS instead of asserting, and ignore-rules written but never run
+- [references/DEFERRAL_EXPIRY_TRIGGERS.md](references/DEFERRAL_EXPIRY_TRIGGERS.md) — why "deferred to IDEA-NNN, acceptable for now" never fires; write the condition that invalidates the justification, plus the reviewer heuristic against inheriting a stale deferral's reasoning; plus **staged gates rot** — re-probe a "blocked on X" gate against the dependency's source before honoring it, and write the gate as the missing *capability*, not the endpoint that lacks it; plus the wider "a record is not a mechanism" family — guidance a tool PRINTS instead of asserting, and ignore-rules written but never run
 - [references/PRODUCTION_PATH_VERIFICATION.md](references/PRODUCTION_PATH_VERIFICATION.md) — the dev-mode gate proves nothing about the shipped artefact; enumerate the axes on which production differs (compiler, install, artefact set, config, data, delivery) and put a check on the production side of each — six-defect first-deployment incident + the architect PASS 4 probe
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — the location-by-status contract driving step 6's `idea` → `in-progress` move
 - [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas

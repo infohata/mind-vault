@@ -2,7 +2,7 @@
 
 Traps that pass `node --check`, a Jest Ext-stub and a mock-empty-grid e2e, and are wrong only
 against the *installed* framework with *real* rows. Meta-rule: **trust the installed toolkit's
-empirically-observed behaviour over the widget's name or the API docs** — write a probe, or run
+empirically-observed behavior over the widget's name or the API docs** — write a probe, or run
 the real build, before believing a `formpanel` prevents Enter or an `emailfield` validates.
 
 ## 1. Seeded `Ext.create('Ext.data.Model', {...})` is a phantom → create issues PUT
@@ -57,7 +57,7 @@ A review bot flagged `requires: ['Ext.grid.filters.Plugin']` as "Classic; Modern
 `node_modules/@sencha/ext-modern/src/grid/filters/Plugin.js`; the second exists nowhere.
 Applying the "fix" would have broken the loader. Enable with `plugins: { gridfilters: true }` +
 per-column `filter: 'string' | 'number' | 'date' | 'boolean' | { type: 'list', options }`;
-`remoteFilter: true` serialises into the `filter` request param. Column visibility is native to
+`remoteFilter: true` serializes into the `filter` request param. Column visibility is native to
 the header menu (`hideable` default; `hidden: true` ships collapsed); `plugin.gridviewoptions` is
 the long-press alternative.
 
@@ -98,7 +98,7 @@ Latent in **every** `formpanel` dialog; a global `Ext.form.Panel` override fixes
 Probe technique: `window.__alive = 'yes'` sentinel + `page.on('framenavigated')` counter → press
 Enter → assert sentinel survives, navigation delta 0, and the save side-effect happened.
 
-## 7. Unchecked Modern `checkbox` serialises `null` → dropped from `getValues()`
+## 7. Unchecked Modern `checkbox` serializes `null` → dropped from `getValues()`
 
 `Ext.field.Checkbox.getSubmitValue()` returns `checked ? value : null`; `form.getValues()` omits
 the key. A param-shaper that iterates present keys sends nothing for unchecked boxes → on a

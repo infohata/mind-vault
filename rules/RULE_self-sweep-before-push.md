@@ -41,7 +41,7 @@ When `make test` reports pre-existing failures unrelated to your change, fix the
 
 ### 5. Doc-consistency sweep (doc-heavy commits)
 
-When a commit carries substantial doc/markdown changes (IDEA files, ideas index, plan docs, devlogs) — **even alongside code** — sweep the consistency class bots flag one-nit-per-cycle: (1) frontmatter `related`/`depends_on`/`supersedes` ↔ body prose symmetry, every id and every edge; (2) every id in an ordering/recap block has an index-table row; (3) count/range claims match the listed set; (4) domain-terminology precision (e.g. shared-schema vs per-tenant); (5) PR-description ↔ final-diff drift; (6) frontmatter formatting matches repo convention. Grep recipes + detail → rationale doc.
+When a commit carries substantial doc/markdown changes (IDEA files, ideas index, plan docs, devlogs) — **even alongside code** — sweep the consistency class bots flag one-nit-per-cycle: (1) frontmatter `related`/`depends_on`/`supersedes` ↔ body prose symmetry, every id and every edge; (2) every id in an ordering/recap block has an index-table row; (3) count/range claims match the listed set; (4) domain-terminology precision (e.g. shared-schema vs per-tenant); (5) PR-description ↔ final-diff drift; (6) frontmatter formatting matches repo convention; (7) US-English spelling and metric/SI units in anything newly written, per [`skills/skill-writer/references/LANGUAGE_CONVENTIONS.md`](../skills/skill-writer/references/LANGUAGE_CONVENTIONS.md) — fix drift only in files this change already touches, never released CHANGELOG sections or archived docs. Grep recipes + detail → rationale doc.
 
 ## Sweep integrity — an `--include` allow-list makes a sweep silently under-report
 

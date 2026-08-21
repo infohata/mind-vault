@@ -161,7 +161,7 @@ Apply identically to `references/<TOPIC>.md` files — references aren't free, t
 
 A skill in `mind-vault` is consumed by multiple projects. Therefore:
 
-- **Concrete project names in the pattern body are leaks.** If the pattern says "Project X uses Y" as a universal rule, the rule is wrong for every other project. Either generalise ("Projects with constraint Y should Z") or clearly fence as an example.
+- **Concrete project names in the pattern body are leaks.** If the pattern says "Project X uses Y" as a universal rule, the rule is wrong for every other project. Either generalize ("Projects with constraint Y should Z") or clearly fence as an example.
 - **Examples may name real projects**, but must be visually fenced:
   > Example (project-foo): the translation map lives at `tools/translation_maps/*.py`.
 - **Never hard-code paths from a consuming project** in `References`. `docs/artefacts/by-agent/researcher/…` paths do not exist from the agent's perspective when invoked from a sibling project.
@@ -169,11 +169,11 @@ A skill in `mind-vault` is consumed by multiple projects. Therefore:
 
 ## Skills vs commands — no thin wrappers
 
-A skill with `name: X` in its frontmatter is already invocable as `/X` — hosts that support slash menus surface the skill directly. Creating a `commands/X.md` that just says "Invoke the `X` skill" duplicates the slash entry (both appear side-by-side in the menu) without adding any behaviour.
+A skill with `name: X` in its frontmatter is already invocable as `/X` — hosts that support slash menus surface the skill directly. Creating a `commands/X.md` that just says "Invoke the `X` skill" duplicates the slash entry (both appear side-by-side in the menu) without adding any behavior.
 
 **Write a `commands/*.md` file only when:**
 
-- No same-named skill exists and the command carries its own behavioural spec, OR
+- No same-named skill exists and the command carries its own behavioral spec, OR
 - The command is a deliberate **alias** for another skill (e.g. `/brainstorm` → `/plan`), where the distinct name communicates intent the skill's own slug can't.
 
 **Don't:**
@@ -193,7 +193,7 @@ The failure mode surfaced as double slash-menu entries across 8 mind-vault names
 
 - **Don't add a trailing `**Last Updated**` footer.** File mtime + `git log` are the system of record; an inline date costs ~10 tokens per activation for info the host can derive for free. Narrative belongs in [`CHANGELOG.md`](../../CHANGELOG.md), keyed by the merging PR, where it costs zero context budget.
 - If an example drifts out of sync with real code, fix it or delete it — stale examples are worse than none.
-- When merging two skills, keep `metadata.replaces` so agents recognise old names.
+- When merging two skills, keep `metadata.replaces` so agents recognize old names.
 - When deprecating a skill, leave a tombstone `SKILL.md` that points to the successor rather than deleting silently.
 
 ### Versioning (optional, sidecar file)
@@ -268,5 +268,6 @@ SKIP: <conditions>
 
 - Adjacent examples in this repo: `skills/artefact-retrieval/SKILL.md`, `skills/surgical-tdd/SKILL.md` (lean), `skills/django/SKILL.md` (feature-dense)
 - [references/MARKDOWN_FORMATTER_GOTCHAS.md](references/MARKDOWN_FORMATTER_GOTCHAS.md) — constructs auto-formatters (mdformat / markdownlint) silently rewrite in a meaning-changing way (e.g. a literal `+`/`-`/`*` at the start of a wrapped prose line becoming a list item); author defensively + read the diff after formatting
+- [references/LANGUAGE_CONVENTIONS.md](references/LANGUAGE_CONVENTIONS.md) — the house register for everything authored in mind-vault: US-English spelling (matching the US-spelled API identifiers every stack already uses) but metric/SI units and Celsius; scope limits (never impose it on a consuming project, never rewrite released CHANGELOG or archived docs), sweep false positives, and the ISO-date/24h conventions already in force
 - [Git Safety Rule](../../rules/RULE_git-safety.md) — applies to commits produced while authoring skills
 - Anthropic's Claude Code Agent Skills documentation (`docs.claude.com`) — the official `SKILL.md` spec this skill aligns with

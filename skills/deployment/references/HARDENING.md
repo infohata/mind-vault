@@ -278,7 +278,7 @@ systemctl show <unit> -p SystemCallFilter    # a ~40-entry list == the set didn'
 does not.** Check "Added in version" in `systemd.exec(5)` against the **oldest** host in the roster —
 not your dev box.
 
-### Gate on the capability, not on the box's flavour
+### Gate on the capability, not on the box's flavor
 
 A drop-in gated on `systemd-detect-virt = kvm` is gating on a **proxy** for "modern enough to
 sandbox". Proxies break: an estate can span **systemd 229 (Ubuntu 16.04) → 257 (Debian 13)** with virt
