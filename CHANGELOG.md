@@ -12,6 +12,13 @@ _(none)_
 
 ## v5.7.2 — money-split session harvest: per-row preconditions + live-console ops discipline
 
+One day of billing-correctness work on a consuming project, harvested to two destinations. A
+review refused a plan resting on a container-level flag where the enforcing server branched on a
+per-row field — the premise was true of every row then present and still wrong, and shipping it
+would have rebuilt the money bug it was written to fix. Beside it, the console-ops discipline
+learned the hard way when an operator's pasted cleanup loop tripped an edge ban.
+(2026-08-21, [#238](https://github.com/infohata/mind-vault/pull/238))
+
 ### Changed
 
 - `agents/AGENT_architect.md` PASS 5 gains the per-row-predicate bullet: phrase a

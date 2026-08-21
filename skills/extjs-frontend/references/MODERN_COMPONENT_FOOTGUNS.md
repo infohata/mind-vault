@@ -240,7 +240,7 @@ make it safe:
    rows (`console.table`) and confirm each id before its call; fire each destructive
    request individually and wait for its success log. A pasted cleanup loop once produced a
    13-request burst of 4xx that an edge fail2ban read as an attack and banned the
-   operator's IP estate-wide (see `skills/deployment/references/HARDENING.md` § fail2ban
+   operator's IP estate-wide (see [HARDENING.md](../../deployment/references/HARDENING.md) § fail2ban
    behind proxies).
 
 ## Related
