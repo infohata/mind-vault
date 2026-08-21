@@ -76,7 +76,7 @@ Read [`assets/plan-template.md`](assets/plan-template.md) and fill its sections.
 6. **Key Technical Decisions** — opinionated defaults with one-line rationale each.
 7. **Open Questions** — things that need user input before execution starts. Suggest a default per question; mark resolved questions inline.
 8. **Execution Sequence** — ordered steps (files to create/modify, commands to run, tests to write).
-9. **Verification** — how to confirm the work lands correctly. Commands or checks, not vibes. When the shipped artefact is produced by a step the local gate never runs (release build, fresh install, production config, real backend), name a production-side check per axis — [`references/PRODUCTION_PATH_VERIFICATION.md`](references/PRODUCTION_PATH_VERIFICATION.md).
+9. **Verification** — how to confirm the work lands correctly. Commands or checks, not vibes. When the shipped artifact is produced by a step the local gate never runs (release build, fresh install, production config, real backend), name a production-side check per axis — [`references/PRODUCTION_PATH_VERIFICATION.md`](references/PRODUCTION_PATH_VERIFICATION.md).
 
 Plan quality bar:
 
@@ -108,7 +108,7 @@ git mv <project>/docs/ideas/IDEA-NNN-<slug>.md \
 
 `YYYY-MM` = current month. Stays fixed across the rest of the idea's life — neither completion nor rejection renames this dir.
 
-After this step's move, step 7 emits the plan file into the same dir. All subsequent artefacts (research notes, session prompts, screenshots, the eventual README) go into this dir too. Future `/work` on completion edits frontmatter to `status: complete` — **no further file movement**.
+After this step's move, step 7 emits the plan file into the same dir. All subsequent artifacts (research notes, session prompts, screenshots, the eventual README) go into this dir too. Future `/work` on completion edits frontmatter to `status: complete` — **no further file movement**.
 
 **Always run this step when `/plan` is invoked**, even for trivial or small scopes. Earlier drafts allowed skipping the move for small scopes; that created a gap where a complete IDEA could end up sitting in `docs/ideas/` (location-status mismatch per `RULE_ideas-location-status` hard rule #2). `/plan` is the primary owner of this transition; if the user bypassed `/plan` entirely and went straight to `/work`, `/work` performs the same move as a fallback.
 
@@ -142,7 +142,7 @@ Print the created path + a one-line summary. Suggest `/work <plan-path>` as the 
 **Special cases** (skip step 6's move, emit the plan differently):
 
 - The source IDEA file already lives in `docs/archive/<dir>/` — this is a plan revision on work already in-progress or a re-plan after rejection; just emit the new plan into the existing dir. Step 6's move was already done by the original `/plan` run.
-- There is no source IDEA file — the plan is a standalone artefact; emit it to a context-appropriate location (often `docs/plans/` as a fallback, which exists only for orphan plans). Step 6 doesn't apply because there's nothing to move.
+- There is no source IDEA file — the plan is a standalone artifact; emit it to a context-appropriate location (often `docs/plans/` as a fallback, which exists only for orphan plans). Step 6 doesn't apply because there's nothing to move.
 
 Commit message for the combined IDEA-move + plan-emit change: `docs(plan): <slug> — draft plan + move IDEA-NNN to in-progress`.
 
@@ -178,7 +178,7 @@ The plan's philosophy stays the same at every scope; the depth scales.
 - [references/architect-handoff.md](references/architect-handoff.md) — how to invoke AGENT_architect as a reviewer and integrate findings
 - [references/batching-for-sprint-auto.md](references/batching-for-sprint-auto.md) — opt-in mode for grouping multiple `/plan` outputs onto one feature branch + PR to feed an overnight `/sprint-auto` run
 - [references/DEFERRAL_EXPIRY_TRIGGERS.md](references/DEFERRAL_EXPIRY_TRIGGERS.md) — why "deferred to IDEA-NNN, acceptable for now" never fires; write the condition that invalidates the justification, plus the reviewer heuristic against inheriting a stale deferral's reasoning; plus **staged gates rot** — re-probe a "blocked on X" gate against the dependency's source before honoring it, and write the gate as the missing *capability*, not the endpoint that lacks it; plus the wider "a record is not a mechanism" family — guidance a tool PRINTS instead of asserting, and ignore-rules written but never run
-- [references/PRODUCTION_PATH_VERIFICATION.md](references/PRODUCTION_PATH_VERIFICATION.md) — the dev-mode gate proves nothing about the shipped artefact; enumerate the axes on which production differs (compiler, install, artefact set, config, data, delivery — and each runtime-selected variant: build profiles, device manifests, locale bundles) and put a check on the production side of each — six-defect first-deployment incident + the architect PASS 4 probe
+- [references/PRODUCTION_PATH_VERIFICATION.md](references/PRODUCTION_PATH_VERIFICATION.md) — the dev-mode gate proves nothing about the shipped artifact; enumerate the axes on which production differs (compiler, install, artifact set, config, data, delivery — and each runtime-selected variant: build profiles, device manifests, locale bundles) and put a check on the production side of each — six-defect first-deployment incident + the architect PASS 4 probe
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — the location-by-status contract driving step 6's `idea` → `in-progress` move
 - [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
 - [skills/idea/SKILL.md](../idea/SKILL.md) — previous stage; produces the IDEA file this skill consumes

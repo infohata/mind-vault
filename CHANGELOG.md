@@ -31,11 +31,11 @@ that ran. (2026-08-21, [#240](https://github.com/infohata/mind-vault/pull/240))
   fence** — an ad-hoc poll that matches the latest comment re-reads a pre-fix verdict as the fix's
   result, which happened twice in one loop. Record `T0` at the push and accept only material newer
   than it. (The shipped adapter already window-fences; this is for orchestrator-side watchers.)
-- `skills/plan/references/PRODUCTION_PATH_VERIFICATION.md` sharpens the artefact-set axis: when the
+- `skills/plan/references/PRODUCTION_PATH_VERIFICATION.md` sharpens the artifact-set axis: when the
   runtime *selects* among variants — build profiles, device manifests, locale bundles — each variant
   is a delivery axis needing its own production-side probe. A device-split SPA built only the desktop
   profile and verified only the desktop manifest, so mobile had never booted across five deployments;
-  the phone code was fully tested, the phone artefact never existed. The planning tell: a config
+  the phone code was fully tested, the phone artifact never existed. The planning tell: a config
   listing several builds or targets whose deploy and verify steps name only one of them.
 - `skills/extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md` gains §17 — `ui:` names are
   unchecked strings, so an invented one renders a component with no styling at all. Grep the SCSS for
