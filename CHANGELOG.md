@@ -15,10 +15,10 @@ _(none)_
 One downstream session, three destinations. v5.7.3 said the claude review-skip is a stable
 property of an install — measure it once and budget for it. A third install then showed all
 three behaviors on a single PR within hours, so the probe stays useful but its answer is a
-prior, not a guarantee. Beside it: a device-split app that shipped five deployments with the phone build
-entirely missing because nothing ever asked for it, and dialog buttons rendered white-on-white by a
-`ui:` name no stylesheet defined — fully functional, completely invisible, and passed by every test
-that ran. (2026-08-21, [#240](https://github.com/infohata/mind-vault/pull/240))
+prior, not a guarantee. Beside it: a device-split app that shipped five deployments with the
+phone build entirely missing because nothing ever asked for it, and dialog buttons rendered
+white-on-white by a `ui:` name no stylesheet defined — fully functional, completely
+invisible, and passed by every test that ran. (2026-08-21, [#240](https://github.com/infohata/mind-vault/pull/240))
 
 ### Changed
 
