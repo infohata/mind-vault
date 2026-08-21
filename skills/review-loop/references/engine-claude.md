@@ -289,6 +289,7 @@ The §49 note that the explicit retrigger "posts in the @-mention / task format"
   - **Never infer a verdict from the Actions conclusion.** Four `success` runs and zero verdicts co-existed here for over an hour.
   - When the engine refuses repeatedly, the escalation is **narrow and specific**, not louder: name files, ask numbered questions, drop the word "review". A generic re-ping re-triggers the same refusal.
 - **Cost note.** Each question-shaped mention produced a genuinely different finding rather than a re-run of the first — including one that only appeared *after* the previous round's fix (the defect had moved one layer up rather than being eliminated). Treat "the engine already reviewed this PR" as false whenever the diff has changed materially; the refusal is a plugin heuristic, not a statement about coverage.
+
 ## § calibration update — skip-vs-no-skip is install-STABLE: measure it once, then budget for it (mind-vault self-install, 2026-08-21)
 
 §258 established that the skip-no-op is install-dependent and left *why* unresolved, which leaves an
