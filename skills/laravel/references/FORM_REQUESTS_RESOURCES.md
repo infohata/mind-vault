@@ -25,7 +25,7 @@ class StorePostRequest extends FormRequest
         ];
     }
 
-    // Optional: normalise BEFORE validation runs.
+    // Optional: normalize BEFORE validation runs.
     protected function prepareForValidation(): void
     {
         $this->merge(['slug' => str()->slug($this->title)]);
@@ -67,7 +67,7 @@ $data = $request->safe()->merge(['user_id' => $request->user()->id]);
 
 ## Output — API Resources, never raw models
 
-Returning an Eloquent model directly serialises **every** attribute (including ones you forgot to `$hidden`) and couples the API to the schema. A `JsonResource` makes the contract explicit.
+Returning an Eloquent model directly serializes **every** attribute (including ones you forgot to `$hidden`) and couples the API to the schema. A `JsonResource` makes the contract explicit.
 
 ```php
 // php artisan make:resource PostResource

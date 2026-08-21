@@ -9,7 +9,7 @@ metadata:
 
 # laravel
 
-Core Laravel backend patterns organised around the six data-layer contract concerns: how relations are eager-loaded (no N+1, bulk writes), where untrusted input is validated, how deferred work is queued, how every query is scoped to the caller's tenant, who is allowed to act, and how tests stay fast and isolated. Target baseline is **Laravel 12 / PHP 8.2** (a real modern Laravel 12 rework PoC). Deep mechanics live in `references/`; the body leads cleanly with the contract headings so a generic agent resolves each one by its verbatim string.
+Core Laravel backend patterns organized around the six data-layer contract concerns: how relations are eager-loaded (no N+1, bulk writes), where untrusted input is validated, how deferred work is queued, how every query is scoped to the caller's tenant, who is allowed to act, and how tests stay fast and isolated. Target baseline is **Laravel 12 / PHP 8.2** (a real modern Laravel 12 rework PoC). Deep mechanics live in `references/`; the body leads cleanly with the contract headings so a generic agent resolves each one by its verbatim string.
 
 **Pairs with:** [laravel-frontend](../laravel-frontend/SKILL.md) for Blade / Livewire / Inertia template patterns. Load both on full-stack feature work (e.g. a controller that returns a Blade fragment on an `HX-Request`).
 
@@ -117,7 +117,7 @@ class ProcessPodcast implements ShouldQueue
 ProcessPodcast::dispatch($podcast->id)->afterCommit();
 ```
 
-The **default to enforce:** Redis + Horizon under a supervised `queue:work` (never `queue:listen` in prod); `->afterCommit()` on any dispatch inside a transaction; idempotency via `ShouldBeUnique` (dedupe queued copies) or the `WithoutOverlapping` middleware (serialise by key) so a retry never double-runs.
+The **default to enforce:** Redis + Horizon under a supervised `queue:work` (never `queue:listen` in prod); `->afterCommit()` on any dispatch inside a transaction; idempotency via `ShouldBeUnique` (dedupe queued copies) or the `WithoutOverlapping` middleware (serialize by key) so a retry never double-runs.
 
 **Anti-pattern to flag:** dispatching inside a transaction without `afterCommit` (the job runs before commit and 404s on its own row); an unsupervised worker in prod (dies silently, queue stalls); serializing a whole model into the payload (stale snapshot + bloated job). See [`references/QUEUES_HORIZON.md`](references/QUEUES_HORIZON.md).
 
@@ -208,7 +208,7 @@ it('creates a post for an authenticated user', function () {
 });
 ```
 
-**Anti-pattern to flag:** DB-touching tests without `RefreshDatabase` (state bleeds between tests, order-dependent failures); hand-built rows via `Model::create([...])` instead of factories (brittle, no relationships); over-mocked Unit tests that assert on the mock rather than behaviour. See [`references/PEST_TESTING.md`](references/PEST_TESTING.md).
+**Anti-pattern to flag:** DB-touching tests without `RefreshDatabase` (state bleeds between tests, order-dependent failures); hand-built rows via `Model::create([...])` instead of factories (brittle, no relationships); over-mocked Unit tests that assert on the mock rather than behavior. See [`references/PEST_TESTING.md`](references/PEST_TESTING.md).
 
 ### Translation workflow
 

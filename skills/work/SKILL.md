@@ -36,7 +36,7 @@ This skill is intentionally thin. It does not re-decide anything the plan alread
 
 ### 2. Branch and worktree setup
 
-Honour `RULE_git-safety` and `RULE_parallel-worktree-docker` at all times.
+Honor `RULE_git-safety` and `RULE_parallel-worktree-docker` at all times.
 
 - **Current branch check.** If the user is on `main` or `production`, refuse to commit. Create a feature branch: `git checkout -b <type>/<slug> origin/<base>` where `<type>` is `feat | fix | docs | refactor | chore` and `<slug>` matches the plan's slug.
 - **Parallelism detection.** If the plan explicitly flags parallel work streams (multiple non-overlapping execution units), consult [`references/persona-dispatch.md`](references/persona-dispatch.md) for the worktree setup procedure. Otherwise execute serially on a single branch.
@@ -140,7 +140,7 @@ if [[ -n "${SPRINT_AUTO_INTEGRATION_WORKTREE:-}" ]]; then
     popd >/dev/null
 else
     # Standalone mode — run verification in the current worktree (default).
-    # Existing behaviour: pytest / make test / project-equivalent against
+    # Existing behavior: pytest / make test / project-equivalent against
     # the worktree's own stack (RULE_parallel-worktree-docker contract).
     pytest <paths>  # or make test, etc.
 fi

@@ -200,7 +200,7 @@ This pairs with the RUNNING-state machine (§ Review-state gate): a `completed` 
 
 ## § Common patterns (codified Tier 1)
 
-The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). No claude-specific deltas at present; claude's behavioural quirks live in § Review-state + clean detection and § Race-condition caveats above. (claude's comment-body finding markers are now calibrated — see § calibration update — findings live in the SUMMARY BODY; the severity stamp on a summary-body finding is a heuristic, re-triaged by the loop.)
+The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). No claude-specific deltas at present; claude's behavioral quirks live in § Review-state + clean detection and § Race-condition caveats above. (claude's comment-body finding markers are now calibrated — see § calibration update — findings live in the SUMMARY BODY; the severity stamp on a summary-body finding is a heuristic, re-triaged by the loop.)
 
 ## § Review-state gate
 
@@ -208,7 +208,7 @@ claude exposes its review-state as `CLAUDE_CHECKRUN ... STATUS=<status>` **synth
 
 **Clean for claude**: Actions job DONE (all head-SHA runs `completed`) AND the **§ Verdict judge** returns `CLEAN` or `NON_BLOCKING[]` over the surfaced material (IDEA-022 — clean is a model judgment for this prose-only surface, not a regex). The review-pending guard (§ Race-condition caveats) holds the loop in RUNNING until a head-SHA comment posts, so the DONE-before-comments gap cannot fire a false CLEAN; a SILENT run is held RUNNING and never reaches the judge. The orchestrator retriggers only from the zero-activity bootstrap (push-triggered otherwise) and never while RUNNING, so no inter-retrigger interval exists.
 
-> **⚠️ IDEA-022 supersession (regex mechanism → judge input).** The calibration blocks below were written to tune the **regex classifier** (`CLAUDE_CLEAN_PATTERNS` / `CLAUDE_FINDING_MARKERS` / `is_clean`), which IDEA-022 **removed** — the clean/blocking/non-blocking decision is now the **§ Verdict judge** (a model reading the prose). The *classification mechanism* these blocks describe is gone. Their *behavioural observations* — findings often live only in the summary BODY; clean is whole-review not substring; two substantive verdicts on one SHA can disagree; no-op/skip bodies aren't verdicts; clean now usually posts on both paths — are **exactly the material the judge reasons over**, so they remain load-bearing as judge input. Read them as "what claude's prose looks like in the wild," not "what regex to match."
+> **⚠️ IDEA-022 supersession (regex mechanism → judge input).** The calibration blocks below were written to tune the **regex classifier** (`CLAUDE_CLEAN_PATTERNS` / `CLAUDE_FINDING_MARKERS` / `is_clean`), which IDEA-022 **removed** — the clean/blocking/non-blocking decision is now the **§ Verdict judge** (a model reading the prose). The *classification mechanism* these blocks describe is gone. Their *behavioral observations* — findings often live only in the summary BODY; clean is whole-review not substring; two substantive verdicts on one SHA can disagree; no-op/skip bodies aren't verdicts; clean now usually posts on both paths — are **exactly the material the judge reasons over**, so they remain load-bearing as judge input. Read them as "what claude's prose looks like in the wild," not "what regex to match."
 
 ## § calibration update — findings-bearing + clean runs (downstream non-draft, 2026-06-03)
 
@@ -233,9 +233,9 @@ This does **not** change the findings-side capability: claude posts findings rel
 
 ## § COUNTER-OBSERVATION — clean trees DO post a positive clean verdict, on BOTH paths (PR #190 + #192, 2026-06-08)
 
-Two independent, reproducible data points **against** the "clean always reads SILENT" claim above — now confirmed on **both** trigger paths, so the §158 SILENT-on-clean behaviour is no longer the whole story:
+Two independent, reproducible data points **against** the "clean always reads SILENT" claim above — now confirmed on **both** trigger paths, so the §158 SILENT-on-clean behavior is no longer the whole story:
 
-- **Observation 1 — explicit-retrigger path (PR #190).** First claude run fired on `ready_for_review` over a tree with one real (bugbot-found) finding → claude went **SILENT** (run `completed`, posted nothing — the expected #1087 / short-circuit behaviour). The finding was fixed, pushed, and claude was **explicitly retriggered via `claude_retrigger.sh`** (`@claude review` / `claude.yml`). On the clean post-fix tree it posted a **positive whole-review clean summary** — `find_claude_comments.sh` read `CLAUDE_SUMMARY_ID=… CLEAN=true FINDINGS=false`, loop terminated structurally **CLEAN** off claude.
+- **Observation 1 — explicit-retrigger path (PR #190).** First claude run fired on `ready_for_review` over a tree with one real (bugbot-found) finding → claude went **SILENT** (run `completed`, posted nothing — the expected #1087 / short-circuit behavior). The finding was fixed, pushed, and claude was **explicitly retriggered via `claude_retrigger.sh`** (`@claude review` / `claude.yml`). On the clean post-fix tree it posted a **positive whole-review clean summary** — `find_claude_comments.sh` read `CLAUDE_SUMMARY_ID=… CLEAN=true FINDINGS=false`, loop terminated structurally **CLEAN** off claude.
 - **Observation 2 — push / auto-run path (PR #192).** On the *first* claude review of a clean tree (the PR-open auto-run on `claude-code-review.yml`, **no retrigger**), claude **again posted a positive clean summary** → `CLEAN=true FINDINGS=false`, structurally CLEAN. This is the path §158 said short-circuits to SILENT on clean — and here it did not.
 - **What this changes.** The **push-vs-retrigger asymmetry hypothesis is WEAKENED** — claude posted a positive clean verdict on *both* paths within the same day. The §158 "clean run → SILENT (still)" + §Net-capability "never posts a positive clean verdict" claims are at minimum **no longer reliably true**; the most likely explanation is **upstream improvement to the action's clean-path posting** (a `code-review`-plugin or `claude-code-action` update between the §158 calibration and 2026-06-08), not a path-specific quirk. Still possible: SILENT-on-clean recurs intermittently (the #1087 buffer-drop is an *open* upstream bug), so this is "clean verdicts now usually post" — NOT "SILENT-on-clean is impossible."
 - **Loop consequence (unchanged for safety).** Detection is structural (clean = DONE + posted clean summary + zero finding markers), so a posted clean verdict reads CLEAN correctly and any residual SILENT run still reads NOT-clean. The adapter needs no change to be *safe*. What changes is *reliance*: claude **can now usually be a CLEAN source** (both paths observed). Treat a clean claude verdict as a real signal; but because SILENT-on-clean can still recur (open #1087), do **not** hard-depend on claude being the *sole* clean gate — keep a second engine (bugbot) when a definitive clean matters. Promote further (drop the "usually") only if SILENT-on-clean goes unseen across a longer run of clean PRs.
@@ -289,3 +289,31 @@ The §49 note that the explicit retrigger "posts in the @-mention / task format"
   - **Never infer a verdict from the Actions conclusion.** Four `success` runs and zero verdicts co-existed here for over an hour.
   - When the engine refuses repeatedly, the escalation is **narrow and specific**, not louder: name files, ask numbered questions, drop the word "review". A generic re-ping re-triggers the same refusal.
 - **Cost note.** Each question-shaped mention produced a genuinely different finding rather than a re-run of the first — including one that only appeared *after* the previous round's fix (the defect had moved one layer up rather than being eliminated). Treat "the engine already reviewed this PR" as false whenever the diff has changed materially; the refusal is a plugin heuristic, not a statement about coverage.
+## § calibration update — skip-vs-no-skip is install-STABLE: measure it once, then budget for it (mind-vault self-install, 2026-08-21)
+
+§258 established that the skip-no-op is install-dependent and left *why* unresolved, which leaves an
+orchestrator treating each push as a coin flip. Within a single install it is not variable at all.
+
+- **The measurement.** Four consecutive mind-vault PRs (#236 across two head SHAs, #237, #238) — every
+  post-first-review push `synchronize` auto-run completed `success` with `CLAUDE_HEAD_VERDICTS=0`. Six
+  of six. No push after a PR's first review has ever produced a verdict on this install.
+- **The reframe.** Skip-vs-no-skip is a property **of the install**, determinable in one observation and
+  stable thereafter — not per-push nondeterminism. §258's install still never skips; this one always
+  does. Both are consistent *with themselves*, which is the useful part: you can plan around your own.
+- **Determine your install's class cheaply.** On the first PR after any workflow or plugin-version
+  change, push a trivial commit *after* the first review has posted and read `CLAUDE_HEAD_VERDICTS` for
+  the new SHA. `0` ⇒ skip-install: the explicit retrigger is the only verdict source, every cycle. `≥1`
+  ⇒ non-skip install: §258's dual-verdict masking rule governs, because push + retrigger now yield two
+  substantive verdicts per SHA that can disagree. Re-probe after workflow/plugin changes — §258's
+  candidate variables are exactly version and config skew, so the class is not permanent.
+- **Operational consequence on a skip-install.** The Phase-3 explicit retrigger is a **routine per-cycle
+  cost to budget**, not an exception path. A loop that treats it as exceptional spends a full Phase-4
+  wait per cycle rediscovering that the green check is empty. (Whether the retrigger can safely fire
+  immediately on push — skipping the wait for a run known to be useless — is **untested**; it would
+  double-run against §57's friction case, so the measured-safe order stays: wait for DONE, observe zero
+  verdicts, then retrigger.)
+- **The fail-closed gate is load-bearing here, not a backstop.** `CLAUDE_VERDICT_SET_PROVEN=false` fired
+  on **every one** of those six cycles. On a skip-install it is the primary mechanism standing between a
+  green `claude-review` check and a false CLEAN — each of those six would have handed back clean under
+  an adapter that read the Actions conclusion or the newest stale summary. Anything that weakens the
+  gate to reduce "noise" is removing the only thing working on this class of install.

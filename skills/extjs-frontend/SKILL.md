@@ -14,7 +14,7 @@ Production patterns for a **Sencha ExtJS 7.x Modern-toolkit SPA** (Material them
 (`desktop` + `phone`) sharing an `app/shared/` layer, and talking to a **remote backend over
 REST (`/api/*` JSON envelopes) + optional WAMP/WebSocket** for live updates. Philosophy: the
 ViewModel is the state, the ViewController is the only imperative layer, writes go through a
-promise service layer, and every claim about framework behaviour is proven against the
+promise service layer, and every claim about framework behavior is proven against the
 *installed* toolkit — the Modern widgets repeatedly do less than their names imply.
 
 **Not covered:** the Classic toolkit (different component/layout API), Sencha Architect
@@ -182,7 +182,7 @@ onFormPainted: function (form) {
 // view: { xtype: 'formpanel', reference: 'form', listeners: { painted: 'onFormPainted' } }
 ```
 
-Payload shaping is part of the lock: an unchecked Modern `checkbox` serialises `null` and is
+Payload shaping is part of the lock: an unchecked Modern `checkbox` serializes `null` and is
 **omitted** from `getValues()` — enumerate the full boolean set and coerce `values[f] ? 1 : 0`
 (never iterate present keys on a partial-update PUT); `emailfield` sets only `inputType`
 (add `validators: ['email']`); `togglefield` always reports.
