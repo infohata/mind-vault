@@ -10,6 +10,37 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.7.2 — money-split session harvest: per-row preconditions, live-console ops, one-PR discipline
+
+One day of billing-correctness work on a consuming project, harvested to two destinations. A
+review refused a plan resting on a container-level flag where the enforcing server branched on a
+per-row field — the premise was true of every row then present and still wrong, and shipping it
+would have rebuilt the money bug it was written to fix. Beside it, the console-ops discipline
+learned the hard way when an operator's pasted cleanup loop tripped an edge ban.
+(2026-08-21, [#238](https://github.com/infohata/mind-vault/pull/238))
+
+### Changed
+
+- `agents/AGENT_architect.md` PASS 5 gains the per-row-predicate bullet: phrase a
+  precondition at the level of the mechanism that enforces it — a container-level flag can
+  be TRUE for every row while the server branches on a per-row field, so mixed states
+  silently take the other branch; and when later field evidence contradicts a pessimistic
+  static-read claim, write the dated correction back. From a review that refuted a billing
+  plan's "all rows virtual" premise before it shipped a wrong-money path.
+- `rules/RULE_git-safety.md` gains the fold-into-one-PR default, placed directly above the
+  existing stacked-PR hazard it prevents: if a PR for the work is open and unmerged, push the
+  follow-up commit onto its branch instead of opening a second one, and never branch a new PR
+  off an open PR's branch. Binds hardest on doc finalization, CHANGELOG/version fixes,
+  review-driven fixes and sweeps — the work most likely to get its own PR by reflex. The cost
+  is not merge count but conflicts on append-at-top shared files (`CHANGELOG.md`, the ideas
+  index, the monthly devlog), which two open branches hit by construction and re-hit after
+  every rebase. Carries the cases where a separate PR *is* right.
+- `skills/extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md` gains §16: console ops
+  against a live app — `ComponentQuery [0]` is the first instance, not the active view
+  (enumerate with `isVisible(true)`, derive ids from the picked view's own proxy state);
+  destructive calls list-first and one at a time, never a pasted loop (the 13-request 4xx
+  burst → edge fail2ban ban precedent).
+
 ## v5.7.1 — cross-box agent handoff via repo issues + a night's incident harvest
 
 One evening on a consuming project produced one new pattern and four hard-won extensions — a

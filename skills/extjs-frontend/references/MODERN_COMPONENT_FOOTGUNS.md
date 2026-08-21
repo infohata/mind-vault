@@ -222,6 +222,27 @@ that the first click had already succeeded. The full recipe, all four parts:
 The e2e probe that pins it: call `save()` three times (two synchronous, one after success) and
 assert exactly **one** wire POST and the button hidden.
 
+## 16. Console ops against a live app: the first queried view is not the active one
+
+When a backend endpoint has no UI yet (a delete/repair operation an operator needs *now*),
+the right console vehicle is the app's own `Ext.Ajax` — it rides the session's global hooks
+(CSRF token, host prefix, 401 handling), so no cookie/token hand-crafting. Two disciplines
+make it safe:
+
+1. **`Ext.ComponentQuery.query('xtype')[0]` is the FIRST instance, not the active one.**
+   Apps that keep previously-opened views alive (tabbed detail views) return a background
+   instance first — an operator pulled a *different record's* id from `[0]` and only
+   noticed because the returned rows looked wrong. Enumerate before touching anything:
+   `Ext.ComponentQuery.query('xtype').map((c,i)=>({i, visible: c.isVisible(true), key: …}))`
+   and pick the `visible: true` row. Deriving ids from the picked view's own store/proxy
+   state (`getProxy().getExtraParams()`) beats retyping them.
+2. **List first, then destructive calls one at a time — never a loop.** Print the target
+   rows (`console.table`) and confirm each id before its call; fire each destructive
+   request individually and wait for its success log. A pasted cleanup loop once produced a
+   13-request burst of 4xx that an edge fail2ban read as an attack and banned the
+   operator's IP estate-wide (see [HARDENING.md](../../deployment/references/HARDENING.md) § fail2ban
+   behind proxies).
+
 ## Related
 
 - [JEST_EXT_STUB_HARNESS](JEST_EXT_STUB_HARNESS.md) — why the stub cannot catch #2 (define flatten).

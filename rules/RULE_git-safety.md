@@ -84,6 +84,25 @@ match permission allowlists cleanly anyway. Don't reach for the break-glass over
 honour it anyway. (Same applies to any command that legitimately names `main`/`master`/`production`
 as a *target-of* rather than a *push-to*.)
 
+### Fold small work into the open PR — do not stack a second one
+
+**Default: if a PR for this work is open and unmerged, extend it.** Push the follow-up commit
+onto its branch rather than opening a second PR — and never branch a new PR off an open PR's
+branch. This binds hardest on exactly the work most likely to get its own PR by reflex: doc
+finalization, CHANGELOG/version fixes, review-driven fixes, scrub sweeps, "just one more nit".
+
+The cost is not merge count, it is **conflicts on append-at-top shared files**. `CHANGELOG.md`,
+`docs/ideas/README.md`, and the monthly devlog are all written by inserting at the top, so two
+open branches that each add a section conflict on the same lines by construction — and the
+second one conflicts again after every rebase. One PR carrying both edits has no conflict at
+all. Stacking also exposes the strand-off-base hazard documented below.
+
+**A separate PR is right when** the work is genuinely independent of the open one (a different
+IDEA, an unrelated bug), when a large mechanical sweep would swamp review of the substantive
+change, or when the two must ship on different cadences. "It felt tidier" is not one of those —
+neither is "the first PR was already reviewed", which is an argument for one more review cycle,
+not for a second PR.
+
 ### Stacked PRs: merging in quick succession can strand the dependent PR off-base
 
 When PR **B** is opened with PR **A**'s branch as its base (a *stacked* PR — B's diff is only clean on
