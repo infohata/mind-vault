@@ -28,10 +28,22 @@ budget for rather than rediscover each cycle. (2026-08-21, [#239](https://github
   `CLAUDE_VERDICT_SET_PROVEN=false` fail-closed gate fired on six of six cycles — on this class of
   install it is the only thing between a green check and a false CLEAN, so weakening it to reduce
   noise removes the sole working mechanism.
-- **US-English spelling pass across eight skill files** — `behaviour`→`behavior`,
+- `skills/skill-writer/references/LANGUAGE_CONVENTIONS.md` (new) — the house register is now
+  written down rather than inferred: **US-English spelling, metric/SI units, Celsius**. The two
+  axes are independent and the pairing is deliberate — American spelling is the register technical
+  writing is read in, metric is the system the work is done in. The spelling half is justified by
+  the identifiers themselves (`serialize`, `initialize`, `color`, `behavior` are API names in every
+  stack these skills cover, so UK prose puts two spellings of one word on a page). Carries the
+  scope limits that matter more than the rule: never impose it on a consuming project's codebase,
+  never rewrite released CHANGELOG sections or archived docs, and treat the repo's remaining
+  pre-existing drift as a deliberate standalone sweep rather than a tail-end addition. Plus the
+  `analysis`/`analyses` false positive, the check-for-code-identifiers caveat, and the ISO-date /
+  24-hour conventions already in force. Wired at both write-sites: the `skill-writer` References
+  list, and `RULE_self-sweep-before-push`'s doc-consistency sweep as item (7).
+- **US-English spelling pass across nine skill files** — `behaviour`→`behavior`,
   `serialise`→`serialize`, `organised`→`organized`, `honour`→`honor`, `favour`→`favor`,
   `flavour`→`flavor`, `normalise`→`normalize` in `deployment`, `extjs-frontend`, `laravel`, `plan`
-  `work` and `review-loop` (bodies and references). Prose only; no code identifiers touched, and historical
+  `work` and `review-loop` (bodies and references) — the first application of the convention above. Prose only; no code identifiers touched, and historical
   CHANGELOG sections left as written. The repo still mixes US/UK elsewhere — this is the convention
   going forward, not a completed sweep.
 
