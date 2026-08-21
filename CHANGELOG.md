@@ -28,6 +28,17 @@ budget for rather than rediscover each cycle. (2026-08-21, [#239](https://github
   `CLAUDE_VERDICT_SET_PROVEN=false` fail-closed gate fired on six of six cycles — on this class of
   install it is the only thing between a green check and a false CLEAN, so weakening it to reduce
   noise removes the sole working mechanism.
+- `rules/RULE_git-safety.md` gains a merge-strategy lean, placed above the stacked-PR hazard it
+  shares mechanics with. **Explicitly a preference and never a blocker** — squash-merge stays
+  acceptable and no merge is held over it. The lean toward merge commits is costed concretely:
+  `git branch --merged main` cannot see a squash-merged branch (the tip is never an ancestor), so
+  post-merge cleanup becomes a content-equivalence investigation — and a misleading one once `main`
+  moves ahead, because the diff then reports older revisions of lines `main` has since improved.
+  Ancestry checks false-alarm on every healthy squash-merged branch, and tooling accumulates
+  workarounds. States what squash genuinely buys (a linear `main`, worth most where branches carry
+  noisy WIP) and why that weighs less in a docs repo with no code to bisect and per-PR commits that
+  already read well. Closes with the part that holds either way: confirm content landed before
+  deleting a local branch.
 - `skills/skill-writer/references/LANGUAGE_CONVENTIONS.md` (new) — the house register is now
   written down rather than inferred: **US-English spelling, metric/SI units, Celsius**. The two
   axes are independent and the pairing is deliberate — American spelling is the register technical

@@ -47,7 +47,7 @@ Let me know once it's merged and I'll handle local cleanup.
 
 **Being asked is not authorization.** A user saying "merge" does not lift Hard Rule 2 — protected-branch merge is a *human action*, so hand back the button (above). The one exception is the deliberate break-glass in the enforcement hook below (`GIT_SAFETY_ALLOW=1`), which the agent never adds on its own.
 
-**Structural enforcement (backstop for this rule).** This rule is behavioural context and can be rationalised away exactly when it matters (real incident: an agent merged to protected `main` with the rule loaded, reading a user "merge" as license). Mind-vault ships a `PreToolUse(Bash)` hook — [`hooks/block-protected-branch-writes.py`](../hooks/block-protected-branch-writes.py), wired in [`hooks/hooks.json`](../hooks/hooks.json) — that **denies** `gh pr merge`, API merge writes, and direct/force/bare pushes to a protected branch at the tool layer, so a lapse can't move a protected tip. Forward-sync, feature-branch pushes, and `gh pr create` pass through. Symlink-channel installs register it by hand in `~/.claude/settings.json`. The *why* (behavioural rules need structural backstops for irreversible ops) is in [`../docs/rules/RULE_git-safety-rationale.md`](../docs/rules/RULE_git-safety-rationale.md).
+**Structural enforcement (backstop for this rule).** This rule is behavioral context and can be rationalized away exactly when it matters (real incident: an agent merged to protected `main` with the rule loaded, reading a user "merge" as license). Mind-vault ships a `PreToolUse(Bash)` hook — [`hooks/block-protected-branch-writes.py`](../hooks/block-protected-branch-writes.py), wired in [`hooks/hooks.json`](../hooks/hooks.json) — that **denies** `gh pr merge`, API merge writes, and direct/force/bare pushes to a protected branch at the tool layer, so a lapse can't move a protected tip. Forward-sync, feature-branch pushes, and `gh pr create` pass through. Symlink-channel installs register it by hand in `~/.claude/settings.json`. The *why* (behavioral rules need structural backstops for irreversible ops) is in [`../docs/rules/RULE_git-safety-rationale.md`](../docs/rules/RULE_git-safety-rationale.md).
 
 ### 3. Feature branches — agent has normal commit authority
 
@@ -60,7 +60,7 @@ On any non-protected branch the agent commits freely. **No per-commit approval p
 - ❌ `--no-verify`, `--no-gpg-sign`, or any flag that bypasses hooks or signing, unless the user explicitly asks.
 - ❌ Plain `git push --force` — always use `--force-with-lease`.
 - ❌ Force-pushing to a branch with an open PR *without informing the human first* — it invalidates existing review threads.
-- ❌ Deleting or resetting a branch the agent doesn't recognise — it may be someone else's in-progress work.
+- ❌ Deleting or resetting a branch the agent doesn't recognize — it may be someone else's in-progress work.
 - ❌ Committing files that likely contain secrets (`.env`, `credentials.json`, private keys). Warn the user if a commit includes any.
 
 ### Compound-command gotcha: the "main" over-match in *string-level* guards
@@ -81,7 +81,7 @@ working around it.
 alone, then run `gh pr create --base main …` on its own. Universally safe, and single-purpose calls
 match permission allowlists cleanly anyway. Don't reach for the break-glass override
 (`GIT_SAFETY_ALLOW=1`) — the operation is genuinely allowed, and a permission-layer match wouldn't
-honour it anyway. (Same applies to any command that legitimately names `main`/`master`/`production`
+honor it anyway. (Same applies to any command that legitimately names `main`/`master`/`production`
 as a *target-of* rather than a *push-to*.)
 
 ### Fold small work into the open PR — do not stack a second one
@@ -102,6 +102,33 @@ IDEA, an unrelated bug), when a large mechanical sweep would swamp review of the
 change, or when the two must ship on different cadences. "It felt tidier" is not one of those —
 neither is "the first PR was already reviewed", which is an argument for one more review cycle,
 not for a second PR.
+
+### Merge strategy: lean toward a merge commit, but this is a preference, not a gate
+
+**Not a hard rule and never a blocker** — squash-merge stays perfectly acceptable, and no merge is
+held up over this. The default simply leans the other way, because squash costs something concrete
+after the merge:
+
+- **`git branch --merged main` cannot see a squash-merged branch.** The squash rewrites the commits,
+  so the branch tip is never an ancestor of `main` and the built-in "is this safe to delete?" answer
+  is unavailable. Post-merge cleanup becomes a content-equivalence investigation instead of one
+  command — and a misleading one once `main` moves ahead, since a plain `git diff main <branch>`
+  then reports differences that are only *older revisions of lines main has since improved*.
+- **Ancestry tests false-alarm.** `git merge-base --is-ancestor <branch-tip> main` is non-zero for
+  every healthy squash-merged branch, so it cannot be used as a landed-check (test the merge commit
+  instead — see the section below).
+- **Tooling ends up working around it.** PR-listing steps have to prefer `gh pr list --state merged`
+  over `git log --merges`, and per-item commit splitting gets justified by "preserves `git bisect`
+  post-squash-merge" — a cost that a merge commit simply does not impose.
+
+**What squash buys**, and it is real: a linear, one-commit-per-PR `main` that reads cleanly. That
+matters most where branches carry noisy WIP commits worth collapsing. It matters least in a
+docs/config repo whose per-PR commits are already individually meaningful and where there is no code
+to bisect — which is why the lean here goes to merge commits.
+
+**Either way, before deleting a local branch, confirm the content actually landed.** With a merge
+commit, `git branch --merged main` is sufficient. After a squash, verify by content and read what
+any diff is actually showing before trusting it.
 
 ### Stacked PRs: merging in quick succession can strand the dependent PR off-base
 
