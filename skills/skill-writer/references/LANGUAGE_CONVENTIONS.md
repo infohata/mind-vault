@@ -40,6 +40,12 @@ down. Matching the identifiers removes the split.
   References one-liner naming the target's own vocabulary), leave both alone. Changing only the
   pointer desyncs it from its source; changing both drags an untouched file into an unrelated
   change. The term gets fixed when its owning file is next edited, and the pointer follows.
+
+  **Establish the echo before invoking this — do not assume it.** Grep the target file for the
+  exact spelling first. Target contains it ⇒ genuine echo, leave both. Target does not contain it
+  (already fixed, or never used the term) ⇒ the pointer is quoting nothing, so it is ordinary
+  drift in a file you touched and the rule above applies: fix it. Skipping this check turns a
+  narrow exception into a blanket exemption for every UK-spelled References line.
 - The repo still contains substantial pre-existing UK spelling. That is a known, dateless
   inconsistency — note it, leave it, and pick up a repo-wide sweep deliberately as its own PR,
   never as a tail-end addition to unrelated work.

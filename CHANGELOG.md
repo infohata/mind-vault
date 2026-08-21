@@ -49,7 +49,8 @@ budget for rather than rediscover each cycle. (2026-08-21, [#239](https://github
   never rewrite released CHANGELOG sections or archived docs, and treat the repo's remaining
   pre-existing drift as a deliberate standalone sweep rather than a tail-end addition. Plus the
   `analysis`/`analyses` false positive, the check-for-code-identifiers caveat, the rule that a term
-  quoted from an untouched file moves with that file rather than with the pointer that echoes it,
+  quoted from an untouched file moves with that file rather than with the pointer that echoes it
+  (with the grep-the-target step that keeps that exception from widening into a blanket one),
   and the ISO-date / 24-hour conventions already in force. Wired at both write-sites: the `skill-writer` References
   list, and `RULE_self-sweep-before-push`'s doc-consistency sweep as item (7).
 - **US-English spelling pass across nine skill files** — `behaviour`→`behavior`,
