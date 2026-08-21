@@ -68,6 +68,25 @@ above applies, that is a finding, not a note. PASS 3's gate-design probe is the 
 twin of this one: that is about time, this about **mode**. (Bullet lives in
 `agents/AGENT_architect.md` PASS 4.)
 
+## Runtime-selected variants are their own axes (build profiles, 2026-08-21)
+
+A consuming SPA project shipped a device-split build (desktop + phone profiles; the
+runtime microloader picks the manifest by user agent). The deploy image's build step ran
+**only the desktop profile**, and the local verify script probed **only the desktop
+manifest** — so mobile had never booted on the pilot across **five deployments**, and
+nobody knew until the first mobile smoke asked for the phone manifest and got a 404. Unit
+and mock-mode e2e were structurally blind: the phone *code* was fully tested; the phone
+*artefact* never existed.
+
+The sharpening of "artefact set": when the runtime **selects among variants** — build
+profiles, device manifests, locale bundles, feature-flagged bundles — each variant is a
+delivery axis of its own. Enumerate them explicitly and give **each** a production-side
+probe (the fix there: the image build asserts every profile manifest exists, and the
+verify script curl-probes each one). A single-variant probe proves the pipeline works; it
+proves nothing about the variants it never requests. The tell during planning: any config
+listing multiple builds/targets/locales whose deploy script or verify probe names only
+one of them.
+
 ## Related
 
 - [`DEFERRAL_EXPIRY_TRIGGERS.md`](DEFERRAL_EXPIRY_TRIGGERS.md) — "a record is not a

@@ -318,3 +318,31 @@ orchestrator treating each push as a coin flip. Within a single install it is no
   green `claude-review` check and a false CLEAN — each of those six would have handed back clean under
   an adapter that read the Actions conclusion or the newest stale summary. Anything that weakens the
   gate to reduce "noise" is removing the only thing working on this class of install.
+
+## § calibration update — install-stability has a counterexample; fence your verdict watchers (third downstream, 2026-08-21)
+
+A same-day observation from a *third* downstream install challenges the §above "stable
+thereafter" reframe: **one install exhibited all three behaviors on a single PR within
+hours** — (a) two substantive verdicts on one SHA ~3 minutes apart that DISAGREED (clean
+first, then 3 findings — the §258 masking case, live), (b) a commented "Skipped — already
+reviewed" no-op on a later push, then (c) a **silent skip**: `claude-review` check
+`completed`/`success` with **no comment posted at all** on a yet-later push. The class
+probe is still worth running, but treat its answer as a prior, not a guarantee — the same
+install can drift between classes within a day (suspected variables: how many reviews
+already exist on the PR, and whether a ready-for-review transition and a push race their
+auto-runs). The plannable invariants are unchanged and carried the whole incident:
+enumerate **every** substantive head-SHA verdict (the clean-first verdict alone would have
+shipped 3 findings); after a fix push, **verdict-or-retrigger** — if no fresh verdict lands
+for the new SHA, fire the explicit retrigger regardless of what the check conclusion says
+(the silent skip's green check is exactly the false-CLEAN shape the fail-closed gate
+exists for).
+
+**Fence your verdict watchers (orchestrator-side).** Two watcher failures in that same
+loop came from polling `comments[-1]` / grepping the finder's tail: the poll matched a
+**stale pre-fix verdict** and reported it as the fix's result — twice. A verdict watcher
+must carry a **timestamp fence**: record `T0` when the fix push (or retrigger) fires and
+accept only material with `created_at > T0` *and* verdict shape (the "finished/Code
+review" body, not the in-progress checklist — whose header text also varies between the
+auto and @-mention paths, so match on completion markers, not on "Review in progress").
+Latest-comment matching without a fence re-reads history as news; §196's re-fetch
+discipline protects against *late* verdicts, the fence protects against *old* ones.

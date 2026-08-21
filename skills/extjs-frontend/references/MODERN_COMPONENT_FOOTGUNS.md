@@ -243,6 +243,28 @@ make it safe:
    operator's IP estate-wide (see [HARDENING.md](../../deployment/references/HARDENING.md) § fail2ban
    behind proxies).
 
+## 17. `ui:` names are unchecked strings — an invented one renders invisible; theme vars can resolve dark
+
+`ui: 'some-name'` on any component is a freeform string suffix for CSS class generation —
+**nothing validates it exists**. A button given a ui name no SCSS defines renders with no
+background/color styling at all: observed live as **white-on-white dialog footer buttons**
+(fully functional, completely invisible) that every unit test and mock-mode e2e passed,
+because styling is real-theme-only surface. Same family: a container styled with
+`var(--highlight-color)` assumed a light grey; the Material theme resolves it **dark**,
+producing theme-blue text on dark grey.
+
+- ✅ **DO** copy the exact `ui:` pair from a sibling component of the same kind (dialogs'
+  footer buttons have a house pair; grep a neighboring dialog) — and when a name looks
+  plausible, `grep -r "$ui:" --include='*.scss'` (or the generated `$ui` list in the app's
+  SCSS) before using it. Zero hits = invisible component.
+- ✅ **DO** use explicit colors in new SCSS blocks unless you have verified what the theme
+  variable resolves to in the *built* theme (dev and production themes can differ).
+- ❌ **DON'T** expect any automated gate to catch this: Ext raises nothing, Jest stubs see
+  nothing, mock-mode e2e asserts behavior not contrast. Real-theme rendering (pilot smoke,
+  screenshot diffing if available) is the only surface that shows it — put new-chrome
+  visibility checks in the smoke list whenever a change introduces a new `ui:` name or a
+  new SCSS block.
+
 ## Related
 
 - [JEST_EXT_STUB_HARNESS](JEST_EXT_STUB_HARNESS.md) — why the stub cannot catch #2 (define flatten).

@@ -10,6 +10,31 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.7.4 — 2026-08-21
+
+Compound from a downstream billing-sprint session (three destinations, one PR).
+
+### Changed
+
+- **`skills/review-loop/references/engine-claude.md`** — a third downstream install
+  produced a counterexample to v5.7.3's install-stability reframe: one PR showed dual
+  disagreeing verdicts, a commented skip, AND a silent skip (green check, no comment)
+  within hours. The class probe stays useful as a prior, not a guarantee; the plannable
+  invariants (enumerate every head-SHA verdict; verdict-or-retrigger after a fix push)
+  carried the incident. Adds the **watcher timestamp-fence rule**: verdict polls must
+  accept only material newer than the fix push — latest-comment matching re-read stale
+  verdicts as fresh results twice in one loop.
+- **`skills/plan/references/PRODUCTION_PATH_VERIFICATION.md`** — runtime-selected
+  variants (build profiles, device manifests, locale bundles) are delivery axes of their
+  own, each needing a production-side probe: a device-split SPA shipped five deployments
+  with the phone profile entirely absent from the image because the build and the verify
+  probe both named only the desktop variant.
+- **`skills/extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md`** §17 — `ui:` names
+  are unchecked strings: an invented one renders an invisible (white-on-white) but fully
+  functional component, and theme variables can resolve dark; grep the SCSS for the ui
+  name, use sibling components' exact pairs, and put new-chrome visibility checks in the
+  pilot smoke (no automated gate sees styling).
+
 ## v5.7.3 — the claude skip-no-op is install-stable, and a US-English pass
 
 Four consecutive PRs on mind-vault's own install produced the same result: every push after a PR's
