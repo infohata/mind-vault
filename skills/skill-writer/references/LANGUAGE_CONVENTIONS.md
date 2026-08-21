@@ -35,6 +35,11 @@ down. Matching the identifiers removes the split.
 - **Never rewrite historical records to match**: released `CHANGELOG.md` version sections,
   archived IDEA/plan docs, and merged devlog entries record what was written at the time. Fix
   drift only in files the current change already touches.
+- **A term quoted from an untouched file moves with that file, not with the pointer.** When a
+  touched file's drift is a domain term it is echoing from a reference you did not touch (a
+  References one-liner naming the target's own vocabulary), leave both alone. Changing only the
+  pointer desyncs it from its source; changing both drags an untouched file into an unrelated
+  change. The term gets fixed when its owning file is next edited, and the pointer follows.
 - The repo still contains substantial pre-existing UK spelling. That is a known, dateless
   inconsistency — note it, leave it, and pick up a repo-wide sweep deliberately as its own PR,
   never as a tail-end addition to unrelated work.

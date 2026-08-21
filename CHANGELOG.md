@@ -48,12 +48,13 @@ budget for rather than rediscover each cycle. (2026-08-21, [#239](https://github
   scope limits that matter more than the rule: never impose it on a consuming project's codebase,
   never rewrite released CHANGELOG sections or archived docs, and treat the repo's remaining
   pre-existing drift as a deliberate standalone sweep rather than a tail-end addition. Plus the
-  `analysis`/`analyses` false positive, the check-for-code-identifiers caveat, and the ISO-date /
-  24-hour conventions already in force. Wired at both write-sites: the `skill-writer` References
+  `analysis`/`analyses` false positive, the check-for-code-identifiers caveat, the rule that a term
+  quoted from an untouched file moves with that file rather than with the pointer that echoes it,
+  and the ISO-date / 24-hour conventions already in force. Wired at both write-sites: the `skill-writer` References
   list, and `RULE_self-sweep-before-push`'s doc-consistency sweep as item (7).
 - **US-English spelling pass across nine skill files** — `behaviour`→`behavior`,
   `serialise`→`serialize`, `organised`→`organized`, `honour`→`honor`, `favour`→`favor`,
-  `flavour`→`flavor`, `normalise`→`normalize` in `deployment`, `extjs-frontend`, `laravel`, `plan`
+  `flavour`→`flavor`, `normalise`→`normalize` in `deployment`, `extjs-frontend`, `laravel`, `plan`,
   `work` and `review-loop` (bodies and references) — the first application of the convention above. Prose only; no code identifiers touched, and historical
   CHANGELOG sections left as written. The repo still mixes US/UK elsewhere — this is the convention
   going forward, not a completed sweep.
