@@ -345,8 +345,14 @@ exists for).
 loop came from polling `comments[-1]` / grepping the finder's tail: the poll matched a
 **stale pre-fix verdict** and reported it as the fix's result — twice. A verdict watcher
 must carry a **timestamp fence**: record `T0` when the fix push (or retrigger) fires and
-accept only material with `created_at > T0` *and* verdict shape (the "finished/Code
+accept only material **newer than `T0`** *and* carrying verdict shape (the "finished/Code
 review" body, not the in-progress checklist — whose header text also varies between the
 auto and @-mention paths, so match on completion markers, not on "Review in progress").
+**Newer means `max(created_at, updated_at) > T0`, never `created_at` alone.** The action
+can post a progress comment at run start and **edit it in place** into the final verdict —
+`created_at` then predates the fix while the verdict is genuinely fresh, so a
+created_at-only fence rejects a verdict that did land. That is the mirror failure of the
+stale read this paragraph opens with, and it is the cheaper one: it costs a needless retrigger, not a wrong
+answer. Fence both directions.
 Latest-comment matching without a fence re-reads history as news; §196's re-fetch
 discipline protects against *late* verdicts, the fence protects against *old* ones.
