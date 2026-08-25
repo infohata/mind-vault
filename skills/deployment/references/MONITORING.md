@@ -6,6 +6,11 @@
 ## Overview
 Comprehensive production monitoring patterns extending the core [deployment skill](../SKILL.md), focusing on health checks, metrics collection, alerting, and observability. Covers application-level monitoring, infrastructure metrics, database performance, and automated alerting with notification integrations.
 
+> **Alerts that stop working silently** — a metric whose *meaning* changed under a live rule, a rule
+> keyed on a conditionally-emitted series with no denominator, a suppression window pinned to someone
+> else's schedule, and rule-state-vs-delivery — are a separate concern from setting monitoring up.
+> See [`ALERT_SILENT_DECAY.md`](ALERT_SILENT_DECAY.md).
+
 ## When to Use
 Any production web application requiring:
 - Real-time health monitoring and alerting

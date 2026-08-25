@@ -10,15 +10,36 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
-## v5.7.4 — a probe result is a prior, not a guarantee: verdict fences, variant axes, invisible chrome
+## v5.8.0 — silence read as success: decayed alerts, a green check with no verdict, and the gates that could not tell
 
-One downstream session, three destinations. v5.7.3 said the claude review-skip is a stable
-property of an install — measure it once and budget for it. A third install then showed all
-three behaviors on a single PR within hours, so the probe stays useful but its answer is a
-prior, not a guarantee. Beside it: a device-split app that shipped five deployments with the
-phone build entirely missing because nothing ever asked for it, and dialog buttons rendered
-white-on-white by a `ui:` name no stylesheet defined — fully functional, completely
-invisible, and passed by every test that ran. (2026-08-21, [#240](https://github.com/infohata/mind-vault/pull/240))
+Two compound streams landed on the same failure, so they ship as one release. An alert that breaks
+loudly is a nuisance; an alert that stops being *able* to detect its subject keeps evaluating,
+reports nothing, and its silence is indistinguishable from good news. Four independent instances
+turned up in one operational stretch — none found by an alert firing, all four found by someone
+checking whether it still could.
+
+The same shape kept turning up in the tooling built to guard against it. The automated-review gate
+reported a review finished and clean while it was still running. A different install's review check
+completed green having posted no verdict at all. And a verdict watcher matching the latest comment
+re-read a pre-fix verdict as the fix's result. Each one answered a question it had lost the ability
+to answer, and each answer read as good news.
+(2026-08-21 – 2026-08-25, [#240](https://github.com/infohata/mind-vault/pull/240) + [#241](https://github.com/infohata/mind-vault/pull/241))
+
+### Added
+
+- `skills/deployment/references/ALERT_SILENT_DECAY.md` — the four failures, each with the worked
+  case that surfaced it. **A metric can change meaning without changing its name**, and that is far
+  worse than a rename: a rename breaks the rule loudly, a meaning change leaves it producing a wrong
+  answer. Carries the protocol for both sides — producers emit a new name for the new meaning and
+  call it a MINOR, consumers grep their rule files on every producer upgrade. **A rule keyed on a
+  conditionally-emitted series has no denominator**, so it silently covers fewer subjects than it
+  appears to; the guard belongs at total absence, never per subject, because a per-subject version
+  fires for weeks against a correct system and gets muted. **Suppression windows are pinned to a
+  schedule someone else owns**, so they degrade silently and in the noisy direction — with the
+  measured case where 30 of 64 episodes escaped windows that looked correct by inspection, and the
+  rule that the one outlier left un-suppressed was the only real signal in the sample. And **rule
+  state is not delivery**: the rule engine's own alert series says nothing about what a human
+  received, which is why one gap sat unnoticed from the day it was introduced.
 
 ### Changed
 
@@ -31,12 +52,75 @@ invisible, and passed by every test that ran. (2026-08-21, [#240](https://github
   fence** — an ad-hoc poll that matches the latest comment re-reads a pre-fix verdict as the fix's
   result, which happened twice in one loop. Record `T0` at the push and accept only material newer
   than it. (The shipped adapter already window-fences; this is for orchestrator-side watchers.)
+
+- `skills/review-loop/references/engine-claude.md` gains three calibration blocks from a live loop.
+  **The review-state check could report finished-and-green while the review was still running** — it
+  looks for jobs belonging to one workflow whose commit matches the branch under review, and a
+  manually retriggered review matches neither: it runs under a different workflow, and that kind of
+  job reports the main branch as its commit. Fixing only the workflow name would not have helped.
+  The reliable link is the one the platform already prints — every comment the reviewer posts links
+  the job writing it — so the ids are read out of the comments and any job still running holds the
+  whole check as running; an unreadable job counts as unfinished, never as finished. Also recorded:
+  the reviewer's comment passes through **three** different bodies before it is a verdict, and the
+  first has no checkboxes at all, so a watcher waiting for checkboxes to clear reports success in
+  seconds against a review that has not begun. And **a pull request opened in an earlier session may
+  already carry a review nobody read** — one here had sat four hours with three real findings while
+  being described as "awaiting merge".
+
+- `skills/review-loop/references/engine-claude.md` also gains a citation convention, written
+  because combining the two streams above broke six of its own cross-references. Sections were
+  cited by line number, so appending a section shifted every line below it and the citations
+  resolved to unrelated bullets — while still reading like working references. Nothing failed; a
+  hand-check caught it. Citations are now by section title, the six are converted, and the legacy
+  numeric ones are listed as known-unreliable rather than re-pointed by guesswork. Same class as
+  the decayed alerts and the green-but-blind gate this release is about.
+- `skills/review-loop/references/common-review-findings.md` gains two entries. **A review finding can
+  be right about the smell and wrong about the direction**: one flagged a number that disagreed with
+  every other copy in the repo and advised matching the majority — measuring the live system showed
+  the majority was the stale one, and following the advice would have reinstalled a fact that stopped
+  being true two months earlier. A disagreement between documents is never settled by counting
+  documents. And **a decimal value wearing a binary unit label** — the two answers differ by about
+  two percent, which is exactly small enough to survive every eyeball check.
+
+- `rules/RULE_self-sweep-before-push.md` gains a **reversal sweep**. Closing a gap is a correction
+  like any other, but it does not feel like one, so nobody greps for the old claim. Measured: four
+  days after a backup gap was closed, two live guides still described it as open — including, under
+  a red heading as the first named problem, the page someone reads while the system is broken. That
+  is the worst carrier: it sends a reader mid-incident to build something that already exists. The
+  rule names the search order, starting with guides and HTML because those are read under pressure
+  and least likely to be open when the fact changes, and it says to keep the half that is still true
+  rather than deleting the warning outright.
+
+- `rules/RULE_git-safety.md` gains the stale-local-ref push hazard, placed beside the stacked-PR
+  entry it shares mechanics with. `git fetch` updates remote-tracking refs and does not fast-forward
+  local branches, so promoting a deploy pointer from a bare local branch name pushes whatever that
+  branch was when you last checked it out. The failure is silent and reads as success — when the
+  stale ref happens to equal the target, git reports `Everything up-to-date` and exits 0, and the
+  next step deploys the previous release, also reporting success. Names the same hazard in
+  `checkout -b`, the three-way `rev-parse` check for when a push reports no movement you expected,
+  and the note that a string-level guard on this rule will match the documentation of it.
+
+- `skills/shell/references/STRICT_MODE_HAZARDS.md` gains items 12 and 13, both about the gap
+  `set -euo pipefail` does not cover. **A query that succeeds and prints nothing** poisons every
+  command substitution downstream — `set -u` cannot help, because the variable is set, to empty —
+  and the fix is a non-empty assertion on the assignment rather than the use. **A destructive target
+  must be identified by a resolving test, not by its name**, because the failure mode of a wrong
+  target is frequently creation rather than an error: point a provisioning tool at the wrong account
+  and it builds a parallel copy of everything and exits 0. Includes the case where two accounts
+  shared a display name, and the caution that the obvious anchor may not carry the identity at all.
+  Item **14** closes the same loop one level down: **an assertion that
+    cannot express "empty" asserts nothing.** Checking that output is empty by searching it for an
+    empty string fails against empty input, so the case looks like a caught regression while testing
+    nothing at all. Found while writing tests for a reports-green-when-it-should-not bug, which is the
+    same defect one level down.
+
 - `skills/plan/references/PRODUCTION_PATH_VERIFICATION.md` sharpens the artifact-set axis: when the
   runtime *selects* among variants — build profiles, device manifests, locale bundles — each variant
   is a delivery axis needing its own production-side probe. A device-split SPA built only the desktop
   profile and verified only the desktop manifest, so mobile had never booted across five deployments;
   the phone code was fully tested, the phone artifact never existed. The planning tell: a config
   listing several builds or targets whose deploy and verify steps name only one of them.
+
 - `skills/extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md` gains §17 — `ui:` names are
   unchecked strings, so an invented one renders a component with no styling at all. Grep the SCSS for
   the name before using it, copy the exact pair a sibling component uses, and put new-chrome
