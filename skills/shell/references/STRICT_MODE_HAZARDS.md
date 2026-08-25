@@ -244,6 +244,8 @@ out=$(fold "" "$payload")
 trusting a green harness, feed each assertion a value you *know* should fail it. An assertion never
 observed failing has not been tested — it has been written.
 
+## Stance — a judgment call, encoded honestly
+
 The canon itself is split on `set -e` (BashFAQ/105's own contributors disagree:
 avoid entirely / use cautiously / handle explicitly and never rely on it). The
 house synthesis:

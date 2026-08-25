@@ -81,7 +81,6 @@ to answer, and each answer read as good news.
   being true two months earlier. A disagreement between documents is never settled by counting
   documents. And **a decimal value wearing a binary unit label** — the two answers differ by about
   two percent, which is exactly small enough to survive every eyeball check.
-
 - `rules/RULE_self-sweep-before-push.md` gains a **reversal sweep**. Closing a gap is a correction
   like any other, but it does not feel like one, so nobody greps for the old claim. Measured: four
   days after a backup gap was closed, two live guides still described it as open — including, under
@@ -91,6 +90,12 @@ to answer, and each answer read as good news.
   and least likely to be open when the fact changes, and it says to keep the half that is still true
   rather than deleting the warning outright.
 
+- `rules/RULE_self-sweep-before-push.md` gains an **anchor sweep**: editing a document by replacing a
+  landmark heading with new text deletes that heading unless the replacement re-emits it. The body
+  survives and reads as a continuation of whatever was inserted, the page renders perfectly, and
+  nothing complains — found in this very PR by review, not by the sweep that was supposed to catch it.
+  Carries the mechanical check: compare the set of headings before and after, rather than reading the
+  diff, because the deleted line sits at the top of a large block of additions.
 - `rules/RULE_git-safety.md` gains the stale-local-ref push hazard, placed beside the stacked-PR
   entry it shares mechanics with. `git fetch` updates remote-tracking refs and does not fast-forward
   local branches, so promoting a deploy pointer from a bare local branch name pushes whatever that
