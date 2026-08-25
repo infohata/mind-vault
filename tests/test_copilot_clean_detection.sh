@@ -75,7 +75,24 @@ assert_contains "suppressed: latest review CLEAN=false"    "$OUT" "CLEAN=false"
 assert_contains "suppressed: non-clean review surfaced"    "$OUT" "review 9002"
 
 echo ""
-echo "── (c) Legacy clean phrasing still recognized (back-compat) ──────────────"
+echo "── (c) The seam really is offline ────────────────────────────────────────"
+# The seam's whole promise is deterministic offline runs. Enforce it rather than
+# asserting it: run a case with a `gh` that always fails, standing in for no auth
+# and no network. Before the repo-identity branch existed, the adapter called
+# `gh repo view` unconditionally and died there (exit 127 with gh absent, exit 1
+# unauthenticated) before reaching a single fixture — and this suite still passed,
+# because the machine running it happened to have gh installed and authed.
+SHIM_DIR=$(mktemp -d)
+trap 'rm -rf "$SHIM_DIR"' EXIT
+printf '#!/bin/sh\necho "gh: not authenticated" >&2\nexit 1\n' > "$SHIM_DIR/gh"
+chmod +x "$SHIM_DIR/gh"
+OUT=$(PATH="$SHIM_DIR:$PATH" COPILOT_FIXTURE_DIR="$FIXTURES/approval-recommended" \
+      bash "$SCRIPT" 1 2>&1 | sed -E 's/\x1b\[[0-9;]*m//g')
+assert_contains "offline: still emits a verdict with gh failing" "$OUT" "COPILOT_LATEST_REVIEW=9001"
+assert_absent   "offline: no gh error leaks into output"         "$OUT" "not authenticated"
+
+echo ""
+echo "── (d) Legacy clean phrasing still recognized (back-compat) ──────────────"
 OUT=$(run_case legacy-clean-phrase)
 assert_contains "legacy: clean signal emitted"             "$OUT" "COPILOT_CLEAN_SIGNAL=9003"
 assert_contains "legacy: CLEAN=true"                       "$OUT" "CLEAN=true"

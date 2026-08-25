@@ -163,6 +163,11 @@ to answer, and each answer read as good news.
   the suppressed case emits `COPILOT_CLEAN_SIGNAL=checkrun-*`, which is the bug. The drift shipped
   silently because nothing exercised this path; now a format change fails a test instead of
   changing which code path answers. `make test` covers it via a new `test-copilot` target.
+  The seam's offline promise is **enforced, not asserted**: one case runs the adapter against a
+  `gh` that always fails. That was not idle — the seam left `gh repo view` unconditional, so the
+  adapter died resolving the repo name before reaching any fixture, and the suite passed anyway
+  because the machine running it had `gh` installed and authed. Repo identity is now resolved
+  locally under the seam, mirroring the claude adapter.
 - `skills/review-loop/references/engine-copilot.md` — records the template drift and the synthesis
   gate, and **partly reverses** its own § Suppressed comments claim. That section said suppressed
   comments were absent from every API surface the adapter reads and that the adapter therefore

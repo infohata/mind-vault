@@ -85,8 +85,19 @@ else
 fi
 
 # Repo identifier
-REPO_OWNER=$(gh repo view --json owner -q '.owner.login')
-REPO_NAME=$(gh repo view --json name -q '.name')
+# Under the fixture seam, resolve the repo identity locally too. `gh repo view` is
+# the first `gh` call in the script, so leaving it unconditional made the offline
+# claim false: with no `gh` on PATH the script died here (exit 127) before reaching
+# a single fixture, and under `set -e` an unauthenticated `gh` does the same. The
+# suite passed only on a machine that happened to have gh installed and authed.
+# Mirrors the claude adapter's CLAUDE_FIXTURE_DIR branch.
+if [ -n "${COPILOT_FIXTURE_DIR:-}" ]; then
+    REPO_OWNER=testowner
+    REPO_NAME=testrepo
+else
+    REPO_OWNER=$(gh repo view --json owner -q '.owner.login')
+    REPO_NAME=$(gh repo view --json name -q '.name')
+fi
 
 if [ -z "$REPO_OWNER" ] || [ -z "$REPO_NAME" ]; then
     echo "❌ Could not determine repository owner/name"
