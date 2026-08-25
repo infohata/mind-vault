@@ -221,7 +221,28 @@ Verify the anchor can answer the question before building a gate on it, or the g
 person re-derives it under time pressure inside a credentialed window. Write it down beside the
 script that demands it.
 
-## Stance — a judgment call, encoded honestly
+### 14. An assertion that cannot express "empty" asserts NOTHING
+
+`grep -qF -- "$expected" <<< "$actual"` is the usual substring check in a shell test harness. When
+`$expected` is the empty string — the natural way to write *"this should produce no output"* — it
+searches empty input for an empty pattern, finds **no line**, and reports failure. The case looks
+like a caught regression; it is a broken assertion.
+
+Caught while writing tests for a "reports green when it should not" fix — where a test that asserts
+nothing is precisely the defect being fixed, one level down:
+
+```bash
+# WRONG — reports FAIL on correct behaviour, and would report FAIL on incorrect behaviour too
+_case "empty input stays empty" "" "$(fold "" "$payload")"
+
+# RIGHT — emptiness is a property of the string, not a substring of it
+out=$(fold "" "$payload")
+[ -z "$out" ] || fail "want empty, got: $out"
+```
+
+**The general form: a matcher has a domain, and the empty expectation is outside it.** Before
+trusting a green harness, feed each assertion a value you *know* should fail it. An assertion never
+observed failing has not been tested — it has been written.
 
 The canon itself is split on `set -e` (BashFAQ/105's own contributors disagree:
 avoid entirely / use cautiously / handle explicitly and never rely on it). The

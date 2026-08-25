@@ -10,12 +10,16 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
-## v5.7.4 — four ways an alert keeps reporting after it stops being able to measure
+## v5.7.4 — silence read as success: four decaying alerts, and the review gate that had the same defect
 
 An alert that breaks loudly is a nuisance. An alert that stops being *able* to detect its subject
 keeps evaluating, reports nothing, and its silence is indistinguishable from good news. Four
 independent instances of that class turned up in one operational stretch, none of them found by an
-alert firing — all four found by someone checking whether it still could. (2026-08-25)
+alert firing — all four found by someone checking whether it still could.
+
+The same day, the same shape turned up in the tool built to guard against it: the automated-review
+gate reported a review finished and clean while that review was still running. Additions below cover
+both halves. (2026-08-25)
 
 ### Added
 
@@ -35,6 +39,39 @@ alert firing — all four found by someone checking whether it still could. (202
 
 ### Changed
 
+- `skills/review-loop/references/engine-claude.md` gains three calibration blocks from a live loop.
+  **The review-state check could report finished-and-green while the review was still running** — it
+  looks for jobs belonging to one workflow whose commit matches the branch under review, and a
+  manually retriggered review matches neither: it runs under a different workflow, and that kind of
+  job reports the main branch as its commit. Fixing only the workflow name would not have helped.
+  The reliable link is the one the platform already prints — every comment the reviewer posts links
+  the job writing it — so the ids are read out of the comments and any job still running holds the
+  whole check as running; an unreadable job counts as unfinished, never as finished. Also recorded:
+  the reviewer's comment passes through **three** different bodies before it is a verdict, and the
+  first has no checkboxes at all, so a watcher waiting for checkboxes to clear reports success in
+  seconds against a review that has not begun. And **a pull request opened in an earlier session may
+  already carry a review nobody read** — one here had sat four hours with three real findings while
+  being described as "awaiting merge".
+- `skills/review-loop/references/common-review-findings.md` gains two entries. **A review finding can
+  be right about the smell and wrong about the direction**: one flagged a number that disagreed with
+  every other copy in the repo and advised matching the majority — measuring the live system showed
+  the majority was the stale one, and following the advice would have reinstalled a fact that stopped
+  being true two months earlier. A disagreement between documents is never settled by counting
+  documents. And **a decimal value wearing a binary unit label** — the two answers differ by about
+  two percent, which is exactly small enough to survive every eyeball check.
+- `rules/RULE_self-sweep-before-push.md` gains a **reversal sweep**. Closing a gap is a correction
+  like any other, but it does not feel like one, so nobody greps for the old claim. Measured: four
+  days after a backup gap was closed, two live guides still described it as open — including, under
+  a red heading as the first named problem, the page someone reads while the system is broken. That
+  is the worst carrier: it sends a reader mid-incident to build something that already exists. The
+  rule names the search order, starting with guides and HTML because those are read under pressure
+  and least likely to be open when the fact changes, and it says to keep the half that is still true
+  rather than deleting the warning outright.
+- `skills/shell/references/STRICT_MODE_HAZARDS.md` gains a fourteenth item: **an assertion that
+  cannot express "empty" asserts nothing.** Checking that output is empty by searching it for an
+  empty string fails against empty input, so the case looks like a caught regression while testing
+  nothing at all. Found while writing tests for a reports-green-when-it-should-not bug, which is the
+  same defect one level down.
 - `rules/RULE_git-safety.md` gains the stale-local-ref push hazard, placed beside the stacked-PR
   entry it shares mechanics with. `git fetch` updates remote-tracking refs and does not fast-forward
   local branches, so promoting a deploy pointer from a bare local branch name pushes whatever that

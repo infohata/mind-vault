@@ -210,6 +210,76 @@ claude exposes its review-state as `CLAUDE_CHECKRUN ... STATUS=<status>` **synth
 
 > **⚠️ IDEA-022 supersession (regex mechanism → judge input).** The calibration blocks below were written to tune the **regex classifier** (`CLAUDE_CLEAN_PATTERNS` / `CLAUDE_FINDING_MARKERS` / `is_clean`), which IDEA-022 **removed** — the clean/blocking/non-blocking decision is now the **§ Verdict judge** (a model reading the prose). The *classification mechanism* these blocks describe is gone. Their *behavioral observations* — findings often live only in the summary BODY; clean is whole-review not substring; two substantive verdicts on one SHA can disagree; no-op/skip bodies aren't verdicts; clean now usually posts on both paths — are **exactly the material the judge reasons over**, so they remain load-bearing as judge input. Read them as "what claude's prose looks like in the wild," not "what regex to match."
 
+## § calibration update — the RUN-STATE query cannot see a retriggered review, and reports the skip as DONE (downstream, 2026-08-25)
+
+🔴 **The adapter reported `STATUS=completed CONCLUSION=success` while the review was still running.**
+Acting on that marks a PR reviewed that nobody reviewed — the failure the whole gate exists to
+prevent, reproduced one layer up in the gate itself.
+
+`CLAUDE_CHECKRUN` is synthesized from runs of **one** workflow file, filtered to the PR head SHA. A
+retrigger satisfies **neither** condition, for two independent reasons:
+
+| | workflow file | event | `head_sha` it reports |
+|---|---|---|---|
+| push auto-run | `claude-code-review.yml` | `pull_request` | the PR head ✅ |
+| retrigger (`@claude review once`) | **`claude.yml`** | `issue_comment` | **the default-branch tip**, `head_branch=main` |
+
+So the retrigger's run is invisible twice over — and **fixing only the workflow-file list would not
+have fixed it**, because head-SHA filtering drops it anyway. Meanwhile the run the query *can* see
+is the auto-run, which skip-no-ops in ~1 s with `success` once a review exists on the PR. Green, and
+nothing reviewed.
+
+⚠️ **The adapter's own header asserted these two "collapse to one authoritative signal" via
+latest-`run_started_at`.** That claim *was* the bug, written down as a design note — the dedup
+silently assumes a single workflow. When a comment explains why something is safe, check whether the
+explanation is load-bearing before trusting it.
+
+**The fix — stop guessing at workflows and SHAs; use the link the platform already provides.** Every
+claude comment carries `[View job run](.../actions/runs/<id>)`: GitHub's own comment→run
+correlation, authoritative and independent of file name and event type. Harvest those ids from
+claude-authored comment bodies and fold each run's status in under the aggregation rule the adapter
+already used — **any non-completed run holds the engine RUNNING**. Properties that make it safe in
+both directions, and which a careless reimplementation loses:
+
+- Stale ids from earlier SHAs are `completed`, so folding them is a no-op.
+- A run that cannot be read (404, no `actions: read`) is **UNKNOWN, which counts as not-completed** —
+  degrade to RUNNING, never to a false DONE.
+- Cap the number of ids so a long thread cannot fan out into unbounded API calls.
+- Emit `LINKED_RUNS` / `LINKED_INCOMPLETE` / `LINKED_HOLDING=<ids>` so *"nothing linked"* and
+  *"everything linked finished"* are distinguishable instead of both reading as silence.
+
+## § calibration update — the verdict comment has THREE body stages, and only the third is a verdict (downstream, 2026-08-25)
+
+The bot edits **one comment id** in place through three distinct bodies:
+
+1. `Claude Code is working… / I'll analyze this and get back to you.` — short, and carries **no
+   checkboxes at all**
+2. a `- [ ]` todo list
+3. `**Claude finished @user's task in <t>**` + the answer
+
+🔴 **A watcher gated on *"no unchecked `- [ ]` boxes"* returns SETTLED in ~17 s, on stage 1.** The
+absence of an in-flight marker is not the presence of a verdict. This file already records the
+mirror-image failure — gating on the `Claude Code is working` string reported settled on a todo list
+still in flight — so both single-signal gates have now been measured failing, in opposite directions.
+
+**Gate on the POSITIVE marker, and require all three:** body matches `claude finished`, **and** no
+`- [ ]` remains, **and** the run id parsed from the comment's own `[View job run](...)` link reports
+`completed`. Each condition alone admits a different stage. `created_at` never moves across the three,
+so a watcher keyed on comment count or creation time sees nothing happen at all.
+
+## § calibration update — a PR opened in an EARLIER SESSION may already carry an unread review (downstream, 2026-08-25)
+
+Reported a PR as "open, awaiting merge" across a session boundary. It had been reviewed **four hours
+earlier**, with three real findings — one wrong unit, one ordering violation, and a count contradicted
+by a table four lines below it — none of which had been read. The loop discipline was being applied
+carefully to the PR opened *this* session while the older one was described from memory of having
+opened it.
+
+**Enumerate verdicts on every PR you report the status of, not only the one you are actively
+iterating on.** "I opened it and nothing has happened since" is an assumption about elapsed time, and
+review is exactly the thing that happens while you are not looking. Cheap control: before saying a PR
+is ready, list its comment ids and count them.
+
 ## § calibration update — findings-bearing + clean runs (downstream non-draft, 2026-06-03)
 
 Two runs on the SAME commit, non-draft, settled the open questions:
