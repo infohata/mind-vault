@@ -101,9 +101,26 @@ echo ""
 # — avoids the default-30 cap that would silently drop the most recent review / comment
 # on a long-iteration PR and defeat the exact clean-signal fast-path this helper exists
 # to serve. Single-page only (no --paginate) — copilot review history is bounded.
-INLINE_COMMENTS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/comments?per_page=100" 2>/dev/null || echo "[]")
-ISSUE_COMMENTS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments?per_page=100" 2>/dev/null || echo "[]")
-REVIEWS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews?per_page=100" 2>/dev/null || echo "[]")
+# ── Test seam ─────────────────────────────────────────────────────────────────
+# With COPILOT_FIXTURE_DIR set, read captured payloads from files instead of calling
+# `gh api`, so tests/test_copilot_clean_detection.sh runs deterministically offline.
+# Mirrors the claude adapter's CLAUDE_FIXTURE_DIR seam. The production path (var
+# unset) is unchanged. Fixture files, all optional and each defaulting to its empty
+# shape: inline_comments.json, issue_comments.json, reviews.json, pr.json
+# ({"head":{"sha":...}}), check_runs.json. Added with the clean-detection fix — the
+# format drift that broke detection shipped silently because nothing exercised it.
+gh_payload() {
+    local fname="$1" default="$2"; shift 2
+    if [ -n "${COPILOT_FIXTURE_DIR:-}" ]; then
+        cat "$COPILOT_FIXTURE_DIR/$fname" 2>/dev/null || printf '%s' "$default"
+    else
+        gh "$@" 2>/dev/null || printf '%s' "$default"
+    fi
+}
+
+INLINE_COMMENTS=$(gh_payload inline_comments.json "[]" api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/comments?per_page=100")
+ISSUE_COMMENTS=$(gh_payload issue_comments.json "[]" api "repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments?per_page=100")
+REVIEWS=$(gh_payload reviews.json "[]" api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews?per_page=100")
 
 # /check-runs API — added 2026-05-06 after PR #429 spent ~35 min polling /reviews
 # for a clean signal that copilot had posted as a successful GitHub Check.
@@ -113,9 +130,13 @@ REVIEWS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews?per_page
 #   - /commits/<sha>/check-runs with conclusion=success on the Copilot app's check-run
 # This script accepts either as clean. The /check-runs path requires the PR HEAD SHA;
 # we fetch it via /pulls/<N> and gracefully degrade to empty state if that fetch fails.
-PR_HEAD_SHA=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER" -q '.head.sha' 2>/dev/null || echo "")
+if [ -n "${COPILOT_FIXTURE_DIR:-}" ]; then
+    PR_HEAD_SHA=$(gh_payload pr.json '{}' true | python3 -c "import json,sys; print((json.load(sys.stdin).get('head') or {}).get('sha') or '')" 2>/dev/null || echo "")
+else
+    PR_HEAD_SHA=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER" -q '.head.sha' 2>/dev/null || echo "")
+fi
 if [ -n "$PR_HEAD_SHA" ]; then
-    CHECK_RUNS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/commits/$PR_HEAD_SHA/check-runs?per_page=100" 2>/dev/null || echo '{"check_runs":[]}')
+    CHECK_RUNS=$(gh_payload check_runs.json '{"check_runs":[]}' api "repos/$REPO_OWNER/$REPO_NAME/commits/$PR_HEAD_SHA/check-runs?per_page=100")
 else
     CHECK_RUNS='{"check_runs":[]}'
 fi
@@ -183,9 +204,20 @@ copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
 # template tweak (e.g. sentence-case 'Generated no new comments') doesn't
 # silently break clean detection — CLEAN_PHRASES stays lowercase, body
 # is lower-cased at compare time.
-CLEAN_PHRASES = ('found no new issues', 'generated no new comments')
+# 'approval recommended' is the emoji-bucket template in use since ~2026-08: the body now
+# opens with one of 'Approval recommended' / 'Changes recommended' / 'Needs a closer look'.
+# NEITHER legacy phrase appears in any of them, so body-level clean detection had gone fully
+# blind, and the check-run fallback below silently took over.
+CLEAN_PHRASES = ('found no new issues', 'generated no new comments', 'approval recommended')
 def _is_clean_body(body):
     body_l = (body or '').lower()
+    # A body listing suppressed findings is NEVER clean, whatever its header says. Copilot
+    # reports 'Comments generated: 0 new' while carrying real findings under 'Suppressed
+    # comments (N)'; those post no inline comment, so the inline pre-check cannot see them
+    # either. Observed on mind-vault PR #240 — two real findings under a green check-run.
+    # This is the v5.6.1 rule in code: a copilot CLEAN covers only what the API surfaced.
+    if 'suppressed comments' in body_l:
+        return False
     return any(p in body_l for p in CLEAN_PHRASES)
 if copilot:
     r = copilot[0]
@@ -383,7 +415,13 @@ except Exception:
         # settle valve fired. Synthesize COPILOT_CLEAN_SIGNAL only if /reviews didn't emit
         # one AND there are zero Copilot inline findings — never paper a clean over findings.
         echo -e "${GREEN}✅ Copilot check-run reports success for PR head.${NC}"
-        if [ -z "$CLEAN_SIGNAL_LINE" ] && [ -z "$COPILOT_INLINE_PRECHECK" ]; then
+        # HEAD_REVIEW_POSTED guard: if copilot posted a review body for HEAD, that body IS
+        # the verdict. A clean one already set CLEAN_SIGNAL_LINE above, so reaching here with
+        # a body present means the body was NOT clean — synthesizing over it is a false CLEAN.
+        # The inline pre-check does not cover this on its own: suppressed findings post no
+        # inline comment. Synthesis exists only for a check-run with no review body at all.
+        if [ -z "$CLEAN_SIGNAL_LINE" ] && [ -z "$COPILOT_INLINE_PRECHECK" ] \
+           && [ "$HEAD_REVIEW_POSTED" != "true" ]; then
             echo "COPILOT_CLEAN_SIGNAL=checkrun-${cr_id} COMMIT=${cr_sha} AT=${cr_at}"
             CLEAN_SIGNAL_LINE="checkrun-${cr_id}"  # mark non-empty for the summary check below
         fi
@@ -424,9 +462,11 @@ body = (latest.get('body') or '').strip()
 # Match either of the two known clean-body phrasings — see Pass 1 comment block
 # for the full rationale and the external-project PR reference that surfaced
 # the 'generated no new comments' variant.
-CLEAN_PHRASES = ('found no new issues', 'generated no new comments')
+# Same phrases + the same suppressed-findings override as the two _is_clean_body blocks —
+# these three must agree, or the loop gets a clean signal beside a CLEAN=false flag.
+CLEAN_PHRASES = ('found no new issues', 'generated no new comments', 'approval recommended')
 body_l = body.lower()
-clean = 'true' if any(p in body_l for p in CLEAN_PHRASES) else 'false'
+clean = 'false' if 'suppressed comments' in body_l else ('true' if any(p in body_l for p in CLEAN_PHRASES) else 'false')
 print(f'COPILOT_LATEST_REVIEW={rid} COMMIT={commit} AT={at} CLEAN={clean}')
 " 2>/dev/null || true)
 
@@ -448,9 +488,20 @@ except Exception:
 copilot = [r for r in reviews if (r.get('user') or {}).get('login') in ('Copilot', 'copilot-pull-request-reviewer[bot]')]
 copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
 shown = 0
-CLEAN_PHRASES = ('found no new issues', 'generated no new comments')
+# 'approval recommended' is the emoji-bucket template in use since ~2026-08: the body now
+# opens with one of 'Approval recommended' / 'Changes recommended' / 'Needs a closer look'.
+# NEITHER legacy phrase appears in any of them, so body-level clean detection had gone fully
+# blind, and the check-run fallback below silently took over.
+CLEAN_PHRASES = ('found no new issues', 'generated no new comments', 'approval recommended')
 def _is_clean_body(body):
     body_l = (body or '').lower()
+    # A body listing suppressed findings is NEVER clean, whatever its header says. Copilot
+    # reports 'Comments generated: 0 new' while carrying real findings under 'Suppressed
+    # comments (N)'; those post no inline comment, so the inline pre-check cannot see them
+    # either. Observed on mind-vault PR #240 — two real findings under a green check-run.
+    # This is the v5.6.1 rule in code: a copilot CLEAN covers only what the API surfaced.
+    if 'suppressed comments' in body_l:
+        return False
     return any(p in body_l for p in CLEAN_PHRASES)
 for r in copilot:
     body = (r.get('body') or '').strip()

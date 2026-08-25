@@ -126,6 +126,36 @@ to answer, and each answer read as good news.
   the name before using it, copy the exact pair a sibling component uses, and put new-chrome
   visibility in the pilot smoke: no automated gate sees contrast.
 
+### Fixed
+
+- `tools/find_copilot_comments.sh` — copilot clean detection had gone **blind**, and the fallback
+  it fell through to was reporting false CLEANs. Copilot's review body moved to an emoji-bucket
+  header (`🟢 Approval recommended` / `🟡 Changes recommended` / `🔵 Needs a closer look`) with the
+  count buried in a collapsed block as `Comments generated: 0 new`. Neither phrase the matcher
+  looked for appears in any of them, so body-level detection stopped matching anything — and
+  nothing complained, because the check-run synthesis quietly took over and kept answering. That
+  fallback then papered a green check-run over a review carrying **two real findings**, because
+  suppressed findings post no inline comment and the inline pre-check could not see them. Three
+  fixes: the matcher carries all three phrasings; a body listing suppressed comments is never
+  clean whatever its header says; and the check-run synthesis is gated on there being no review
+  body at all — if a body exists it *is* the verdict. Found by reading review bodies by hand while
+  running the loop on this PR. The file's own header had predicted it: "if Copilot becomes a
+  different bot login or the API field names change, all THREE blocks need updating."
+- `tools/find_copilot_comments.sh` + `tests/test_copilot_clean_detection.sh` — the adapter gains a
+  `COPILOT_FIXTURE_DIR` test seam mirroring the claude adapter's, and the clean/false-CLEAN paths
+  gain coverage: emoji-bucket clean, suppressed-findings-are-never-clean, and legacy-phrasing
+  back-compat. Both fixtures were checked against the pre-fix adapter first and **fail** there —
+  the suppressed case emits `COPILOT_CLEAN_SIGNAL=checkrun-*`, which is the bug. The drift shipped
+  silently because nothing exercised this path; now a format change fails a test instead of
+  changing which code path answers. `make test` covers it via a new `test-copilot` target.
+- `skills/review-loop/references/engine-copilot.md` — records the template drift and the synthesis
+  gate, and **partly reverses** its own § Suppressed comments claim. That section said suppressed
+  comments were absent from every API surface the adapter reads and that the adapter therefore
+  could not be extended to fetch them; the new template renders them inside the review body, and
+  the adapter now reads them. Corrected in place with the half that is still true kept — presence
+  is detected, completeness is not certified, so the human-glance caveat stands. A worked instance
+  of the reversal sweep added to `RULE_self-sweep-before-push` in this same release.
+
 ## v5.7.3 — the claude skip-no-op is install-stable, and a US-English pass
 
 Four consecutive PRs on mind-vault's own install produced the same result: every push after a PR's

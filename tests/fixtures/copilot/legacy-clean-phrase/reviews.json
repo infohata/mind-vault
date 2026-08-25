@@ -1,0 +1,12 @@
+[
+ {
+  "id": 9003,
+  "user": {
+   "login": "Copilot"
+  },
+  "commit_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "submitted_at": "2026-08-21T10:00:00Z",
+  "state": "COMMENTED",
+  "body": "## Pull request overview\n\nCopilot reviewed 7 out of 7 changed files in this pull request and generated no new comments."
+ }
+]

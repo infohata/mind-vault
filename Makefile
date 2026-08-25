@@ -172,4 +172,7 @@ test-release: ## Run the version-extraction test harness against fixture files
 test-claude: ## Run the claude adapter material-surfacing + false-CLEAN-gate tests (IDEA-022)
 	@bash tests/test_claude_material_surfacing.sh
 
-test: test-release test-claude ## Run all test harnesses
+test-copilot: ## Run the copilot adapter clean-detection + false-CLEAN-gate tests
+	@bash tests/test_copilot_clean_detection.sh
+
+test: test-release test-claude test-copilot ## Run all test harnesses

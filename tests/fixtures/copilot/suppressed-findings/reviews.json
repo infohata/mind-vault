@@ -1,0 +1,12 @@
+[
+ {
+  "id": 9002,
+  "user": {
+   "login": "Copilot"
+  },
+  "commit_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "submitted_at": "2026-08-21T10:00:00Z",
+  "state": "COMMENTED",
+  "body": "### \ud83d\udd35 Needs a closer look\n\nThe new guidance is incomplete as written and can fail for sticky comments.\n\n<details>\n<summary>Review details</summary>\n\n### Suppressed comments (2)\n\n**Previously missed (2)** \u2014 in code that hasn't changed since the last review.\n\n**tools/example.sh:350**\n* The fence only checks created_at.\n\n**CHANGELOG.md:15**\n* Relative date encoded in a permanent record.\n\n- **Files reviewed:** 7/7 changed files\n- **Comments generated:** 0 new\n</details>"
+ }
+]
