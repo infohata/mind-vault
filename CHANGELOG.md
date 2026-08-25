@@ -71,9 +71,8 @@ to answer, and each answer read as good news.
   because combining the two streams above broke six of its own cross-references. Sections were
   cited by line number, so appending a section shifted every line below it and the citations
   resolved to unrelated bullets — while still reading like working references. Nothing failed; a
-  hand-check caught it. Citations are now by section title, the six are converted, and the legacy
-  numeric ones are listed as known-unreliable rather than re-pointed by guesswork. Same class as
-  the decayed alerts and the green-but-blind gate this release is about.
+  hand-check caught it. That prompted the full sweep and the guard recorded under **Fixed** below.
+  Same class as the decayed alerts and the green-but-blind gate this release is about.
 - `skills/review-loop/references/common-review-findings.md` gains two entries. **A review finding can
   be right about the smell and wrong about the direction**: one flagged a number that disagreed with
   every other copy in the repo and advised matching the majority — measuring the live system showed

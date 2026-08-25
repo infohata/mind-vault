@@ -64,7 +64,16 @@ engine-copilot.md|Suppressed comments
 "
 while IFS='|' read -r file phrase; do
     [ -z "${file:-}" ] && continue
-    n=$(grep -cE "^#+ .*$(printf '%s' "$phrase" | sed 's/[][\.*^$+?{}()|/]/\\&/g')" "$REFDIR/$file" 2>/dev/null || echo 0)
+    # Select heading lines, then FIXED-STRING match the phrase. No regex is built
+    # from the phrase, so there is nothing to escape — the earlier version fed the
+    # phrase through a sed escape whose character class contained the substitution
+    # delimiter, which is fragile across sed implementations even where it works.
+    # `grep -c` prints 0 and exits 1 on no-match; piping it keeps the count clean
+    # (`|| echo 0` appended a SECOND zero, so the no-match case evaluated
+    # `[ "0\n0" -eq 1 ]` and reported failure via a shell error rather than an
+    # assertion — a check that cannot express its own empty case, item 14 again).
+    n=$(grep -E '^#+ ' "$REFDIR/$file" 2>/dev/null | grep -cF -- "$phrase")
+    n=${n:-0}
     if [ "$n" -eq 1 ]; then
         pass "$file § $phrase"
     else
