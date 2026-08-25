@@ -130,6 +130,50 @@ to bisect — which is why the lean here goes to merge commits.
 commit, `git branch --merged main` is sufficient. After a squash, verify by content and read what
 any diff is actually showing before trusting it.
 
+### Pushing a ref: `origin/<branch>:target`, never the bare local branch
+
+`git fetch` updates **remote-tracking** refs. It does **not** fast-forward your local branches. So
+after a fetch, `origin/<branch>` is current while a local branch you have not checked out and pulled
+is still wherever you left it.
+
+That makes the promote/deploy idiom a trap:
+
+```bash
+git fetch origin
+git push origin <branch>:deploy-pointer          # WRONG — pushes the STALE local ref
+git push origin origin/<branch>:deploy-pointer   # RIGHT — pushes what you just fetched
+```
+
+**The failure is silent and reads as success.** When the stale local ref happens to equal the target
+— the normal case, since the target was promoted from that same commit last time — git reports
+`Everything up-to-date` and exits 0. Nothing was pushed, nothing was wrong, and the operator
+reasonably concludes the promotion landed. The next step then deploys the *previous* release and
+reports success too.
+
+Applies to any `<src>:<dst>` push where the source is a branch you are not currently on: deploy
+pointer branches, release branches, mirrors. **If you are not on the branch, name the
+remote-tracking ref.**
+
+⚠️ Branching has the identical hazard: `git checkout -b feature <branch>` bases on the stale local ref. Use
+`git checkout -b feature origin/<branch>`, or `git switch -c feature origin/<branch>`.
+
+📌 The cheap check, when a push reports `Everything up-to-date` and you expected movement — compare
+the three refs before assuming the target was already current:
+
+```bash
+git rev-parse --short <branch> origin/<branch> origin/<target>
+```
+
+📌 A well-built deploy script fails closed on this: a preflight that refuses when the checkout is
+behind its deploy pointer turns a silent no-op into a loud refusal at the next step. That is a
+safety net, not the fix — the fix is the `origin/` prefix.
+
+⚠️ **A string-level guard on this rule will match the documentation of it.** Writing the wrong form
+down as a negative example is exactly what a naive matcher flags. Strip fenced blocks before
+matching, or the first person to document the hazard is the one who trips the guard — and deleting
+the guard looks reasonable at that moment. See the compound-command gotcha above, which is the same
+class.
+
 ### Stacked PRs: merging in quick succession can strand the dependent PR off-base
 
 When PR **B** is opened with PR **A**'s branch as its base (a *stacked* PR — B's diff is only clean on

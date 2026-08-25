@@ -10,6 +10,48 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.7.4 — four ways an alert keeps reporting after it stops being able to measure
+
+An alert that breaks loudly is a nuisance. An alert that stops being *able* to detect its subject
+keeps evaluating, reports nothing, and its silence is indistinguishable from good news. Four
+independent instances of that class turned up in one operational stretch, none of them found by an
+alert firing — all four found by someone checking whether it still could. (2026-08-25)
+
+### Added
+
+- `skills/deployment/references/ALERT_SILENT_DECAY.md` — the four failures, each with the worked
+  case that surfaced it. **A metric can change meaning without changing its name**, and that is far
+  worse than a rename: a rename breaks the rule loudly, a meaning change leaves it producing a wrong
+  answer. Carries the protocol for both sides — producers emit a new name for the new meaning and
+  call it a MINOR, consumers grep their rule files on every producer upgrade. **A rule keyed on a
+  conditionally-emitted series has no denominator**, so it silently covers fewer subjects than it
+  appears to; the guard belongs at total absence, never per subject, because a per-subject version
+  fires for weeks against a correct system and gets muted. **Suppression windows are pinned to a
+  schedule someone else owns**, so they degrade silently and in the noisy direction — with the
+  measured case where 30 of 64 episodes escaped windows that looked correct by inspection, and the
+  rule that the one outlier left un-suppressed was the only real signal in the sample. And **rule
+  state is not delivery**: the rule engine's own alert series says nothing about what a human
+  received, which is why one gap sat unnoticed from the day it was introduced.
+
+### Changed
+
+- `rules/RULE_git-safety.md` gains the stale-local-ref push hazard, placed beside the stacked-PR
+  entry it shares mechanics with. `git fetch` updates remote-tracking refs and does not fast-forward
+  local branches, so promoting a deploy pointer from a bare local branch name pushes whatever that
+  branch was when you last checked it out. The failure is silent and reads as success — when the
+  stale ref happens to equal the target, git reports `Everything up-to-date` and exits 0, and the
+  next step deploys the previous release, also reporting success. Names the same hazard in
+  `checkout -b`, the three-way `rev-parse` check for when a push reports no movement you expected,
+  and the note that a string-level guard on this rule will match the documentation of it.
+- `skills/shell/references/STRICT_MODE_HAZARDS.md` gains items 12 and 13, both about the gap
+  `set -euo pipefail` does not cover. **A query that succeeds and prints nothing** poisons every
+  command substitution downstream — `set -u` cannot help, because the variable is set, to empty —
+  and the fix is a non-empty assertion on the assignment rather than the use. **A destructive target
+  must be identified by a resolving test, not by its name**, because the failure mode of a wrong
+  target is frequently creation rather than an error: point a provisioning tool at the wrong account
+  and it builds a parallel copy of everything and exits 0. Includes the case where two accounts
+  shared a display name, and the caution that the obvious anchor may not carry the identity at all.
+
 ## v5.7.3 — the claude skip-no-op is install-stable, and a US-English pass
 
 Four consecutive PRs on mind-vault's own install produced the same result: every push after a PR's

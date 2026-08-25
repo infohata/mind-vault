@@ -144,6 +144,83 @@ command, including a variable assignment. The bug only fires on the error path
 (the second element is only read when reporting a failure), so it converts an
 error *report* into a *crash* — precisely when you least want one.
 
+### 12. A query that returns EMPTY instead of failing poisons every `$( )` that consumes it
+
+`set -euo pipefail` protects you from a command that **fails**. It does nothing about a command that
+**succeeds and prints nothing** — and a large class of query tools do exactly that when you ask for a
+field that does not exist under the spelling you used.
+
+```bash
+# The projection names a field this CLI version does not render under that spelling.
+# Exit status 0. Output: empty. Nothing complains.
+NUM="$(some-cli describe "$thing" --format='value(project_number)')"
+
+some-cli list --filter="projectNumber=$NUM"    # -> a filter with no operand
+rm -rf "$BASE/$NUM"                            # -> rm -rf "$BASE/"   <- catastrophe
+```
+
+The second line is the *lucky* case: a strict parser rejects the malformed filter and you find out.
+The third is the unlucky one — an empty expansion is a **valid string**, so it silently widens a
+path, empties a filter, or writes to the wrong key.
+
+**Guard the assignment, not the use.** `set -u` cannot help here: the variable IS set, to `""`.
+
+```bash
+NUM="$(some-cli describe "$thing" --format='value(project_number)')"
+[ -n "$NUM" ] || die "could not read the project number for $thing — check the field name; an \
+unmatched projection on this CLI returns EMPTY rather than failing"
+```
+
+⚠️ **Field spellings drift between CLI versions and between output formats** — `camelCase` in JSON,
+`snake_case` in a table renderer, and a targeted projection that silently matches neither. When a
+projection comes back empty, **dump the whole object and read the keys** instead of guessing the next
+spelling:
+
+```bash
+some-cli describe "$thing" --format=json | python3 -c \
+  "import json,sys; print(list(json.load(sys.stdin)))"
+```
+
+📌 Same class, different dress: `grep` with no match, `jq` selecting a missing key, `awk` printing an
+absent field, an API returning `[]`, a `SELECT` matching no rows. **Any `$( )` whose emptiness would
+change the meaning of the next command needs a non-empty assertion on the line after it.**
+
+### 13. Identify a destructive target by a RESOLVING TEST, not by its name
+
+Before an operation that creates or destroys, the question is not *"is this the name I expect?"* but
+*"does the thing I expect to already be there actually resolve here?"*
+
+This matters because **the failure mode of a wrong target is often creation, not an error.** A
+provisioning tool pointed at the wrong account does not fail — it builds a parallel copy of
+everything and reports success. A migration pointed at the wrong database creates the schema. You get
+a clean exit code and a duplicate universe.
+
+**Worked example.** A provisioning script required an account id passed explicitly, and the account
+list held **two entries with the same display name**, differing only by an id suffix. Choosing wrong
+would have created a second bucket, a second service account and a second credential — the exact
+duplicate the design existed to prevent — and printed success. The resolving test was to ask whether
+an *already-existing* resource answered in that account:
+
+```bash
+# expected to EXIST -> if it resolves, the target is confirmed by evidence rather than by name
+some-cli describe-resource "known-existing-thing" --account="$CANDIDATE" >/dev/null 2>&1 || \
+  die "'$CANDIDATE' does not hold the expected resource — refusing to provision into it"
+```
+
+Three properties make a resolving test worth having:
+
+- **It asserts something that already exists**, so a wrong target fails instead of being built into.
+- **It is read-only**, so it costs nothing and can gate every invocation.
+- **It fails closed** — no output is a refusal, not a pass (item 12 is how that goes wrong).
+
+⚠️ **Pick an anchor that actually carries the identity.** In the example the *bucket* could not
+answer — its describe output carries no account field at all — so the service account was the anchor.
+Verify the anchor can answer the question before building a gate on it, or the gate silently passes.
+
+📌 When the required id is recorded nowhere in the repo, that absence is itself the defect: the next
+person re-derives it under time pressure inside a credentialed window. Write it down beside the
+script that demands it.
+
 ## Stance — a judgment call, encoded honestly
 
 The canon itself is split on `set -e` (BashFAQ/105's own contributors disagree:
