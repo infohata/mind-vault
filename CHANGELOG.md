@@ -146,6 +146,17 @@ to answer, and each answer read as good news.
   body at all — if a body exists it *is* the verdict. Found by reading review bodies by hand while
   running the loop on this PR. The file's own header had predicted it: "if Copilot becomes a
   different bot login or the API field names change, all THREE blocks need updating."
+- `skills/review-loop/references/engine-claude.md` + `tests/test_reference_anchors.sh` — every
+  line-number citation in the review-loop references is gone, replaced by a **greppable named
+  anchor**: a phrase that is a literal substring of exactly one heading. The economics are what
+  decide it — a grep costs CPU, a wrong line number costs a read of the wrong content plus the
+  hunt after it, and the citation keeps *looking* correct either way. Each of the fifteen was
+  resolved against the file as it stood in the commit that introduced it (`git log -S`, then read
+  that revision) rather than guessed. Two findings from doing that: `§131 + §140` was already
+  wrong in the commit that wrote it (the blocks it named were at 139 and 148), and
+  `§Net-capability` had never matched anything — the file only ever said "Net engine capability".
+  A new `test-anchors` target fails on any reintroduced `§NNN`, on a named anchor that stops
+  matching its heading, and on a prose anchor whose definition site disappears.
 - `tools/find_copilot_comments.sh` + `tests/test_copilot_clean_detection.sh` — the adapter gains a
   `COPILOT_FIXTURE_DIR` test seam mirroring the claude adapter's, and the clean/false-CLEAN paths
   gain coverage: emoji-bucket clean, suppressed-findings-are-never-clean, and legacy-phrasing

@@ -175,4 +175,7 @@ test-claude: ## Run the claude adapter material-surfacing + false-CLEAN-gate tes
 test-copilot: ## Run the copilot adapter clean-detection + false-CLEAN-gate tests
 	@bash tests/test_copilot_clean_detection.sh
 
-test: test-release test-claude test-copilot ## Run all test harnesses
+test-anchors: ## Run the reference cross-anchor guard (no line-number citations)
+	@bash tests/test_reference_anchors.sh
+
+test: test-release test-claude test-copilot test-anchors ## Run all test harnesses

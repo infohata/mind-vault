@@ -4,18 +4,27 @@ Adapter specification for the Claude review engine. The orchestrator at [`SKILL.
 
 ## § Citing a section of this file
 
-Cite by **section title** (`§ dual substantive verdicts`, `§ slow-not-hung`) — never by line
-number. A `§NNN` numeric citation is a pointer that stops pointing without saying so: appending a
-section to this file shifts every line below it, and the citation then resolves to some unrelated
-bullet and still reads like a working reference. Measured: merging two branches that had each
-appended a calibration section moved six citations onto wrong lines, and nothing failed — the
-review that caught it had to check each one by hand. Same class as the decayed alerts and the
-green-but-blind review gate this file documents.
+Cite by a **greppable named anchor** — a phrase that is a literal substring of exactly one
+heading (`§ dual substantive verdicts`, `§ slow-not-hung`, `§ A7`). Never by line number.
 
-**Legacy `§NNN` citations below are known-unreliable** (`§43`, `§48`, `§49`, `§53`, `§57`, `§131`,
-`§140`, `§158`, `§164`). They were correct when written and several have since drifted. They are
-left as-is rather than re-pointed by guesswork — resolve one by searching the wording around it,
-and convert it to a title anchor when you next edit its section.
+The economics decide it. A grep costs CPU; a wrong line number costs an agent a read of the
+wrong content plus the hunt that follows, which is the expensive resource. And the failure is
+silent either way: `§158` still *looks* like a working reference after the line it named has
+moved. Two measurements from this file:
+
+- Merging two branches that had each appended a calibration section moved **six** citations onto
+  unrelated lines. Nothing errored; a hand-check caught it.
+- `§131 + §140` was **wrong when it was written** — the two blocks it named were at 139 and 148
+  in that very commit. A line number is stale from the moment the author stops counting.
+
+All numeric citations here have been converted, each resolved against the file as it stood in
+the commit that introduced it (`git log -S'§NNN'`, then read that revision) rather than guessed.
+`tests/test_reference_anchors.sh` fails on any new `§NNN`, so the class cannot come back quietly.
+
+**Writing one:** pick the distinctive words of the target heading and check
+`grep -rn '<phrase>' skills/review-loop/references/` returns the heading plus your citation. If
+it returns nothing, the anchor is dangling — `§Net-capability` sat dangling here for months
+because the file only ever said "Net engine capability".
 
 ## ⚠️ READ THIS FIRST — the action + `code-review` plugin is NOT the managed Claude Code Review App
 
@@ -318,31 +327,31 @@ This does **not** change the findings-side capability: claude posts findings rel
 
 ## § COUNTER-OBSERVATION — clean trees DO post a positive clean verdict, on BOTH paths (PR #190 + #192, 2026-06-08)
 
-Two independent, reproducible data points **against** the "clean always reads SILENT" claim above — now confirmed on **both** trigger paths, so the §158 SILENT-on-clean behavior is no longer the whole story:
+Two independent, reproducible data points **against** the "clean always reads SILENT" claim above — now confirmed on **both** trigger paths, so the § findings-bearing + clean runs SILENT-on-clean behavior is no longer the whole story:
 
 - **Observation 1 — explicit-retrigger path (PR #190).** First claude run fired on `ready_for_review` over a tree with one real (bugbot-found) finding → claude went **SILENT** (run `completed`, posted nothing — the expected #1087 / short-circuit behavior). The finding was fixed, pushed, and claude was **explicitly retriggered via `claude_retrigger.sh`** (`@claude review` / `claude.yml`). On the clean post-fix tree it posted a **positive whole-review clean summary** — `find_claude_comments.sh` read `CLAUDE_SUMMARY_ID=… CLEAN=true FINDINGS=false`, loop terminated structurally **CLEAN** off claude.
-- **Observation 2 — push / auto-run path (PR #192).** On the *first* claude review of a clean tree (the PR-open auto-run on `claude-code-review.yml`, **no retrigger**), claude **again posted a positive clean summary** → `CLEAN=true FINDINGS=false`, structurally CLEAN. This is the path §158 said short-circuits to SILENT on clean — and here it did not.
-- **What this changes.** The **push-vs-retrigger asymmetry hypothesis is WEAKENED** — claude posted a positive clean verdict on *both* paths within the same day. The §158 "clean run → SILENT (still)" + §Net-capability "never posts a positive clean verdict" claims are at minimum **no longer reliably true**; the most likely explanation is **upstream improvement to the action's clean-path posting** (a `code-review`-plugin or `claude-code-action` update between the §158 calibration and 2026-06-08), not a path-specific quirk. Still possible: SILENT-on-clean recurs intermittently (the #1087 buffer-drop is an *open* upstream bug), so this is "clean verdicts now usually post" — NOT "SILENT-on-clean is impossible."
+- **Observation 2 — push / auto-run path (PR #192).** On the *first* claude review of a clean tree (the PR-open auto-run on `claude-code-review.yml`, **no retrigger**), claude **again posted a positive clean summary** → `CLEAN=true FINDINGS=false`, structurally CLEAN. This is the path § findings-bearing + clean runs said short-circuits to SILENT on clean — and here it did not.
+- **What this changes.** The **push-vs-retrigger asymmetry hypothesis is WEAKENED** — claude posted a positive clean verdict on *both* paths within the same day. The § findings-bearing + clean runs "clean run → SILENT (still)" + § Net engine capability "never posts a positive clean verdict" claims are at minimum **no longer reliably true**; the most likely explanation is **upstream improvement to the action's clean-path posting** (a `code-review`-plugin or `claude-code-action` update between the § findings-bearing + clean runs calibration and 2026-06-08), not a path-specific quirk. Still possible: SILENT-on-clean recurs intermittently (the #1087 buffer-drop is an *open* upstream bug), so this is "clean verdicts now usually post" — NOT "SILENT-on-clean is impossible."
 - **Loop consequence (unchanged for safety).** Detection is structural (clean = DONE + posted clean summary + zero finding markers), so a posted clean verdict reads CLEAN correctly and any residual SILENT run still reads NOT-clean. The adapter needs no change to be *safe*. What changes is *reliance*: claude **can now usually be a CLEAN source** (both paths observed). Treat a clean claude verdict as a real signal; but because SILENT-on-clean can still recur (open #1087), do **not** hard-depend on claude being the *sole* clean gate — keep a second engine (bugbot) when a definitive clean matters. Promote further (drop the "usually") only if SILENT-on-clean goes unseen across a longer run of clean PRs.
 
 ## § calibration update — clean summary CAN coexist with inline-only findings; progress comments are not verdicts (downstream, 2026-06-11)
 
 Two adapter blind spots observed in one loop run on a downstream project, both in the *summary-trusting* direction (the dangerous one):
 
-- **A clean-prose summary does NOT imply zero findings.** One run posted **3 inline finding comments** (each as its **own separate review object**, seconds apart) and then, ~10s later, a summary whose prose read clean → the adapter emitted `CLEAN=true FINDINGS=false` while 3 active inline findings sat on the head SHA. This is the **inverse** of the §164 calibration (findings only-in-summary-body): findings can also be **only-inline with a clean-reading summary**. Consequence for orchestrators and the adapter: **never derive the findings count from the summary body** — enumerate `/pulls/<n>/comments` for the head SHA's review ids independently, every cycle, and require zero active inline findings *in addition to* a clean summary. (The structural-clean rule in the core skill already demands this; the trap is an adapter summary line that *looks* like it did the enumeration.)
+- **A clean-prose summary does NOT imply zero findings.** One run posted **3 inline finding comments** (each as its **own separate review object**, seconds apart) and then, ~10s later, a summary whose prose read clean → the adapter emitted `CLEAN=true FINDINGS=false` while 3 active inline findings sat on the head SHA. This is the **inverse** of the § findings live in the SUMMARY BODY calibration (findings only-in-summary-body): findings can also be **only-inline with a clean-reading summary**. Consequence for orchestrators and the adapter: **never derive the findings count from the summary body** — enumerate `/pulls/<n>/comments` for the head SHA's review ids independently, every cycle, and require zero active inline findings *in addition to* a clean summary. (The structural-clean rule in the core skill already demands this; the trap is an adapter summary line that *looks* like it did the enumeration.)
 - **In-flight progress comments match the verdict signature.** The action edits a `## Code review` issue comment *while working* — task checklist with unchecked `- [ ]` items ("Post findings" unchecked) + a "View job run" link. On the explicit-retrigger path this progress comment exists **while the prior push's check-run reads `completed`** (the retrigger run is a *different* workflow run, often under `claude.yml`, not the `claude-code-review.yml` check-run the adapter watches), so the adapter read it as a findings-bearing verdict (`CLEAN=false FINDINGS=true`) mid-run. Markers for not-a-verdict: unchecked checklist items, absence of any findings/clean section, "Claude finished" header missing. Treat such a body as RUNNING regardless of any check-run state the adapter resolved.
 - **Q1 (below) is now answered**: inline findings do **not** share one `pull_request_review_id` — each inline comment posted as its own single-comment review. The comment-id staleness anchor (§ Staleness) handles this correctly; review-id-based grouping would have read "3 reviews" as 3 separate passes.
 
 ## § residual open questions (post-downstream calibration)
 
-The §131 + §140 downstream blocks supersede the PR #167 first-run calibration — identity (`github-actions[bot]` → **`claude[bot]`**), the dead "zero-inline-only, no summary" posting model, and `CLAUDE_BODY_SIGNATURES` wording are all now confirmed. Two items survive it:
+The two 2026-06-03 downstream blocks (§ findings-bearing + clean runs, § findings live in the SUMMARY BODY) supersede the PR #167 first-run calibration — identity (`github-actions[bot]` → **`claude[bot]`**), the dead "zero-inline-only, no summary" posting model, and `CLAUDE_BODY_SIGNATURES` wording are all now confirmed. Two items survive it:
 
 - **Never calibrate "clean" off a read-only (`pull-requests: read`) run.** The PR #167 run read clean only because it had nothing to flag; read-only silently **cannot post**, so a *findings-bearing* read-only run would fail to post → false CLEAN. Fix is `pull-requests: write` + `issues: write` (§ Identity + onboarding reference).
 - **Still open:** **Q2** — the `claude_retrigger.sh` `@claude review once` fallback is now exercised (2026-06-11 downstream: the comment trigger fired a fresh review that posted a full verdict) — confirmed working. **Q1** — ANSWERED 2026-06-11 (see the calibration block above): inline findings post as separate single-comment reviews, no shared review id; the comment-id anchor keys correctly either way.
 
 ## § calibration update — dual substantive verdicts on one SHA; the skip-no-op is install-dependent (second downstream, 2026-06-11)
 
-A second downstream project falsified the §48 "subsequent pushes auto-skip" model on its install, and the failure it produced is the most dangerous shape yet observed — a **false CLEAN hand-back**:
+A second downstream project falsified § A7's "subsequent pushes auto-skip" model on its install, and the failure it produced is the most dangerous shape yet observed — a **false CLEAN hand-back**:
 
 - **The auto-run does NOT reliably skip.** On this install, every push's `synchronize` auto-run produced a **full substantive review** even after claude had reviewed the PR multiple times. With Phase 3's explicit retrigger also firing, each fix push yielded **two complete, independent reviews of the same head SHA**.
 - **Two substantive verdicts on one SHA can DISAGREE.** Observed concretely: the push auto-run posted a findings-bearing review (multiple real correctness findings), then the explicit-retrigger run posted `No issues found` on the **same commit** minutes later. Engine nondeterminism — same diff, opposite verdicts. The newest-summary-wins dedup picked the clean one, the loop reported CLEAN, and the findings were only caught because the human read the PR thread.
@@ -353,7 +362,7 @@ A second downstream project falsified the §48 "subsequent pushes auto-skip" mod
 
 ## § calibration update — the @-mention TASK SHAPE is a full verdict surface the summary signature missed (mind-vault PR #221 self-dogfood, 2026-07-15)
 
-The §49 note that the explicit retrigger "posts in the @-mention / task format" undersold the consequence: on mind-vault's own install, that shape was **invisible to the adapter for 4 consecutive cycles** while it carried the PR's only outstanding blocking finding.
+§ A7's note that the explicit retrigger "posts in the @-mention / task format" undersold the consequence: on mind-vault's own install, that shape was **invisible to the adapter for 4 consecutive cycles** while it carried the PR's only outstanding blocking finding.
 
 - **The dual-stream reality.** A retriggered cycle produces TWO parallel claude streams: the push's `claude-code-review.yml` auto-run posts (or skip-no-ops) the `## Code review` summary shape, while the explicit `@claude review` comment is answered by **`claude.yml`** (the @-mention handler) in the **task shape** — `**Claude finished @<user>'s task in <t>**` header, a *model-generated* heading below it (`### Review complete` observed; `### Code Review` seen elsewhere), findings in the body, posted as `claude[bot]`.
 - **The leak.** The summary filter is BOTH-AND (login AND `CLAUDE_BODY_SIGNATURES`). The task-shape body contained no "code review" phrase, so it failed the signature → excluded from the summary anchor AND from the Pass 2b head-SHA verdict enumeration. Observed sequence on PR #221: cycles 1–2 the coexisting auto-run summary said "No issues found" → judge read CLEAN while the task shape flagged a real `A && B || C` bug; cycles 3–4 no summary posted at all → `CLAUDE_HEAD_VERDICTS=0` → UNPROVEN → the loop declared claude SILENT and handed back. The finding was flagged four times and surfaced zero times; a human caught it in the PR thread.
@@ -363,11 +372,11 @@ The §49 note that the explicit retrigger "posts in the @-mention / task format"
 
 ## § calibration update — a SECOND refusal shape ("already left multiple review comments"), and the question-shaped mention that gets past it (downstream, 2026-08-10)
 
-§43/§48 document the `code-review` plugin's `Skipping review — Claude has already posted a code review comment` no-op and state that an explicit `@claude review` **overrides the skip**. A downstream install produced a **different, harder refusal**, and the documented override was not what broke it.
+§ A7 documents the `code-review` plugin's `Skipping review — Claude has already posted a code review comment` no-op and state that an explicit `@claude review` **overrides the skip**. A downstream install produced a **different, harder refusal**, and the documented override was not what broke it.
 
 - **The shape.** The summary body read: `## Code review` / *"No new review performed — claude[bot] has already left multiple review comments on this PR (most recently on <date>). Please address those existing findings before requesting another review."* This is a **refusal with a reason**, not the terse skip no-op — different wording, so a `CLAUDE_NOOP_PATTERNS` list keyed only on `Skipping review` will classify it as a substantive verdict. It is not one: it contains no findings and no clean judgement.
 - **It survived the push auto-run.** Four consecutive `pull_request` runs across four different head SHAs all completed `success` while the *same* refusal comment (one fixed comment id, unchanged timestamp) remained the newest summary. `CLAUDE_HEAD_VERDICTS=0` throughout. This is the §Review-state case where **a green check carries strictly zero review information** — the Actions conclusion tracked the workflow running, not a review happening.
-- **The refusal is sticky across SHAs.** It keyed off "has already commented on this PR", not on the diff, so pushing fixes could not clear it. Retriggering per §53 is the documented answer, but on this install the *review-shaped* mention is what the plugin was refusing.
+- **The refusal is sticky across SHAs.** It keyed off "has already commented on this PR", not on the diff, so pushing fixes could not clear it. Retriggering per § A7 is the documented answer, but on this install the *review-shaped* mention is what the plugin was refusing.
 - **What worked: a question-shaped mention that never says "review".** A plain `@claude` comment that (a) **names the specific files** changed since the last pass, (b) asks **numbered, concrete questions** about them, and (c) **avoids the word "review"** was answered by `claude.yml` in the task shape (§ the @-mention TASK SHAPE) with a full substantive pass — three times in a row, each returning a real, distinct, actionable finding. The phrasing matters: the refusal appears to trigger on being asked for *a review*; being asked *a question about named files* is a different request.
 - **Adapter/orchestrator rules this implies:**
   - Add refusal wording to the no-op set **by intent, not by exact string** — a summary that declines to review and contains neither findings nor a clean judgement is a no-op regardless of how it phrases it. `no new review performed` and `already left multiple review comments` are the observed second variant; expect more.
@@ -400,7 +409,7 @@ orchestrator treating each push as a coin flip. Within a single install it is no
   cost to budget**, not an exception path. A loop that treats it as exceptional spends a full Phase-4
   wait per cycle rediscovering that the green check is empty. (Whether the retrigger can safely fire
   immediately on push — skipping the wait for a run known to be useless — is **untested**; it would
-  double-run against §57's friction case, so the measured-safe order stays: wait for DONE, observe zero
+  double-run against § A7's double-run-friction case, so the measured-safe order stays: wait for DONE, observe zero
   verdicts, then retrigger.)
 - **The fail-closed gate is load-bearing here, not a backstop.** `CLAUDE_VERDICT_SET_PROVEN=false` fired
   on **every one** of those six cycles. On a skip-install it is the primary mechanism standing between a
