@@ -2,6 +2,30 @@
 
 Adapter specification for the Claude review engine. The orchestrator at [`SKILL.md`](../SKILL.md) drives this engine via the tool surface; the reference surface (this file) documents quirks the agent needs when triaging findings.
 
+## § Citing a section of this file
+
+Cite by a **greppable named anchor** — a phrase that is a literal substring of exactly one
+heading (`§ dual substantive verdicts`, `§ slow-not-hung`, `§ A7`). Never by line number.
+
+The economics decide it. A grep costs CPU; a wrong line number costs an agent a read of the
+wrong content plus the hunt that follows, which is the expensive resource. And the failure is
+silent either way: `§158` still *looks* like a working reference after the line it named has
+moved. Two measurements from this file:
+
+- Merging two branches that had each appended a calibration section moved **six** citations onto
+  unrelated lines. Nothing errored; a hand-check caught it.
+- `§131 + §140` was **wrong when it was written** — the two blocks it named were at 139 and 148
+  in that very commit. A line number is stale from the moment the author stops counting.
+
+All numeric citations here have been converted, each resolved against the file as it stood in
+the commit that introduced it (`git log -S'§NNN'`, then read that revision) rather than guessed.
+`tests/test_reference_anchors.sh` fails on any new `§NNN`, so the class cannot come back quietly.
+
+**Writing one:** pick the distinctive words of the target heading and check
+`grep -rn '<phrase>' skills/review-loop/references/` returns the heading plus your citation. If
+it returns nothing, the anchor is dangling — `§Net-capability` sat dangling here for months
+because the file only ever said "Net engine capability".
+
 ## ⚠️ READ THIS FIRST — the action + `code-review` plugin is NOT the managed Claude Code Review App
 
 This engine drives `anthropics/claude-code-action@v1` running the **`code-review` plugin** via a self-hosted `.github/workflows/claude-code-review.yml` workflow (OAuth/subscription-billed). It is **NOT** Anthropic's managed *Claude Code Review* GitHub App.
@@ -210,6 +234,76 @@ claude exposes its review-state as `CLAUDE_CHECKRUN ... STATUS=<status>` **synth
 
 > **⚠️ IDEA-022 supersession (regex mechanism → judge input).** The calibration blocks below were written to tune the **regex classifier** (`CLAUDE_CLEAN_PATTERNS` / `CLAUDE_FINDING_MARKERS` / `is_clean`), which IDEA-022 **removed** — the clean/blocking/non-blocking decision is now the **§ Verdict judge** (a model reading the prose). The *classification mechanism* these blocks describe is gone. Their *behavioral observations* — findings often live only in the summary BODY; clean is whole-review not substring; two substantive verdicts on one SHA can disagree; no-op/skip bodies aren't verdicts; clean now usually posts on both paths — are **exactly the material the judge reasons over**, so they remain load-bearing as judge input. Read them as "what claude's prose looks like in the wild," not "what regex to match."
 
+## § calibration update — the RUN-STATE query cannot see a retriggered review, and reports the skip as DONE (downstream, 2026-08-25)
+
+🔴 **The adapter reported `STATUS=completed CONCLUSION=success` while the review was still running.**
+Acting on that marks a PR reviewed that nobody reviewed — the failure the whole gate exists to
+prevent, reproduced one layer up in the gate itself.
+
+`CLAUDE_CHECKRUN` is synthesized from runs of **one** workflow file, filtered to the PR head SHA. A
+retrigger satisfies **neither** condition, for two independent reasons:
+
+| | workflow file | event | `head_sha` it reports |
+|---|---|---|---|
+| push auto-run | `claude-code-review.yml` | `pull_request` | the PR head ✅ |
+| retrigger (`@claude review once`) | **`claude.yml`** | `issue_comment` | **the default-branch tip**, `head_branch=main` |
+
+So the retrigger's run is invisible twice over — and **fixing only the workflow-file list would not
+have fixed it**, because head-SHA filtering drops it anyway. Meanwhile the run the query *can* see
+is the auto-run, which skip-no-ops in ~1 s with `success` once a review exists on the PR. Green, and
+nothing reviewed.
+
+⚠️ **The adapter's own header asserted these two "collapse to one authoritative signal" via
+latest-`run_started_at`.** That claim *was* the bug, written down as a design note — the dedup
+silently assumes a single workflow. When a comment explains why something is safe, check whether the
+explanation is load-bearing before trusting it.
+
+**The fix — stop guessing at workflows and SHAs; use the link the platform already provides.** Every
+claude comment carries `[View job run](.../actions/runs/<id>)`: GitHub's own comment→run
+correlation, authoritative and independent of file name and event type. Harvest those ids from
+claude-authored comment bodies and fold each run's status in under the aggregation rule the adapter
+already used — **any non-completed run holds the engine RUNNING**. Properties that make it safe in
+both directions, and which a careless reimplementation loses:
+
+- Stale ids from earlier SHAs are `completed`, so folding them is a no-op.
+- A run that cannot be read (404, no `actions: read`) is **UNKNOWN, which counts as not-completed** —
+  degrade to RUNNING, never to a false DONE.
+- Cap the number of ids so a long thread cannot fan out into unbounded API calls.
+- Emit `LINKED_RUNS` / `LINKED_INCOMPLETE` / `LINKED_HOLDING=<ids>` so *"nothing linked"* and
+  *"everything linked finished"* are distinguishable instead of both reading as silence.
+
+## § calibration update — the verdict comment has THREE body stages, and only the third is a verdict (downstream, 2026-08-25)
+
+The bot edits **one comment id** in place through three distinct bodies:
+
+1. `Claude Code is working… / I'll analyze this and get back to you.` — short, and carries **no
+   checkboxes at all**
+2. a `- [ ]` todo list
+3. `**Claude finished @user's task in <t>**` + the answer
+
+🔴 **A watcher gated on *"no unchecked `- [ ]` boxes"* returns SETTLED in ~17 s, on stage 1.** The
+absence of an in-flight marker is not the presence of a verdict. This file already records the
+mirror-image failure — gating on the `Claude Code is working` string reported settled on a todo list
+still in flight — so both single-signal gates have now been measured failing, in opposite directions.
+
+**Gate on the POSITIVE marker, and require all three:** body matches `claude finished`, **and** no
+`- [ ]` remains, **and** the run id parsed from the comment's own `[View job run](...)` link reports
+`completed`. Each condition alone admits a different stage. `created_at` never moves across the three,
+so a watcher keyed on comment count or creation time sees nothing happen at all.
+
+## § calibration update — a PR opened in an EARLIER SESSION may already carry an unread review (downstream, 2026-08-25)
+
+Reported a PR as "open, awaiting merge" across a session boundary. It had been reviewed **four hours
+earlier**, with three real findings — one wrong unit, one ordering violation, and a count contradicted
+by a table four lines below it — none of which had been read. The loop discipline was being applied
+carefully to the PR opened *this* session while the older one was described from memory of having
+opened it.
+
+**Enumerate verdicts on every PR you report the status of, not only the one you are actively
+iterating on.** "I opened it and nothing has happened since" is an assumption about elapsed time, and
+review is exactly the thing that happens while you are not looking. Cheap control: before saying a PR
+is ready, list its comment ids and count them.
+
 ## § calibration update — findings-bearing + clean runs (downstream non-draft, 2026-06-03)
 
 Two runs on the SAME commit, non-draft, settled the open questions:
@@ -233,31 +327,31 @@ This does **not** change the findings-side capability: claude posts findings rel
 
 ## § COUNTER-OBSERVATION — clean trees DO post a positive clean verdict, on BOTH paths (PR #190 + #192, 2026-06-08)
 
-Two independent, reproducible data points **against** the "clean always reads SILENT" claim above — now confirmed on **both** trigger paths, so the §158 SILENT-on-clean behavior is no longer the whole story:
+Two independent, reproducible data points **against** the "clean always reads SILENT" claim above — now confirmed on **both** trigger paths, so the § findings-bearing + clean runs SILENT-on-clean behavior is no longer the whole story:
 
 - **Observation 1 — explicit-retrigger path (PR #190).** First claude run fired on `ready_for_review` over a tree with one real (bugbot-found) finding → claude went **SILENT** (run `completed`, posted nothing — the expected #1087 / short-circuit behavior). The finding was fixed, pushed, and claude was **explicitly retriggered via `claude_retrigger.sh`** (`@claude review` / `claude.yml`). On the clean post-fix tree it posted a **positive whole-review clean summary** — `find_claude_comments.sh` read `CLAUDE_SUMMARY_ID=… CLEAN=true FINDINGS=false`, loop terminated structurally **CLEAN** off claude.
-- **Observation 2 — push / auto-run path (PR #192).** On the *first* claude review of a clean tree (the PR-open auto-run on `claude-code-review.yml`, **no retrigger**), claude **again posted a positive clean summary** → `CLEAN=true FINDINGS=false`, structurally CLEAN. This is the path §158 said short-circuits to SILENT on clean — and here it did not.
-- **What this changes.** The **push-vs-retrigger asymmetry hypothesis is WEAKENED** — claude posted a positive clean verdict on *both* paths within the same day. The §158 "clean run → SILENT (still)" + §Net-capability "never posts a positive clean verdict" claims are at minimum **no longer reliably true**; the most likely explanation is **upstream improvement to the action's clean-path posting** (a `code-review`-plugin or `claude-code-action` update between the §158 calibration and 2026-06-08), not a path-specific quirk. Still possible: SILENT-on-clean recurs intermittently (the #1087 buffer-drop is an *open* upstream bug), so this is "clean verdicts now usually post" — NOT "SILENT-on-clean is impossible."
+- **Observation 2 — push / auto-run path (PR #192).** On the *first* claude review of a clean tree (the PR-open auto-run on `claude-code-review.yml`, **no retrigger**), claude **again posted a positive clean summary** → `CLEAN=true FINDINGS=false`, structurally CLEAN. This is the path § findings-bearing + clean runs said short-circuits to SILENT on clean — and here it did not.
+- **What this changes.** The **push-vs-retrigger asymmetry hypothesis is WEAKENED** — claude posted a positive clean verdict on *both* paths within the same day. The § findings-bearing + clean runs "clean run → SILENT (still)" + § Net engine capability "never posts a positive clean verdict" claims are at minimum **no longer reliably true**; the most likely explanation is **upstream improvement to the action's clean-path posting** (a `code-review`-plugin or `claude-code-action` update between the § findings-bearing + clean runs calibration and 2026-06-08), not a path-specific quirk. Still possible: SILENT-on-clean recurs intermittently (the #1087 buffer-drop is an *open* upstream bug), so this is "clean verdicts now usually post" — NOT "SILENT-on-clean is impossible."
 - **Loop consequence (unchanged for safety).** Detection is structural (clean = DONE + posted clean summary + zero finding markers), so a posted clean verdict reads CLEAN correctly and any residual SILENT run still reads NOT-clean. The adapter needs no change to be *safe*. What changes is *reliance*: claude **can now usually be a CLEAN source** (both paths observed). Treat a clean claude verdict as a real signal; but because SILENT-on-clean can still recur (open #1087), do **not** hard-depend on claude being the *sole* clean gate — keep a second engine (bugbot) when a definitive clean matters. Promote further (drop the "usually") only if SILENT-on-clean goes unseen across a longer run of clean PRs.
 
 ## § calibration update — clean summary CAN coexist with inline-only findings; progress comments are not verdicts (downstream, 2026-06-11)
 
 Two adapter blind spots observed in one loop run on a downstream project, both in the *summary-trusting* direction (the dangerous one):
 
-- **A clean-prose summary does NOT imply zero findings.** One run posted **3 inline finding comments** (each as its **own separate review object**, seconds apart) and then, ~10s later, a summary whose prose read clean → the adapter emitted `CLEAN=true FINDINGS=false` while 3 active inline findings sat on the head SHA. This is the **inverse** of the §164 calibration (findings only-in-summary-body): findings can also be **only-inline with a clean-reading summary**. Consequence for orchestrators and the adapter: **never derive the findings count from the summary body** — enumerate `/pulls/<n>/comments` for the head SHA's review ids independently, every cycle, and require zero active inline findings *in addition to* a clean summary. (The structural-clean rule in the core skill already demands this; the trap is an adapter summary line that *looks* like it did the enumeration.)
+- **A clean-prose summary does NOT imply zero findings.** One run posted **3 inline finding comments** (each as its **own separate review object**, seconds apart) and then, ~10s later, a summary whose prose read clean → the adapter emitted `CLEAN=true FINDINGS=false` while 3 active inline findings sat on the head SHA. This is the **inverse** of the § findings live in the SUMMARY BODY calibration (findings only-in-summary-body): findings can also be **only-inline with a clean-reading summary**. Consequence for orchestrators and the adapter: **never derive the findings count from the summary body** — enumerate `/pulls/<n>/comments` for the head SHA's review ids independently, every cycle, and require zero active inline findings *in addition to* a clean summary. (The structural-clean rule in the core skill already demands this; the trap is an adapter summary line that *looks* like it did the enumeration.)
 - **In-flight progress comments match the verdict signature.** The action edits a `## Code review` issue comment *while working* — task checklist with unchecked `- [ ]` items ("Post findings" unchecked) + a "View job run" link. On the explicit-retrigger path this progress comment exists **while the prior push's check-run reads `completed`** (the retrigger run is a *different* workflow run, often under `claude.yml`, not the `claude-code-review.yml` check-run the adapter watches), so the adapter read it as a findings-bearing verdict (`CLEAN=false FINDINGS=true`) mid-run. Markers for not-a-verdict: unchecked checklist items, absence of any findings/clean section, "Claude finished" header missing. Treat such a body as RUNNING regardless of any check-run state the adapter resolved.
 - **Q1 (below) is now answered**: inline findings do **not** share one `pull_request_review_id` — each inline comment posted as its own single-comment review. The comment-id staleness anchor (§ Staleness) handles this correctly; review-id-based grouping would have read "3 reviews" as 3 separate passes.
 
 ## § residual open questions (post-downstream calibration)
 
-The §131 + §140 downstream blocks supersede the PR #167 first-run calibration — identity (`github-actions[bot]` → **`claude[bot]`**), the dead "zero-inline-only, no summary" posting model, and `CLAUDE_BODY_SIGNATURES` wording are all now confirmed. Two items survive it:
+The two 2026-06-03 downstream blocks (§ findings-bearing + clean runs, § findings live in the SUMMARY BODY) supersede the PR #167 first-run calibration — identity (`github-actions[bot]` → **`claude[bot]`**), the dead "zero-inline-only, no summary" posting model, and `CLAUDE_BODY_SIGNATURES` wording are all now confirmed. Two items survive it:
 
 - **Never calibrate "clean" off a read-only (`pull-requests: read`) run.** The PR #167 run read clean only because it had nothing to flag; read-only silently **cannot post**, so a *findings-bearing* read-only run would fail to post → false CLEAN. Fix is `pull-requests: write` + `issues: write` (§ Identity + onboarding reference).
 - **Still open:** **Q2** — the `claude_retrigger.sh` `@claude review once` fallback is now exercised (2026-06-11 downstream: the comment trigger fired a fresh review that posted a full verdict) — confirmed working. **Q1** — ANSWERED 2026-06-11 (see the calibration block above): inline findings post as separate single-comment reviews, no shared review id; the comment-id anchor keys correctly either way.
 
 ## § calibration update — dual substantive verdicts on one SHA; the skip-no-op is install-dependent (second downstream, 2026-06-11)
 
-A second downstream project falsified the §48 "subsequent pushes auto-skip" model on its install, and the failure it produced is the most dangerous shape yet observed — a **false CLEAN hand-back**:
+A second downstream project falsified § A7's "subsequent pushes auto-skip" model on its install, and the failure it produced is the most dangerous shape yet observed — a **false CLEAN hand-back**:
 
 - **The auto-run does NOT reliably skip.** On this install, every push's `synchronize` auto-run produced a **full substantive review** even after claude had reviewed the PR multiple times. With Phase 3's explicit retrigger also firing, each fix push yielded **two complete, independent reviews of the same head SHA**.
 - **Two substantive verdicts on one SHA can DISAGREE.** Observed concretely: the push auto-run posted a findings-bearing review (multiple real correctness findings), then the explicit-retrigger run posted `No issues found` on the **same commit** minutes later. Engine nondeterminism — same diff, opposite verdicts. The newest-summary-wins dedup picked the clean one, the loop reported CLEAN, and the findings were only caught because the human read the PR thread.
@@ -268,7 +362,7 @@ A second downstream project falsified the §48 "subsequent pushes auto-skip" mod
 
 ## § calibration update — the @-mention TASK SHAPE is a full verdict surface the summary signature missed (mind-vault PR #221 self-dogfood, 2026-07-15)
 
-The §49 note that the explicit retrigger "posts in the @-mention / task format" undersold the consequence: on mind-vault's own install, that shape was **invisible to the adapter for 4 consecutive cycles** while it carried the PR's only outstanding blocking finding.
+§ A7's note that the explicit retrigger "posts in the @-mention / task format" undersold the consequence: on mind-vault's own install, that shape was **invisible to the adapter for 4 consecutive cycles** while it carried the PR's only outstanding blocking finding.
 
 - **The dual-stream reality.** A retriggered cycle produces TWO parallel claude streams: the push's `claude-code-review.yml` auto-run posts (or skip-no-ops) the `## Code review` summary shape, while the explicit `@claude review` comment is answered by **`claude.yml`** (the @-mention handler) in the **task shape** — `**Claude finished @<user>'s task in <t>**` header, a *model-generated* heading below it (`### Review complete` observed; `### Code Review` seen elsewhere), findings in the body, posted as `claude[bot]`.
 - **The leak.** The summary filter is BOTH-AND (login AND `CLAUDE_BODY_SIGNATURES`). The task-shape body contained no "code review" phrase, so it failed the signature → excluded from the summary anchor AND from the Pass 2b head-SHA verdict enumeration. Observed sequence on PR #221: cycles 1–2 the coexisting auto-run summary said "No issues found" → judge read CLEAN while the task shape flagged a real `A && B || C` bug; cycles 3–4 no summary posted at all → `CLAUDE_HEAD_VERDICTS=0` → UNPROVEN → the loop declared claude SILENT and handed back. The finding was flagged four times and surfaced zero times; a human caught it in the PR thread.
@@ -278,11 +372,11 @@ The §49 note that the explicit retrigger "posts in the @-mention / task format"
 
 ## § calibration update — a SECOND refusal shape ("already left multiple review comments"), and the question-shaped mention that gets past it (downstream, 2026-08-10)
 
-§43/§48 document the `code-review` plugin's `Skipping review — Claude has already posted a code review comment` no-op and state that an explicit `@claude review` **overrides the skip**. A downstream install produced a **different, harder refusal**, and the documented override was not what broke it.
+§ A7 documents the `code-review` plugin's `Skipping review — Claude has already posted a code review comment` no-op and states that an explicit `@claude review` **overrides the skip**. A downstream install produced a **different, harder refusal**, and the documented override was not what broke it.
 
 - **The shape.** The summary body read: `## Code review` / *"No new review performed — claude[bot] has already left multiple review comments on this PR (most recently on <date>). Please address those existing findings before requesting another review."* This is a **refusal with a reason**, not the terse skip no-op — different wording, so a `CLAUDE_NOOP_PATTERNS` list keyed only on `Skipping review` will classify it as a substantive verdict. It is not one: it contains no findings and no clean judgement.
 - **It survived the push auto-run.** Four consecutive `pull_request` runs across four different head SHAs all completed `success` while the *same* refusal comment (one fixed comment id, unchanged timestamp) remained the newest summary. `CLAUDE_HEAD_VERDICTS=0` throughout. This is the §Review-state case where **a green check carries strictly zero review information** — the Actions conclusion tracked the workflow running, not a review happening.
-- **The refusal is sticky across SHAs.** It keyed off "has already commented on this PR", not on the diff, so pushing fixes could not clear it. Retriggering per §53 is the documented answer, but on this install the *review-shaped* mention is what the plugin was refusing.
+- **The refusal is sticky across SHAs.** It keyed off "has already commented on this PR", not on the diff, so pushing fixes could not clear it. Retriggering per § A7 is the documented answer, but on this install the *review-shaped* mention is what the plugin was refusing.
 - **What worked: a question-shaped mention that never says "review".** A plain `@claude` comment that (a) **names the specific files** changed since the last pass, (b) asks **numbered, concrete questions** about them, and (c) **avoids the word "review"** was answered by `claude.yml` in the task shape (§ the @-mention TASK SHAPE) with a full substantive pass — three times in a row, each returning a real, distinct, actionable finding. The phrasing matters: the refusal appears to trigger on being asked for *a review*; being asked *a question about named files* is a different request.
 - **Adapter/orchestrator rules this implies:**
   - Add refusal wording to the no-op set **by intent, not by exact string** — a summary that declines to review and contains neither findings nor a clean judgement is a no-op regardless of how it phrases it. `no new review performed` and `already left multiple review comments` are the observed second variant; expect more.
@@ -292,29 +386,67 @@ The §49 note that the explicit retrigger "posts in the @-mention / task format"
 
 ## § calibration update — skip-vs-no-skip is install-STABLE: measure it once, then budget for it (mind-vault self-install, 2026-08-21)
 
-§258 established that the skip-no-op is install-dependent and left *why* unresolved, which leaves an
+> **Qualified by § install-stability has a counterexample (same day, third downstream): one install showed all three behaviors on a
+> single PR within hours.** Read that section before treating a probe result as durable — the
+> stability below held across four PRs *on this install*, which makes it a prior, not a guarantee.
+
+§ dual substantive verdicts established that the skip-no-op is install-dependent and left *why* unresolved, which leaves an
 orchestrator treating each push as a coin flip. Within a single install it is not variable at all.
 
 - **The measurement.** Four consecutive mind-vault PRs (#236 across two head SHAs, #237, #238) — every
   post-first-review push `synchronize` auto-run completed `success` with `CLAUDE_HEAD_VERDICTS=0`. Six
   of six. No push after a PR's first review has ever produced a verdict on this install.
 - **The reframe.** Skip-vs-no-skip is a property **of the install**, determinable in one observation and
-  stable thereafter — not per-push nondeterminism. §258's install still never skips; this one always
+  stable thereafter — not per-push nondeterminism. That section's install still never skips; this one always
   does. Both are consistent *with themselves*, which is the useful part: you can plan around your own.
 - **Determine your install's class cheaply.** On the first PR after any workflow or plugin-version
   change, push a trivial commit *after* the first review has posted and read `CLAUDE_HEAD_VERDICTS` for
   the new SHA. `0` ⇒ skip-install: the explicit retrigger is the only verdict source, every cycle. `≥1`
-  ⇒ non-skip install: §258's dual-verdict masking rule governs, because push + retrigger now yield two
-  substantive verdicts per SHA that can disagree. Re-probe after workflow/plugin changes — §258's
+  ⇒ non-skip install: § dual substantive verdicts's masking rule governs, because push + retrigger now yield two
+  substantive verdicts per SHA that can disagree. Re-probe after workflow/plugin changes — § dual substantive verdicts's
   candidate variables are exactly version and config skew, so the class is not permanent.
 - **Operational consequence on a skip-install.** The Phase-3 explicit retrigger is a **routine per-cycle
   cost to budget**, not an exception path. A loop that treats it as exceptional spends a full Phase-4
   wait per cycle rediscovering that the green check is empty. (Whether the retrigger can safely fire
   immediately on push — skipping the wait for a run known to be useless — is **untested**; it would
-  double-run against §57's friction case, so the measured-safe order stays: wait for DONE, observe zero
+  double-run against § A7's double-run-friction case, so the measured-safe order stays: wait for DONE, observe zero
   verdicts, then retrigger.)
 - **The fail-closed gate is load-bearing here, not a backstop.** `CLAUDE_VERDICT_SET_PROVEN=false` fired
   on **every one** of those six cycles. On a skip-install it is the primary mechanism standing between a
   green `claude-review` check and a false CLEAN — each of those six would have handed back clean under
   an adapter that read the Actions conclusion or the newest stale summary. Anything that weakens the
   gate to reduce "noise" is removing the only thing working on this class of install.
+
+## § calibration update — install-stability has a counterexample; fence your verdict watchers (third downstream, 2026-08-21)
+
+A same-day observation from a *third* downstream install challenges the §above "stable
+thereafter" reframe: **one install exhibited all three behaviors on a single PR within
+hours** — (a) two substantive verdicts on one SHA ~3 minutes apart that DISAGREED (clean
+first, then 3 findings — the § dual substantive verdicts masking case, live), (b) a commented "Skipped — already
+reviewed" no-op on a later push, then (c) a **silent skip**: `claude-review` check
+`completed`/`success` with **no comment posted at all** on a yet-later push. The class
+probe is still worth running, but treat its answer as a prior, not a guarantee — the same
+install can drift between classes within a day (suspected variables: how many reviews
+already exist on the PR, and whether a ready-for-review transition and a push race their
+auto-runs). The plannable invariants are unchanged and carried the whole incident:
+enumerate **every** substantive head-SHA verdict (the clean-first verdict alone would have
+shipped 3 findings); after a fix push, **verdict-or-retrigger** — if no fresh verdict lands
+for the new SHA, fire the explicit retrigger regardless of what the check conclusion says
+(the silent skip's green check is exactly the false-CLEAN shape the fail-closed gate
+exists for).
+
+**Fence your verdict watchers (orchestrator-side).** Two watcher failures in that same
+loop came from polling `comments[-1]` / grepping the finder's tail: the poll matched a
+**stale pre-fix verdict** and reported it as the fix's result — twice. A verdict watcher
+must carry a **timestamp fence**: record `T0` when the fix push (or retrigger) fires and
+accept only material **newer than `T0`** *and* carrying verdict shape (the "finished/Code
+review" body, not the in-progress checklist — whose header text also varies between the
+auto and @-mention paths, so match on completion markers, not on "Review in progress").
+**Newer means `max(created_at, updated_at) > T0`, never `created_at` alone.** The action
+can post a progress comment at run start and **edit it in place** into the final verdict
+— `created_at` then predates the fix while the verdict is genuinely fresh, so a
+created_at-only fence rejects a verdict that did land. That is the mirror failure of the
+stale read this paragraph opens with, and it is the cheaper one: it costs a needless
+retrigger, not a wrong answer. Fence both directions.
+Latest-comment matching without a fence re-reads history as news; § slow-not-hung's re-fetch
+discipline protects against *late* verdicts, the fence protects against *old* ones.

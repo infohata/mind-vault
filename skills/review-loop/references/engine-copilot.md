@@ -21,7 +21,11 @@ Adapter specification for the GitHub Copilot review engine. The orchestrator at 
 
 **Clean is structural** — see § Review-state gate: Copilot's check-run `STATUS=completed` (DONE) AND zero active findings matching `COPILOT_LATEST_REVIEW`. Copilot's review state is always `COMMENTED` (never `APPROVED`), so APPROVED-state matching is not applicable, and `CONCLUSION=success` means "Copilot ran", not "code is clean" — never read a verdict off it.
 
-`find_copilot_comments.sh` may still emit a legacy `COPILOT_CLEAN_SIGNAL` line (body-text "found no new issues" match, or check-run synthesis); the orchestrator does **not** consume it for the verdict. Always count active findings explicitly.
+`find_copilot_comments.sh` may still emit a legacy `COPILOT_CLEAN_SIGNAL` line (body-text match, or check-run synthesis); the orchestrator does **not** consume it for the verdict. Always count active findings explicitly.
+
+**The body template drifts, and body matching fails SILENTLY when it does (mind-vault PR #240, 2026-08-25).** Copilot's review body moved to an emoji-bucket header — `### 🟢 Approval recommended` / `### 🟡 Changes recommended` / `### 🔵 Needs a closer look` — with the count moved into a collapsed `<details>` block as `Comments generated: 0 new`. Neither legacy phrase (`found no new issues`, `generated no new comments`) appears in **any** of them, so body-level clean detection went fully blind and nothing complained: the check-run synthesis quietly took over and kept answering. The matcher now carries all three phrasings, and the drift class is covered by `tests/test_copilot_clean_detection.sh` against captured payloads — the point of the fixtures is that a format change now fails a test instead of silently changing which code path answers.
+
+**Check-run synthesis is gated on there being no review body at all.** The fallback exists for the case where copilot posts a check-run and never posts a review. If a body for the head SHA exists, that body **is** the verdict: a clean one sets the signal itself, so reaching the fallback with a body present means the body was *not* clean and synthesizing over it is a false CLEAN. Before this gate, a green check-run papered over a review carrying two real suppressed findings (same PR). `CONCLUSION=success` still means "Copilot ran".
 
 **Anti-pattern observed during IDEA-005 dogfood (PR #131 cycle 2)**: the agent parroted the script's `COPILOT_CLEAN_SIGNAL` line as a verdict without checking active-findings count. That's exactly why clean is now structural — the finding count is the verdict.
 
@@ -52,7 +56,13 @@ Copilot review latency: ~30 seconds between trigger and the *check-run*, but the
 
 The incident (mind-vault PR #233, 2026-08-14): the loop converged CLEAN over four cycles — copilot's final verdict "generated no new comments" — while a **suppressed** copilot comment held a valid contradiction finding (the prose said "lowercase kebab" for a token whose wired regex allowed `[a-z0-9._-]`). The maintainer found it by expanding the suppressed set in the PR web UI; it entered the loop as a user-relayed finding and shipped as a fifth cycle.
 
-The mechanism: Copilot's confidence filter suppresses some generated comments. Suppressed comments render in the PR UI (collapsed, behind a suppressed-comments indicator) but are absent from every API surface `find_copilot_comments.sh` reads — review bodies on `/pulls/<N>/reviews` and inline comments on `/pulls/<N>/comments`. No REST or GraphQL surface is known to expose them (as of 2026-08). So the adapter *cannot* be extended to fetch them, and a copilot CLEAN certifies only the visible set — one more instance of "a green result certifies only the universe it could reach".
+The mechanism: Copilot's confidence filter suppresses some generated comments. Suppressed comments render in the PR UI collapsed, behind a suppressed-comments indicator, and post **no inline comment** — so the adapter's inline-findings pre-check cannot see them, and neither can a finding count taken over `/pulls/<N>/comments`.
+
+> **PARTLY REVERSED, 2026-08-25 (mind-vault PR #240).** This section used to say suppressed comments were absent from *every* API surface the adapter reads, and that the adapter therefore *could not* be extended to fetch them. That is no longer true. The emoji-bucket body template renders them **inside the review body** on `/pulls/<N>/reviews`, under a `<details>` block as `### Suppressed comments (N)` with each finding's file, line and text. The adapter now reads that: a body carrying a suppressed-comments section is never clean, whatever its header or its `Comments generated: 0 new` count says.
+>
+> **What is still true, and still the reason for the human glance:** presence is detected, but *completeness* is not guaranteed — the count in the body is the count copilot chose to render, and nothing certifies it against what the filter actually held back. A copilot CLEAN still certifies only the set the API surfaced. The hand-back caveat below stays.
+
+One more instance of "a green result certifies only the universe it could reach" — and of a claim that stopped being true without anything failing, which is why it is corrected here in place rather than deleted (see [`RULE_self-sweep-before-push`](../../../rules/RULE_self-sweep-before-push.md) § 5b. Reversal sweep).
 
 What the loop does about it:
 

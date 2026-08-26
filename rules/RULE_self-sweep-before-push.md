@@ -43,6 +43,56 @@ When `make test` reports pre-existing failures unrelated to your change, fix the
 
 When a commit carries substantial doc/markdown changes (IDEA files, ideas index, plan docs, devlogs) — **even alongside code** — sweep the consistency class bots flag one-nit-per-cycle: (1) frontmatter `related`/`depends_on`/`supersedes` ↔ body prose symmetry, every id and every edge; (2) every id in an ordering/recap block has an index-table row; (3) count/range claims match the listed set; (4) domain-terminology precision (e.g. shared-schema vs per-tenant); (5) PR-description ↔ final-diff drift; (6) frontmatter formatting matches repo convention; (7) US-English spelling and metric/SI units in anything newly written, per [`skills/skill-writer/references/LANGUAGE_CONVENTIONS.md`](../skills/skill-writer/references/LANGUAGE_CONVENTIONS.md) — fix drift only in files this change already touches, never released CHANGELOG sections or archived docs. Grep recipes + detail → rationale doc.
 
+### 5a. Anchor sweep — an "insert before X" written as a string replace DELETES X
+
+Editing docs programmatically, `content.replace(ANCHOR, NEW)` inserts before the anchor **only if
+`NEW` ends with `ANCHOR`**. Omit that and the heading is consumed: its body survives, reads as a
+trailing continuation of whatever was inserted, and the document renders perfectly. Nothing errors,
+no link breaks, and the section is gone. Measured — a compound that added a numbered item swallowed
+the `## Stance` heading below it; a review caught it, the sweep had not.
+
+⚠️ It is the mistake most likely to be made by someone being careful, because the anchor is chosen
+precisely for being a stable landmark, i.e. a heading. And it hides in a diff: the removed line sits
+at the top of a large green block.
+
+Mechanical check, cheap enough to run on every doc-heavy commit — compare the heading set, don't
+eyeball the diff:
+
+```bash
+git diff --name-only origin/main...HEAD -- '*.md' | while read -r f; do
+  git show "origin/main:$f" 2>/dev/null | grep '^#' | sort > /tmp/h-before
+  grep '^#' "$f" | sort > /tmp/h-after
+  lost=$(comm -23 /tmp/h-before /tmp/h-after)
+  [ -n "$lost" ] && printf '%s DROPPED:\n%s\n' "$f" "$lost"
+done
+```
+
+A dropped heading is almost never intended; when it is, it shows up here and you confirm it once.
+
+### 5b. Reversal sweep — when a 🔴 becomes ✅, the WIN is what goes unswept
+
+Closing a gap is a correction like any other, but it does not feel like one, so nobody greps for the
+old claim. Measured: a certificate store gained an off-box backup; the documents open at the time
+were corrected and nothing else was. **Four days later two live guides still stated the gap as
+present** — including, under a red heading as the *first named gap*, the page a person reads **while
+the system is broken**. That is the worst possible carrier: it invites someone mid-incident to go
+build a thing that already exists, or to read a solved problem as the cause of the outage.
+
+When a status flips to resolved, grep the **old vocabulary** — the words the gap was described in,
+not the words of the fix — and sweep in this order:
+
+1. **`guides/` and every `.html`** first. These are the read-under-pressure surfaces and the least
+   likely to be open in the editor when the fact changes.
+2. Live reference/index docs.
+3. Standing reminders inside archives — a 🔔 marker is a live imperative wearing an archive's clothes.
+4. Auto-memory: the note recording the win frequently still carries the pre-win claim in its own
+   body. Both halves are in one file and only one of them gets updated.
+
+⛔ **Correct in place with a strikethrough; do not delete.** The reader needs to see that the claim
+changed, and dated archives keep their snapshot. And carry the half that is *still* true — "backed
+up, restore never drilled" is the sentence those guides should have had all along; deleting the
+warning outright would have lost it.
+
 ## Sweep integrity — an `--include` allow-list makes a sweep silently under-report
 
 When a sweep's job is to prove **absence** or **completeness** — "no references remain", "exactly N sites corrected", "nothing else calls this" — do **not** filter by file extension. `grep -rn "PATTERN" --include='*.py' --include='*.md' .` answers *"hits in the files I thought to look at"* and presents that as zero. Config templates (`.env.*.example`), dotfiles, extensionless scripts, CI YAML under an unexpected name, and generated manifests match no source-code glob. Exclude **directories** instead — a false positive from `vendor/` costs a glance; a false negative ships:
