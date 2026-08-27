@@ -49,14 +49,24 @@ Walk the plan's Execution Sequence. For each step, pick the right persona via th
 
 Default matrix (projects can override in their own `AGENTS.md`). The right column is the dispatchable `subagent_type` — pass it to `Agent(subagent_type: …)`, **channel-aware**: the bare `<persona>` below on the symlink channel, **`mv:<persona>`** on the plugin channel (mirror your invocation prefix — see [`references/CHANNEL_AWARE_DISPATCH.md`](references/CHANNEL_AWARE_DISPATCH.md) and [`references/persona-dispatch.md`](references/persona-dispatch.md), which also carries the host-availability inline-fallback). The profile file backing each id is mapped in persona-dispatch.md:
 
-| Plan-item domain                                   | Subagent type                                                        |
-| -------------------------------------------------- | -------------------------------------------------------------------- |
-| Models, views, signals, DRF, Channels, Celery, ORM | `backend`                                                         |
-| Templates, Alpine, HTMX, Bulma, static assets, JS  | `frontend`                                                        |
-| Docker, compose, nginx, systemd, CI/CD, env config | `devops`                                                          |
-| Test authoring, fixture design, coverage gates     | `test-engineer`                                                   |
-| Multi-domain or cross-cutting refactor             | `architect` (as author now, not reviewer — plan already reviewed) |
-| Documentation-only updates (README, CHANGELOG)     | `documentation`                                                   |
+| Plan-item domain (stack-neutral)                            | Subagent type                                                     |
+| ------------------------------------------------------------ | ------------------------------------------------------------------ |
+| Data layer, request/response boundary, background work        | `backend`                                                         |
+| Client surface — markup, client state, styling, assets, JS    | `frontend`                                                        |
+| Docker, compose, nginx, systemd, CI/CD, env config            | `devops`                                                          |
+| Test authoring, fixture design, coverage gates                | `test-engineer`                                                   |
+| Multi-domain or cross-cutting refactor                        | `architect` (as author now, not reviewer — plan already reviewed) |
+| Documentation-only updates (README, CHANGELOG)                | `documentation`                                                   |
+
+**The domain column names the concern, not one stack's vocabulary** — `/work` routes
+Django, Laravel and ExtJS repos through these same six personas, and the personas
+themselves are stack-agnostic (each resolves its mechanics against the active
+backend/frontend skill). A matrix written in one stack's nouns silently fails every
+other stack: an ExtJS plan item matches "templates, Alpine, HTMX" nowhere, and the
+dispatcher hesitates on a row that should be obvious. The per-stack token mapping —
+which framework concepts land in which row — is
+[`references/persona-dispatch.md`](references/persona-dispatch.md) § Domain vocabulary
+per stack, next to the auto-detection that resolves which stack is active.
 
 Pass the persona the **plan path + the specific item index** — never inline the item's prose into the dispatch prompt (per the "pass paths not content to subagents" convention). The persona reads the plan file itself.
 
@@ -239,5 +249,6 @@ This is the canonical landing page for anyone discovering the idea via grep/inde
 - [skills/django/references/I18N_WORKFLOW.md](../django/references/I18N_WORKFLOW.md) — translation-map workflow enforced during execution
 - [references/WATCHER_HYGIENE.md](references/WATCHER_HYGIENE.md) — load when arming `run_in_background` watchers (test runs, log tails, polling); orchestrator-trash-collection discipline + self-match avoidance
 - [references/AUDIT_NEWLY_REACHABLE_CODE.md](references/AUDIT_NEWLY_REACHABLE_CODE.md) — load when the fix being applied REMOVES a short-circuit (empty-state guard, early return, missing call, async resolution, type-gate relaxation); audit newly-reachable downstream code for latent issues before committing
+- [references/LIVE_PILOT_VERIFICATION.md](references/LIVE_PILOT_VERIFICATION.md) — load when verifying a change by driving a deployed UI through the browser extension: never tap a side-effecting action on data you don't own (confirm the code path first), verify styling on the rendered element not the CSS, inject→measure→iterate→port for parity work, capture factory args
 - [references/CROSS_BOX_ISSUE_HANDOFF.md](references/CROSS_BOX_ISSUE_HANDOFF.md) — load when work surfaces a task for an agent on ANOTHER machine/repo: the target repo's GitHub issues are the channel (issue = brief with asks; comments = append-only evidence chain), not chat relay or a docs PR
 - [agents/AGENT_backend.md](../../agents/AGENT_backend.md), [AGENT_frontend.md](../../agents/AGENT_frontend.md), [AGENT_devops.md](../../agents/AGENT_devops.md), [AGENT_test-engineer.md](../../agents/AGENT_test-engineer.md) — implementation personas dispatched by this skill

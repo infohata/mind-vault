@@ -10,6 +10,44 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.1 — the record the class threw away, the formula that never ran, and the tap that sent
+
+Three fixes on one consuming project's dialog, each "shipped" once before it actually worked,
+and one browser-pilot slip — compounded 2026-08-27. The common thread: verify on the rendered
+thing, not on the artifact that should have produced it.
+
+### Added
+
+- `skills/work/references/LIVE_PILOT_VERIFICATION.md` — four rules for verifying a change by
+  driving a deployed UI: never tap a side-effecting action on data you don't own (confirm the
+  code path first — a "preview" tap on a live templated record sent a real email); verify
+  styling on the rendered element, not on the CSS being present; inject → measure → iterate to
+  zero → port for parity work; wrap the factory to capture what a controller actually passes.
+- `skills/extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md` §18–20 — `Ext.Component#applyRecord`
+  nulls any non-Model `record`; a view-model formula with an optional ancestor dependency never
+  runs; desktop `Ext.field.Date` takes its ui from `floatedPicker`, an empty field pre-selects
+  today, and the base theme's selected cell is `$base-color`-on-white.
+
+### Changed
+
+- The `/work` dispatch matrix and the `backend` / `frontend` / `curator` persona
+  descriptions were written in Django's vocabulary while the stack layer had already gone
+  plural (django / laravel / node / extjs resolve in `persona-dispatch.md`, and every
+  persona body resolves its mechanics against the active skill). The matrix row an ExtJS
+  plan item had to match read "Templates, Alpine, HTMX, Bulma", and the frontmatter
+  `description:` that decides persona selection said "Django client-side work" — so the
+  stack-agnostic personas were advertised as single-stack. Rows and descriptions now name
+  the **concern**; the per-stack token mapping moved to `persona-dispatch.md` §
+  "Domain vocabulary per stack", beside the auto-detection that resolves the active stack.
+- `LIVE_PILOT_VERIFICATION.md` rules 2 and 4 stated their originating incident instead of
+  their mechanism, in a framework-agnostic reference — "the field's picker took its ui from
+  a different config key" names no field and no key, and rule 4's "here: the class dropped
+  it" pointed at an incident the file never told. Rule 2 now states the generic failure (a
+  shipped CSS rule still has to MATCH the element, then WIN against every rule that matches
+  it — both DOM facts, so grepping the bundle proves nothing) with an ordered probe; rule 4
+  names the two hypotheses its factory-wrap separates. Framework-specific causes live once,
+  in the ExtJS footguns, cited by greppable label.
+
 ## v5.8.0 — silence read as success: decayed alerts, a green check with no verdict, and the gates that could not tell
 
 Two compound streams landed on the same failure, so they ship as one release. An alert that breaks

@@ -1,7 +1,7 @@
 ---
 name: curator
 description: |
-  Use this agent as a relentless pre-commit / pre-push code reviewer — a local Bugbot/Copilot replacement specialized in Django, PostgreSQL multi-tenancy, and HTMX/Alpine patterns. It reviews a diff and reports findings; it never writes or edits files. It has no Write/Edit tools; `Bash`/`Grep` are granted only to inspect (e.g. `git diff HEAD`), so read-only here is a behavioral constraint, not a tool-enforced sandbox. Reach for it when no external review bot is wired up, or before opening a PR. Examples:
+  Use this agent as a relentless pre-commit / pre-push code reviewer — a local Bugbot/Copilot replacement. Its craft (trace-don't-glance, negative-space parity, zero false positives) is stack-agnostic; the idiom-level checks — data isolation / multi-tenancy, ORM eager-loading, the client-surface contract — resolve against whichever backend/frontend skill the repo resolves to (Django, Laravel, ExtJS). It reviews a diff and reports findings; it never writes or edits files. It has no Write/Edit tools; `Bash`/`Grep` are granted only to inspect (e.g. `git diff HEAD`), so read-only here is a behavioral constraint, not a tool-enforced sandbox. Reach for it when no external review bot is wired up, or before opening a PR. Examples:
 
   <example>
   Context: Work is done on a feature branch and the user wants a gate before pushing.
