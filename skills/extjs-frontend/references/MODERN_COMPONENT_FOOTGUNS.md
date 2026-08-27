@@ -296,7 +296,7 @@ ignored; the floated datepanel takes its ui from `floatedPicker: { ui: '…' }` 
 `$datepanel-selected-cell-background-color: $base-color` on `$light-color` — an app whose
 `$base-color` is white gets an invisible cell. Fix in the app's `sass/var.scss` for all
 builds: override `$datepanel-today-cell-*` **and** `$datepanel-selected-cell-*`, and pass the
-ui through `floatedPicker`. Verify on the rendered cell (class list, computed colours) — a
+ui through `floatedPicker`. Verify on the rendered cell (class list, computed colors) — a
 fix whose CSS rule is present in the bundle can still match no element.
 
 ## Related

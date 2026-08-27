@@ -14,7 +14,7 @@ _(none)_
 
 Three fixes on one consuming project's dialog, each "shipped" once before it actually worked,
 and one browser-pilot slip — compounded 2026-08-27. The common thread: verify on the rendered
-thing, not on the artefact that should have produced it.
+thing, not on the artifact that should have produced it.
 
 ### Added
 
