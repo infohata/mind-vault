@@ -10,6 +10,24 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.1 — the record the class threw away, the formula that never ran, and the tap that sent
+
+Three fixes on one consuming project's dialog, each "shipped" once before it actually worked,
+and one browser-pilot slip — compounded 2026-08-27. The common thread: verify on the rendered
+thing, not on the artefact that should have produced it.
+
+### Added
+
+- `skills/work/references/LIVE_PILOT_VERIFICATION.md` — four rules for verifying a change by
+  driving a deployed UI: never tap a side-effecting action on data you don't own (confirm the
+  code path first — a "preview" tap on a live templated record sent a real email); verify
+  styling on the rendered element, not on the CSS being present; inject → measure → iterate to
+  zero → port for parity work; wrap the factory to capture what a controller actually passes.
+- `skills/extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md` §18–20 — `Ext.Component#applyRecord`
+  nulls any non-Model `record`; a view-model formula with an optional ancestor dependency never
+  runs; desktop `Ext.field.Date` takes its ui from `floatedPicker`, an empty field pre-selects
+  today, and the base theme's selected cell is `$base-color`-on-white.
+
 ## v5.8.0 — silence read as success: decayed alerts, a green check with no verdict, and the gates that could not tell
 
 Two compound streams landed on the same failure, so they ship as one release. An alert that breaks

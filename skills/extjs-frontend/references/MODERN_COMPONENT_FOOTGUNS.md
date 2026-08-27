@@ -265,6 +265,40 @@ producing theme-blue text on dark gray.
   visibility checks in the smoke list whenever a change introduces a new `ui:` name or a
   new SCSS block.
 
+## 18. `Ext.Component#applyRecord` silently nulls any `record` that is not an `Ext.data.Model`
+
+Modern `Ext.Component` owns a `record` config whose `applyRecord` returns `null` unless
+`config.isModel`. `Ext.widget('somedialog', { record: plainObject })` therefore drops the
+record without a trace: `getRecord()` is null and the subclass's own `updateRecord` never
+sees a value. Incident shape: three callers of a shared send dialog all passed plain objects;
+the recipient field appeared to work only because a parent view model on one page happened to
+expose a `record` the bind inherited. If a component must accept plain records, override
+`applyRecord` (`return record || null`) and keep an `updateRecord` override (the base one calls
+`join()` on models).
+
+## 19. A view-model formula runs only when **every** `get()` dependency is available — an optional ancestor key blocks it forever
+
+A formula written as "own record first, ancestor `{record}` second" never runs in a component
+created via `Ext.widget` (no ancestor VM → that dependency never becomes available). Symptom:
+the formula returns the right value when invoked by hand with `vm.get`, its stub stays `null`
+after `vm.notify()`, re-setting the own dependency changes nothing. Rule: formulas read only
+keys guaranteed to exist in their own VM. Optional ancestors are read **imperatively**
+(`vm.get('key')` walks parents) into plain VM data on a lifecycle hook (`updateRecord`, `show`),
+and fields bind to that data. Ext discovers dependencies with a regex over the function source
+for `<param>('…')` — keep those call sites literal.
+
+## 20. Desktop `Ext.field.Date` builds its calendar from `floatedPicker`; an empty field pre-selects today; the base theme's selected cell is `$base-color`-on-white
+
+`picker` accepts only `'floated' | 'edge' | 'auto'` — a `picker: { ui: '…' }` object is
+ignored; the floated datepanel takes its ui from `floatedPicker: { ui: '…' }` (and
+`Ext.field.Time` likewise). With no value the panel marks today as `x-today` **and**
+`x-selected`, and the selected rule wins; the Material base theme sets
+`$datepanel-selected-cell-background-color: $base-color` on `$light-color` — an app whose
+`$base-color` is white gets an invisible cell. Fix in the app's `sass/var.scss` for all
+builds: override `$datepanel-today-cell-*` **and** `$datepanel-selected-cell-*`, and pass the
+ui through `floatedPicker`. Verify on the rendered cell (class list, computed colours) — a
+fix whose CSS rule is present in the bundle can still match no element.
+
 ## Related
 
 - [JEST_EXT_STUB_HARNESS](JEST_EXT_STUB_HARNESS.md) — why the stub cannot catch #2 (define flatten).
