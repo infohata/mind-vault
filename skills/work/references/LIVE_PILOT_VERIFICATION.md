@@ -20,11 +20,27 @@ email to a real guest. The tap itself is not the mistake; assuming the branch is
 
 ## 2. Verify a styling fix on the rendered element, not on the CSS being present
 
-The "today" cell of a date picker stayed white after a theme-variable fix that was provably
-in the shipped CSS. The rendered cell carried a different class (`x-selected` won over
-`x-today`) and the panel lacked the ui class the rule targeted (the field's picker took its ui
-from a different config key). Read the live element: `className`, `getComputedStyle(...)`,
-and which stylesheet rules `el.matches(selector)` — then fix the cause the DOM shows.
+"The rule is in the shipped bundle" is two claims short of "the element is styled." The rule
+still has to **match** the element, and then still has to **win** against every other rule
+that matches it. Both of those are facts about the DOM, not about the stylesheet — so grepping
+the built CSS proves nothing, and a fix can be provably shipped and provably inert.
+
+Read the live element, in this order:
+
+- `el.className` / `el.attributes` — does it even carry the hook the selector targets? A
+  component can take its class from a different config key than the one you set, in which
+  case the rule matches nothing and specificity never enters into it.
+- `el.matches(selector)` for the rule you wrote — match, or no match. Answers the above
+  directly instead of by inference.
+- `getComputedStyle(el)` — the value that actually won, which tells you whether you are
+  fighting a losing selector or an unmatched one.
+
+Then fix the cause the DOM shows, not the one the stylesheet suggests. The two dominant
+causes are a **competing rule with higher specificity** (an element in two states at once —
+"today" *and* "selected" — where the rule you did not write wins) and a **hook that was never
+applied**. A framework-specific instance of both at once:
+[MODERN_COMPONENT_FOOTGUNS](../../extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md)
+§20 (`floatedPicker` / selected-cell).
 
 ## 3. Inject → measure → iterate to zero → port
 
@@ -39,6 +55,9 @@ only the first survives three "pixel-exact" rounds.
 
 When a component ignores an argument, wrap the factory in the page for one call:
 `var o = Ext.widget; Ext.widget = function (x, cfg) { captured = cfg; return {show(){}}; };
-ctl.method(); Ext.widget = o;` — it separates "we pass the wrong thing" from "the class
-drops the right thing" in one probe (here: the class dropped it — see the ExtJS footgun on
-`applyRecord`).
+ctl.method(); Ext.widget = o;` (the ExtJS factory here — substitute whatever call your
+framework uses to build the component). One probe separates "the caller passes the wrong
+thing" from "the component drops the right thing" — indistinguishable from the rendered
+result, opposite fixes. A base class that silently discards a config is the second case:
+[MODERN_COMPONENT_FOOTGUNS](../../extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md)
+§18 (`applyRecord` nulls a non-Model record).
