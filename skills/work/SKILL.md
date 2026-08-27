@@ -49,14 +49,24 @@ Walk the plan's Execution Sequence. For each step, pick the right persona via th
 
 Default matrix (projects can override in their own `AGENTS.md`). The right column is the dispatchable `subagent_type` — pass it to `Agent(subagent_type: …)`, **channel-aware**: the bare `<persona>` below on the symlink channel, **`mv:<persona>`** on the plugin channel (mirror your invocation prefix — see [`references/CHANNEL_AWARE_DISPATCH.md`](references/CHANNEL_AWARE_DISPATCH.md) and [`references/persona-dispatch.md`](references/persona-dispatch.md), which also carries the host-availability inline-fallback). The profile file backing each id is mapped in persona-dispatch.md:
 
-| Plan-item domain                                   | Subagent type                                                        |
-| -------------------------------------------------- | -------------------------------------------------------------------- |
-| Models, views, signals, DRF, Channels, Celery, ORM | `backend`                                                         |
-| Templates, Alpine, HTMX, Bulma, static assets, JS  | `frontend`                                                        |
-| Docker, compose, nginx, systemd, CI/CD, env config | `devops`                                                          |
-| Test authoring, fixture design, coverage gates     | `test-engineer`                                                   |
-| Multi-domain or cross-cutting refactor             | `architect` (as author now, not reviewer — plan already reviewed) |
-| Documentation-only updates (README, CHANGELOG)     | `documentation`                                                   |
+| Plan-item domain (stack-neutral)                            | Subagent type                                                     |
+| ------------------------------------------------------------ | ------------------------------------------------------------------ |
+| Data layer, request/response boundary, background work        | `backend`                                                         |
+| Client surface — markup, client state, styling, assets, JS    | `frontend`                                                        |
+| Docker, compose, nginx, systemd, CI/CD, env config            | `devops`                                                          |
+| Test authoring, fixture design, coverage gates                | `test-engineer`                                                   |
+| Multi-domain or cross-cutting refactor                        | `architect` (as author now, not reviewer — plan already reviewed) |
+| Documentation-only updates (README, CHANGELOG)                | `documentation`                                                   |
+
+**The domain column names the concern, not one stack's vocabulary** — `/work` routes
+Django, Laravel and ExtJS repos through these same six personas, and the personas
+themselves are stack-agnostic (each resolves its mechanics against the active
+backend/frontend skill). A matrix written in one stack's nouns silently fails every
+other stack: an ExtJS plan item matches "templates, Alpine, HTMX" nowhere, and the
+dispatcher hesitates on a row that should be obvious. The per-stack token mapping —
+which framework concepts land in which row — is
+[`references/persona-dispatch.md`](references/persona-dispatch.md) § Domain vocabulary
+per stack, next to the auto-detection that resolves which stack is active.
 
 Pass the persona the **plan path + the specific item index** — never inline the item's prose into the dispatch prompt (per the "pass paths not content to subagents" convention). The persona reads the plan file itself.
 

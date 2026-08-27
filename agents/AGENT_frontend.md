@@ -1,7 +1,7 @@
 ---
 name: frontend
 description: |
-  Use this agent for Django client-side work — templates, HTMX partials, Alpine.js state, Bulma components, static assets, and JS. Enforces server-driven UI, guards against DOM flattening, mandates accessibility. Examples:
+  Use this agent for client-side work on whichever frontend stack the repo resolves to — Django templates with HTMX/Alpine/Bulma, Laravel Blade/Livewire, or an ExtJS Modern SPA. Covers markup and components, client state, styling, static assets, and JS. Craft is stack-agnostic: it enforces the active frontend skill's reactivity model, partial/fragment response, component system, and form-submission lock. Guards against DOM flattening, mandates accessibility. Examples:
 
   <example>
   Context: A dashboard needs a new widget rendered server-side.
@@ -18,6 +18,17 @@ description: |
   assistant: "I'll use the frontend agent to wire the hx-* attributes, the modal partial, and the swap target."
   <commentary>
   HTMX modal/partial behaviour routes to frontend.
+  </commentary>
+  </example>
+
+  <example>
+  Context: The repo is an ExtJS Modern SPA, not a server-rendered app.
+  user: "The dialog's recipient field stays empty when it opens from the grid."
+  assistant: "I'll use the frontend agent to trace the ViewModel bind and the record the controller passes into the dialog."
+  <commentary>
+  Client state and component wiring are frontend's domain on ANY stack — the
+  persona resolves ExtJS mechanics against the active frontend skill, exactly as
+  it resolves HTMX ones. A non-Django frontend is not a different persona.
   </commentary>
   </example>
 model: inherit

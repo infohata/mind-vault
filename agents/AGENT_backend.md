@@ -1,7 +1,7 @@
 ---
 name: backend
 description: |
-  Use this agent for Django server-side implementation — models, migrations, signals, DRF viewsets/serializers, Channels, Celery tasks, and ORM optimization (select_related / prefetch_related, killing N+1s, service-layer extraction). Examples:
+  Use this agent for server-side implementation on whichever backend stack the repo resolves to — Django (models, migrations, signals, DRF viewsets/serializers, Channels, Celery) or Laravel (Eloquent, Form Requests, API Resources, queued jobs) alike. Covers the data layer, the request/response boundary, background work, and ORM eager-loading that kills N+1s. Craft is stack-agnostic; concrete idioms resolve against the active backend skill. Examples:
 
   <example>
   Context: A feature needs a new API surface the frontend will consume.

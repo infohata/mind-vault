@@ -25,6 +25,23 @@ Conceptual prose elsewhere may still call a persona by its display name (`AGENT_
 
 The default matrix lives in `SKILL.md`. This file documents the edges, overrides, and the parallel-worktree flow.
 
+### Domain vocabulary per stack
+
+`SKILL.md`'s matrix names each row by its **concern** so it holds across stacks. This table
+is the lookup aid in the other direction: given a framework concept, which row is it? It is
+a convenience, not the criterion — a stack absent from this table still dispatches on the
+concern, because the row describes what the plan item *is*.
+
+| Stack | `backend` row reads | `frontend` row reads |
+| --- | --- | --- |
+| django | models, migrations, signals, DRF viewsets/serializers, Channels consumers, Celery tasks, ORM query layer | templates, Alpine state, HTMX partials, Bulma components, Cotton components, static assets |
+| laravel | Eloquent models, migrations, Form Requests, API Resources, queued jobs / Horizon, policies & gates | Blade views and components, Livewire / Inertia where present, Vite assets |
+| extjs | — (no backend; the API's own stack resolves separately) | `Ext.define` components, ViewModel binds and formulas, ViewControllers, the Ajax service layer, `ui:` / SCSS theming, Sencha Cmd build |
+
+The `extjs` backend cell is empty for the same reason its row in the auto-detect table below
+is: it is a frontend-only stack. A plan item touching that app's API dispatches against
+whatever backend the API itself resolves to, detected independently.
+
 ### Ambiguous domains
 
 Some plan items span multiple personas. Resolve by the **primary artifact touched**, not by the item's stated intent.
@@ -36,6 +53,8 @@ Some plan items span multiple personas. Resolve by the **primary artifact touche
 | "Dockerise the new Celery queue" | `docker-compose.yml` + entrypoint | `devops` |
 | "Add integration test for the new endpoint" | `test_*.py` | `test-engineer` |
 | "Refactor permission layer across auth+billing+kb apps" | Spans 3 apps, shared base class | `architect` (author mode) |
+| "The dialog's recipient field is empty when opened from the grid" | ViewModel bind + component config (ExtJS) | `frontend` |
+| "Queue the reminder email instead of sending inline" | Job class + queue config (Laravel) | `backend` |
 
 If a single item genuinely touches two domains, split it into two items first — the plan is expressing two logical units and should have been split at plan time.
 
