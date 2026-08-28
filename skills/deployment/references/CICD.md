@@ -107,7 +107,8 @@ The local `deploy.sh` performs the same detection; CI just hoists the backup ste
 
 A workflow that builds a container image and runs an e2e suite costs minutes per run (≈3 warm /
 ≈9 cold on a 2-vCPU runner); a three-file docs PR triggered the full run once. Filter at the
-trigger, not with a step-level guard (a skipped job still spends a runner):
+**trigger**, not with a step-level `if` — a false step-level condition skips the step, but the job
+has already started and spends a runner:
 
 ```yaml
 on:
@@ -115,7 +116,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore: ['docs/**', '**/*.md', 'VERSION', 'LICENSE', '.gitignore']
   push:
-    branches: [master]
+    branches: [main]          # your trunk branch
     paths-ignore: ['docs/**', '**/*.md', 'VERSION', 'LICENSE', '.gitignore']   # same list
 ```
 

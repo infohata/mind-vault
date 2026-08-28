@@ -135,12 +135,13 @@ against it, instead of reinventing a runner-native Sencha install:
   **both** projects — the Pixel-7 UA makes the microloader load `phone.json` on its own, no
   `?phone` hack. `workers: 2` on the small runner; grid-icon paint polls at 30 s, not 10.
 - Triggers: same-repo PRs (secrets are unavailable to forks — guard with
-  `github.event_name != 'pull_request' || head.repo == repo`, which the old PR-only guard got wrong
-  on dispatch and push), `push: master` (every trunk SHA is a potential deploy-pointer source —
-  gate it, and **never cancel a master run**; `cancel-in-progress` only for PR refs), and
-  `workflow_dispatch`. Add `paths-ignore` for docs-only changes (`docs/**`, `**/*.md`, the
-  version file) — a three-file docs PR built the whole image once; see
-  `skills/deployment/references/CICD.md` § Path filters.
+  `github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository`
+  — placeholder shorthands like `head.repo == repo` are not valid workflow expressions, and the old
+  PR-only guard got the dispatch and push cases wrong), a push to the trunk branch (every trunk SHA
+  is a potential deploy-pointer source — gate it, and **never cancel a trunk run**;
+  `cancel-in-progress` only for PR refs), and `workflow_dispatch`. Add `paths-ignore` for docs-only
+  changes (`docs/**`, `**/*.md`, the version file) — a three-file docs PR built the whole image
+  once; see `skills/deployment/references/CICD.md` § Path filters.
 
 The local fast loop stays the dev server (`npm run test:e2e`); the image run is the pre-merge
 gate and the reproduction path for a red CI (`npm run test:e2e:image` builds the same image
