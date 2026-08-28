@@ -192,3 +192,43 @@ environment (external host, box state, network) — stop reading your diff. Only
 known-green run justifies bisecting your own commits. This one command distinguishes "I broke
 the app's boot" from "the world changed under me", and it would have saved an hour of
 diff-staring the night this was learned.
+
+## 10. Boot probes on the production bundle — the boot chain handles its own rejection
+
+A CI gate that boots the **release image** (see SENCHA_TOOLCHAIN_AND_BUILD.md §7) needs a probe
+per manifest that fails on *any* boot-time error. The first cut asserted `pageerror.length === 0`
+and stayed green through a deliberate `ReferenceError` planted in a boot module — vacuous, because
+a well-built app's launch chain **catches its own rejection** (paints a boot-error overlay, logs
+`console.error('Boot init failed at <stage>')`) and nothing ever reaches `pageerror`. The gate is
+the union of four collectors installed **before** `goto`:
+
+```js
+page.on('pageerror', e => errors.push(e.message));                 // uncaught only — necessary, not sufficient
+page.on('console', m => { if (m.type() === 'error') errors.push(`${m.text()} @ ${m.location().url}`); });
+page.on('response', r => { if (r.status() >= 400 && !TOLERATED.some(rx => rx.test(new URL(r.url()).pathname))) failed.push(r.url()); });
+page.on('request', r => { if (/\/(desktop|phone)\.json/.test(r.url())) manifests.push(r.url()); }); // the manifest fetched == the project under test
+```
+
+then: `mainview` mounted (poll ~30 s on a 2-vCPU runner), **no** boot-error overlay element,
+all three lists empty, manifest === project. Two rules that came out of the red runs:
+
+- **Tolerate 404s by an explicit whitelist, one entry with a reason each** — the microloader may
+  request a file the manifest lists but the image omits (a root `app.js` alongside the per-profile
+  bundle); that is the *only* boot 404 a healthy image produces. A blanket "ignore 404s" would have
+  hidden the missing-manifest bug that stalled the phone bundle for a week.
+- **Tolerate a framework's bare-`undefined` rejection by *shape*, never by silencing `pageerror`.**
+  Ext's `Scroller#ensureVisible` returns `Deferred.getCachedRejected()` — a rejection with no
+  reason and no handler — when a dataview's `NavigationModel.setLocation` runs on focus-enter after
+  the focused element was re-rendered away (any editor that replaces `innerHTML` inside its own
+  blur handler triggers it). Playwright reports it as `pageerror` with `message === undefined`.
+  Filter exactly that signature (`msg === undefined || msg === 'undefined'`) with the source named
+  in a comment; anything carrying a message still fails. Tracing recipe: wrap `window.Promise`
+  via `addInitScript` so a `reject(undefined)` records `new Error().stack` — 30 s from "some
+  promise" to the framework frame.
+- **The stage a boot-error screen names is a hint.** A single terminal rejection sink attributes
+  every unattributed failure to its last-registered stage; a `ReferenceError` in a *later* module
+  reported as "failed at translations". Read the message, not the stage.
+
+Prove the probe once with a deliberate red (a planted `ReferenceError` on a throwaway branch — the
+phone bundle went red with `pageerror: 0` and the console collector carrying the error, desktop
+stayed green) before trusting it; a probe that has never failed has never been tested.

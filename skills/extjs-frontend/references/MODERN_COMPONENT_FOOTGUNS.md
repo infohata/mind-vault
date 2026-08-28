@@ -299,6 +299,82 @@ builds: override `$datepanel-today-cell-*` **and** `$datepanel-selected-cell-*`,
 ui through `floatedPicker`. Verify on the rendered cell (class list, computed colors) — a
 fix whose CSS rule is present in the bundle can still match no element.
 
+## 21. String-template renderers must encode at the sink — and one encoder does not cover three contexts
+
+`cell.innerHTML = Editors[editor](record)` and `bind: { html: '{record.Name}' }` are the same
+sink: whatever the backend put in a field becomes markup. A matrix grid interpolated eleven
+server fields raw for a year without incident because the real payload was numbers and short
+labels — a stored-XSS sink is invisible until someone stores the payload. The pin that proved
+it: a record whose name field held `<img src=x onerror="window.__xss=1">` **executed** on the
+pre-fix code.
+
+Encode **at the sink, in the context the string lands in** — three contexts, and `Ext.htmlEncode`
+alone closes only the first:
+
+1. **HTML text / plain attribute** (`html:` binds, `value="…"`, `name="…"`, `style="…"`) —
+   `Ext.htmlEncode` (`& < > " '`); bind templates take it as a formatter:
+   `'{record.Name:htmlEncode}'`. Wrap it: Ext passes falsy values through *unchanged*, so
+   `Ext.htmlEncode(null)` prints the string `null` — `enc = v => v == null ? '' : Ext.htmlEncode(String(v))`.
+   The Jest stub must mirror that falsy passthrough or it passes where the browser differs.
+2. **A JS string inside an inline handler** (`onclick="fn(event, '${id}')"`) — htmlEncode does
+   **not** close this context: the HTML parser decodes `&#39;` back to `'` *before* the JS parser
+   sees it. Build such ids from a **charset-restricted** fragment (`[^A-Za-z0-9_-]` → `_`); lossy
+   is fine when uniqueness comes from elsewhere (a salt).
+3. **A DOM-id round-trip** (`id="cell-${rid}-${date}"` written, `getValueCell(rid, date)` read) —
+   a lossy id would collide composite ids; write it attribute-encoded (the parser decodes it, so
+   the DOM id equals the raw string — lossless) and read with `getElementById` scoped by
+   `view.el.dom.contains(el)` instead of `el.query('#' + id)` (a `.`/`:` in the id throws in the
+   selector engine).
+
+`style` attributes get a fourth rule: allowlist property names (`/^[a-z-]+$/`) and reject values
+matching `url(`/`expression(`/`javascript:`/`@import` before encoding. No sanitizer library when
+no field legitimately carries markup — but decide that from **one real captured payload**
+(REFACTOR_CONTRACT_PINNING.md §1), not from the model. Pin benign rendering *first*, then prove
+the red on the pre-fix code, then encode — the encode commit must be rendering-neutral, and the
+deltas it cannot avoid (`null` → '', a duplicate blur handler removed) get written down.
+
+## 22. A framework-level fix belongs in `overrides/`, not in the sixth hand-copied controller method
+
+Modern's `Ext.form.Panel#initialize` binds `submit` through Ext's own event system, and its
+`onSubmit → event.stopEvent()` does **not** prevent the browser's implicit form submit in the 7.7
+build (§6 above): Enter in any field reloads the SPA. The first six fixes were the same
+`onFormPainted` native-listener copy in six dialog controllers while ~60 other forms stayed
+exposed. The right layer is one override in the app's `overrides` directory (`app.json`
+`"overrides": ["app/shared/overrides", …]` — Sencha Cmd includes every file there in every build,
+no `requires`):
+
+```js
+Ext.define('App.overrides.form.Panel', {
+    override: 'Ext.form.Panel',
+    config: { enterAction: null },            // 'save' | 'confirm' | fn(form, e) — opt-in
+    initialize: function () {
+        this.callParent();
+        var me = this, dom = me.element && me.element.dom;
+        if (!dom || me._nativeSubmitGuard) { return; }
+        me._nativeSubmitGuard = true;
+        dom.addEventListener('submit', function (e) {
+            if (me.destroyed || (me.getStandardSubmit && me.getStandardSubmit())) { return; }
+            e.preventDefault();
+            me.fireEnterAction(e);
+        });
+    },
+    fireEnterAction: function (e) {
+        var action = this.getEnterAction(), ctrl;
+        if (!action) { return; }                             // default: reload-safe, does nothing
+        if (Ext.isFunction(action)) { action.call(this, this, e); return; }
+        ctrl = this.lookupController();
+        if (ctrl && Ext.isFunction(ctrl[action])) { ctrl[action](this, e); }
+    }
+});
+```
+
+Every form is reload-safe by default; the dialogs that want Enter-to-save declare
+`enterAction: 'save'` (one line) and the copied methods are deleted. Pin the override on **bare
+forms** (no action / controller route / function route) on both bundles, keep the dialog-level
+probes, and prove the red by stashing the override — the copies were never red-proven. The test
+for "is this an override or a per-site fix": if the second copy of the same guard is being
+written, it is an override.
+
 ## Related
 
 - [JEST_EXT_STUB_HARNESS](JEST_EXT_STUB_HARNESS.md) — why the stub cannot catch #2 (define flatten).
