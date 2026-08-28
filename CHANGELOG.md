@@ -10,6 +10,40 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.3 — the detection that terminated in a flag nobody read
+
+A copilot review whose visible inline set was empty carried three real findings in its body's
+suppressed-comments block. The adapter had detected the block since v5.6.1 — but detection only
+withheld the clean signal and set a legacy `CLEAN=` token the orchestrator is explicitly told to
+ignore, so the loop counted zero findings and read CLEAN. The findings were caught by a hand-run
+`gh api` on the review body, not by the loop — compounded 2026-08-28.
+
+### Added
+
+- `tools/find_copilot_comments.sh` — emits `COPILOT_SUPPRESSED=<n> REVIEW=<id> COMMIT=<sha>
+  AT=<ts>` plus the suppressed items verbatim (each carries `file:line` + text, so they are as
+  structured as an inline finding — they just arrive in the review body).
+- `tests/test_copilot_clean_detection.sh` § (b) — asserts the marker, the surfaced items, that the
+  review-stats list is not swallowed by the extractor, and that clean fixtures emit no marker. All
+  proven red against the pre-fix adapter first.
+
+### Fixed
+
+- `skills/review-loop/SKILL.md` § Per-engine fetch — suppressed findings now COUNT toward the
+  active-finding total, so an engine that surfaced them is never clean. The new marker is
+  authoritative, unlike the legacy `CLEAN=` token beside it; the dual-signal output shape carries
+  the suppressed count.
+- `skills/review-loop/references/engine-adapter-contract.md` — registers `<ENGINE>_SUPPRESSED` and
+  states the rule an adapter has to follow: route a withheld-findings signal into the count, never
+  into a second flag.
+
+### Changed
+
+- `skills/review-loop/references/engine-copilot.md` § Suppressed comments — second reversal on this
+  section, corrected in place: detection was not delivery. The general lesson recorded with it —
+  when an adapter learns something the verdict machinery is told to ignore, that is not a
+  mitigation. The completeness caveat and the human-glance hand-back line still stand.
+
 ## v5.8.2 — gate the image you ship, encode where the string lands, probe the contract before the UI
 
 One consuming ExtJS project's week: a CI gate that builds the release image and runs the suite

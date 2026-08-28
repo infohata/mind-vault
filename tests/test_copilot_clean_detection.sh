@@ -73,6 +73,22 @@ assert_absent   "suppressed: no check-run synthesis"       "$OUT" "COPILOT_CLEAN
 assert_contains "suppressed: latest review CLEAN=false"    "$OUT" "CLEAN=false"
 # The findings live only in the body, so the body has to reach the loop.
 assert_contains "suppressed: non-clean review surfaced"    "$OUT" "review 9002"
+# Withholding the clean signal is not enough: the orchestrator derives clean
+# structurally and ignores the legacy CLEAN= token, so a detected-but-unsurfaced
+# suppressed block is a silent finding. The marker + the items must both reach
+# the loop, or there is nothing to triage.
+assert_contains "suppressed: marker with count + review"   "$OUT" "COPILOT_SUPPRESSED=2 REVIEW=9002"
+assert_contains "suppressed: item 1 surfaced verbatim"     "$OUT" "tools/example.sh:350"
+assert_contains "suppressed: item 2 surfaced verbatim"     "$OUT" "CHANGELOG.md:15"
+assert_contains "suppressed: item text surfaced"           "$OUT" "The fence only checks created_at."
+# The stats list that follows the block is not a finding — the extractor must stop.
+assert_absent   "suppressed: stats list not swallowed"     "$OUT" "Files reviewed:"
+
+# No false positives: a clean review must not emit the marker.
+OUT=$(run_case approval-recommended)
+assert_absent   "approval: no suppressed marker"           "$OUT" "COPILOT_SUPPRESSED="
+OUT=$(run_case legacy-clean-phrase)
+assert_absent   "legacy: no suppressed marker"             "$OUT" "COPILOT_SUPPRESSED="
 
 echo ""
 echo "── (c) The seam really is offline ────────────────────────────────────────"
