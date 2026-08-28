@@ -303,9 +303,10 @@ fix whose CSS rule is present in the bundle can still match no element.
 
 `cell.innerHTML = Editors[editor](record)` and `bind: { html: '{record.Name}' }` are the same
 sink: whatever the backend put in a field becomes markup. A matrix grid interpolated eleven
-server fields raw for a year without incident because the real payload was numbers and room
-names — a stored-XSS sink is invisible until someone stores the payload. The pin that proved it:
-a resource named `<img src=x onerror="window.__xss=1">` **executed** on the pre-fix code.
+server fields raw for a year without incident because the real payload was numbers and short
+labels — a stored-XSS sink is invisible until someone stores the payload. The pin that proved
+it: a record whose name field held `<img src=x onerror="window.__xss=1">` **executed** on the
+pre-fix code.
 
 Encode **at the sink, in the context the string lands in** — three contexts, and `Ext.htmlEncode`
 alone closes only the first:

@@ -63,7 +63,7 @@ Two corollaries from the incident:
 ## The backend contract is an axis too — probe before you build on it (2026-08-28)
 
 A plan defaulted to "convert the one unbounded list to server paging this cycle, if the executor
-confirms the endpoint honours `page`/`limit`". The confirmation cost **one read-only GET with
+confirms the endpoint honors `page`/`limit`". The confirmation cost **one read-only GET with
 `limit=5`** against the real backend: it returned all 18 rows, `page=2` returned the identical set,
 and `sort`/`search` were discarded too. Shipped without the probe, the paginator would have been
 a lie — page 2 of the same rows. Rules for plan authors:
