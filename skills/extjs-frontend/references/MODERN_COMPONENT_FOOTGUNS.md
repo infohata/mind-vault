@@ -355,8 +355,15 @@ Ext.define('App.overrides.form.Panel', {
         dom.addEventListener('submit', function (e) {
             if (me.destroyed || (me.getStandardSubmit && me.getStandardSubmit())) { return; }
             e.preventDefault();
-            me.fireEnterAction(e);            // lookupController()[action] or the function
+            me.fireEnterAction(e);
         });
+    },
+    fireEnterAction: function (e) {
+        var action = this.getEnterAction(), ctrl;
+        if (!action) { return; }                             // default: reload-safe, does nothing
+        if (Ext.isFunction(action)) { action.call(this, this, e); return; }
+        ctrl = this.lookupController();
+        if (ctrl && Ext.isFunction(ctrl[action])) { ctrl[action](this, e); }
     }
 });
 ```
