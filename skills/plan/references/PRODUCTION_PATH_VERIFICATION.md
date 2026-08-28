@@ -60,6 +60,27 @@ Two corollaries from the incident:
 - **Treat boot-screen stage attribution as a hint.** When a fatal-error surface names a
   stage or subsystem, check how it attributes *unattributed* failures before trusting it.
 
+## The backend contract is an axis too — probe before you build on it (2026-08-28)
+
+A plan defaulted to "convert the one unbounded list to server paging this cycle, if the executor
+confirms the endpoint honours `page`/`limit`". The confirmation cost **one read-only GET with
+`limit=5`** against the real backend: it returned all 18 rows, `page=2` returned the identical set,
+and `sort`/`search` were discarded too. Shipped without the probe, the paginator would have been
+a lie — page 2 of the same rows. Rules for plan authors:
+
+- A UI that *depends on* a contract (paging, sorting, filtering, a status transition, an id in a
+  response) names the **discriminating request** in its Verification — the call whose result
+  differs between "the contract holds" and "it doesn't" (`limit=5` on a list known to hold more
+  than 5; `page=2` must not equal page 1). A controller name in the backend source is a hint;
+  the response is the check.
+- The probe's **negative outcome is a planned branch**, not a surprise: the plan writes what
+  ships when the contract fails (annotate the site with the probe result + the invalidating
+  condition; file the backend item), so the executor never has to improvise a paginator on
+  top of a non-paging endpoint.
+- Capture the payload while you are there (scrubbed) — it grounds the encoding/charset decisions
+  downstream (`skills/extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md` §21) and becomes
+  the mock fixture.
+
 ## The reviewer heuristic (architect PASS 4)
 
 Ask of the plan: *"Which Verification command runs against the artifact that will actually

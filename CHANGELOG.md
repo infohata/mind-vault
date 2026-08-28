@@ -10,6 +10,41 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.2 — gate the image you ship, encode where the string lands, probe the contract before the UI
+
+One consuming ExtJS project's week: a CI gate that builds the release image and runs the suite
+against it (the toolchain that actually works), a stored-XSS sink closed with a three-context
+encoding model, and a paginator that was NOT shipped because one `limit=5` request showed the
+backend ignores paging — compounded 2026-08-28.
+
+### Added
+
+- `skills/extjs-frontend/references/SENCHA_TOOLCHAIN_AND_BUILD.md` §7 — the CI gate on the release
+  image: build the production Dockerfile in Actions (npm cripples Sencha Cmd; the Dockerfile is the
+  one working toolchain), run it with a *resolvable* backend host, verify the static contract, run
+  Playwright in a static mode on both bundles; same-repo/dispatch/push guard, never cancel a trunk
+  run, warm ≈7 s with `tests/` dockerignored.
+- `skills/extjs-frontend/references/PLAYWRIGHT_COMPONENTQUERY_E2E.md` §10 — boot probes on the
+  production bundle: the launch chain catches its own rejection, so `pageerror` alone is vacuous —
+  add console + failed-response collectors, a tolerated-404 whitelist with reasons, and tolerate a
+  framework's bare-`undefined` rejection by shape only; prove the probe with a deliberate red.
+- `skills/extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md` §21–22 — encode at the sink in
+  three contexts (html/attribute, JS string inside an inline handler, lossless DOM-id round-trip)
+  plus a style allowlist, pinned benign-first and red-proven; and the rule that the second
+  hand-copied framework guard is an `overrides/` file (the `Ext.form.Panel` Enter guard with an
+  opt-in `enterAction`).
+- `skills/plan/references/PRODUCTION_PATH_VERIFICATION.md` § The backend contract is an axis too —
+  a UI that depends on paging/sorting/a status field names its discriminating request and plans
+  the negative branch; `agents/AGENT_architect.md` PASS 5 gets the matching probe.
+- `skills/deployment/references/CICD.md` § Path filters for image-building workflows —
+  `paths-ignore` for docs-only changes, with the two checks that make it safe (no build inputs on
+  the list; not a required status check).
+
+### Changed
+
+- `skills/extjs-frontend/SKILL.md`, `skills/deployment/SKILL.md`, `skills/plan/SKILL.md` —
+  reference one-liners extended for the sections above.
+
 ## v5.8.1 — the record the class threw away, the formula that never ran, and the tap that sent
 
 Three fixes on one consuming project's dialog, each "shipped" once before it actually worked,

@@ -103,6 +103,32 @@ Pre-deploy, decide whether a DB backup is required:
 
 The local `deploy.sh` performs the same detection; CI just hoists the backup step ahead of the deploy so a failed backup blocks the run.
 
+## Path filters for image-building workflows
+
+A workflow that builds a container image and runs an e2e suite costs minutes per run (≈3 warm /
+≈9 cold on a 2-vCPU runner); a three-file docs PR triggered the full run once. Filter at the
+trigger, not with a step-level guard (a skipped job still spends a runner):
+
+```yaml
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore: ['docs/**', '**/*.md', 'VERSION', 'LICENSE', '.gitignore']
+  push:
+    branches: [master]
+    paths-ignore: ['docs/**', '**/*.md', 'VERSION', 'LICENSE', '.gitignore']   # same list
+```
+
+Two checks before adding it: (1) **nothing on the ignore list is a build input** — grep the
+Dockerfile, bundler config and deploy scripts for each path (a version file that is only echoed
+by a deploy log line is safe; one baked into the artifact is not); (2) **the check is not a
+required status check** on the protected branch — with `paths-ignore` the run never starts, and a
+required check that never reports blocks every docs-only merge (`gh api
+repos/<owner>/<repo>/rules/branches/<branch>`). Keep the workflow file itself *out* of the ignore
+list so the change that adds the filter still runs the gate once as proof. A docs-only merge
+commit on the trunk has the same image inputs as its already-gated parent, so the `push` filter
+is safe for a "gate every trunk SHA" policy.
+
 ## Secrets
 
 Minimum set for SSH-based deployment:

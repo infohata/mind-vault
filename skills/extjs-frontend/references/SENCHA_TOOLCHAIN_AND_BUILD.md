@@ -110,3 +110,39 @@ the committed `config.js` is the production stub with empty `url`/`ws` (same-ori
 = no backend until `cp config.js config.dev.js` and set the host. Never write a host into the
 committed file or into code — every request is relative `/api/*` and the `beforerequest` hook
 prefixes the host.
+
+## 7. CI gate on the release image — one toolchain, production parity
+
+Sencha Cmd cannot be installed on a CI runner with a plain `npm install`: npm strips the nested
+`node_modules` inside the `@sencha/cmd` dist, Fashion loses its `switchit` dependency, and every
+theme build dies with the opaque `Fashion build exited with code : 1` (which the webpack plugin
+swallows). The production Dockerfile that repairs the dist (§4) is therefore the **only** place
+the release build is known to work — so the CI gate builds *that* image and runs the suite
+against it, instead of reinventing a runner-native Sencha install:
+
+- `docker/build-push-action` with `context: .`, `load: true`, the registry token as
+  `secret-files:` (written from an `env:` secret *after* asserting `.npmrc` carries no
+  `_authToken` — a token in the `COPY . .` layer would ship), `cache-from/to: type=gha`.
+  Cold image ≈ 5–6 min on a 2-vCPU runner, **≈7 s warm** — keep `tests/` in `.dockerignore` so a
+  spec-only push hits the cached build layer.
+- Run the container with a backend host that **resolves** (`127.0.0.1` — never contacted, routes
+  are mocked in-browser); nginx resolves `proxy_pass` upstreams at `nginx -t`, so `backend.invalid`
+  refuses to start. Set the trusted-proxy CIDR so the render path runs as in production.
+- Verify the static contract (health, SPA fallback, cache policy — split the verify script into a
+  static half and a proxy half; the proxy checks 502 by design against a dead upstream and belong
+  to the deploy side), then Playwright in a **static mode** pointed at the container
+  (`E2E_STATIC_URL`; one mode helper derives dev | static | live and throws when two are set),
+  **both** projects — the Pixel-7 UA makes the microloader load `phone.json` on its own, no
+  `?phone` hack. `workers: 2` on the small runner; grid-icon paint polls at 30 s, not 10.
+- Triggers: same-repo PRs (secrets are unavailable to forks — guard with
+  `github.event_name != 'pull_request' || head.repo == repo`, which the old PR-only guard got wrong
+  on dispatch and push), `push: master` (every trunk SHA is a potential deploy-pointer source —
+  gate it, and **never cancel a master run**; `cancel-in-progress` only for PR refs), and
+  `workflow_dispatch`. Add `paths-ignore` for docs-only changes (`docs/**`, `**/*.md`, the
+  version file) — a three-file docs PR built the whole image once; see
+  `skills/deployment/references/CICD.md` § Path filters.
+
+The local fast loop stays the dev server (`npm run test:e2e`); the image run is the pre-merge
+gate and the reproduction path for a red CI (`npm run test:e2e:image` builds the same image
+locally with the same token file). Probe design for what the gate asserts per bundle:
+PLAYWRIGHT_COMPONENTQUERY_E2E.md §10.
