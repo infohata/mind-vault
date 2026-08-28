@@ -123,11 +123,11 @@ Two checks before adding it: (1) **nothing on the ignore list is a build input**
 Dockerfile, bundler config and deploy scripts for each path (a version file that is only echoed
 by a deploy log line is safe; one baked into the artifact is not); (2) **the check is not a
 required status check** on the protected branch — with `paths-ignore` the run never starts, and a
-required check that never reports blocks every docs-only merge (`gh api
-repos/<owner>/<repo>/rules/branches/<branch>`). Keep the workflow file itself *out* of the ignore
-list so the change that adds the filter still runs the gate once as proof. A docs-only merge
-commit on the trunk has the same image inputs as its already-gated parent, so the `push` filter
-is safe for a "gate every trunk SHA" policy.
+required check that never reports blocks every docs-only merge
+(`gh api repos/<owner>/<repo>/rules/branches/<branch>`). Keep the workflow file itself *out* of
+the ignore list so the change that adds the filter still runs the gate once as proof. A docs-only
+merge commit on the trunk has the same image inputs as its already-gated parent, so the `push`
+filter is safe for a "gate every trunk SHA" policy.
 
 ## Secrets
 

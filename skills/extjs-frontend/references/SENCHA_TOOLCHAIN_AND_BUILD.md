@@ -129,8 +129,8 @@ against it, instead of reinventing a runner-native Sencha install:
   are mocked in-browser); nginx resolves `proxy_pass` upstreams at `nginx -t`, so `backend.invalid`
   refuses to start. Set the trusted-proxy CIDR so the render path runs as in production.
 - Verify the static contract (health, SPA fallback, cache policy — split the verify script into a
-  static half and a proxy half; the proxy checks 502 by design against a dead upstream and belong
-  to the deploy side), then Playwright in a **static mode** pointed at the container
+  static half and a proxy half; the proxy half expects a 502 by design against a dead upstream
+  and belongs to the deploy side), then Playwright in a **static mode** pointed at the container
   (`E2E_STATIC_URL`; one mode helper derives dev | static | live and throws when two are set),
   **both** projects — the Pixel-7 UA makes the microloader load `phone.json` on its own, no
   `?phone` hack. `workers: 2` on the small runner; grid-icon paint polls at 30 s, not 10.
