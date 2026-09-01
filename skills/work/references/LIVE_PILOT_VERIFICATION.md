@@ -15,7 +15,7 @@ tester's own scratch data keeps selecting.
 - Before any tap that *can* send, post, charge or delete: read the row's state from the
   controller — the fields the branch actually keys on (completeness, expiry, ownership) — and
   know which branch the tap takes.
-- Smoke on a throwaway record you created for the purpose and own end to end; if the action
+- Smoke on a throwaway record you created for the purpose and own end-to-end; if the action
   reaches an outside party, address it somewhere non-deliverable that you control.
 - A no-op tap is not evidence of nothing happening: check the object's send/history log.
   Synthetic taps on floated menus are flaky (2 of 4 silently did nothing); retry once, then

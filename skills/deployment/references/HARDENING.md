@@ -318,8 +318,8 @@ validation 400s* (a dozen rejected PUTs from one browser console loop, arriving 
 banned the **end user's real IP** — while the proxied path that produced the burst stayed open
 (the proxy's own IP was never banned). The user's *direct* traffic died instead: static assets,
 an editor bundle, the public pages end users transact on — breakage surfacing far from its
-cause, invisible to
-estate-internal monitoring, on a different "service" than the one that triggered it.
+cause, invisible to estate-internal monitoring, on a different "service" than the one that
+triggered it.
 
 The checklist for any fail2ban behind a proxy/CDN:
 
