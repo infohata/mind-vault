@@ -129,7 +129,7 @@ invisible infrastructurally and very visible to the customer:
 - The requirement was specified for the organization, not per site, so the split is a period
   of *not meeting the spec* rather than a cautious partial rollout.
 
-**Rule: the staging unit is the ORGANISATION, not the tenant.** Stage across independent
+**Rule: the staging unit is the ORGANIZATION, not the tenant.** Stage across independent
 customers for a gradual rollout; flip all tenants of one customer together. Where a split
 does exist — one tenant flipped first as a canary — treat closing it as urgent rather than
 as a comfortable resting state.
