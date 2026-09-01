@@ -200,7 +200,7 @@ no longer stacked — before merging B. Never batch "merge A, merge B" as one ra
 
 `.gitignore` only stops **untracked** files from being added; a file committed *before*
 the ignore rule stays tracked forever, keeps showing local edits as pending diffs (one
-careless `git add -A` from being pushed), and — the observed incident — carries a
+careless `git add -A` away from being pushed), and — the observed incident — carries a
 dev-host/config value on the trunk while every doc and rule in the repo asserts "that
 file is gitignored". Nobody checks, because the ignore line is right there.
 
