@@ -12,9 +12,12 @@ _(none)_
 
 ## v5.8.4 — the store that was never created and the login that never failed loudly
 
-`/compound` from an ExtJS consuming project's payment-requests stream (three lessons, one day).
+One consuming ExtJS project's day, traced from a single symptom ("the dialog shows an error toast
+instead of opening"): four defect classes across the component layer and the toolchain, plus the
+git-hygiene guardrail the same walk turned up — compounded 2026-09-01.
 
 ### Added
+
 - **extjs-frontend / MODERN_COMPONENT_FOOTGUNS §23** — the VM-store silent-null family: a
   store whose config binds an undeclared data key is never created at all (null forever, no
   error); even declared ones are null in the construction window (null-guard manual loads —
