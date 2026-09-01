@@ -487,6 +487,68 @@ if [ -n "$LATEST_REVIEW_LINE" ]; then
     echo ""
 fi
 
+# ---------------------------------------------------------------------------
+# Suppressed findings — SURFACE them, don't just refuse the clean signal.
+#
+# Detecting a suppressed block (v5.6.1) only made the adapter withhold
+# COPILOT_CLEAN_SIGNAL and stamp CLEAN=false on the LATEST_REVIEW line. Neither
+# reaches the orchestrator's verdict: the core skill derives clean structurally
+# (check-run DONE + zero active findings) and is explicitly told to IGNORE the
+# trailing legacy CLEAN= token. Suppressed findings post no inline comment, so
+# the structural count is 0 and copilot reads CLEAN with real findings on the
+# table — a detected-but-mute signal.
+#
+# So emit the block as MATERIAL the loop can triage: a machine marker plus the
+# items verbatim (copilot renders file:line + text per item, so they are as
+# structured as an inline finding — they just arrive in the review body).
+# COPILOT_SUPPRESSED counts as ACTIVE FINDINGS for the head SHA; see
+# references/engine-copilot.md § Suppressed comments.
+# ---------------------------------------------------------------------------
+SUPPRESSED_BLOCK=$(echo "$REVIEWS" | python3 -c "
+import json, re, sys
+try:
+    reviews = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+copilot = [r for r in reviews if (r.get('user') or {}).get('login') in ('Copilot', 'copilot-pull-request-reviewer[bot]')]
+if not copilot:
+    sys.exit(0)
+copilot.sort(key=lambda r: r.get('submitted_at') or '', reverse=True)
+latest = copilot[0]
+body = (latest.get('body') or '')
+# Header shape: '### Suppressed comments (N)'. Match case-insensitively and
+# tolerate heading level drift (## / ###) — the template has already moved once.
+m = re.search(r'^#{2,4}\s*Suppressed comments\s*\((\d+)\)\s*\$', body, re.M | re.I)
+if not m:
+    sys.exit(0)
+count = int(m.group(1))
+rest = body[m.end():]
+# The block runs to the review-stats list, the </details> close, or the next
+# heading — whichever comes first.
+end = len(rest)
+for pat in (r'^\s*-\s+\*\*Files reviewed:', r'^\s*</details>', r'^#{2,4}\s+\S'):
+    mm = re.search(pat, rest, re.M)
+    if mm:
+        end = min(end, mm.start())
+items = rest[:end].strip()
+rid = latest.get('id')
+commit = latest.get('commit_id') or ''
+at = latest.get('submitted_at') or ''
+print(f'COPILOT_SUPPRESSED={count} REVIEW={rid} COMMIT={commit} AT={at}')
+print('')
+print(items)
+" 2>/dev/null || true)
+
+if [ -n "$SUPPRESSED_BLOCK" ]; then
+    # Marker line is plain text (parsed by the loop); the framing is cosmetic.
+    echo "$SUPPRESSED_BLOCK" | head -1
+    echo -e "${RED}🙈 Copilot SUPPRESSED findings — invisible to the inline-comment API, surfaced here verbatim.${NC}"
+    echo -e "${RED}   These count as ACTIVE findings for the head SHA: triage them like inline comments.${NC}"
+    echo ""
+    echo "$SUPPRESSED_BLOCK" | tail -n +2
+    echo ""
+fi
+
 # Any other copilot reviews with substantive bodies (umbrella summaries, partial clean,
 # older clean signals for prior SHAs). Surface them so the loop can see non-clean
 # review history — useful when copilot is iterating across pushes.
