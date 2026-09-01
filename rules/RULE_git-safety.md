@@ -195,3 +195,18 @@ a new PR that targets `main` directly — do **not** try to re-merge the strande
 **Avoid it:** after merging A, confirm B's base actually flipped to `main` (PR UI / `baseRefName`) —
 or force it deterministically with `gh pr edit <B> --base main`, or rebase B onto `main` first so it's
 no longer stacked — before merging B. Never batch "merge A, merge B" as one rapid action.
+
+### A path in `.gitignore` proves nothing — tracked files ignore the ignore
+
+`.gitignore` only stops **untracked** files from being added; a file committed *before*
+the ignore rule stays tracked forever, keeps showing local edits as pending diffs (one
+careless `git add -A` from being pushed), and — the observed incident — carries a
+dev-host/config value on the trunk while every doc and rule in the repo asserts "that
+file is gitignored". Nobody checks, because the ignore line is right there.
+
+**Probe when it matters** (a "gitignored" file shows up in `git status` as modified, or
+you are about to rely on the ignore): `git ls-files --error-unmatch <path>` — exit 0
+means TRACKED. **Fix:** `git rm --cached <path>` (index-only; local copies stay on
+disk). Pull-side effect to announce in the PR: checkouts whose copy is byte-identical
+to the committed version lose the file on pull (they re-create per the project's setup
+doc); locally-modified copies are kept by the local-changes guard.

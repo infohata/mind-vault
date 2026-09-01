@@ -10,6 +10,30 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.4 — the store that was never created and the login that never failed loudly
+
+`/compound` from an ExtJS consuming project's payment-requests stream (three lessons, one day).
+
+### Added
+- **extjs-frontend / MODERN_COMPONENT_FOOTGUNS §23** — the VM-store silent-null family: a
+  store whose config binds an undeclared data key is never created at all (null forever, no
+  error); even declared ones are null in the construction window (null-guard manual loads —
+  the store autoLoads once its binds publish); and never wrap a dialog open in a promise
+  chain whose `.catch` does HTTP-error recovery — a render throw then masquerades as backend
+  state. Pin recipe included.
+- **extjs-frontend / SENCHA_TOOLCHAIN_AND_BUILD §8** — cross-origin dev login is dead in
+  modern Chrome (`SameSite=Lax` cookie dropped on cross-site XHR + `Access-Control-Allow-Origin: *`
+  invalid with credentials → silent bounce-to-login): the fix is an opt-in dev-server proxy
+  mirroring production's nginx (pinned Host, cookieDomainRewrite, same-origin code path).
+- **extjs-frontend / SENCHA_TOOLCHAIN_AND_BUILD §9** — one `sencha app watch` profile at a
+  time (shared `generatedFiles/`, last writer wins) and the microloader picks the manifest by
+  UA, not by what the dev server built; DevTools emulation lever + the CDP-input-wedge
+  fallback (drive via the framework controller API).
+- **RULE_git-safety** — "a path in `.gitignore` proves nothing": tracked-before-the-rule
+  files keep carrying diffs (and, observed, a config value on the trunk everyone believed
+  was ignored); probe `git ls-files --error-unmatch`, fix `git rm --cached`, announce the
+  pull-side effect.
+
 ## v5.8.3 — the detection that terminated in a flag nobody read
 
 A copilot review whose visible inline set was empty carried three real findings in its body's
