@@ -10,6 +10,17 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.4 — a poll budget cannot recover a lost one-shot
+
+### Added
+- `skills/extjs-frontend/references/PLAYWRIGHT_COMPONENTQUERY_E2E.md` §11 — the de-race
+  taxonomy for tracing-induced (observer-effect) e2e failures: five shapes with fixes
+  (mock the claimed state; controller-drive covered/stale buttons; retry focus per tick;
+  re-press swallowed keypresses while polling; trace-artifact triage for lost paints),
+  plus the orphaned-dev-server/`reuseExistingServer` latch and the `pkill` self-match
+  bracket trick. From a consuming project's first overnight sprint-auto batch.
+  (2026-09-02, [#TBD](https://github.com/infohata/mind-vault/pull/TBD))
+
 ## v5.8.3 — the detection that terminated in a flag nobody read
 
 A copilot review whose visible inline set was empty carried three real findings in its body's
