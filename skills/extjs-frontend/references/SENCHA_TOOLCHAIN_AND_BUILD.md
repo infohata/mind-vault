@@ -180,3 +180,31 @@ a DevTools emulation session is open, CDP-driven mouse input from automation too
 wedge even though page JS is fine — drive the walk through the framework's controller
 API (`Ext.ComponentQuery` + controller methods) instead of synthetic clicks.
 
+## 10. Post-deploy, the OLD app runs first — and the update prompt is a native confirm
+
+Incident shape (post-deploy verification walk on a staging host): the freshly deployed
+build was live on the server, yet every probe of the running app showed the old code —
+and then the tab froze so hard that CDP `Runtime.evaluate` timed out at 45 s.
+
+Two microloader behaviors compose into this:
+
+- **The cached bundle boots first.** The microloader caches build manifests in
+  `localStorage` (`_ext:*` keys) and boots from cache, then checks the server in the
+  background. On the first load after a deploy, the tab runs the **previous** build
+  end-to-end; the new code arrives only after the update-and-reload cycle.
+- **The update prompt is a NATIVE `confirm()`.** When the background check finds a newer
+  manifest, the stock microloader raises a browser-native dialog ("application updated —
+  reload?"). Native dialogs block the renderer's event loop: automation sees frozen
+  screenshots and CDP timeouts, and nothing recovers until a human dismisses it.
+
+Consequences for anyone verifying a deploy:
+
+- **Probe the server artifact, never the running app**: fetch the build manifest and
+  compare its `cache` stamp, then fetch the served `app.js` and grep a symbol unique to
+  the new release. A booted tab asserting old behavior proves nothing about the deploy.
+- Expect the freeze on the first post-deploy load in **any** tab with a stale manifest
+  cache — pre-arrange the human dismissal, or start from a tab whose `_ext:*` cache is
+  already current. Clearing the `_ext:*` keys must happen **before** the app page loads
+  (from a non-booting same-origin page, e.g. the login route) — on the app page the
+  microloader has already consumed the cache by the time any injected script runs.
+

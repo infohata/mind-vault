@@ -33,6 +33,14 @@ _(none)_
   files keep carrying diffs (and, observed, a config value on the trunk everyone believed
   was ignored); probe `git ls-files --error-unmatch`, fix `git rm --cached`, announce the
   pull-side effect.
+- **extjs-frontend / SENCHA_TOOLCHAIN_AND_BUILD §10** — post-deploy, the OLD app runs
+  first: the microloader boots from its `localStorage` manifest cache and only then finds
+  the new build — via a browser-NATIVE "updated, reload?" confirm that freezes the renderer
+  (CDP timeouts) until a human dismisses it. Verify a deploy against the server artifact
+  (manifest stamp + symbol grep in the served `app.js`), never against a booted tab.
+  (The same walk also live-validated RULE_git-safety's push-the-remote-ref section: a
+  `master:staging` promote of a stale local master reported "Everything up-to-date" while
+  staging stayed one release behind — the documented `origin/<branch>:target` form fixed it.)
 
 ## v5.8.3 — the detection that terminated in a flag nobody read
 
