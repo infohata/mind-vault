@@ -114,10 +114,10 @@ mis-statement; it converts an ongoing loss into a thought experiment.
 - **Gate the wording on the guard, not the mode's name.** `shadow`, `dark`, `dry-run`,
   `observe`, `report-only` are labels; the `if` is the specification.
 
-## Do not stage a rollout across tenants of ONE organisation
+## Do not stage a rollout across tenants of ONE organization
 
 The datastore rule above covers hosts sharing a schema. This is the adjacent case: separate
-tenants with separate datastores, but **one customer organisation** — a franchise, a
+tenants with separate datastores, but **one customer organization** — a franchise, a
 multi-site operator, any group whose sites share staff and reporting. Staging tenant-by-tenant
 there creates a split that is
 invisible infrastructurally and very visible to the customer:
@@ -126,7 +126,7 @@ invisible infrastructurally and very visible to the customer:
   preserved at one and silently replaced at another.
 - **Any incident report becomes unanswerable without first asking which site.** "The name
   changed on its own" has two correct and opposite answers during the split window.
-- The requirement was specified for the organisation, not per site, so the split is a period
+- The requirement was specified for the organization, not per site, so the split is a period
   of *not meeting the spec* rather than a cautious partial rollout.
 
 **Rule: the staging unit is the ORGANISATION, not the tenant.** Stage across independent
