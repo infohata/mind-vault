@@ -195,8 +195,8 @@ and "blocked on X" often means "blocked on the one approach we considered". So:
   repo is cheap against a phase parked for weeks. Only possible when the dependency's source is
   readable; when it isn't, say so in the gate ("verified from the API surface only").
 - **Write gates as the *capability* that is missing, not the *endpoint* that lacks it.** "The
-  detail payload has no pending amounts" invites checking one payload; "no API serves pending
-  amounts anywhere" invites the sweep that would have un-gated it immediately.
+  record's detail payload has no pending amounts" invites checking one payload; "no API serves
+  pending amounts anywhere" invites the sweep that would have un-gated it immediately.
 - When a re-probe un-gates a phase, the plan that parked it gets the same closed-with-reason
   annotation an expired deferral gets — the next reader must not re-derive the gate.
 
