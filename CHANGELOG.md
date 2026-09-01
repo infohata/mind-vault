@@ -19,7 +19,7 @@ _(none)_
   re-press swallowed keypresses while polling; trace-artifact triage for lost paints),
   plus the orphaned-dev-server/`reuseExistingServer` latch and the `pkill` self-match
   bracket trick. From a consuming project's first overnight sprint-auto batch.
-  (2026-09-02, [#TBD](https://github.com/infohata/mind-vault/pull/TBD))
+  (2026-09-02, [#246](https://github.com/infohata/mind-vault/pull/246))
 
 ## v5.8.3 — the detection that terminated in a flag nobody read
 
