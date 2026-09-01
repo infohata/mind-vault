@@ -117,8 +117,9 @@ mis-statement; it converts an ongoing loss into a thought experiment.
 ## Do not stage a rollout across tenants of ONE organisation
 
 The datastore rule above covers hosts sharing a schema. This is the adjacent case: separate
-tenants with separate datastores, but **one customer organisation** — a hotel group, a
-franchise, a multi-site operator. Staging tenant-by-tenant there creates a split that is
+tenants with separate datastores, but **one customer organisation** — a franchise, a
+multi-site operator, any group whose sites share staff and reporting. Staging tenant-by-tenant
+there creates a split that is
 invisible infrastructurally and very visible to the customer:
 
 - The same workflow behaves differently at two of that customer's sites — a value is
