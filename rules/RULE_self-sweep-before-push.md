@@ -114,7 +114,11 @@ So verify **wider than you edited**: `grep -rniE` (case-insensitive, extended) f
 
 Related: fixing the instance a reviewer reported without re-running a check that spans the whole **class** leaves the siblings for the next cycle. When a finding names a defect your own edit pattern produced (a stranded line-wrap, a half-renamed term), assume there are more and sweep for the pattern before pushing.
 
-**The scoping trap this rule walks into by construction:** a sweep script that derives its file list from `git diff --name-only <base>...HEAD` sees **committed work only**. This is a *pre-commit* rule, so at the moment it runs, the very changes it exists to check are usually still unstaged — and the sweep prints a tidy "clean" for files it never opened. Measured: a sweep written this way listed two touched files and passed, while two more sat edited in the working tree. Scope a pre-commit sweep to `git diff --name-only <base>` (two-dot, working tree included) or `git status --porcelain`, and sanity-check the printed file list against what you know you edited before believing any "clean" it reports. The file list is part of the output, not scaffolding: a sweep that cannot show you the right files has not swept.
+**The scoping trap this rule walks into by construction:** a sweep script that derives its file list from `git diff --name-only <base>...HEAD` sees **committed work only**. This is a *pre-commit* rule, so at the moment it runs, the very changes it exists to check are usually still unstaged — and the sweep prints a tidy "clean" for files it never opened. Measured: a sweep written this way listed two touched files and passed, while two more sat edited in the working tree.
+
+Scope a pre-commit sweep to **`git diff --name-only <base>` — a bare ref, no dots at all** — or to `git status --porcelain`. **The dots are the bug**: both `<base>..HEAD` and `<base>...HEAD` are commit-to-commit and exclude unstaged edits, so reaching for a "shorter range" lands you back in the trap. Verified on an unstaged edit to a file the branch had never committed: the bare ref listed it, `..HEAD` and `...HEAD` both did not.
+
+Then sanity-check the printed file list against what you know you edited before believing any "clean" it reports. The file list is part of the output, not scaffolding: a sweep that cannot show you the right files has not swept.
 
 ## When This Applies
 
