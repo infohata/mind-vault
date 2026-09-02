@@ -10,16 +10,56 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
-## v5.8.4 — a poll budget cannot recover a lost one-shot
+## v5.8.5 — a poll budget cannot recover a lost one-shot, and a check that shares the edit's blind spot
+
+Two streams, one release. An overnight sprint-auto batch on a consuming project produced the
+e2e de-race taxonomy; the v5.8.4 review loop that shipped the day before produced the two
+sweep-integrity lessons beneath it — both cases of a verification that could not see what it
+was verifying — compounded 2026-09-02.
 
 ### Added
+
 - `skills/extjs-frontend/references/PLAYWRIGHT_COMPONENTQUERY_E2E.md` §11 — the de-race
   taxonomy for tracing-induced (observer-effect) e2e failures: five shapes with fixes
   (mock the claimed state; controller-drive covered/stale buttons; retry focus per tick;
   re-press swallowed keypresses while polling; trace-artifact triage for lost paints),
   plus the orphaned-dev-server/`reuseExistingServer` latch and the `pkill` self-match
   bracket trick. From a consuming project's first overnight sprint-auto batch.
-  (2026-09-02, [#246](https://github.com/infohata/mind-vault/pull/246))
+
+## v5.8.4 — the store that was never created and the login that never failed loudly
+
+One consuming ExtJS project's day, traced from a single symptom ("the dialog shows an error toast
+instead of opening"): four defect classes across the component layer and the toolchain, plus the
+git-hygiene guardrail the same walk turned up — compounded 2026-09-01.
+
+### Added
+
+- **extjs-frontend / MODERN_COMPONENT_FOOTGUNS §23** — the VM-store silent-null family: a
+  store whose config binds an undeclared data key is never created at all (null forever, no
+  error); even declared ones are null in the construction window (null-guard manual loads —
+  the store autoLoads once its binds publish); and never wrap a dialog open in a promise
+  chain whose `.catch` does HTTP-error recovery — a render throw then masquerades as backend
+  state. Pin recipe included.
+- **extjs-frontend / SENCHA_TOOLCHAIN_AND_BUILD §8** — cross-origin dev login is dead in
+  modern Chrome (`SameSite=Lax` cookie dropped on cross-site XHR + `Access-Control-Allow-Origin: *`
+  invalid with credentials → silent bounce-to-login): the fix is an opt-in dev-server proxy
+  mirroring production's nginx (pinned Host, cookieDomainRewrite, same-origin code path).
+- **extjs-frontend / SENCHA_TOOLCHAIN_AND_BUILD §9** — one `sencha app watch` profile at a
+  time (shared `generatedFiles/`, last writer wins) and the microloader picks the manifest by
+  UA, not by what the dev server built; DevTools emulation lever + the CDP-input-wedge
+  fallback (drive via the framework controller API).
+- **RULE_git-safety** — "a path in `.gitignore` proves nothing": tracked-before-the-rule
+  files keep carrying diffs (and, observed, a config value on the trunk everyone believed
+  was ignored); probe `git ls-files --error-unmatch`, fix `git rm --cached`, announce the
+  pull-side effect.
+- **extjs-frontend / SENCHA_TOOLCHAIN_AND_BUILD §10** — post-deploy, the OLD app runs
+  first: the microloader boots from its `localStorage` manifest cache and only then finds
+  the new build — via a browser-NATIVE "updated, reload?" confirm that freezes the renderer
+  (CDP timeouts) until a human dismisses it. Verify a deploy against the server artifact
+  (manifest stamp + symbol grep in the served `app.js`), never against a booted tab.
+  (The same walk also live-validated RULE_git-safety's push-the-remote-ref section: a
+  `master:staging` promote of a stale local master reported "Everything up-to-date" while
+  staging stayed one release behind — the documented `origin/<branch>:target` form fixed it.)
 
 ## v5.8.3 — the detection that terminated in a flag nobody read
 

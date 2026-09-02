@@ -5,15 +5,18 @@ staging "pilot" with real users on it). Four rules, each paid for once.
 
 ## 1. Never tap a side-effecting action on data you do not own — confirm the code path first
 
-A "remind" tap on a payment request looked like a preview: on an *expired* or *template-less*
-request the client opens a compose dialog, and every earlier tap had done exactly that. On a
-live, templated request the same menu item hit the dedicated send endpoint and queued a real
-email to a real guest. The tap itself is not the mistake; assuming the branch is.
+A menu action whose label reads like a preview can be **state-dependent**. On an *incomplete*
+row — missing the template it would render, or past its expiry — the client opens a compose
+dialog, and every earlier tap had done exactly that. On a complete, live row the same menu item
+hit a dedicated send endpoint and dispatched a real message to a real outside recipient. The tap
+itself is not the mistake; assuming the branch is, because the harmless branch is the one a
+tester's own scratch data keeps selecting.
 
 - Before any tap that *can* send, post, charge or delete: read the row's state from the
-  controller (template ids, expiry, ownership) and know which branch the tap takes.
-- Smoke on a throwaway record you created for the purpose (own reservation, own contact —
-  a non-deliverable placeholder address if the tool refuses to type the operator's own).
+  controller — the fields the branch actually keys on (completeness, expiry, ownership) — and
+  know which branch the tap takes.
+- Smoke on a throwaway record you created for the purpose and own end-to-end; if the action
+  reaches an outside party, address it somewhere non-deliverable that you control.
 - A no-op tap is not evidence of nothing happening: check the object's send/history log.
   Synthetic taps on floated menus are flaky (2 of 4 silently did nothing); retry once, then
   verify the state, never assume.

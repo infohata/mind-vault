@@ -375,6 +375,34 @@ probes, and prove the red by stashing the override — the copies were never red
 for "is this an override or a per-site fix": if the second copy of the same guard is being
 written, it is an override.
 
+## 23. A VM store whose config binds an UNDECLARED data key is silently never created — and even declared ones are null in the construction window
+
+A live-pilot incident, one symptom, two silent nulls (found tracing "the send dialog
+shows an error toast instead of opening"):
+
+**(a) Undeclared bind ⇒ store never exists.** A view-model store whose `proxy.extraParams`
+(or any config) carries binds is only BUILT once every bound key publishes. A key that is
+neither in the VM's `data:` defaults nor ever `set()` never publishes — so the store is
+silently never created: `vm.getStore('name')` returns null forever, `autoLoad` never
+fires, the bound picker stays empty, no error anywhere. The trap thrives on asymmetry:
+a sibling dialog's VM declared the keys and worked, so only one channel reproduced.
+Declare every bound key with a null default.
+
+**(b) Construction window ⇒ store not YET created.** Even with all keys declared, a
+handler that runs during `Ext.widget()` construction — a select field fires its *initial*
+`change` inside `initConfig` — sees `vm.getStore('name')` as null; an unguarded
+`.load()` throws. Null-guard manual loads in change handlers: on creation the store
+autoLoads with the fresh bound values anyway, so skipping the manual load is correct,
+not a workaround.
+
+**The compounding sin: a promise chain wrapped the dialog open.** The construction throw
+became a swallowed rejection, and the chain's `.catch` — written for HTTP failures — ran
+an HTTP-style recovery that misdiagnosed the render error as backend state (wrong toast,
+no dialog, nothing in the console). Never let `.then(open the dialog)` share a `.catch`
+with transport errors; open dialogs outside promise chains so a render failure surfaces
+as itself. Pin with an e2e that opens the dialog with the exact production config inside
+the same promise framing and asserts no captured rejection.
+
 ## Related
 
 - [JEST_EXT_STUB_HARNESS](JEST_EXT_STUB_HARNESS.md) — why the stub cannot catch #2 (define flatten).
