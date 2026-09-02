@@ -345,9 +345,13 @@ cd "$SPRINT_AUTO_INTEGRATION_WORKTREE"
 git checkout integration/sprint-auto-<batch-iso>
 for slug in $batch_slugs_in_arg_order; do
     git merge --no-ff "auto/$slug" -m "merge: integrate auto/$slug" \
-        || resolve_per_catalog_then_commit "auto/$slug"
+        || resolve_per_catalog_then_commit "auto/$slug"   # ← pseudocode, not a shipped helper
 done
 ```
+
+`resolve_per_catalog_then_commit` names the *step*, not a function this repo defines: on a
+conflict, resolve it using the algorithm catalog linked below, then commit the resolution as its
+own `resolve: integrate auto/<slug>` commit. Copy the loop, not that identifier.
 
 Resolution algorithm catalog: [`integration-conflict-resolutions.md`](integration-conflict-resolutions.md). Track per-branch outcome: `clean | resolved | failed`.
 
