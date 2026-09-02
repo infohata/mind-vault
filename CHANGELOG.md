@@ -26,6 +26,23 @@ was verifying — compounded 2026-09-02.
   plus the orphaned-dev-server/`reuseExistingServer` latch and the `pkill` self-match
   bracket trick. From a consuming project's first overnight sprint-auto batch.
 
+### Changed
+
+- `rules/RULE_self-sweep-before-push.md` § Sweep integrity gains "the check must not inherit
+  the edit's blind spot". A case-sensitive replace-all verified with a case-sensitive `grep`
+  runs one blind spot twice, so the check reports success *because* it missed the same thing —
+  observed shipping an untouched `ORGANISATION` past a `grep -n 'organi'` that had just
+  reported clean. Verify wider than you edited (`grep -rniE` over the directory, not the file).
+  Carries the sibling rule: when a reviewer's finding names a defect your own edit pattern
+  produced, sweep the whole class before pushing instead of fixing the reported instance.
+- `skills/skill-writer/references/LANGUAGE_CONVENTIONS.md` gains the tie-breaker for its own
+  two competing bullets ("fix drift in files you touched" vs "leave the pre-existing pile").
+  Count both forms repo-wide: US-dominant means genuine drift, fix it in the touched file;
+  UK-dominant means the known pile, leave it. Without the count the call is re-argued with
+  every reviewer — and a review engine correctly spotting "two variants in one document"
+  cannot know which direction resolves it, so on a UK-dominant term it asks you to regress
+  correct new text. New prose stays US-spelled either way.
+
 ## v5.8.4 — the store that was never created and the login that never failed loudly
 
 One consuming ExtJS project's day, traced from a single symptom ("the dialog shows an error toast

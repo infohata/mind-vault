@@ -106,6 +106,14 @@ Observed: a dead-file removal swept with an extension allow-list, concluded "exa
 
 The general form: **a negative result is a claim about your search, not about the repo.** Before writing "none remain" or a specific count, ask what the search could not see.
 
+### The check must not inherit the edit's blind spot
+
+The sharpest form of that: when you verify a bulk edit, **the verification must not be built from the same assumption as the edit**. A case-sensitive replace-all followed by a case-sensitive `grep` re-runs one blind spot twice — the survivors are invisible to both, so the check reports success *because* it missed the same thing. Observed: a UK→US spelling fix replaced every `organisation`, verified with `grep -n 'organi'`, and shipped an untouched `ORGANISATION` in an emphasized rule line; the reviewer found it one cycle later. Same shape for a whole-word `\b` pattern over hyphenated compounds, and for a fixed-string `grep -F` over text the edit reflowed.
+
+So verify **wider than you edited**: `grep -rniE` (case-insensitive, extended) for the stem, over the whole directory rather than the touched file. Widening costs a few false positives to read; sharing the edit's blind spot costs a billed review cycle and a false "done".
+
+Related: fixing the instance a reviewer reported without re-running a check that spans the whole **class** leaves the siblings for the next cycle. When a finding names a defect your own edit pattern produced (a stranded line-wrap, a half-renamed term), assume there are more and sweep for the pattern before pushing.
+
 ## When This Applies
 
 - Every commit on a feature branch that touches `.py` or `.js` source.

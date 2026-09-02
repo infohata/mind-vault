@@ -50,6 +50,27 @@ down. Matching the identifiers removes the split.
   inconsistency — note it, leave it, and pick up a repo-wide sweep deliberately as its own PR,
   never as a tail-end addition to unrelated work.
 
+### Which half of that rule applies: count both forms first
+
+The two bullets above pull opposite ways on the same finding — "fix drift in files you touched"
+against "leave the pre-existing pile" — and a reviewer flagging a UK spelling in a file you just
+edited lands exactly on the seam. **Decide by counting both forms repo-wide, not by which
+language the word is in:**
+
+- **US form already dominates** ⇒ the UK spellings are genuine drift against a settled majority.
+  Fix them in the file you touched. (Measured: `organisation` 5 vs `organization` 21 — and 3 of
+  the 5 sat in one touched file, one of them inside prose that change had authored.)
+- **UK form dominates** ⇒ this is the known pile, not drift. Leave it. (Measured: `artefact` 237
+  vs `artifact` 79; `behaviour` 173 vs `behavior` 74; `catalogue` 68 — and `artefact` is
+  load-bearing in paths like `skills/artefact-retrieval/`, so it is a rename, not a spell-fix.)
+
+The count is the whole test, and it is two `grep -roc` runs. Without it the call is a coin-flip
+you have to re-argue with every reviewer: a review engine correctly observing "two variants in
+one document" is right about the observation and cannot know which direction resolves it — in a
+UK-dominant term it will ask you to regress correct new text, which is how the pile grows.
+**New prose is always US-spelled regardless** (rule 1); dominance decides only whether you also
+move the *old* text around it.
+
 ## Sweeping without breaking things
 
 - `analysis` / `analyses` are correct US English — the single most common false positive in any
