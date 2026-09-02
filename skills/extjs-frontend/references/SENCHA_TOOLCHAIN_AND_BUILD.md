@@ -147,3 +147,64 @@ The local fast loop stays the dev server (`npm run test:e2e`); the image run is 
 gate and the reproduction path for a red CI (`npm run test:e2e:image` builds the same image
 locally with the same token file). Probe design for what the gate asserts per bundle:
 PLAYWRIGHT_COMPONENTQUERY_E2E.md §10.
+
+## 8. Cross-origin dev login is dead in modern Chrome — proxy in the dev server, like prod's nginx
+
+The documented dev flow ("app on `localhost:<port>`, log in at the backend host, come
+back") fails SILENTLY today: backends that set the session cookie `SameSite=Lax` never
+get it attached to cross-site XHR, and a CORS `Access-Control-Allow-Origin: *` is
+invalid with credentials — so the backend login "succeeds", the app's session probe
+401s, and the operator bounces back to the login page with no error anywhere. Measured
+2026-09-01 on a Laravel-family backend + Chrome 152; it is why live smokes kept
+happening only on the deployed staging instance.
+
+The fix is parity, not CORS surgery: an opt-in webpack devServer proxy that mirrors the
+production nginx — forward `/login`, `/logout`, `/api/*` and the asset prefixes to
+`https://<backend-host>` with `changeOrigin: true` (the pinned `Host` selects the same
+tenant as staging) and `cookieDomainRewrite: ''`. Cookies then land on the localhost
+origin, the app runs the production same-origin code path (config `url: ''`, relative
+requests), and the password manager needs the localhost URL added to the entry once.
+Gate it on an env var so test harnesses that expect a dead backend stay untouched.
+
+## 9. One `sencha app watch` profile at a time; the microloader picks the manifest by UA
+
+Two dev servers (desktop + phone profiles) on one checkout silently fight: both watches
+write the same `generatedFiles/` (bootstrap + build manifests), last writer wins, and
+the second port serves the FIRST profile's bundle. Run one profile at a time.
+
+And serving the phone profile is not enough: the microloader selects `phone.json` vs
+`desktop.json` **by user agent**, not by what the dev server built — a desktop browser
+gets the desktop manifest on the phone port. DevTools device emulation (Ctrl+Shift+M) +
+reload is the dev-mode lever (the CI/static twin is a mobile-UA browser context). While
+a DevTools emulation session is open, CDP-driven mouse input from automation tooling can
+wedge even though page JS is fine — drive the walk through the framework's controller
+API (`Ext.ComponentQuery` + controller methods) instead of synthetic clicks.
+
+## 10. Post-deploy, the OLD app runs first — and the update prompt is a native confirm
+
+Incident shape (post-deploy verification walk on a staging host): the freshly deployed
+build was live on the server, yet every probe of the running app showed the old code —
+and then the tab froze so hard that CDP `Runtime.evaluate` timed out at 45 s.
+
+Two microloader behaviors compose into this:
+
+- **The cached bundle boots first.** The microloader caches build manifests in
+  `localStorage` (`_ext:*` keys) and boots from cache, then checks the server in the
+  background. On the first load after a deploy, the tab runs the **previous** build
+  end-to-end; the new code arrives only after the update-and-reload cycle.
+- **The update prompt is a NATIVE `confirm()`.** When the background check finds a newer
+  manifest, the stock microloader raises a browser-native dialog ("application updated —
+  reload?"). Native dialogs block the renderer's event loop: automation sees frozen
+  screenshots and CDP timeouts, and nothing recovers until a human dismisses it.
+
+Consequences for anyone verifying a deploy:
+
+- **Probe the server artifact, never the running app**: fetch the build manifest and
+  compare its `cache` stamp, then fetch the served `app.js` and grep a symbol unique to
+  the new release. A booted tab asserting old behavior proves nothing about the deploy.
+- Expect the freeze on the first post-deploy load in **any** tab with a stale manifest
+  cache — pre-arrange the human dismissal, or start from a tab whose `_ext:*` cache is
+  already current. Clearing the `_ext:*` keys must happen **before** the app page loads
+  (from a non-booting same-origin page, e.g. the login route) — on the app page the
+  microloader has already consumed the cache by the time any injected script runs.
+

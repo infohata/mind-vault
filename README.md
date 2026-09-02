@@ -8,7 +8,7 @@
 
 ______________________________________________________________________
 
-**v5 — demonstrated on a second stack (IDEA-014 Phase 2): `skills/laravel` + `skills/laravel-frontend` fill all 10 [`skills/work/references/SKILL_CONTRACT.md`](skills/work/references/SKILL_CONTRACT.md) contract headings with ZERO edits to any `agents/AGENT_*.md` — the empty `agents/` diff is the proof that the craft/stack split (v4.9, Phase 1: all 8 personas split into a craft core + `## Stack adapter`) is genuinely stack-agnostic, not Django with indirection. A real-repo Laravel dogfood follows as a v5.x fast-follow. Recent line: a third frontend stack — `skills/extjs-frontend` (Sencha ExtJS 7 Modern) fills the four frontend contract headings with the same zero-agent-edit drop-in, and the dispatch table gains the precedence rule that makes a named framework marker outrank the generic `package.json` frontend signal (v5.7); cross-project idea namespacing — bare `IDEA-NNN` is always the current repo's stream, foreign refs are `IDEA-NNN:project`, and inside mind-vault a non-placeholder suffix is a scrub violation by construction (v5.6, IDEA-023); the two-readers register — compound HITL surfaces written plain, agent-loaded reference bodies dense-but-concrete-first, wired at every write-site (v5.5.1–v5.5.2); a ~20-release live-ops hardening corpus in the `shell`/`deployment` references — evidence scripts & false cleans, kill-switch OFF-position fidelity, safe config edits, maintenance-script contract — capped by a nine-root-pattern batch harvest (v5.3.1–v5.5.0); the `/review-loop` claude engine classifies verdicts with an orchestrator-inline **model-judge** instead of a prose regex (v5.3, IDEA-022); event-driven `/review-loop` Phase 4 via a bounded, read-only `Monitor` (v5.2, IDEA-021); installable as a native Claude Code plugin — additive, coexist (v5.1, IDEA-017).**
+**v5 — demonstrated on a second stack (IDEA-014 Phase 2): `skills/laravel` + `skills/laravel-frontend` fill all 10 [`skills/work/references/SKILL_CONTRACT.md`](skills/work/references/SKILL_CONTRACT.md) contract headings with ZERO edits to any `agents/AGENT_*.md` — the empty `agents/` diff is the proof that the craft/stack split (v4.9, Phase 1: all 8 personas split into a craft core + `## Stack adapter`) is genuinely stack-agnostic, not Django with indirection. A real-repo Laravel dogfood follows as a v5.x fast-follow. Recent line: silence read as success — an alert that stops being *able* to detect its subject keeps reporting nothing, and that silence is indistinguishable from good news; the same shape ran through the review gates (a check-run green with no verdict, a copilot CLEAN blind to findings the API had suppressed), so each now has to produce evidence rather than an absence of noise (v5.8); a third frontend stack — `skills/extjs-frontend` (Sencha ExtJS 7 Modern) fills the four frontend contract headings with the same zero-agent-edit drop-in, and the dispatch table gains the precedence rule that makes a named framework marker outrank the generic `package.json` frontend signal (v5.7); cross-project idea namespacing — bare `IDEA-NNN` is always the current repo's stream, foreign refs are `IDEA-NNN:project`, and inside mind-vault a non-placeholder suffix is a scrub violation by construction (v5.6, IDEA-023); the two-readers register — compound HITL surfaces written plain, agent-loaded reference bodies dense-but-concrete-first, wired at every write-site (v5.5.1–v5.5.2); a ~20-release live-ops hardening corpus in the `shell`/`deployment` references — evidence scripts & false cleans, kill-switch OFF-position fidelity, safe config edits, maintenance-script contract — capped by a nine-root-pattern batch harvest (v5.3.1–v5.5.0); the `/review-loop` claude engine classifies verdicts with an orchestrator-inline **model-judge** instead of a prose regex (v5.3, IDEA-022); event-driven `/review-loop` Phase 4 via a bounded, read-only `Monitor` (v5.2, IDEA-021); installable as a native Claude Code plugin — additive, coexist (v5.1, IDEA-017).**
 
 Cross-host configuration library for AI coding agents — skills, commands, subagent personas, and shared rules, authored once and symlinked into every agent-aware tool.
 
@@ -55,7 +55,7 @@ mind-vault/
 └── tools/         Runtime skill helpers (review-loop adapters, statusline, etc.)
 ```
 
-## Skills (22)
+## Skills (23)
 
 Canonical `SKILL.md` patterns with progressive-disclosure `references/`. Each skill has frontmatter `name` + `description` (the probabilistic trigger), stays under ~500 lines, and pushes deep-dive content to `references/`.
 
@@ -283,7 +283,7 @@ Commit all non-sensitive configuration to git.
 
 Licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Kestutis Januskevicius.
 
-<!-- wrap:readme-currency-audited 2026-08-14 -->
+<!-- wrap:readme-currency-audited 2026-09-01 -->
 
 <!-- wrap:readme-currency
 N: 5
