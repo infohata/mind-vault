@@ -232,3 +232,28 @@ all three lists empty, manifest === project. Two rules that came out of the red 
 Prove the probe once with a deliberate red (a planted `ReferenceError` on a throwaway branch — the
 phone bundle went red with `pageerror: 0` and the console collector carrying the error, desktop
 stayed green) before trusting it; a probe that has never failed has never been tested.
+
+## 11. Turning on tracing flips one-shot races — the de-race taxonomy
+
+Enabling `trace: 'retain-on-failure'` (or anything that slows the renderer — a loaded
+2-vCPU CI runner does it too) is an **observer effect**: tests that always passed start
+failing deterministically, because they secretly bet on winning a race. One overnight
+hardening pass on a consuming ExtJS project hit five distinct shapes in a single suite;
+every fix generalizes. The dividing line: **poll budgets absorb slow observations;
+they cannot recover a lost one-shot action.** Diagnose which side you're on first —
+a 90 s budget that expires with *zero* progress means the action was lost at t=0, and
+more budget is the wrong tool.
+
+| Shape | Symptom under tracing | Fix |
+| --- | --- | --- |
+| **Store-load race** | A "no selection / empty state" probe fails because a bound store's auto-select landed before the probe's save fired | Mock the *state* the test claims (an empty store response registered after the boot mock — last-registered route wins), never "act before the load lands" |
+| **Covered / stale button** | `locator.click` retries for the whole test timeout: "element is not visible" or "subtree intercepts pointer events" — a resolve-once DOM id went stale after a re-render, or a parent dialog's scroller sits over the child (a real z-order defect: capture it as its own bug) | Drive the button's declared controller handler via `page.evaluate`; keep real clicks only where nothing re-renders underneath |
+| **Swallowed `focus()`** | `document.activeElement` never becomes the field — Ext defers `focus()` and it can no-op outright while a dialog animates | `waitForFunction` that **retries a DOM-level `input.focus()` on every poll tick**, not one that merely observes |
+| **Swallowed synthetic keypress** | Focus verified, `keyboard.press('Enter')` sent, the expected request never appears | Re-press inside the poll until the effect shows — with `seen()` reading a counter your `page.route` handler increments: `expect.poll(async () => { if (seen() === 0) await press(); return seen(); })`. Relax an exactly-once count to `>=1` — the routing claim survives, and a real user re-presses too |
+| **Grid rows never paint** | A row/icon count poll exhausts a *generous* budget at 0 on the slowest runner tier | Not budget-fixable blind — this is the class the tracing exists FOR: pull the retained trace + JSON report from the red run's artifact and find which one-shot (store load, route event) was dropped |
+
+Two ops corollaries from the same night, cheap to remember: a killed test-runner shell
+orphans the webpack dev server, and `reuseExistingServer: true` then latches every
+later run onto the wedged instance — kill the process tree before retrying; and
+`pkill -f <pattern>` matches its own wrapping shell when the pattern appears in your
+command line — bracket the first character (`pkill -f '[w]ebpack serve'`).

@@ -50,6 +50,49 @@ down. Matching the identifiers removes the split.
   inconsistency — note it, leave it, and pick up a repo-wide sweep deliberately as its own PR,
   never as a tail-end addition to unrelated work.
 
+### Which half of that rule applies: count both forms first
+
+The two bullets above pull opposite ways on the same finding — "fix drift in files you touched"
+against "leave the pre-existing pile" — and a reviewer flagging a UK spelling in a file you just
+edited lands exactly on the seam. **Decide by counting both forms repo-wide, not by which
+language the word is in:**
+
+Count **occurrences, not matching lines** — `grep -c` (and `-rc`) reports one per line however
+many hits that line holds, which undercounts dense reference prose and can flip a close call:
+
+```bash
+grep -roi 'artefact' --binary-files=without-match --exclude-dir=.git --exclude-dir=node_modules . | wc -l
+grep -rci 'artefact' --binary-files=without-match --exclude-dir=.git --exclude-dir=node_modules . | awk -F: '{s+=$2} END {print s}'
+# occurrences run ~22 ahead of matching lines here — that many lines carry the term twice
+```
+
+Three flags carry weight, and dropping any one skews the ratio in a way you cannot see:
+
+- **`-i`** — headings, sentence starts and emphasized rule lines are Title- or UPPER-case.
+  Case-sensitive counting missed 22 `artefact` and, worse, **17 of 42 `organization`** here.
+  (This is § *The check must not inherit the edit's blind spot* pointed at a count.)
+- **`-o`** — `-c` alone counts matching *lines*, so a line holding a term twice reports one.
+- **`--exclude-dir`, never `--include='*.md'`** — this is a count, so § *Sweep integrity*
+  applies; the extension allow-list under-reported `behaviour` 174 → 184 and `artifact`
+  83 → 85 once removed.
+
+- **US form already dominates** ⇒ the UK spellings are genuine drift against a settled majority.
+  Fix them in the file you touched. (`organisation` ~7 vs `organization` ~42 — when this call
+  was actually made the split read 5 vs 21 under a case-sensitive count, with 3 of those in one
+  touched file, one inside prose that change had authored. Same verdict, better numbers.)
+- **UK form dominates** ⇒ this is the known pile, not drift. Leave it. (`artefact` ~264 vs
+  `artifact` ~90; `behaviour` ~202 vs `behavior` ~81; `catalogue` ~72 — and `artefact` is
+  load-bearing in paths like `skills/artefact-retrieval/`, so it is a rename, not a spell-fix.)
+
+Treat those figures as a dated snapshot, not a constant — they drift with every release, and the
+**ratio** is the signal, not the absolute number. Re-run the count rather than trusting them.
+
+Without the count the call is a coin-flip you have to re-argue with every reviewer: a review
+engine correctly observing "two variants in one document" is right about the observation and
+cannot know which direction resolves it — on a UK-dominant term it will ask you to regress
+correct new text, which is how the pile grows. **New prose is always US-spelled regardless**
+(rule 1); dominance decides only whether you also move the *old* text around it.
+
 ## Sweeping without breaking things
 
 - `analysis` / `analyses` are correct US English — the single most common false positive in any

@@ -10,6 +10,53 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.5 — a poll budget cannot recover a lost one-shot, and a check that shares the edit's blind spot
+
+Two streams, one release. An overnight sprint-auto batch on a consuming project produced the
+e2e de-race taxonomy; the v5.8.4 review loop that shipped the day before produced the two
+sweep-integrity lessons beneath it — both cases of a verification that could not see what it
+was verifying — compounded 2026-09-02.
+
+### Added
+
+- `skills/extjs-frontend/references/PLAYWRIGHT_COMPONENTQUERY_E2E.md` §11 — the de-race
+  taxonomy for tracing-induced (observer-effect) e2e failures: five shapes with fixes
+  (mock the claimed state; controller-drive covered/stale buttons; retry focus per tick;
+  re-press swallowed keypresses while polling; trace-artifact triage for lost paints),
+  plus the orphaned-dev-server/`reuseExistingServer` latch and the `pkill` self-match
+  bracket trick. From a consuming project's first overnight sprint-auto batch.
+
+### Changed
+
+- `rules/RULE_self-sweep-before-push.md` § Sweep integrity gains "the check must not inherit
+  the edit's blind spot". A case-sensitive replace-all verified with a case-sensitive `grep`
+  runs one blind spot twice, so the check reports success *because* it missed the same thing —
+  observed shipping an untouched `ORGANISATION` past a `grep -n 'organi'` that had just
+  reported clean. Verify wider than you edited (`grep -rniE` over the directory, not the file).
+  Carries the sibling rule: when a reviewer's finding names a defect your own edit pattern
+  produced, sweep the whole class before pushing instead of fixing the reported instance.
+  Plus the scoping trap the rule walks into by construction: a sweep whose file list comes
+  from `git diff --name-only <base>...HEAD` sees **committed work only**, and this is a
+  pre-commit rule — so it prints "clean" for the unstaged files it exists to check. Caught
+  live while writing this entry (the sweep listed 2 files while 4 were edited). Scope to the
+  union of `git diff --name-only` and `git ls-files --others --exclude-standard` — every
+  `git diff` form is tracked-only, so a change that ADDS a file (the ordinary shape of a
+  compound) is invisible to it; and if you use a diff it must be a bare ref, since `..HEAD`
+  and `...HEAD` are commit-to-commit and drop unstaged edits. Do not parse
+  `git status --porcelain` for the list: on an untracked path containing a space,
+  `awk '{print $NF}'` emitted the fragment `probe.md"`. Then read the printed file list
+  before believing the verdict.
+- `skills/skill-writer/references/LANGUAGE_CONVENTIONS.md` gains the tie-breaker for its own
+  two competing bullets ("fix drift in files you touched" vs "leave the pre-existing pile").
+  Count both forms repo-wide — case-insensitively (`-i`), by occurrence not matching line
+  (`-o`, not bare `-c`), and with directory-excludes rather than an `--include` allow-list;
+  dropping any one skews the ratio invisibly, and case-sensitivity alone hid 17 of 42
+  `organization` here. US-dominant means genuine drift, fix it in the touched file;
+  UK-dominant means the known pile, leave it. Without the count the call is re-argued with
+  every reviewer — and a review engine correctly spotting "two variants in one document"
+  cannot know which direction resolves it, so on a UK-dominant term it asks you to regress
+  correct new text. New prose stays US-spelled either way.
+
 ## v5.8.4 — the store that was never created and the login that never failed loudly
 
 One consuming ExtJS project's day, traced from a single symptom ("the dialog shows an error toast

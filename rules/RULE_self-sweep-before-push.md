@@ -106,6 +106,36 @@ Observed: a dead-file removal swept with an extension allow-list, concluded "exa
 
 The general form: **a negative result is a claim about your search, not about the repo.** Before writing "none remain" or a specific count, ask what the search could not see.
 
+### The check must not inherit the edit's blind spot
+
+The sharpest form of that: when you verify a bulk edit, **the verification must not be built from the same assumption as the edit**. A case-sensitive replace-all followed by a case-sensitive `grep` re-runs one blind spot twice — the survivors are invisible to both, so the check reports success *because* it missed the same thing. Observed: a UK→US spelling fix replaced every `organisation`, verified with `grep -n 'organi'`, and shipped an untouched `ORGANISATION` in an emphasized rule line; the reviewer found it one cycle later. Same shape for a whole-word `\b` pattern over hyphenated compounds, and for a fixed-string `grep -F` over text the edit reflowed.
+
+So verify **wider than you edited**: `grep -rniE` (case-insensitive, extended) for the stem, over the whole directory rather than the touched file. Widening costs a few false positives to read; sharing the edit's blind spot costs a billed review cycle and a false "done".
+
+Related: fixing the instance a reviewer reported without re-running a check that spans the whole **class** leaves the siblings for the next cycle. When a finding names a defect your own edit pattern produced (a stranded line-wrap, a half-renamed term), assume there are more and sweep for the pattern before pushing.
+
+**The scoping trap this rule walks into by construction:** a sweep script that derives its file list from `git diff --name-only <base>...HEAD` sees **committed work only**. This is a *pre-commit* rule, so at the moment it runs, the very changes it exists to check are usually still unstaged — and the sweep prints a tidy "clean" for files it never opened. Measured: a sweep written this way listed two touched files and passed, while two more sat edited in the working tree.
+
+Scope a pre-commit sweep to the **union of tracked changes and untracked adds**, taking each from a command that already emits a clean path list — never by parsing `git status --porcelain`, whose columns, rename arrows and quoting make field-splitting wrong:
+
+```bash
+# tracked (staged + unstaged) ∪ untracked. <base>=HEAD for "about to commit",
+# or origin/main for everything the branch touches.
+{ git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u
+
+# paths with spaces: consume NUL-delimited, never via word-splitting
+{ git diff --name-only -z HEAD; git ls-files -z --others --exclude-standard; } |
+  while IFS= read -r -d '' f; do :; done
+```
+
+Every `git diff` form is tracked-only, so a change that **adds** a file is invisible to it — and adding a new reference doc is the ordinary shape of a `/compound`, not an edge case. `git ls-files --others` is what covers that half. Verified: a new untracked file was absent from `git diff --name-only <base>` and present once the `ls-files` half was unioned in.
+
+`git status --porcelain | awk '{print $NF}'` looks like a shortcut and is a trap — on an untracked path containing a space it emitted the fragment `probe.md"`, having split the path and inherited porcelain's quoting. A file list that is silently wrong is the same defect as a sweep that never opened the file.
+
+If you do use the diff form for a tracked-only view, it must be **a bare ref, no dots at all**. **The dots are the bug**: both `<base>..HEAD` and `<base>...HEAD` are commit-to-commit and exclude unstaged edits, so reaching for a "shorter range" lands you back in the trap. Verified on an unstaged edit to a file the branch had never committed: the bare ref listed it, `..HEAD` and `...HEAD` both did not.
+
+Then sanity-check the printed file list against what you know you edited before believing any "clean" it reports. The file list is part of the output, not scaffolding: a sweep that cannot show you the right files has not swept.
+
 ## When This Applies
 
 - Every commit on a feature branch that touches `.py` or `.js` source.
