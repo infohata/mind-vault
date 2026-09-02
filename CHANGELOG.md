@@ -35,6 +35,12 @@ was verifying — compounded 2026-09-02.
   reported clean. Verify wider than you edited (`grep -rniE` over the directory, not the file).
   Carries the sibling rule: when a reviewer's finding names a defect your own edit pattern
   produced, sweep the whole class before pushing instead of fixing the reported instance.
+  Plus the scoping trap the rule walks into by construction: a sweep whose file list comes
+  from `git diff --name-only <base>...HEAD` sees **committed work only**, and this is a
+  pre-commit rule — so it prints "clean" for the unstaged files it exists to check. Caught
+  live while writing this entry (the sweep listed 2 files while 4 were edited). Scope to the
+  two-dot form or `git status --porcelain`, and read the printed file list before believing
+  the verdict.
 - `skills/skill-writer/references/LANGUAGE_CONVENTIONS.md` gains the tie-breaker for its own
   two competing bullets ("fix drift in files you touched" vs "leave the pre-existing pile").
   Count both forms repo-wide: US-dominant means genuine drift, fix it in the touched file;
