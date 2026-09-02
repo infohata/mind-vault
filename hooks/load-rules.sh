@@ -22,7 +22,7 @@ set -euo pipefail
 emit_note() {
   # Static fallback — no escaping needed.
   cat <<'JSON'
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"Mind-Vault plugin active. Behavioral rules are NOT auto-loaded on the plugin channel — run /mv:load-rules to load them."}}
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"Mind-Vault plugin active. Behavioral rules could NOT be auto-loaded this session (jq unavailable, CLAUDE_PLUGIN_ROOT unset, or no rules found) — run /mv:load-rules to load them. This is a fallback: the plugin channel normally auto-loads them."}}
 JSON
 }
 

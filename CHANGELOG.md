@@ -36,6 +36,17 @@ to unrelated work". This is that PR — compounded 2026-09-02.
   `RULE_rename-before-drop`, not a spelling pass. Ask whether a term is a word or a name
   *before* counting, or the count points at a rename you did not intend.
 
+### Fixed
+
+- **`hooks/load-rules.sh`** — the SessionStart fallback told the user "Behavioral rules are NOT
+  auto-loaded on the plugin channel", which reads as a permanent channel limitation. The hook
+  *does* auto-load them; that note only fires when it could not (no `jq`, `CLAUDE_PLUGIN_ROOT`
+  unset, no rules found), so anyone who hit it would wrongly conclude the plugin channel never
+  auto-loads rules and that `/mv:load-rules` is always required. Now states the failure and
+  that the fallback is the exception. Pre-existing, surfaced by review on a file this sweep
+  touched. Both paths re-verified: fallback emits valid JSON, success path still loads the full
+  rules body, and the POSIX-`sh` re-exec guard is intact.
+
 ### Deliberately not swept
 
 - **`skills/artefact-retrieval/` and `docs/artefacts/`** — the two trees named after the term,
