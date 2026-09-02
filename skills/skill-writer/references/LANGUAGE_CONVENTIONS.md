@@ -57,19 +57,36 @@ against "leave the pre-existing pile" — and a reviewer flagging a UK spelling 
 edited lands exactly on the seam. **Decide by counting both forms repo-wide, not by which
 language the word is in:**
 
+Count **occurrences, not matching lines** — `grep -c` (and `-rc`) reports one per line however
+many hits that line holds, which undercounts dense reference prose and can flip a close call:
+
+```bash
+grep -ro 'artefact' --binary-files=without-match --exclude-dir=.git --exclude-dir=node_modules . | wc -l
+grep -rc 'artefact' --binary-files=without-match --exclude-dir=.git --exclude-dir=node_modules . | awk -F: '{s+=$2} END {print s}'
+# 242 vs 223 here — 19 lines carry the term more than once
+```
+
+Exclude **directories**, never `--include='*.md'` — this is a count, so § *Sweep integrity*
+applies: the extension allow-list measurably under-reported here (`behaviour` 174 → 184,
+`artifact` 83 → 85 once the filter came off), and a ratio built from two under-counts is not
+one you want deciding anything.
+
 - **US form already dominates** ⇒ the UK spellings are genuine drift against a settled majority.
-  Fix them in the file you touched. (Measured: `organisation` 5 vs `organization` 21 — and 3 of
-  the 5 sat in one touched file, one of them inside prose that change had authored.)
-- **UK form dominates** ⇒ this is the known pile, not drift. Leave it. (Measured: `artefact` 237
-  vs `artifact` 79; `behaviour` 173 vs `behavior` 74; `catalogue` 68 — and `artefact` is
+  Fix them in the file you touched. (`organisation` ~4 vs `organization` ~25 — when this call
+  was actually made the split was 5 vs 21, with 3 of the 5 in one touched file, one of them
+  inside prose that change had authored.)
+- **UK form dominates** ⇒ this is the known pile, not drift. Leave it. (`artefact` ~242 vs
+  `artifact` ~85; `behaviour` ~184 vs `behavior` ~76; `catalogue` ~70 — and `artefact` is
   load-bearing in paths like `skills/artefact-retrieval/`, so it is a rename, not a spell-fix.)
 
-The count is the whole test, and it is two `grep -roc` runs. Without it the call is a coin-flip
-you have to re-argue with every reviewer: a review engine correctly observing "two variants in
-one document" is right about the observation and cannot know which direction resolves it — in a
-UK-dominant term it will ask you to regress correct new text, which is how the pile grows.
-**New prose is always US-spelled regardless** (rule 1); dominance decides only whether you also
-move the *old* text around it.
+Treat those figures as a dated snapshot, not a constant — they drift with every release, and the
+**ratio** is the signal, not the absolute number. Re-run the count rather than trusting them.
+
+Without the count the call is a coin-flip you have to re-argue with every reviewer: a review
+engine correctly observing "two variants in one document" is right about the observation and
+cannot know which direction resolves it — on a UK-dominant term it will ask you to regress
+correct new text, which is how the pile grows. **New prose is always US-spelled regardless**
+(rule 1); dominance decides only whether you also move the *old* text around it.
 
 ## Sweeping without breaking things
 
