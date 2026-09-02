@@ -116,13 +116,21 @@ Related: fixing the instance a reviewer reported without re-running a check that
 
 **The scoping trap this rule walks into by construction:** a sweep script that derives its file list from `git diff --name-only <base>...HEAD` sees **committed work only**. This is a *pre-commit* rule, so at the moment it runs, the very changes it exists to check are usually still unstaged — and the sweep prints a tidy "clean" for files it never opened. Measured: a sweep written this way listed two touched files and passed, while two more sat edited in the working tree.
 
-Scope a pre-commit sweep to **`git status --porcelain`** — the only form that lists tracked edits *and* untracked new files:
+Scope a pre-commit sweep to the **union of tracked changes and untracked adds**, taking each from a command that already emits a clean path list — never by parsing `git status --porcelain`, whose columns, rename arrows and quoting make field-splitting wrong:
 
 ```bash
-git status --porcelain | awk '{print $NF}'   # $NF is the post-rename name for "R old -> new"
+# tracked (staged + unstaged) ∪ untracked. <base>=HEAD for "about to commit",
+# or origin/main for everything the branch touches.
+{ git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u
+
+# paths with spaces: consume NUL-delimited, never via word-splitting
+{ git diff --name-only -z HEAD; git ls-files -z --others --exclude-standard; } |
+  while IFS= read -r -d '' f; do :; done
 ```
 
-Every `git diff` form is tracked-only, so a change that **adds** a file is invisible to it — and adding a new reference doc is the ordinary shape of a `/compound`, not an edge case. Verified: a new untracked file was absent from `git diff --name-only <base>` and present in porcelain.
+Every `git diff` form is tracked-only, so a change that **adds** a file is invisible to it — and adding a new reference doc is the ordinary shape of a `/compound`, not an edge case. `git ls-files --others` is what covers that half. Verified: a new untracked file was absent from `git diff --name-only <base>` and present once the `ls-files` half was unioned in.
+
+`git status --porcelain | awk '{print $NF}'` looks like a shortcut and is a trap — on an untracked path containing a space it emitted the fragment `probe.md"`, having split the path and inherited porcelain's quoting. A file list that is silently wrong is the same defect as a sweep that never opened the file.
 
 If you do use the diff form for a tracked-only view, it must be **a bare ref, no dots at all**. **The dots are the bug**: both `<base>..HEAD` and `<base>...HEAD` are commit-to-commit and exclude unstaged edits, so reaching for a "shorter range" lands you back in the trap. Verified on an unstaged edit to a file the branch had never committed: the bare ref listed it, `..HEAD` and `...HEAD` both did not.
 

@@ -38,15 +38,20 @@ was verifying — compounded 2026-09-02.
   Plus the scoping trap the rule walks into by construction: a sweep whose file list comes
   from `git diff --name-only <base>...HEAD` sees **committed work only**, and this is a
   pre-commit rule — so it prints "clean" for the unstaged files it exists to check. Caught
-  live while writing this entry (the sweep listed 2 files while 4 were edited). Scope to
-  `git status --porcelain` — the only form carrying untracked NEW files, and adding a
-  reference doc is the ordinary shape of a compound. Every `git diff` form is tracked-only;
-  if you use one anyway it must be a bare ref, since `..HEAD` and `...HEAD` are
-  commit-to-commit and drop unstaged edits. Then read the printed file list before believing
-  the verdict.
+  live while writing this entry (the sweep listed 2 files while 4 were edited). Scope to the
+  union of `git diff --name-only` and `git ls-files --others --exclude-standard` — every
+  `git diff` form is tracked-only, so a change that ADDS a file (the ordinary shape of a
+  compound) is invisible to it; and if you use a diff it must be a bare ref, since `..HEAD`
+  and `...HEAD` are commit-to-commit and drop unstaged edits. Do not parse
+  `git status --porcelain` for the list: on an untracked path containing a space,
+  `awk '{print $NF}'` emitted the fragment `probe.md"`. Then read the printed file list
+  before believing the verdict.
 - `skills/skill-writer/references/LANGUAGE_CONVENTIONS.md` gains the tie-breaker for its own
   two competing bullets ("fix drift in files you touched" vs "leave the pre-existing pile").
-  Count both forms repo-wide: US-dominant means genuine drift, fix it in the touched file;
+  Count both forms repo-wide — case-insensitively (`-i`), by occurrence not matching line
+  (`-o`, not bare `-c`), and with directory-excludes rather than an `--include` allow-list;
+  dropping any one skews the ratio invisibly, and case-sensitivity alone hid 17 of 42
+  `organization` here. US-dominant means genuine drift, fix it in the touched file;
   UK-dominant means the known pile, leave it. Without the count the call is re-argued with
   every reviewer — and a review engine correctly spotting "two variants in one document"
   cannot know which direction resolves it, so on a UK-dominant term it asks you to regress

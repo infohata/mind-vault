@@ -61,22 +61,27 @@ Count **occurrences, not matching lines** — `grep -c` (and `-rc`) reports one 
 many hits that line holds, which undercounts dense reference prose and can flip a close call:
 
 ```bash
-grep -ro 'artefact' --binary-files=without-match --exclude-dir=.git --exclude-dir=node_modules . | wc -l
-grep -rc 'artefact' --binary-files=without-match --exclude-dir=.git --exclude-dir=node_modules . | awk -F: '{s+=$2} END {print s}'
-# 242 vs 223 here — 19 lines carry the term more than once
+grep -roi 'artefact' --binary-files=without-match --exclude-dir=.git --exclude-dir=node_modules . | wc -l
+grep -rci 'artefact' --binary-files=without-match --exclude-dir=.git --exclude-dir=node_modules . | awk -F: '{s+=$2} END {print s}'
+# occurrences run ~22 ahead of matching lines here — that many lines carry the term twice
 ```
 
-Exclude **directories**, never `--include='*.md'` — this is a count, so § *Sweep integrity*
-applies: the extension allow-list measurably under-reported here (`behaviour` 174 → 184,
-`artifact` 83 → 85 once the filter came off), and a ratio built from two under-counts is not
-one you want deciding anything.
+Three flags carry weight, and dropping any one skews the ratio in a way you cannot see:
+
+- **`-i`** — headings, sentence starts and emphasized rule lines are Title- or UPPER-case.
+  Case-sensitive counting missed 22 `artefact` and, worse, **17 of 42 `organization`** here.
+  (This is § *The check must not inherit the edit's blind spot* pointed at a count.)
+- **`-o`** — `-c` alone counts matching *lines*, so a line holding a term twice reports one.
+- **`--exclude-dir`, never `--include='*.md'`** — this is a count, so § *Sweep integrity*
+  applies; the extension allow-list under-reported `behaviour` 174 → 184 and `artifact`
+  83 → 85 once removed.
 
 - **US form already dominates** ⇒ the UK spellings are genuine drift against a settled majority.
-  Fix them in the file you touched. (`organisation` ~4 vs `organization` ~25 — when this call
-  was actually made the split was 5 vs 21, with 3 of the 5 in one touched file, one of them
-  inside prose that change had authored.)
-- **UK form dominates** ⇒ this is the known pile, not drift. Leave it. (`artefact` ~242 vs
-  `artifact` ~85; `behaviour` ~184 vs `behavior` ~76; `catalogue` ~70 — and `artefact` is
+  Fix them in the file you touched. (`organisation` ~7 vs `organization` ~42 — when this call
+  was actually made the split read 5 vs 21 under a case-sensitive count, with 3 of those in one
+  touched file, one inside prose that change had authored. Same verdict, better numbers.)
+- **UK form dominates** ⇒ this is the known pile, not drift. Leave it. (`artefact` ~264 vs
+  `artifact` ~90; `behaviour` ~202 vs `behavior` ~81; `catalogue` ~72 — and `artefact` is
   load-bearing in paths like `skills/artefact-retrieval/`, so it is a rename, not a spell-fix.)
 
 Treat those figures as a dated snapshot, not a constant — they drift with every release, and the
