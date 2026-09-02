@@ -1,6 +1,6 @@
 # HTMX scroll-position preservation on prepend swaps
 
-A complete primitive for the "Load older" / inverse-pagination class of UI: when an HTMX swap prepends content to the top of a scrolling region, the user's reading position should not jump. The naive approaches all have failure modes; this reference catalogues them and presents the robust pattern.
+A complete primitive for the "Load older" / inverse-pagination class of UI: when an HTMX swap prepends content to the top of a scrolling region, the user's reading position should not jump. The naive approaches all have failure modes; this reference catalogs them and presents the robust pattern.
 
 Load this reference when:
 
@@ -11,7 +11,7 @@ Load this reference when:
 
 ## The problem
 
-Default browser behaviour: when a scrolling container's `scrollHeight` grows because content was prepended, the visible items shift downward by exactly the height of the prepend. The user's reading position (which they were anchored on visually) moves out of view. For a 1-item prepend this looks like a small jitter; for a 10-item Load-older click it looks like the page content jumps two screens away.
+Default browser behavior: when a scrolling container's `scrollHeight` grows because content was prepended, the visible items shift downward by exactly the height of the prepend. The user's reading position (which they were anchored on visually) moves out of view. For a 1-item prepend this looks like a small jitter; for a 10-item Load-older click it looks like the page content jumps two screens away.
 
 Goal: after the swap, every item that was previously visible is still in the same on-screen position. The user perceives the prepend as new content appearing above the fold, not as their reading position changing.
 
@@ -246,7 +246,7 @@ When the replacement's height differs a lot (a filter that cuts a 200-row list t
 The math is unit-testable in JSDOM with a fake layout. The trickier verification is end-to-end against a real browser — JSDOM doesn't compute layout, so `offsetTop` values are all 0 in tests, defeating the math. Strategy:
 
 - Unit-test the **directive emission** (markup-level — does the consumer's swap target carry `data-scroll-anchor`? does the marker get applied? does the swap response contain the right structure?).
-- Manual smoke for the actual scroll-preservation behaviour. Three test cases:
+- Manual smoke for the actual scroll-preservation behavior. Three test cases:
   1. Single Load-older click — note where a visible item is centred before, click, confirm item still centred after.
   2. Multi-page traversal to terminal state — click N times, terminal label appears, no further fetches.
   3. Browser console hygiene — no JS errors, no `htmx:targetError` events, throughout.

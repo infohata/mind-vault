@@ -194,7 +194,7 @@ Ext.define('App.data.summary.LiveSum', {
 
 Wrapper field components usually **exist only in the desktop build**; the phone build styles raw
 `textfield`/`selectfield`/`checkboxfield` via `ui` (`'default'`, `'default-picker'`,
-`'default-checkbox'`, `'default-toggle'`) and has its **own `Application.scss` `ui` catalogue** —
+`'default-checkbox'`, `'default-toggle'`) and has its **own `Application.scss` `ui` catalog** —
 names overlap (`primary-action-button`, `std-dialog`, `tooltip-*`) but diverge (e.g. the danger
 button). Verify the `ui` in the build you are in; never import a desktop wrapper into phone;
 cross-build logic lives in `app/shared/`. Every Sencha full build regenerates `generatedFiles/`

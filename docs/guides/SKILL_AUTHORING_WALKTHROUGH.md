@@ -113,9 +113,9 @@ The six destinations:
 3. **mind-vault rule** — always true, every project, auto-load.
 4. **mind-vault agent profile** — persona-shaped (a new reviewer pass, a new orchestrator stance).
 5. **mind-vault command** — user-triggered workflow stage.
-6. **auto-memory** — context for future sessions, not a reusable artefact.
+6. **auto-memory** — context for future sessions, not a reusable artifact.
 
-`/compound` doesn't author the artefact itself — it tells you *where* the lesson belongs and (for skills/rules) drops a skeleton you fill in. Use `/skill-writer` to flesh out the body.
+`/compound` doesn't author the artifact itself — it tells you *where* the lesson belongs and (for skills/rules) drops a skeleton you fill in. Use `/skill-writer` to flesh out the body.
 
 ## The `/skill-writer` skill
 
@@ -148,7 +148,7 @@ For a new skill from scratch: `/compound` first (to confirm it should be a skill
 - [ ] No project-specific paths/commands; placeholders + convention notes instead.
 - [ ] No history/changelog trailer (route to CHANGELOG.md).
 - [ ] Anti-patterns and edge cases captured in "When NOT to use".
-- [ ] If the skill replaces something existing, the old artefact is removed (not left orphaned).
+- [ ] If the skill replaces something existing, the old artifact is removed (not left orphaned).
 
 ## See also
 

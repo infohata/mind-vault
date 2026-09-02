@@ -1,12 +1,12 @@
-# common-review-findings — codified Tier-1 catalogue (engine-agnostic)
+# common-review-findings — codified Tier-1 catalog (engine-agnostic)
 
-The shared catalogue of recurring review findings that `/review-loop` engines (Cursor Bugbot, GitHub Copilot, future N) flag, with the codified fix. Both engine adapters ([`engine-bugbot.md`](engine-bugbot.md), [`engine-copilot.md`](engine-copilot.md)) reference this file; engine-specific deltas live in their own adapter.
+The shared catalog of recurring review findings that `/review-loop` engines (Cursor Bugbot, GitHub Copilot, future N) flag, with the codified fix. Both engine adapters ([`engine-bugbot.md`](engine-bugbot.md), [`engine-copilot.md`](engine-copilot.md)) reference this file; engine-specific deltas live in their own adapter.
 
 **Triage rule:** if a finding matches a pattern below AND touches ≤1 file AND has an existing targeted test → **Tier 1** (auto-fix, no per-finding approval prompt). Otherwise Tier 2/3 per the orchestrator's [§ Triage tier classification](../SKILL.md).
 
-These are empirically validated against multi-tenant Django SaaS PRs. Several patterns have a canonical home elsewhere in the vault — those entries link out rather than restate, so the catalogue stays DRY against the whole repo, not just across engines.
+These are empirically validated against multi-tenant Django SaaS PRs. Several patterns have a canonical home elsewhere in the vault — those entries link out rather than restate, so the catalog stays DRY against the whole repo, not just across engines.
 
-## The catalogue
+## The catalog
 
 1. **Transaction boundaries** — multi-step DB ops (detach + save, delete + update) that must succeed/fail together need `transaction.atomic`.
 2. **CreateView vs UpdateView pk availability** — `form.instance.pk` is `None` before `save()` in CreateView; queries using it as an FK match `WHERE fk IS NULL`, affecting all null-FK rows.
@@ -22,7 +22,7 @@ These are empirically validated against multi-tenant Django SaaS PRs. Several pa
 12. **`isinstance(x, int)` accepts bools** (Python) — `isinstance(True, int)` is `True` (`bool` subclasses `int`); "looks like an int" filters silently coerce `True`→1, `False`→0. Use `type(x) is int` for strict-int filtering on JSON-deserialised payloads.
 13. **HTMX `hx-swap-oob` initial-render vs replacement-render class drift** — the first-load wrapper and the OOB-swap-injected wrapper must carry the *same* CSS classes, or the user sees a spacing/colour jump on first interaction. When refactoring a per-entity partial into a shared parameterised one, grep every initial-render includer for class parity.
 14. **Bidirectional cross-surface state sync needs reciprocal writers** — two surfaces sharing state via a bridge (localStorage key, cookie, event bus) must each both read AND write it. Removing one surface's writer (refactor moves it to server-session) silently breaks the other's reads.
-15. **Shell installer conventions** (`install/install-*.sh`) → see [`skills/deployment/references/SHELL_INSTALLERS.md`](../../deployment/references/SHELL_INSTALLERS.md) for the canonical catalogue (bad/good examples + per-pattern provenance). Load it before reviewing any `install/install-*.sh` PR.
+15. **Shell installer conventions** (`install/install-*.sh`) → see [`skills/deployment/references/SHELL_INSTALLERS.md`](../../deployment/references/SHELL_INSTALLERS.md) for the canonical catalog (bad/good examples + per-pattern provenance). Load it before reviewing any `install/install-*.sh` PR.
 16. **Messages-framework middleware on HTMX responses must gate on status — skip 3xx** — bridging `messages.*` to `HX-Trigger` iterates `get_messages(request)`, which sets `storage.used = True`; `MessageMiddleware` then clears persisted state. On a 2xx HTMX response that's correct; on a **302** it's catastrophic — the XHR follows the redirect transparently so the `HX-Trigger` header is never seen, AND the messages are already cleared, so they never reach the redirect target. Silent loss of every toast from HTMX form-then-redirect flows. (Related bridge contract: [`SHELL_NOTIFICATIONS.md`](../../django-frontend/references/SHELL_NOTIFICATIONS.md).)
 17. **Alpine reactive assignments inside `hx-on::*` don't propagate** → see [`skills/django-frontend/references/ALPINE_HTMX_GOTCHAS.md`](../../django-frontend/references/ALPINE_HTMX_GOTCHAS.md) §4 (`hx-on::*` runs in plain JS scope, not Alpine's evaluator). Three bridge patterns documented there.
 18. **`hx-trigger="click once"` doesn't fire on synthetic state changes** → see [`ALPINE_HTMX_GOTCHAS.md`](../../django-frontend/references/ALPINE_HTMX_GOTCHAS.md) (lazy-fetch on synthetic open) — setting `open = true` from `x-init` is a state mutation, not an input event; no click bubbles.

@@ -128,7 +128,7 @@ both; it resolves `extjs`, never `node`.
 frontend marker *and* a `package.json` — a Laravel app with Vite/Tailwind, a Django app
 with a webpack build. A2 only separated backend from frontend detection; it never ordered
 two competing *frontend* signals, so that case had no rule at all until now. A3 writes
-down the behaviour those repos already depended on: `resources/views/*.blade.php` resolves
+down the behavior those repos already depended on: `resources/views/*.blade.php` resolves
 `laravel`, not `node`, however much build tooling sits beside it.
 
 A frontend-only stack (`extjs`) leaves the backend unresolved by design — pin or detect
@@ -209,6 +209,6 @@ Silent plan deviation is the pattern that makes execution expensive to review la
 
 ## What NOT to route through this skill
 
-- **Pure refactors without feature content.** If the plan is "extract `EventRenderer` into its own module, no behaviour change", architect is the author; backend is not needed.
+- **Pure refactors without feature content.** If the plan is "extract `EventRenderer` into its own module, no behavior change", architect is the author; backend is not needed.
 - **Documentation-only work.** `documentation` handles it; the work skill barely orchestrates.
 - **Exploratory prototyping with no plan.** If there's no plan, there's nothing to dispatch. Drop to direct work or route to `/plan`.

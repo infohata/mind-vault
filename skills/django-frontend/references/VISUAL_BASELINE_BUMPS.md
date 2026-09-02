@@ -44,7 +44,7 @@ Does **not** apply to:
 
 - DOM-structure assertions (`.locator(...).to_be_visible()`, `.to_have_text(...)`, etc.) — no baseline pixels to regen.
 - axe-core a11y checks — rule violations, not baselines.
-- Behavioural Playwright tests (focus traps, keyboard navigation, HTMX swap completion) — assertion targets are state, not pixels.
+- Behavioral Playwright tests (focus traps, keyboard navigation, HTMX swap completion) — assertion targets are state, not pixels.
 
 ## Why This Matters
 
@@ -75,7 +75,7 @@ surfaces; no functional regressions. Re-baselined under operator
 direction following the IDEA-NNN image bump.
 ```
 
-That's a clean baseline-regen story. What's NOT clean: 47 baselines drifted alongside a behavioural change to one component, and the agent regenerated all 47 without distinguishing.
+That's a clean baseline-regen story. What's NOT clean: 47 baselines drifted alongside a behavioral change to one component, and the agent regenerated all 47 without distinguishing.
 
 ## How To Apply
 
@@ -100,5 +100,5 @@ That's a clean baseline-regen story. What's NOT clean: 47 baselines drifted alon
 
 - [`RULE_git-safety`](../../../rules/RULE_git-safety.md) — baseline regen still happens on a feature branch; protected-branch rules are unchanged.
 - [`PARALLEL_WORKTREE_DOCKER`](../../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — § "Docker as privileged-fileops escape hatch" is occasionally needed when baselines are written by the container as root and the host user can't unlink them; same `docker run --rm -v <path>:/work alpine chown -R "$(id -u):$(id -g)" /work` recipe applies.
-- [`skills/sprint-auto/SKILL.md`](../../sprint-auto/SKILL.md) — sprint-auto preflight + per-IDEA gate behaviour treats `--update-snapshots` as out-of-bounds for unattended runs.
+- [`skills/sprint-auto/SKILL.md`](../../sprint-auto/SKILL.md) — sprint-auto preflight + per-IDEA gate behavior treats `--update-snapshots` as out-of-bounds for unattended runs.
 - [`skills/sprint-auto/assets/setup_playwright.sh.template`](../../sprint-auto/assets/setup_playwright.sh.template) — wires `make playwright-test` and `make playwright-update-baselines` as separate targets per § "How To Apply" #3.

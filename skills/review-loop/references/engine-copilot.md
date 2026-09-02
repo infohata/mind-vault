@@ -33,7 +33,7 @@ Adapter specification for the GitHub Copilot review engine. The orchestrator at 
 
 Uses the orchestrator's default `pull_request_review_id` filter — a finding is active iff its `review <rid>` matches `COPILOT_LATEST_REVIEW`.
 
-Copilot's GitHub UI behaviour matches bugbot's: persistent threads linger until manually resolved. The default filter handles this correctly.
+Copilot's GitHub UI behavior matches bugbot's: persistent threads linger until manually resolved. The default filter handles this correctly.
 
 ## § Race-condition caveats
 
@@ -93,7 +93,7 @@ What the loop does about it:
 
 ## § Common patterns (codified Tier 1)
 
-The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). No copilot-specific deltas at present; copilot's behavioural quirks live in § Stale-context findings and § Clean detection above.
+The codified Tier-1 catalog is shared across engines — see [`common-review-findings.md`](common-review-findings.md). No copilot-specific deltas at present; copilot's behavioral quirks live in § Stale-context findings and § Clean detection above.
 
 ## § Review-state gate
 

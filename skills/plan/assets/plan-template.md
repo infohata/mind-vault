@@ -27,7 +27,7 @@ project: {{PROJECT_NAME}}
 
 **In scope:**
 
-- {{Files, modules, behaviours explicitly included.}}
+- {{Files, modules, behaviors explicitly included.}}
 
 **Out of scope:**
 
@@ -52,7 +52,7 @@ project: {{PROJECT_NAME}}
 
 ### External references
 
-- {{Framework docs, SDK notes, specs — only when the plan depends on behaviour the agent isn't certain of.}}
+- {{Framework docs, SDK notes, specs — only when the plan depends on behavior the agent isn't certain of.}}
 
 ## Key Technical Decisions
 

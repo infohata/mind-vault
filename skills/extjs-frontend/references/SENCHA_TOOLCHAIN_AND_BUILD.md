@@ -2,7 +2,7 @@
 
 The pre-merge gate (`test:unit` + `test:e2e`) is a **dev-mode** gate: the dev server serves
 unminified source, the e2e mocks the API. Everything that differs in production — the compiler
-(Closure), the artefact set (what the manifest fetches vs what the build emits), the install
+(Closure), the artifact set (what the manifest fetches vs what the build emits), the install
 (fresh vs relic `node_modules`), the data (mocked vs real dictionary) — is unverified until the
 image is built and booted. **Build the image before calling a release candidate done.**
 
@@ -30,7 +30,7 @@ processes; each symptom misdirects.
 | --- | --- | --- |
 | Phone e2e stuck at `LOADING…`, console `SyntaxError: Unexpected token '<'` | Any full build regenerated `generatedFiles/` and dropped `phone.json`; the microloader's manifest 404 falls back to `index.html` | brief headless phone dev run until `generatedFiles/phone.json` exists, then kill it |
 | Every dev-server start hangs at `wait until bundle finished`; Playwright `Timed out waiting 180000ms from config.webServer` | orphan `java -jar …/sencha.jar app watch` holds the workspace lock; log shows `App watch is already running for this build profile` | `pkill -9 -f "sencha.jar app watch"; pkill -9 -f fashion.js; pkill -9 -f webpack`; verify with `lsof -nP -iTCP:<port> -sTCP:LISTEN` |
-| `testing:*` script opens a "not available" tab and never exits | plain `webpack` one-shot with `environment=development` keeps `browser=yes` + `watch=yes` | use `build:desktop`/`build:phone` (production env, `browser=no`, `watch=no`) as the compile gate; "testing" builds are QA artefacts, not test runs |
+| `testing:*` script opens a "not available" tab and never exits | plain `webpack` one-shot with `environment=development` keeps `browser=yes` + `watch=yes` | use `build:desktop`/`build:phone` (production env, `browser=no`, `watch=no`) as the compile gate; "testing" builds are QA artifacts, not test runs |
 | A class is `undefined` in dev, fine in production | dynamic loader indexes only declared deps; inline-only refs are absent from the `paths` map | add to `requires`; `Ext.syncRequire` in specs ([SERVICE_LAYER](SERVICE_LAYER.md) § 6) |
 
 Read the server log for `App watch is already running` before bumping timeouts. Clean cold start
@@ -56,7 +56,7 @@ is ~25 s locally.
    bundle.** Fix in the Dockerfile: `npm pack @sencha/cmd-linux-64@<ver>` and overlay `dist/`
    with `cp -a`; assert `dist/js/node_modules/fashion/package.json` exists and `dist/sencha` is
    executable; after the build **`test -f build/production/<App>/index.html || exit 1`**. Never
-   trust the plugin's exit code — gate on the artefact. (Also the likely cause of Fashion failing
+   trust the plugin's exit code — gate on the artifact. (Also the likely cause of Fashion failing
    in a CI runner; `chmod -R +x node_modules/@sencha/cmd/{dist,bin}` is the other half.)
 4. **The microloader manifest lists root `autobahn.js` and `app.js`** — ship the first (WAMP lib
    genuinely needed at runtime: `COPY autobahn.js` into the docroot), **never the second**: `app.js`

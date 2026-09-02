@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SessionStart hook — Mind-Vault plugin channel (IDEA-017).
 #
-# Auto-loads the always-on behavioural rules (rules/RULE_*.md) into the session
+# Auto-loads the always-on behavioral rules (rules/RULE_*.md) into the session
 # via SessionStart `additionalContext`, giving the plugin channel parity with
 # the symlink channel (where ~/.claude/rules/ is auto-loaded by Claude Code).
 # Falls back to a short pointer note prompting /mv:load-rules if the rules
@@ -22,7 +22,7 @@ set -euo pipefail
 emit_note() {
   # Static fallback — no escaping needed.
   cat <<'JSON'
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"Mind-Vault plugin active. Behavioural rules are NOT auto-loaded on the plugin channel — run /mv:load-rules to load them."}}
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"Mind-Vault plugin active. Behavioral rules are NOT auto-loaded on the plugin channel — run /mv:load-rules to load them."}}
 JSON
 }
 
@@ -41,7 +41,7 @@ if [ "${#rule_files[@]}" -eq 0 ]; then
   exit 0
 fi
 
-header="Mind-Vault plugin active — the following behavioural rules are loaded and apply to every tool call this session (plugin-channel parity with ~/.claude/rules/). Their rationale docs (docs/rules/*-rationale.md) are not bundled on the plugin channel; load them from the repo if an edge case needs the full discussion."
+header="Mind-Vault plugin active — the following behavioral rules are loaded and apply to every tool call this session (plugin-channel parity with ~/.claude/rules/). Their rationale docs (docs/rules/*-rationale.md) are not bundled on the plugin channel; load them from the repo if an edge case needs the full discussion."
 body="$(cat "${rule_files[@]}")"
 
 # Build the rules payload; if jq fails for any reason (encoding, size, runtime),

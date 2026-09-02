@@ -35,7 +35,7 @@ MIND_VAULT=/opt/mind-vault ./scripts/setup-cursor-symlinks.sh
 
 Every `setup-*-symlinks.sh` sources `_symlink-lib.sh`, which exports the host-agnostic
 primitives (`mv_resolve_root`, `mv_link_skills_per_dir`, `mv_link_tree`,
-`mv_link_files_renamed`). Edit linking behaviour once, here — not in five copies.
+`mv_link_files_renamed`). Edit linking behavior once, here — not in five copies.
 
 **Why per-skill symlinks, not a single parent-dir symlink**: `mv_link_skills_per_dir`
 links each skill directory **individually** (`~/.claude/skills/<skill> -> mind-vault/skills/<skill>`)

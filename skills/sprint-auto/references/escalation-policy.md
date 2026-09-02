@@ -1,6 +1,6 @@
 # sprint-auto — escalation-resolution policy
 
-When the configured `/review-loop` session (carrying one or all engines per `SPRINT_AUTO_REVIEW_ENGINE`) hands back with unresolved Tier 2 or Tier 3 findings, the default interactive behaviour is "ask the user". Under sprint-auto the user is asleep. The policy below is what sprint-auto substitutes for the human decision.
+When the configured `/review-loop` session (carrying one or all engines per `SPRINT_AUTO_REVIEW_ENGINE`) hands back with unresolved Tier 2 or Tier 3 findings, the default interactive behavior is "ask the user". Under sprint-auto the user is asleep. The policy below is what sprint-auto substitutes for the human decision.
 
 One review pass runs per IDEA (over the wrapped PR — wrap-before-review, single-review cadence per IDEA-015), plus a separate pass per mind-vault compound PR at batch end. Each pass has its own independent escalation budget — see "Attempt caps per pass" below.
 

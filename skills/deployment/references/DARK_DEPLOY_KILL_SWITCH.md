@@ -1,6 +1,6 @@
 # Dark deploys and kill switches
 
-Shipping a behaviour change to a system where a wrong write is expensive — a third-party database,
+Shipping a behavior change to a system where a wrong write is expensive — a third-party database,
 a billing ledger, anything whose rows you do not own. The ladder is **dark → shadow → live**, and
 each rung answers a different question.
 
@@ -10,7 +10,7 @@ each rung answers a different question.
 | **shadow** | `shadow` | **both** rules computed, disagreements logged, **old answer returned** | where the two rules would differ |
 | **live** | `on` | new rule decides, every decision logged | the change itself |
 
-An unset **or unrecognised** switch value must fall back to the old behaviour, so a typo in config
+An unset **or unrecognised** switch value must fall back to the old behavior, so a typo in config
 cannot enable the new path. That is a one-line property with a large payoff: config edits are exactly
 where a fat finger lands.
 
@@ -19,8 +19,8 @@ where a fat finger lands.
 The trap that makes this reference worth reading.
 
 When several call sites are collapsed behind one new helper, it is natural to give the helper one
-`legacy` path — "the old behaviour" — and route every site through it. **Verify that the sites
-actually agreed on what the old behaviour was.** They often do not, because they were written years
+`legacy` path — "the old behavior" — and route every site through it. **Verify that the sites
+actually agreed on what the old behavior was.** They often do not, because they were written years
 apart by different people.
 
 A real instance: three call sites were unified behind a matching helper. Two matched records on a
@@ -31,7 +31,7 @@ direction that fuses distinct records.
 What makes it dangerous is how it presents:
 
 - the switch says `off`
-- the release notes say "no behaviour change"
+- the release notes say "no behavior change"
 - the tests pass, because they were written against the *helper's* idea of legacy
 - the dark deploy is quiet, because the paths are low-volume
 
@@ -42,7 +42,7 @@ per-site argument**, not a single assumed default:
 resolve_record($db, $scope, $input, $mode, $logger, /* legacy */ 'strict_multi_field');
 ```
 
-**Rule: before collapsing N call sites behind one flag, diff their existing behaviour pairwise. The
+**Rule: before collapsing N call sites behind one flag, diff their existing behavior pairwise. The
 flag's OFF position has to reproduce each one, not the most common one.**
 
 ## Rollback stops future writes; it cannot unwind past ones
@@ -77,7 +77,7 @@ the resulting mess is attributable to nothing.
 The section above is about where it is safe to *enable* shadow. This one is about how long
 to leave it there, and it cuts the other way.
 
-When the new, safe behaviour is gated on the live value **specifically**:
+When the new, safe behavior is gated on the live value **specifically**:
 
 ```php
 if (write_policy($cfg) === 'protect') {
@@ -89,7 +89,7 @@ if (write_policy($cfg) === 'protect') {
 ```
 
 then **every mode that is not `protect` takes the destructive branch — `shadow` included.**
-Shadow records what it *would* have done and lets the old behaviour proceed. That is
+Shadow records what it *would* have done and lets the old behavior proceed. That is
 normally the correct design (shadow must not change outcomes), but the consequence is easy
 to state backwards:
 

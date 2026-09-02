@@ -62,7 +62,7 @@ Three failure modes:
 
 1. **The model is in the public schema by design** — `Org`, `User`, `Domain`, and any `OwnedModel`-style table that needs cross-tenant operations. Schema routing doesn't help; the table is shared by construction. Per-row `org_id` filtering is the only isolation.
 
-2. **The helper runs outside a tenant connection.** Signals, Celery tasks (without a `tenant_context()` block), management commands, raw-SQL dashboards, periodic-job sweepers — schema routing is a request-middleware artefact, and code that runs before / after / outside the request lifecycle doesn't get it. Explicit `org_id` filters work everywhere.
+2. **The helper runs outside a tenant connection.** Signals, Celery tasks (without a `tenant_context()` block), management commands, raw-SQL dashboards, periodic-job sweepers — schema routing is a request-middleware artifact, and code that runs before / after / outside the request lifecycle doesn't get it. Explicit `org_id` filters work everywhere.
 
 3. **The session itself is the cross-tenant carrier.** A user who switches orgs (or whose session gets restored from a backup, or whose ids are guessed by an attacker) presents a stale id from a foreign tenant. The schema is right at request-time; the *id payload* is wrong. Schema routing has no opinion on payload contents.
 

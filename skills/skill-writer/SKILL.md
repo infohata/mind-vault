@@ -62,7 +62,7 @@ The description is the **probabilistic trigger** — the only text the host agen
 
 - `Apply global cross-project Django backend dev conventions for models, views, signals, Channels, DRF, and all backend architecture before hitting templates or JS.`
 - `Debug failing tests quickly across any massive Python monolith by surgically specifying and running targeted test paths instead of running full, slow test suites locally.`
-- `Search outside the project (in IDE plans, AI agent workspaces, or temporary storage) and retrieve standalone artefacts, research, or validation logs to bring them inside the project repository.`
+- `Search outside the project (in IDE plans, AI agent workspaces, or temporary storage) and retrieve standalone artifacts, research, or validation logs to bring them inside the project repository.`
 
 **❌ DON'T — generic, verb-only, hand-wavy, or buzzword soup:**
 

@@ -45,7 +45,7 @@ When re-implementing, that's the moment to **fix** the gate to the correct curre
 
 - *"the view's gate is narrower than the class"* → **replicate** it, and
 - *"the view's gate is wrong"* → **fix** it — and when you do, re-gate the **legacy endpoint** too
-  (not just the new code path) and migrate the tests that asserted the old behaviour, in the same
+  (not just the new code path) and migrate the tests that asserted the old behavior, in the same
   change. Otherwise the loophole stays open on the old URL and a test still pins the bug.
 
 ## The probe checklist (before porting any gate)

@@ -25,7 +25,7 @@ Drive a review-fix-rerun cycle on the given PR using one or more review engines 
 
 When `|ENGINES| > 1`, the loop runs in **multi-engine sync mode** — each cycle waits for the slowest engine's verdict before batching fixes and retriggering all engines. See [`skills/review-loop/references/multi-engine-sync.md`](../skills/review-loop/references/multi-engine-sync.md) for the synchronisation contract, trade-off escape hatches, and asymmetric-clearance hand-back semantics.
 
-## Behaviour
+## Behavior
 
 This command invokes [`skills/review-loop/SKILL.md`](../skills/review-loop/SKILL.md) with the given engine list. The skill enforces:
 

@@ -45,4 +45,4 @@ Treat any `<flux:*>` Pro component as a **build dependency with a credential req
 
 ## Sources
 
-- fluxui.dev — component catalogue, free vs Pro tiers, installation/license docs (Laravel 12 / Livewire 4).
+- fluxui.dev — component catalog, free vs Pro tiers, installation/license docs (Laravel 12 / Livewire 4).

@@ -11,7 +11,7 @@ The 6-destination taxonomy and the heuristics for picking the right one. Load on
 | 3 | Mind-vault rule update | Hard guardrail — "never do X", "always do Y" | "Never hand-edit `.po` files" (already in `RULE_i18n-workflow`) |
 | 4 | Mind-vault agent pass | Reviewer heuristic that a persona should catch | "Dictionary key collisions silently swallow overrides" → curator PASS 3 |
 | 5 | Mind-vault command/tool | Repeatable action worth a slash command or script | Regex sweep for `format_html(_(...))` migration drift |
-| 6 | Auto-memory | User-behavioural preference or cross-conversation context | "User prefers bundled PR over split for refactors in X area" |
+| 6 | Auto-memory | User-behavioral preference or cross-conversation context | "User prefers bundled PR over split for refactors in X area" |
 
 ## Narrative-probe question playbook
 
@@ -27,19 +27,19 @@ Ask these one at a time, in order. Stop when the destination is clear.
 
 ### Q2. Shape
 
-> "Shape of the learning — is it a fix recipe, a guardrail to always enforce, a reviewer heuristic, a tooling need, or a behavioural preference?"
+> "Shape of the learning — is it a fix recipe, a guardrail to always enforce, a reviewer heuristic, a tooling need, or a behavioral preference?"
 
 - Fix recipe or pattern → Destination 2 (skill).
 - Guardrail ("never X", "always Y") → Destination 3 (rule).
 - Reviewer heuristic ("the review should catch Z") → Destination 4 (agent pass).
 - Tooling need ("we kept running the same query") → Destination 5 (command/tool).
-- Behavioural preference ("user prefers X") → Destination 6 (memory).
+- Behavioral preference ("user prefers X") → Destination 6 (memory).
 
 ### Q3. Disambiguation (when Q2 is fuzzy)
 
 Only ask Q3 if Q2's answer sits between two destinations.
 
-- Skill vs. rule: "Does the learning describe a *technique to apply* (skill) or a *behaviour to prevent* (rule)?"
+- Skill vs. rule: "Does the learning describe a *technique to apply* (skill) or a *behavior to prevent* (rule)?"
 - Skill vs. agent pass: "Is this a pattern the implementer needs (skill), or something the reviewer needs to catch (agent)?"
 - Rule vs. agent pass: "Is this a hard 'never' that applies everywhere (rule), or a pattern a reviewer should flag but a skilled author might legitimately violate (agent)?"
 
@@ -79,7 +79,7 @@ The reflex is: when in doubt, **prefer the load-on-demand surface**. The cost of
 
 - **Over-promoting.** If a pattern has appeared once, it's project-local until proven otherwise. First-occurrence promotions pollute mind-vault with noise.
 - **Under-promoting.** If the same finding has been captured in three different `docs/solutions/` files, that's a missed promotion — grep for duplicates before writing a fourth.
-- **Misclassifying behavioural preferences as skills.** "User prefers terse summaries" is memory, not a skill. Skills are about *what to do*; memory is about *how this user wants it done*.
+- **Misclassifying behavioral preferences as skills.** "User prefers terse summaries" is memory, not a skill. Skills are about *what to do*; memory is about *how this user wants it done*.
 - **Creating a new rule when an existing one can be extended.** Prefer appending to `RULE_i18n-workflow` over creating `RULE_po-files-readonly`. One rule per concern.
 - **Inlining mechanics into SKILL.md body.** A skill's body is paid on every `Skill <name>` invocation. New mechanics belong in `references/<TOPIC>.md` — the body gets a stub-with-pointer at most. Re-introducing body bloat is the failure mode IDEA-002 spent three PRs cleaning up; don't reverse that work on a single compound run.
 - **Adding a new top-level rule when the guardrail is domain-specific.** Rules in `rules/` load every session. Domain-bound guardrails (Django i18n, Playwright baselines, parallel worktrees) belong in `skills/<owner>/references/` and load only when the owning skill activates. PR #106 already drew this line — respect it.

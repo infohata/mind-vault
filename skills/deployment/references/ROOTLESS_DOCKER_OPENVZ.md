@@ -123,7 +123,7 @@ enough for a web tier; you don't need it at 0.
   See [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md).
 - **After restarting the daemon here** (system-unit mode: `systemctl restart <your-unit>`, not
   `systemctl --user restart docker`), re-check `docker ps -a` — containers exiting non-zero on SIGTERM
-  stay down despite `restart: unless-stopped`. Generic Docker behaviour, documented in
+  stay down despite `restart: unless-stopped`. Generic Docker behavior, documented in
   [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md); it bites harder here because the system-unit path makes
   daemon restarts a routine part of the recipe.
 - Kernel version alone is NOT the discriminator — a 4.19 OpenVZ box and a 6.x one can *both*

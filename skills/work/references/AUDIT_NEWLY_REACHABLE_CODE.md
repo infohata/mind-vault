@@ -1,6 +1,6 @@
 # Audit newly-reachable code before merging a bug fix
 
-When fixing a bug whose pre-fix behaviour **short-circuited a code path** (the buggy code "did nothing visible", silently dropped a value, never entered a branch, never opened a UI surface), audit the **now-reachable code** for latent secondary bugs **before merging the fix**. The secondary bugs were masked while the primary bug short-circuited the path; they go from "invisible" to "visibly wrong" the moment the primary fix lands.
+When fixing a bug whose pre-fix behavior **short-circuited a code path** (the buggy code "did nothing visible", silently dropped a value, never entered a branch, never opened a UI surface), audit the **now-reachable code** for latent secondary bugs **before merging the fix**. The secondary bugs were masked while the primary bug short-circuited the path; they go from "invisible" to "visibly wrong" the moment the primary fix lands.
 
 ## Why this matters
 
@@ -54,8 +54,8 @@ The same pattern recurs across stacks: a guard added to a primitive unmasks a co
 
 ## Relationship to other rules and skills
 
-- [`rules/RULE_self-sweep-before-push`](../../../rules/RULE_self-sweep-before-push.md) — covers **structural** sweep (dead imports, unused locals, stale comments). This reference covers **behavioural** sweep (latent issues newly reachable). Both run pre-push but on different surfaces; one's pass-clean signal does not satisfy the other.
-- [`rules/RULE_rename-before-drop`](../../../rules/RULE_rename-before-drop.md) — the "post-drop re-test" guidance there is the same shape as this reference's audit pass: a fix changes a code path's reach, and re-test catches the latent issues the prior code's behaviour was hiding. This reference generalises the discipline beyond rename-drop sequences.
+- [`rules/RULE_self-sweep-before-push`](../../../rules/RULE_self-sweep-before-push.md) — covers **structural** sweep (dead imports, unused locals, stale comments). This reference covers **behavioral** sweep (latent issues newly reachable). Both run pre-push but on different surfaces; one's pass-clean signal does not satisfy the other.
+- [`rules/RULE_rename-before-drop`](../../../rules/RULE_rename-before-drop.md) — the "post-drop re-test" guidance there is the same shape as this reference's audit pass: a fix changes a code path's reach, and re-test catches the latent issues the prior code's behavior was hiding. This reference generalises the discipline beyond rename-drop sequences.
 - [`agents/AGENT_curator`](../../../agents/AGENT_curator.md) — surfaces during PASS 3 (Architecture & DRY)'s asymmetric-fix sweep when reviewing a bug-fix PR that removed a short-circuit.
 - [`agents/AGENT_test-engineer`](../../../agents/AGENT_test-engineer.md) — surfaces during PASS 1 (Boundary Contradiction Sweep) when the fix newly exposes a code branch the boundary matrix didn't previously have to enumerate.
 - the review loop ([`skills/review-loop/SKILL.md`](../../review-loop/SKILL.md)) — fires Phase 2, right after applying a Tier 1 / Tier 2 finding's edit and before committing: audit what the fix newly reaches, fold the latent fix into the same Phase 3 commit if scope allows.

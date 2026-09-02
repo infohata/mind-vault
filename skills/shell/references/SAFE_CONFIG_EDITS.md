@@ -190,8 +190,8 @@ live is not free either — see the next section.
 
 Everything above assumes the hazard is *your* edit being wrong. The other half of the
 class is an edit that is well-formed and says exactly what its author meant, whose
-behaviour is decided by a party that never appears in the diff — so nothing errors, no
-reviewer objects, and a correct-looking artefact produces a different effect. The absent
+behavior is decided by a party that never appears in the diff — so nothing errors, no
+reviewer objects, and a correct-looking artifact produces a different effect. The absent
 decider is one of three: the **consumer's grammar** (how the program that reads this file
 parses lines and selects filenames), the **runtime's attachment semantics** (what the
 kernel or a container runtime does with a path at attach time), or **ambient state and
@@ -282,7 +282,7 @@ directions needing **opposite** remedies, so diagnose which one you are in first
 
 | Direction        | Shape                                                                                                    |
 | ---------------- | -------------------------------------------------------------------------------------------------------- |
-| **Over-shipping**  | Fast-forwarding to a merge commit ships every intervening change at once; a safety claim scoped to one change's delta ("no new mounts, no behaviour change") describes only that delta, and a deliberately phased plan is defeated in one step. |
+| **Over-shipping**  | Fast-forwarding to a merge commit ships every intervening change at once; a safety claim scoped to one change's delta ("no new mounts, no behavior change") describes only that delta, and a deliberately phased plan is defeated in one step. |
 | **Under-shipping** | The ref lags (dozens of commits is normal and invisible unless computed), so the pull is a no-op and reads as a clean run — or the checkout simply lacks a file that only ever landed on the mainline. |
 
 Compute the range before deciding anything, as a numbered runbook step, for the back-out

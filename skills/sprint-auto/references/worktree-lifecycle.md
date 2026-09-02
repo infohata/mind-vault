@@ -129,9 +129,9 @@ See `skills/sprint-auto/assets/sprint-auto-hooks.sh.example` for a fuller templa
 
 **Why the hooks file is copied, not wrapped**: the content IS the project-specific part. There's nothing to delegate to a canonical version — each project's migrations, fixtures, and smoke-test URL differ. A wrapper would be a wrapper around the project's own code, which is pointless.
 
-### `post_up_init` must build EVERY runtime artefact the test suite reads — not just migrate + seed (compounded)
+### `post_up_init` must build EVERY runtime artifact the test suite reads — not just migrate + seed (compounded)
 
-A `post_up_init` that runs `migrate` + `seed` but **not the project's compiled-asset steps** leaves the integration stack subtly incomplete: tests that assert on a *built* artefact fail in the integration run though they pass locally. The recurring instance: **compiled translation catalogs** — an i18n project's `{% trans %}`/`gettext` strings fall back to the source language until `compilemessages` (or equivalent) runs, so any test asserting a *translated* string fails in a fresh worktree stack. Same class: collected static, built CSS/JS bundles, search-index population. Rule: `post_up_init` should reproduce the project's **full** "make it runnable" sequence (migrate → seed → compile-translations → collectstatic/build-assets → index), idempotently — mirror what a from-scratch `make start` does, not a subset. The tell is a green local suite + a handful of red "expected <translated/built> got <source/empty>" failures only in the integration run.
+A `post_up_init` that runs `migrate` + `seed` but **not the project's compiled-asset steps** leaves the integration stack subtly incomplete: tests that assert on a *built* artifact fail in the integration run though they pass locally. The recurring instance: **compiled translation catalogs** — an i18n project's `{% trans %}`/`gettext` strings fall back to the source language until `compilemessages` (or equivalent) runs, so any test asserting a *translated* string fails in a fresh worktree stack. Same class: collected static, built CSS/JS bundles, search-index population. Rule: `post_up_init` should reproduce the project's **full** "make it runnable" sequence (migrate → seed → compile-translations → collectstatic/build-assets → index), idempotently — mirror what a from-scratch `make start` does, not a subset. The tell is a green local suite + a handful of red "expected <translated/built> got <source/empty>" failures only in the integration run.
 
 ### DB `down -v` reset between IDEAs is skippable for pytest-only IDEAs with no migrations (compounded)
 
@@ -149,7 +149,7 @@ The per-IDEA S2-entry DB reset (`down -v` + `up` + migrate + seed, ~5 min) exist
 ### Integration worktree (v3.1 only)
 
 - **Path**: `../<project>-auto-integration-<batch-iso>/` — sibling of the primary checkout. `-auto-integration-` prefix distinguishes from per-IDEA worktrees.
-- **Branch**: `integration/sprint-auto-<batch-iso>`. NEVER `staging/...` — the existing project-level `staging` worktree (human-owned, tracks `main`) is a separate artefact sprint-auto must not touch.
+- **Branch**: `integration/sprint-auto-<batch-iso>`. NEVER `staging/...` — the existing project-level `staging` worktree (human-owned, tracks `main`) is a separate artifact sprint-auto must not touch.
 - **`<batch-iso>`**: the same ISO-8601 timestamp used in `auto-run-<ISO>-summary.md`.
 - **Stack**: the only stack of the batch, port offset `+30000` via `--port-offset 30000`.
 
@@ -203,7 +203,7 @@ See [`integration-stage.md`](integration-stage.md) § "Integration teardown" and
 
 ### v1 (legacy)
 
-The skill does not teardown after a run. Preserving state is the whole point of "failure is a diagnostic artefact". Cleanup one-liner per per-IDEA worktree:
+The skill does not teardown after a run. Preserving state is the whole point of "failure is a diagnostic artifact". Cleanup one-liner per per-IDEA worktree:
 
 ```bash
 cd <worktree> && docker compose down -v && cd - && git worktree remove <worktree> && git branch -D auto/<slug>

@@ -1,10 +1,10 @@
 # Eval-gate manual-evaluation checklist emission
 
-**When this fires**: pre-merge `/wrap` runs (default mode + sprint-auto S5 `--scope=idea-only`), when the IDEA's frontmatter has `auto_safe_with_eval_gate: true`. **Skipped** in post-merge fallback (the artefact's purpose is "things to walk before the integration PR merges" — post-merge it's pointless) and when the frontmatter lacks the flag (the IDEA opted out of the gate). The wrap SKILL.md body's Step 7 holds the firing-conditions stub; this reference holds the mechanics.
+**When this fires**: pre-merge `/wrap` runs (default mode + sprint-auto S5 `--scope=idea-only`), when the IDEA's frontmatter has `auto_safe_with_eval_gate: true`. **Skipped** in post-merge fallback (the artifact's purpose is "things to walk before the integration PR merges" — post-merge it's pointless) and when the frontmatter lacks the flag (the IDEA opted out of the gate). The wrap SKILL.md body's Step 7 holds the firing-conditions stub; this reference holds the mechanics.
 
 ## Why this exists
 
-Some IDEAs ship behaviours that render-and-assert tests cannot verify — visual correctness, focus & keyboard interaction, screen-reader semantics, animation timing, mobile gesture nuance. The IDEA's *implementation* is mechanical enough to be sprint-auto-able, but a structured human walk is needed before the integration PR is merged. The `auto_safe_with_eval_gate: true` flag in the IDEA's frontmatter signals "sprint-auto this end-to-end, but emit a manual-evaluation checklist alongside the per-IDEA work; the human walks the checklist as part of integration-PR review." See [`skills/sprint-auto/references/safety-gates.md`](../../sprint-auto/references/safety-gates.md) for the gate's authoring contract and [`integration-stage.md`](../../sprint-auto/references/integration-stage.md) for how the integration PR aggregates the checklists.
+Some IDEAs ship behaviors that render-and-assert tests cannot verify — visual correctness, focus & keyboard interaction, screen-reader semantics, animation timing, mobile gesture nuance. The IDEA's *implementation* is mechanical enough to be sprint-auto-able, but a structured human walk is needed before the integration PR is merged. The `auto_safe_with_eval_gate: true` flag in the IDEA's frontmatter signals "sprint-auto this end-to-end, but emit a manual-evaluation checklist alongside the per-IDEA work; the human walks the checklist as part of integration-PR review." See [`skills/sprint-auto/references/safety-gates.md`](../../sprint-auto/references/safety-gates.md) for the gate's authoring contract and [`integration-stage.md`](../../sprint-auto/references/integration-stage.md) for how the integration PR aggregates the checklists.
 
 ## Emission
 
@@ -77,7 +77,7 @@ Pre-fill algorithm:
 
 **Commit it with the rest of the wrap commits** — same branch (pre-merge mode = feature branch, the IDEA's `auto/<slug>` in sprint-auto context). The eval-checklist becomes part of the per-IDEA PR's docs delta; review's docs-pass at S6 reviews it; the integration-PR creator at S11.10 finds it via `find docs/archive/ -name '*-manual-evaluation.md'` glob and links to it (see integration-stage.md § Per-IDEA evaluation checklists).
 
-**No teardown of the artefact post-merge.** The eval-checklist stays in the archive dir as part of the IDEA's history — a record of what the reviewer was asked to walk, what they noted, what follow-ups landed.
+**No teardown of the artifact post-merge.** The eval-checklist stays in the archive dir as part of the IDEA's history — a record of what the reviewer was asked to walk, what they noted, what follow-ups landed.
 
 **When the walk surfaces issues** — the back-and-forth of regression report → fix → re-walk gets ambiguous fast (multiple issues, multi-cycle fixes, "the user-menu thing… no the *other* user-menu thing"). Introduce a [`MANUAL_EVAL_ISSUES.md` tracker](MANUAL_EVAL_TRACKER.md) at the first regression report, not the fifth. Stable `M0`, `M1`, `M2`, … IDs + severity column + status emoji + fix-SHA column let the reviewer verify in-place; the tracker lives next to the eval-checklist in the same archive dir. Pattern surfaced in a 26-issue, 60+-commit cycle — full conventions in the reference.
 
@@ -87,12 +87,12 @@ Render-and-assert tests pin fragment SHAPE; bugbot/Copilot scan for KNOWN-PATTER
 
 | Signal | Catches | Misses |
 | --- | --- | --- |
-| Render-and-assert tests | Fragment HTML shape, attribute values, IDs in single response | Multi-swap DOM state, JS reactivity sequencing, browser-cache behaviour, integration-shape ("right code path actually invoked at all") |
+| Render-and-assert tests | Fragment HTML shape, attribute values, IDs in single response | Multi-swap DOM state, JS reactivity sequencing, browser-cache behavior, integration-shape ("right code path actually invoked at all") |
 | Bugbot / Copilot review | Known code smells, contract drift visible in diff, generic anti-patterns, lint-class issues missed by linters | User-perceived regressions that look fine in code, double-render bugs, atomic-swap orphans, page-beyond-end edges |
 | Manual eval walk | Visible regressions, multi-step flow integrity, mobile gesture nuance, focus + keyboard interaction, "this looks subtly wrong" | Things a reviewer doesn't think to walk; race conditions outside the scripted scenarios |
 
-**Discipline**: emit the eval-checklist for any IDEA that touches user-visible UI behaviour, even when render-and-assert coverage exists. Field-observed: a double-empty-state regression caught by the user's manual walk (single-line "M2: double empty") was invisible to render-and-assert tests (each individual swap response was correctly shaped — the bug was the DOM state AFTER two consecutive swaps) and was only surfaced *later* by bugbot review, with imprecise framing. The user-walk framing was diagnostic; the review-bot framing was downstream.
+**Discipline**: emit the eval-checklist for any IDEA that touches user-visible UI behavior, even when render-and-assert coverage exists. Field-observed: a double-empty-state regression caught by the user's manual walk (single-line "M2: double empty") was invisible to render-and-assert tests (each individual swap response was correctly shaped — the bug was the DOM state AFTER two consecutive swaps) and was only surfaced *later* by bugbot review, with imprecise framing. The user-walk framing was diagnostic; the review-bot framing was downstream.
 
 **Anti-pattern**: treating render-and-assert green + bot-clean as sufficient for IDEAs whose acceptance criteria include user-visible state. The two automated signals together miss integration-shape and multi-swap-state. Manual eval is the third leg, not a redundant cross-check.
 
-**`auto_safe: false` interaction**: an IDEA with manual-eval cases AND `auto_safe: false` indicates the human walk is the merge gate. `auto_safe_with_eval_gate: true` permits sprint-auto execution but emits the checklist for the integration-PR walker. Either way, the checklist is the artefact that ensures the third signal class is actually consulted.
+**`auto_safe: false` interaction**: an IDEA with manual-eval cases AND `auto_safe: false` indicates the human walk is the merge gate. `auto_safe_with_eval_gate: true` permits sprint-auto execution but emits the checklist for the integration-PR walker. Either way, the checklist is the artifact that ensures the third signal class is actually consulted.

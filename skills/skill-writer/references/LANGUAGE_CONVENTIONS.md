@@ -46,9 +46,15 @@ down. Matching the identifiers removes the split.
   (already fixed, or never used the term) ⇒ the pointer is quoting nothing, so it is ordinary
   drift in a file you touched and the rule above applies: fix it. Skipping this check turns a
   narrow exception into a blanket exemption for every UK-spelled References line.
-- The repo still contains substantial pre-existing UK spelling. That is a known, dateless
-  inconsistency — note it, leave it, and pick up a repo-wide sweep deliberately as its own PR,
-  never as a tail-end addition to unrelated work.
+- The repo still contains pre-existing UK spelling. That is a known inconsistency — note it,
+  leave it, and pick up a repo-wide sweep deliberately as its own PR, never as a tail-end
+  addition to unrelated work. **Status (2026-09-02):** the three biggest terms —
+  `behaviour`, `catalogue`, and `artefact` used as a common noun — were swept in exactly such
+  a PR; the live surface now reads `behavior` ~195 / `behaviour` ~4 and `catalog` ~93 /
+  `catalogue` ~4, where every survivor is this file's own quoted examples. What is left is
+  a **tail of ~20 smaller terms** (`centre` ~44, `normalis*` ~28, `honour` ~25, `recognis*`
+  ~20, `cancelled` ~18, `initialis*` ~18, `serialis*` ~16, `defence` ~15, `optimis*` ~13, …),
+  still governed by the leave-it default until their own PR.
 
 ### Which half of that rule applies: count both forms first
 
@@ -63,26 +69,39 @@ many hits that line holds, which undercounts dense reference prose and can flip 
 ```bash
 grep -roi 'artefact' --binary-files=without-match --exclude-dir=.git --exclude-dir=node_modules . | wc -l
 grep -rci 'artefact' --binary-files=without-match --exclude-dir=.git --exclude-dir=node_modules . | awk -F: '{s+=$2} END {print s}'
-# occurrences run ~22 ahead of matching lines here — that many lines carry the term twice
+# occurrences run ~18 ahead of matching lines here — that many lines carry the term twice
 ```
 
 Three flags carry weight, and dropping any one skews the ratio in a way you cannot see:
 
 - **`-i`** — headings, sentence starts and emphasized rule lines are Title- or UPPER-case.
-  Case-sensitive counting missed 22 `artefact` and, worse, **17 of 42 `organization`** here.
+  Case-sensitive counting misses ~18 `artefact` and, worse, **17 of ~44 `organization`** here.
   (This is § *The check must not inherit the edit's blind spot* pointed at a count.)
 - **`-o`** — `-c` alone counts matching *lines*, so a line holding a term twice reports one.
 - **`--exclude-dir`, never `--include='*.md'`** — this is a count, so § *Sweep integrity*
-  applies; the extension allow-list under-reported `behaviour` 174 → 184 and `artifact`
-  83 → 85 once removed.
+  applies; measured before the 2026-09-02 sweep, the extension allow-list under-reported
+  `behaviour` 174 → 184 and `artifact` 83 → 85 once removed.
 
 - **US form already dominates** ⇒ the UK spellings are genuine drift against a settled majority.
   Fix them in the file you touched. (`organisation` ~7 vs `organization` ~42 — when this call
   was actually made the split read 5 vs 21 under a case-sensitive count, with 3 of those in one
-  touched file, one inside prose that change had authored. Same verdict, better numbers.)
-- **UK form dominates** ⇒ this is the known pile, not drift. Leave it. (`artefact` ~264 vs
-  `artifact` ~90; `behaviour` ~202 vs `behavior` ~81; `catalogue` ~72 — and `artefact` is
-  load-bearing in paths like `skills/artefact-retrieval/`, so it is a rename, not a spell-fix.)
+  touched file, one inside prose that change had authored. Same verdict, better numbers. Since
+  the 2026-09-02 sweep, `behaviour` ~2 vs `behavior` ~194 and `catalogue` ~2 vs `catalog` ~89
+  sit firmly on this side too.)
+- **UK form dominates** ⇒ this is the known pile, not drift. Leave it, and let its own PR clear
+  it. The tail listed in § *Scope* is what currently qualifies (`centre`, `honour`, `defence`,
+  the `-is*` families).
+
+**A term can be neither, because it is a name.** `artefact` reads UK-dominant (~170 on the live
+surface) only because `skills/artefact-retrieval/` and `docs/artefacts/` are **directories** —
+one of them a published slash command. Those are identifiers, so the identifier exemption above
+already covers them, and no count decides them: renaming a shipped command is a compatibility
+cliff needing [`RULE_rename-before-drop`](../../../rules/RULE_rename-before-drop.md), not a
+spelling pass. The 2026-09-02 sweep therefore fixed `artefact` as a common noun everywhere else
+and deliberately left those two trees internally consistent with their own names. **Before
+counting, ask whether the term is a word or a name** — if a directory, command, or public
+symbol carries it, the count is measuring the name and will point you at a rename you did not
+intend to make.
 
 Treat those figures as a dated snapshot, not a constant — they drift with every release, and the
 **ratio** is the signal, not the absolute number. Re-run the count rather than trusting them.

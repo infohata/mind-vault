@@ -132,7 +132,7 @@ Restart the web server (and Celery if translations affect background tasks) — 
 
 ## `FORCE_SYNC_MSGIDS` — translate-fill silently skips existing msgstr without it
 
-When a project's fill script (e.g. `tools/fill_empty_po.py`) updates `.po` catalogs from translation maps, the default behaviour is **only write to msgids where msgstr is empty**. Updating a translation map entry whose msgid already has a (different, possibly wrong) msgstr does *nothing* — the fill skips it silently.
+When a project's fill script (e.g. `tools/fill_empty_po.py`) updates `.po` catalogs from translation maps, the default behavior is **only write to msgids where msgstr is empty**. Updating a translation map entry whose msgid already has a (different, possibly wrong) msgstr does *nothing* — the fill skips it silently.
 
 The escape hatch is a `FORCE_SYNC_MSGIDS` set of msgids the script considers "always overwrite". To re-sync an msgid after fixing the translation map, add it to the set:
 

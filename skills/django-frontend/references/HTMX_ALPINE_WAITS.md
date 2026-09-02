@@ -7,7 +7,7 @@ Load this reference when:
 - Authoring Playwright tests against a Django + HTMX + Alpine surface.
 - Diagnosing a flaky Playwright test that "works locally, fails on CI".
 - Deciding between `wait_for_load_state`, `wait_for_function`, `wait_for_selector`, and `expect(...).to_have_count(0)` for a specific assertion seam.
-- Pairing with [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) to test a behaviour the gotchas describe.
+- Pairing with [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) to test a behavior the gotchas describe.
 
 ## 1. HTMX swap completion — the four-class wait
 

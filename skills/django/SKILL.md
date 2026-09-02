@@ -531,7 +531,7 @@ When a model is exposed to an AI agent (via DRF + a tool harness — see `claude
 - Form labels rendered into HTML the agent reads.
 - Django admin column headers.
 - `serializer.is_valid()` error messages echoed back into the agent's context.
-- Translation `.po` catalogues if the agent is multilingual.
+- Translation `.po` catalogs if the agent is multilingual.
 
 If `verbose_name` text drifts from the field name, the agent sees one vocabulary in labels and another in JSON keys. Result: hallucinated field names in tool-call payloads. Common shape:
 

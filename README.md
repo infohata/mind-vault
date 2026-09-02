@@ -35,7 +35,7 @@ flowchart LR
     C -.next sprint.-> I1
 ```
 
-**Design note on the wrap/review/land finish.** The finishing sequence is **wrap → one review → land**: `/wrap` finalizes docs to shipped state → a single `/review-loop` over the wrapped PR (code + docs together) → `/land` merges. Wrap runs *before* the review (never after) so engines see docs at their merged shape — see [`skills/wrap/references/WRAP_BEFORE_REVIEW.md`](skills/wrap/references/WRAP_BEFORE_REVIEW.md). The earlier two-pass (deliverables-then-docs review) was retired in IDEA-015: `/review-loop` already iterates to clean, so one pass over the wrapped PR absorbs both finding classes. Code-only PRs make the wrap a near-no-op. Stages 1–2–3 + `/land` + `/compound` each have a dedicated skill (`/idea`, `/plan`, `/work`, `/land`, `/compound`); Stage 4 (review) is engine-selectable via the unified `/review-loop` skill: pass `bugbot`, `copilot`, `claude`, or any subset (e.g. `bugbot,copilot,claude`) as the engine argument. All engines share the same Phase 1–4 orchestrator backed by the `AGENT_curator` / `AGENT_architect` personas; engine-specific details (clean-signal parsing, retrigger semantics, Tier 1 catalogue) live in per-engine adapter references under `skills/review-loop/references/`. `claude` is push-triggered and comment-anchored rather than check-run-driven — see `skills/review-loop/references/engine-claude.md`.
+**Design note on the wrap/review/land finish.** The finishing sequence is **wrap → one review → land**: `/wrap` finalizes docs to shipped state → a single `/review-loop` over the wrapped PR (code + docs together) → `/land` merges. Wrap runs *before* the review (never after) so engines see docs at their merged shape — see [`skills/wrap/references/WRAP_BEFORE_REVIEW.md`](skills/wrap/references/WRAP_BEFORE_REVIEW.md). The earlier two-pass (deliverables-then-docs review) was retired in IDEA-015: `/review-loop` already iterates to clean, so one pass over the wrapped PR absorbs both finding classes. Code-only PRs make the wrap a near-no-op. Stages 1–2–3 + `/land` + `/compound` each have a dedicated skill (`/idea`, `/plan`, `/work`, `/land`, `/compound`); Stage 4 (review) is engine-selectable via the unified `/review-loop` skill: pass `bugbot`, `copilot`, `claude`, or any subset (e.g. `bugbot,copilot,claude`) as the engine argument. All engines share the same Phase 1–4 orchestrator backed by the `AGENT_curator` / `AGENT_architect` personas; engine-specific details (clean-signal parsing, retrigger semantics, Tier 1 catalog) live in per-engine adapter references under `skills/review-loop/references/`. `claude` is push-triggered and comment-anchored rather than check-run-driven — see `skills/review-loop/references/engine-claude.md`.
 
 See [docs/guides/SPRINT_WORKFLOW.md](docs/guides/SPRINT_WORKFLOW.md) for the full explainer — authoritative frontmatter schemas, compound-routing table, right-sizing guidance, and the handoff contract between stages.
 
@@ -48,8 +48,8 @@ mind-vault/
 ├── agents/        Subagent personas (AGENT_*.md)
 ├── commands/      Slash commands invoked as /<name> (/mv:<name> on the plugin channel)
 ├── hooks/         Plugin SessionStart hook (auto-loads rules on the plugin channel)
-├── rules/         Always-on behavioural rules (RULE_*.md — auto-loaded every session)
-├── docs/          Specs, plans, solutions, artefacts
+├── rules/         Always-on behavioral rules (RULE_*.md — auto-loaded every session)
+├── docs/          Specs, plans, solutions, artifacts
 ├── scripts/       mind-vault → host config wiring (per-host symlink setup)
 ├── install/       Machine provisioning (install-* helpers + install-wsl.ps1)
 └── tools/         Runtime skill helpers (review-loop adapters, statusline, etc.)
@@ -153,7 +153,7 @@ Domain-specific patterns that live under their owning skill (several used to liv
 
 ## Setup
 
-One setup script per host. All share `_symlink-lib.sh` (DRY helpers) so behaviour is consistent. Scripts safely update existing symlinks and skip non-symlink conflicts.
+One setup script per host. All share `_symlink-lib.sh` (DRY helpers) so behavior is consistent. Scripts safely update existing symlinks and skip non-symlink conflicts.
 
 ```bash
 # Clone (or set MIND_VAULT=/custom/path before running scripts)
@@ -183,7 +183,7 @@ Claude Code can install mind-vault as a **native plugin** instead of the symlink
 
 Commands namespace under `mv:` on the plugin channel — type `/mv:wrap`, `/mv:idea`, etc. (coherent with the `mv-` subagent prefix). **Skill triggers are unaffected** — skills are description-invoked, so `/plan`, `/work`, `/compound` etc. still fire from natural language regardless of channel; only literal slash-typing of `commands/` entries gains the `mv:` prefix.
 
-**Behavioural rules** (`rules/RULE_*.md`) load automatically on the plugin channel via a `SessionStart` hook (parity with the symlink channel's `~/.claude/rules/`); if anything looks unloaded, run `/mv:load-rules`.
+**Behavioral rules** (`rules/RULE_*.md`) load automatically on the plugin channel via a `SessionStart` hook (parity with the symlink channel's `~/.claude/rules/`); if anything looks unloaded, run `/mv:load-rules`.
 
 **Dev loop — no build step.** To edit skills live from your working tree:
 

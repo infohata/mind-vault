@@ -164,7 +164,7 @@ ssh user@production.com 'screen -X -S myapp-deploy-20260130-012343 quit'
 - Creates database backups **before and after** migrations (pairs with commit sha for clean rollback)
 - Rebuilds containers if dependencies changed (implies static + migrations too — new packages may ship their own migrations)
 - Recreates containers if environment variables changed (force via `DEPLOY_RECREATE_ENV=1`)
-- Compiles `.po` translation messages when they change, then restarts to reload the catalogue
+- Compiles `.po` translation messages when they change, then restarts to reload the catalog
 - Rebuilds nginx when nginx config or certbot entrypoint scripts change
 - Runs migrations and collects static files as needed
 - Restarts services for code changes

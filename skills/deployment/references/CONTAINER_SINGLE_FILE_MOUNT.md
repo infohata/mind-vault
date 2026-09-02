@@ -4,7 +4,7 @@ When a sidecar/renderer writes a config file that another container consumes (a 
 rendered routing fragment, a generator feeding an agent, any "process A writes, process B watches"
 across a container boundary), you usually want to deliver **one file** into a directory the consumer
 already has — without disturbing the directory's other, committed static files. Two Docker mount
-behaviours make the obvious approaches fail **silently**, and the failure never shows at startup — it
+behaviors make the obvious approaches fail **silently**, and the failure never shows at startup — it
 shows on the *next* delivery (the second write, or the next image rebuild). Test accordingly.
 
 ## 1. A single-file (or `volume.subpath`) mount is INODE-bound
@@ -70,7 +70,7 @@ isolation test certifies a delivery mechanism that is fundamentally broken for u
    (`stat -c %i` before/after must match).
 
 A one-line operator-run script that does drop → render → re-read and tees the result to a file the agent
-reads back is enough; the point is that the *rename-vs-truncate* behaviour only ever surfaces when a
+reads back is enough; the point is that the *rename-vs-truncate* behavior only ever surfaces when a
 genuine second write goes through the genuine mount (and §2's copy-up freeze only on the next image
 rebuild — check that path too when routing files move into the image).
 

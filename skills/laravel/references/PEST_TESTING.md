@@ -91,7 +91,7 @@ php artisan test --coverage --min=80
 
 - DB-touching tests **without** `RefreshDatabase` (or manual cleanup) — state bleeds, failures are order-dependent and non-reproducible.
 - Hand-built rows (`Post::create([...])` with literal data) instead of factories — brittle, no relationship wiring, breaks on the next non-nullable column.
-- **Over-mocked Unit tests** that assert on the mock (`$mock->shouldReceive('foo')->once()`) and nothing about real behaviour — they pass while the code is broken. Prefer a Feature test against the real boundary.
+- **Over-mocked Unit tests** that assert on the mock (`$mock->shouldReceive('foo')->once()`) and nothing about real behavior — they pass while the code is broken. Prefer a Feature test against the real boundary.
 - Asserting only the HTTP status and never the persisted side effect (or vice-versa).
 
 ## Version note

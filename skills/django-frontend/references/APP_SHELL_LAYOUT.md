@@ -157,4 +157,4 @@ def test_scroll_utils_loaded_before_consumer(self):
     self.assertLess(utils_idx, consumer_idx)
 ```
 
-Render-and-assert can't probe computed CSS or measure scroll behaviour — that's a manual-eval gate (per-pane scrolls independently, sticky chrome stays anchored, no double-scrollbar at any viewport, etc.) or a browser-driver suite (Playwright / similar) once one is available.
+Render-and-assert can't probe computed CSS or measure scroll behavior — that's a manual-eval gate (per-pane scrolls independently, sticky chrome stays anchored, no double-scrollbar at any viewport, etc.) or a browser-driver suite (Playwright / similar) once one is available.

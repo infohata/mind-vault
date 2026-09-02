@@ -4,7 +4,7 @@ The batch-level integration phase (states **S(-1)** + **S11.5–S11.13**) introd
 
 **v3.2 vs v3.1**: in v3.1 the integration branch was a disposable validation harness — `[INTEGRATION]` PR was draft + auto-closed; per-IDEA PRs targeted parent (main / sprint-\*); after S11.10 cleared, S11.11 forward-synced the integrated state into every per-IDEA PR; S11.12 re-reviewed each per-IDEA PR. In v3.2 the integration branch IS the merge gate — `[INTEGRATION]` PR is non-draft + the human merges it; per-IDEA PRs target the integration branch (kept IDEA-isolated for review); S11.11 + S11.12 deleted (no propagation needed; the integrated state lives only on integration). v3.2 was compounded after a sprint/ux-overhaul cohort surfaced "now we have 3 identical PRs" UX confusion from v3.1's forward-sync mechanism.
 
-If this doc disagrees with `SKILL.md`, treat the discrepancy as a defect in this doc — `SKILL.md` is the source of behaviour.
+If this doc disagrees with `SKILL.md`, treat the discrepancy as a defect in this doc — `SKILL.md` is the source of behavior.
 
 ## Why this stage exists
 
@@ -54,13 +54,13 @@ Three skills detect it and reroute their verification step:
 
 ### `/work` (S2)
 
-Default behaviour: run `pytest` against the current worktree's stack. Sprint-auto override: `cd $SPRINT_AUTO_INTEGRATION_WORKTREE && git fetch origin auto/<slug> && git checkout --detach origin/auto/<slug> && docker compose up -d --force-recreate web celery && pytest <targeted paths>`. The `--detach` is required: `auto/<slug>` is already checked out in the per-IDEA worktree, and git refuses to claim the same branch ref in two worktrees. Detaching reads the commits without claiming the ref — exactly what verification needs (no commits happen in the integration worktree).
+Default behavior: run `pytest` against the current worktree's stack. Sprint-auto override: `cd $SPRINT_AUTO_INTEGRATION_WORKTREE && git fetch origin auto/<slug> && git checkout --detach origin/auto/<slug> && docker compose up -d --force-recreate web celery && pytest <targeted paths>`. The `--detach` is required: `auto/<slug>` is already checked out in the per-IDEA worktree, and git refuses to claim the same branch ref in two worktrees. Detaching reads the commits without claiming the ref — exactly what verification needs (no commits happen in the integration worktree).
 
 The `--force-recreate web celery` refreshes the Python services with the per-IDEA branch's mounted code. Stateful services (db, redis, minio, elasticsearch) keep their state from the IDEA-entry reset — no need to recreate them.
 
 ### `/<engine>-loop` (S6)
 
-Default behaviour: Phase 0 brings up the current worktree's stack (`.env` template-rewrite + `docker compose up`). Sprint-auto override: **skip Phase 0 entirely**. Per-IDEA worktrees are code-surface-only and have no `.env`. The review is performed remotely by the configured bot (Cursor Bugbot or GitHub Copilot reading the PR diff over the GitHub API); the local review-loop's role is reading findings + committing fixes — neither needs a runtime in the per-IDEA worktree.
+Default behavior: Phase 0 brings up the current worktree's stack (`.env` template-rewrite + `docker compose up`). Sprint-auto override: **skip Phase 0 entirely**. Per-IDEA worktrees are code-surface-only and have no `.env`. The review is performed remotely by the configured bot (Cursor Bugbot or GitHub Copilot reading the PR diff over the GitHub API); the local review-loop's role is reading findings + committing fixes — neither needs a runtime in the per-IDEA worktree.
 
 When a fix's verification needs a runtime (e.g. running a targeted test to confirm the fix works): review-loop's Phase 2 routes the test command to `$SPRINT_AUTO_INTEGRATION_WORKTREE` (same routing as `/work`).
 
@@ -109,7 +109,7 @@ done
 
 **Why NOT `git merge -X ours/theirs`**: silent data loss. Conflicts on translation files are typically "include both contributions" (each IDEA added independent translation keys near each other); `-X ours` would silently drop one IDEA's keys.
 
-**Conflict-resolution algorithm catalogue**: see [`integration-conflict-resolutions.md`](integration-conflict-resolutions.md). Most are mechanical (devlog chronological concat, index alphabetical re-sort, .po include-both); HTML/JS occasionally need human-style judgement, in which case the agent applies the most plausible "include both" resolution and flags the resolution commit for extra scrutiny in S11.10's review pass.
+**Conflict-resolution algorithm catalog**: see [`integration-conflict-resolutions.md`](integration-conflict-resolutions.md). Most are mechanical (devlog chronological concat, index alphabetical re-sort, .po include-both); HTML/JS occasionally need human-style judgement, in which case the agent applies the most plausible "include both" resolution and flags the resolution commit for extra scrutiny in S11.10's review pass.
 
 ## Batch wrap on the integration branch (S11.7)
 
@@ -174,7 +174,7 @@ done
 eval_section=""
 if (( ${#eval_checklists[@]} > 0 )); then
     eval_section=$'\n\n## Per-IDEA evaluation checklists\n\n'
-    eval_section+=$'The following IDEAs ship behaviours that need human eyes on visual / a11y / interaction review before merge. Walk each checklist in a real browser, tick boxes (or note deviations), then merge.\n\n'
+    eval_section+=$'The following IDEAs ship behaviors that need human eyes on visual / a11y / interaction review before merge. Walk each checklist in a real browser, tick boxes (or note deviations), then merge.\n\n'
     for c in "${eval_checklists[@]}"; do
         # Convert local path → repo URL on the integration branch:
         #   docs/archive/2026-05-idea-141-modal-primitives/2026-05-05-manual-evaluation.md

@@ -459,7 +459,7 @@ swappedEl.dispatchEvent(new CustomEvent('entityChanged', {
 }));
 ```
 
-Mirrors HTMX's own dispatch behaviour. See [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 11 for the full bubble-direction explainer.
+Mirrors HTMX's own dispatch behavior. See [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 11 for the full bubble-direction explainer.
 
 ## Modal scoping — three-gate check on `htmx:beforeSwap` for form-success modal close
 

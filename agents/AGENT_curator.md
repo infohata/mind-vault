@@ -169,7 +169,7 @@ Scanned N solution docs in <project>/docs/solutions/; surfaced M categories with
 
 1. **Category**: Async tenant context loss in Channels
    **Occurrences**: 5 (testing_multi_tenancy.md, webhook_hmac.md, chat_consumer_leak.md, celery_tenant.md, notification_signal.md)
-   **Existing mind-vault coverage**: partial — `skills/django/references/ASYNC_WEBSOCKET.md` mentions it; no entry in the review-loop Tier-1 catalogue.
+   **Existing mind-vault coverage**: partial — `skills/django/references/ASYNC_WEBSOCKET.md` mentions it; no entry in the review-loop Tier-1 catalog.
    **Proposed destination**: add a pattern to `skills/review-loop/references/common-review-findings.md` — an explicit sister-function probe for `database_sync_to_async` wrapping.
    **Invoke**: `/compound "Async tenant context loss pattern recurring 5× in project solutions — add a common-review-findings entry for explicit with tenant_context(tenant) wrapping probe"`
 

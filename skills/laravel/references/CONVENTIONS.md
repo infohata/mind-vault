@@ -32,7 +32,7 @@ public function store(StorePostRequest $request, PublishPost $action): PostResou
 ## Migrations & schema
 
 - One concern per migration; never edit a shipped migration — add a new one.
-- Index every foreign key; declare `foreignId(...)->constrained()->cascadeOnDelete()` (or `restrictOnDelete()`) explicitly so deletion behaviour is intentional.
+- Index every foreign key; declare `foreignId(...)->constrained()->cascadeOnDelete()` (or `restrictOnDelete()`) explicitly so deletion behavior is intentional.
 - Prefer `timestamps()` on every table (the `created_at`/`updated_at` audit pair) unless there is a reason not to.
 
 ## Types, formatting, tooling

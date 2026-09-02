@@ -13,7 +13,7 @@ until a hard refresh.
 
 Eager-globalising these heavy bundles (loading them on every shell page) is the
 wrong fix — it's MBs of payload on surfaces that never use them. They need
-**load-on-nav**, not always-on. (Small, null-safe behaviour scripts are a
+**load-on-nav**, not always-on. (Small, null-safe behavior scripts are a
 different call — those can be cheap enough to globalise; see the "what stays
 eager" note below.)
 
@@ -132,9 +132,9 @@ tracing it in devtools isn't confused.
 
 Shell-**infrastructure** scripts — the reactive framework (Alpine), HTMX itself,
 the drawer / nav / toast / modal coordinators, the loader module — bind global
-behaviour before any interaction and must be present on every page. Only
+behavior before any interaction and must be present on every page. Only
 surface-**specific**, heavy-or-narrow assets are load-on-nav candidates. Mixing
-the two up (moving an infra script to load-on-nav) breaks global behaviour
+the two up (moving an infra script to load-on-nav) breaks global behavior
 everywhere; classifying requires a per-script audit.
 
 ### Shared form-widget dependencies are NOT surface-specific (the mis-classification trap)

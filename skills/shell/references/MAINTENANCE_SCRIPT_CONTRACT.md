@@ -7,7 +7,7 @@ it without re-reading the source.
 
 ## Mode surface
 
-| Mode     | Flag        | Behaviour                                                                                                                                |
+| Mode     | Flag        | Behavior                                                                                                                                |
 | -------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | DRY-RUN  | *(default)* | Read-only. Measures current state, prints the per-target plan. Running with no args must be safe against production.                      |
 | Apply    | `--apply`   | Mutating. For risky changes, per-target (`--apply --host <name>`), never fleet-wide in one invocation.                                    |

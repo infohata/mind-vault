@@ -87,7 +87,7 @@ volumes:
   - ./requirements-web.txt:/app/requirements-web.txt:ro   # ← trap
 ```
 
-Docker creates empty `./web/requirements-web.txt` on host as the second mount's target — untracked artefact. Bake into image at build; pip wouldn't rerun anyway.
+Docker creates empty `./web/requirements-web.txt` on host as the second mount's target — untracked artifact. Bake into image at build; pip wouldn't rerun anyway.
 
 ### 7. Language pinning for stable string assertions
 

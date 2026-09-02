@@ -9,7 +9,7 @@ preview-open, any `document.addEventListener('click', …)` that matches via
 ## The shape
 
 A kebab / dropdown wrapper toggles a menu and contains action buttons (Delete, …).
-The Delete button's behaviour is wired through a **document-delegated** listener —
+The Delete button's behavior is wired through a **document-delegated** listener —
 e.g. one `click` listener bound on `document` that acts on
 `event.target.closest('[data-confirm-trigger]')`. Document delegation is the
 standard way to make a handler survive HTMX swaps: the button DOM is replaced on

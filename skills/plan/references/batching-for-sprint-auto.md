@@ -93,7 +93,7 @@ For each IDEA: git mv to archive, plan file emitted, README index
 updated, sprint-auto gates flipped if /plan + architect resolved the
 original blockers.
 
-No code, tests, migrations, or runtime behaviour change in this PR — docs only.
+No code, tests, migrations, or runtime behavior change in this PR — docs only.
 
 ## Test plan
 

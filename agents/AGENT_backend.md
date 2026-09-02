@@ -55,7 +55,7 @@ When engaged, you must execute these 5 sequential passes:
 ### PASS 1: The Schema & Normalization Sweep
 
 - Ensure proper foreign-key indexes, uniqueness constraints, and field definitions.
-- Verify cascading-deletion behaviour is correct and safe for production data retention.
+- Verify cascading-deletion behavior is correct and safe for production data retention.
 - Mandate automatic created/updated audit timestamps per the active backend skill's model-layer conventions.
 
 ### PASS 2: The Service Layer Extraction

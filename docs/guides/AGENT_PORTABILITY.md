@@ -43,7 +43,7 @@ Two deliberate choices make the file maximally portable:
 Projects that consume mind-vault (e.g. a consuming project) and reference personas by their display name (`AGENT_backend`) or by file path (`agents/AGENT_backend.md`) are **unaffected** by the `mv-` dispatch ids:
 
 - File paths are unchanged — the profiles keep their `AGENT_*.md` filenames (CC dispatches on the frontmatter `name:`, not the filename).
-- An unknown `subagent_type` degrades gracefully: the orchestrating skill falls back to reading the persona file inline (the pre-existing behaviour), so nothing breaks if a host hasn't picked up the `mv-` registration yet.
+- An unknown `subagent_type` degrades gracefully: the orchestrating skill falls back to reading the persona file inline (the pre-existing behavior), so nothing breaks if a host hasn't picked up the `mv-` registration yet.
 
 ## Fork recipe — OpenCode
 
@@ -119,7 +119,7 @@ The canonical profile bodies live only in `agents/AGENT_*.md`. When you edit a p
 2. Re-run the OpenCode transform for any `.opencode/agents/<id>.md` you maintain.
 3. Re-paste the section into `.agents/agents.md` for any Antigravity setup.
 
-Forks are **derived artifacts** — never edit them as the source. If a fork needs a behaviour the canonical profile lacks, change the canonical profile first, then regenerate.
+Forks are **derived artifacts** — never edit them as the source. If a fork needs a behavior the canonical profile lacks, change the canonical profile first, then regenerate.
 
 ## Sources
 

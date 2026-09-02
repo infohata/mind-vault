@@ -77,9 +77,9 @@ Walk back the wrap:
 
 ## Anti-patterns
 
-- ❌ **"Functionally complete" / "shipped" / "the visible behaviour works"** as justification for flipping to `complete` when acceptance criteria are unmet. Phrases like these are red flags during review; replace with literal per-criterion satisfaction.
+- ❌ **"Functionally complete" / "shipped" / "the visible behavior works"** as justification for flipping to `complete` when acceptance criteria are unmet. Phrases like these are red flags during review; replace with literal per-criterion satisfaction.
 - ❌ **Burying ⚠️ inside a longer summary paragraph** — comprehension cost compounds with summary length. The marker must be the first character of the line that mentions the gap.
-- ❌ **Trusting the user's satisfaction with the visible behaviour over the plan's literal R-criteria.** The user may be happy with what shipped; the plan's R-criteria are the wrap-time contract. If they diverge, surface the divergence as a question before flipping status.
+- ❌ **Trusting the user's satisfaction with the visible behavior over the plan's literal R-criteria.** The user may be happy with what shipped; the plan's R-criteria are the wrap-time contract. If they diverge, surface the divergence as a question before flipping status.
 - ❌ **Adding "Phase 2 (future)" to a wrap output without ⚠️.** The future framing softens the gap; combined with no marker, it's a recipe for the next reader to skip the deferred work.
 
 ## Worked precedent

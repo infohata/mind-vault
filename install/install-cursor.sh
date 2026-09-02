@@ -368,7 +368,7 @@ if [ "$DO_CLI" = "1" ]; then
             # so a curl failure in `curl ... | bash` would otherwise be
             # swallowed (the pipe's exit status defaults to the last command's,
             # and a bash with empty stdin exits 0). Match the direct-user path's
-            # error behaviour explicitly.
+            # error behavior explicitly.
             sudo -u "$CLI_USER" -H bash -c 'set -eo pipefail; curl -fsSL https://cursor.com/install | bash'
         fi
     fi
