@@ -3,14 +3,14 @@
 block-protected-branch-writes.py — PreToolUse(Bash) guard that STRUCTURALLY enforces
 RULE_git-safety § "never merge or push into a protected branch".
 
-RULE_git-safety is behavioural CONTEXT — it is loaded into the session and relies on the
+RULE_git-safety is behavioral CONTEXT — it is loaded into the session and relies on the
 model obeying it. That is enough right up until judgment lapses on an IRREVERSIBLE op:
 an agent, with the rule loaded and quoted back correctly, still ran `gh pr merge` on a
 protected `main` — it read a user's "merge" as authorization, where the rule says decline
-even then. A behavioural rule cannot self-enforce at the exact moment it's rationalised
+even then. A behavioral rule cannot self-enforce at the exact moment it's rationalised
 away. This hook is the structural backstop: it DENIES the forbidden tool calls at the
 source, so a lapse can't move a protected branch's tip. See
-docs/rules/RULE_git-safety-rationale.md § "Behavioural rules need a structural backstop".
+docs/rules/RULE_git-safety-rationale.md § "Behavioral rules need a structural backstop".
 
 DENIES (the operations RULE_git-safety forbids on a protected branch):
   • gh pr merge …          — ANY `gh pr merge`, conservatively: the hook does not verify the
@@ -50,7 +50,7 @@ fail-safe for the common forms.
 SCOPE: the hook stops JUDGMENT LAPSES, not deliberate obfuscation — env-var indirection
 (`git push origin $BRANCH`), `printf … | bash`, and the like pass through by design
 (fail open). An agent *constructing* such a bypass is knowingly violating RULE_git-safety,
-which is a behavioural violation no tool-layer guard can close; the break-glass exists so
+which is a behavioral violation no tool-layer guard can close; the break-glass exists so
 it never has a legitimate reason to.
 
 BREAK-GLASS: prepend  GIT_SAFETY_ALLOW=1  to the command to bypass — a deliberate, visible,

@@ -24,7 +24,7 @@ What's wrong:
 1. **URL update is tied to swap success.** `hx-push-url="true"` makes HTMX push the URL only when the swap completes. If the swap fails (5xx, network error, timeout), the URL bar stays at the old path. That's the *good* failure mode. The *bad* failure mode is harder to reach: when the swap completes against the wrong target (selector resolved to `<body>` because `#shell-swap-target` was missing in the DOM), the URL advances anyway and the user is left with a URL that doesn't match what they're seeing.
 2. **The link is a polymorphic surface.** A future feature wants the same link to ALSO dispatch a Custom Event (e.g. "user navigated to Events"). With `hx-*` on the link, you stack `hx-on::after-request="…"` next to `hx-get`, which executes in a JS scope that's NOT Alpine's evaluator (see [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) #4). The hx-on dispatch can't read `$store`. The next feature is more friction than the first.
 3. **Per-template repetition.** Every nav cotton that emits a link repeats the same `hx-*` block, with one or two attributes diverging per usage. The divergence creates the "did I forget to set `hx-push-url` here?" maintenance burden.
-4. **Cannot share the click-decision logic across surfaces.** When the same nav-click needs slightly different behaviour on mobile vs desktop (e.g. mobile should also dismiss an open drawer pane before the swap, desktop preserves it), the `hx-*` declarative path can't gate on `matchMedia`. You'd have to fork the cotton per breakpoint.
+4. **Cannot share the click-decision logic across surfaces.** When the same nav-click needs slightly different behavior on mobile vs desktop (e.g. mobile should also dismiss an open drawer pane before the swap, desktop preserves it), the `hx-*` declarative path can't gate on `matchMedia`. You'd have to fork the cotton per breakpoint.
 
 ### Convention — data-attribute marker + JS handler
 
@@ -48,7 +48,7 @@ document.addEventListener('click', function (e) {
     if (!link) return;
     // Defence: never both markers on the same link (disjoint vocabulary).
     if (link.hasAttribute('data-other-vocabulary-link')) return;
-    // Honour open-in-new-tab / modifier-key behaviour.
+    // Honour open-in-new-tab / modifier-key behavior.
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     if (e.button !== 0) return;
     var url = link.getAttribute('href');
@@ -89,7 +89,7 @@ The handler can implement any URL policy (push, replace, no-change) independentl
 
 ### 2. The click decision is composable
 
-Mobile-specific behaviour gates trivially:
+Mobile-specific behavior gates trivially:
 
 ```javascript
 // Mobile-only drawer dismiss before the swap.
@@ -156,7 +156,7 @@ def event_list_view(request):
 
 - All four problems listed in the anti-pattern section.
 - The `hx-on::*` Alpine-scope mismatch that surfaces when you later want the link to do MORE than just swap (see [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) #4).
-- The polymorphism trap when mobile vs desktop want different behaviour for the same nav-click.
+- The polymorphism trap when mobile vs desktop want different behavior for the same nav-click.
 - The deferred-pushState race (see § *Why this wins* point 1) — built into the convention.
 
 ## When NOT to use this convention
@@ -238,7 +238,7 @@ The active-state update is reactive to the server event, not to the swap target 
 
 If the click changes the URL's first path segment OR the active top-nav highlight, it's **cross-surface** → `data-shell-nav-link`. If the click changes a query parameter OR a sub-state within the same surface (workspace stays identical), it's **in-surface** → raw `hx-*` targeting `.shell-center`.
 
-The trap surfaces when developers cargo-cult `data-shell-nav-link` from cross-surface examples into an in-surface context (e.g. "section nav looks like nav, just use the same marker"). The marker's behaviour is correct for its scope — it's the scope MIS-application that produces workspace flash. Catcher: a visual M-walk test asserting a sentinel attribute on `[data-workspace-<surface>]` survives the click. If it doesn't, the workspace re-rendered.
+The trap surfaces when developers cargo-cult `data-shell-nav-link` from cross-surface examples into an in-surface context (e.g. "section nav looks like nav, just use the same marker"). The marker's behavior is correct for its scope — it's the scope MIS-application that produces workspace flash. Catcher: a visual M-walk test asserting a sentinel attribute on `[data-workspace-<surface>]` survives the click. If it doesn't, the workspace re-rendered.
 
 ## Related references
 

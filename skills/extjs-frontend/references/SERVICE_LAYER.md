@@ -179,7 +179,7 @@ In e2e, `Ext.syncRequire('App.service.Api')` before a bare namespace access.
 2. Replace the call site with `service.X.method(...).then(ok, sink)`; keep bespoke failure text;
    add the `requires`.
 3. Delete hand-rolled `JSON.parse`/failure plumbing.
-4. Don't migrate behaviour you can't verify — a real-backend smoke of that feature is the gate;
+4. Don't migrate behavior you can't verify — a real-backend smoke of that feature is the gate;
    the mock e2e only proves the request shape.
 
 Documenting a domain: a "dialogs ↔ endpoints ↔ statuses" table (surface · class · endpoint(s) ·

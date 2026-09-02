@@ -201,7 +201,7 @@ Failure mode this addresses: clicking the preview's close-X dismisses the drawer
 - ❌ Wall-clock timeouts for state cleanup (clear `isDragging` after 500ms). Mobile momentum + animation-duration combinatorics outrun any reasonable wall-clock estimate; flag-based deferred-clear scales correctly.
 - ❌ Reaching for `--force` or `!important` to escape a bug class. Most patterns above are about right-shaped abstractions, not stronger overrides.
 - ❌ Adding a stateful animated affordance (pulse / bounce) when a persistent **static** one conveys the same signal. The animation often introduces the feature's only race-prone JS (first-visible state machine + `localStorage` seen-flag that throws in Safari private mode + mark-seen semantics). Ship static; defer the animation as an eval-gated fast-follow → [`references/EDGE_AFFORDANCE_RAILS.md`](references/EDGE_AFFORDANCE_RAILS.md) §3.
-- ❌ Skipping the [manual-eval issues tracker](../wrap/references/MANUAL_EVAL_TRACKER.md) artefact "because it's just for this cycle" — once back-and-forth gets confused, you've already lost the cycle to ambiguity. Introduce the tracker at first regression, not at the fifth.
+- ❌ Skipping the [manual-eval issues tracker](../wrap/references/MANUAL_EVAL_TRACKER.md) artifact "because it's just for this cycle" — once back-and-forth gets confused, you've already lost the cycle to ambiguity. Introduce the tracker at first regression, not at the fifth.
 
 ## When NOT to use these patterns
 
@@ -221,7 +221,7 @@ Patterns surfaced in the same IDEA-143 cycle but applicable beyond mobile work �
 - **List-scoped HTMX swap to retain form focus** (sibling target + `hx-select`) → [django-frontend HTMX_PATTERNS.md § Form focus preservation via list-scoped swap](../django-frontend/references/HTMX_PATTERNS.md#form-focus-preservation-via-list-scoped-swap).
 - **Permanent-bind + active-discriminator listeners** (don't migrate listeners on event; bind once, gate at event time) → [django-frontend ALPINE_HTMX_GOTCHAS.md § Gotcha 8](../django-frontend/references/ALPINE_HTMX_GOTCHAS.md#8-rebind-on-event-listener-migration-is-fragile--prefer-permanent-bind--active-discriminator).
 - **WCAG luminance with sRGB linearization** (theme contrast picker) → [django-frontend BASE_TEMPLATE.md § Theme contrast picker (WCAG luminance)](../django-frontend/references/BASE_TEMPLATE.md#theme-contrast-picker-wcag-luminance).
-- **Manual-eval issues tracker artefact** (stable Mn IDs across cycles) → [wrap MANUAL_EVAL_TRACKER.md](../wrap/references/MANUAL_EVAL_TRACKER.md).
+- **Manual-eval issues tracker artifact** (stable Mn IDs across cycles) → [wrap MANUAL_EVAL_TRACKER.md](../wrap/references/MANUAL_EVAL_TRACKER.md).
 
 ## Relationship to rules
 

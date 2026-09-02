@@ -232,7 +232,7 @@ Caught while writing tests for a "reports green when it should not" fix — wher
 nothing is precisely the defect being fixed, one level down:
 
 ```bash
-# WRONG — reports FAIL on correct behaviour, and would report FAIL on incorrect behaviour too
+# WRONG — reports FAIL on correct behavior, and would report FAIL on incorrect behavior too
 _case "empty input stays empty" "" "$(fold "" "$payload")"
 
 # RIGHT — emptiness is a property of the string, not a substring of it

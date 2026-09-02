@@ -22,7 +22,7 @@ always the benign one. The repair is one move in four forms: **make non-assertio
 representable** — print the positive count beside every zero, require a positive value only
 the designed flow can produce, give the unknown its own refusing branch, and treat an
 assertion as evidence only once you have watched it go red against a mutant reproducing the
-original defect's observable behaviour, exit status and output included.
+original defect's observable behavior, exit status and output included.
 
 Two neighbours are *not* this failure and take a different fix. An assertion that ran and
 returned a true answer about the wrong object is a proxy problem — the check interrogates
@@ -192,7 +192,7 @@ Companion trap, same root: **an aggregation introduced only to make a join legal
 redefines what the series means.** A rule engine that errors on many-to-one matches invites a
 collapse — freshest-per-key, `max()`-per-key — to force the join 1:1, and that collapse destroys
 exactly the fact that two entities shared the key. Afterwards the alert names a cause that is an
-artefact of the aggregation and prescribes a remedy that cannot possibly clear it; one such
+artifact of the aggregation and prescribes a remedy that cannot possibly clear it; one such
 false positive fired continuously for over a week telling operators to reload a component that
 was already correct.
 
@@ -400,7 +400,7 @@ state and induce the failure. Rehearse re-invocation after a mid-run abort and a
 
 The degenerate fixture is the invisible one: with an empty store, "render nothing" and
 "render everything" emit identical bytes, and a sibling row created *after* the write
-leaves nothing to clobber — so an isolation assertion survives a full behaviour inversion.
+leaves nothing to clobber — so an isolation assertion survives a full behavior inversion.
 Create every sibling row **before** the operation and comment that **order is load-bearing**.
 Make each test assert its own input is non-degenerate.
 
@@ -421,7 +421,7 @@ and the manual path each break while the other works). Two edges recur:
   through the environment. Say *"could not RESOLVE"*, never *"is absent"*; log why the branch
   was taken and surface skips in the run summary. Better still, **read the state directly**
   (a `/proc` entry, the config file) — a file read cannot report command-not-found. Do not
-  over-correct: a `command not found` is *not* automatically a PATH artefact. The binary may
+  over-correct: a `command not found` is *not* automatically a PATH artifact. The binary may
   be genuinely absent on a minimal image, the identifier may be a service-*unit* name rather
   than a binary name, or the message may be masking a real defect — one parity probe's
   command-not-found was dismissed as PATH noise for months while it masked an unset kernel
@@ -447,10 +447,10 @@ the write-up still reads *proven*. Record the commit the verdict covers.
 not have detected — which branches never executed, which preconditions were absent, which
 constraints the substrate cannot enforce — and (b) the commit it covers. **If list (a) is
 empty, you have not looked.** Where the substrate is weaker than production, pin what it
-*can* check by asserting against the schema or source artefact. Build doubles from output
+*can* check by asserting against the schema or source artifact. Build doubles from output
 captured on the real target and make them **strict** — reject unknown arguments, because
 real tools do. And prefer a discriminating test to an enumerated one: watch it fail against
-the old behaviour before you keep it.
+the old behavior before you keep it.
 
 Related: [`MAINTENANCE_SCRIPT_CONTRACT.md`](MAINTENANCE_SCRIPT_CONTRACT.md) ·
 [`SAFE_CONFIG_EDITS.md`](SAFE_CONFIG_EDITS.md) ·

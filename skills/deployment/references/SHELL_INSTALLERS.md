@@ -342,6 +342,6 @@ fi
 ## Related
 
 - [`skills/shell/SKILL.md`](../../shell/SKILL.md) — the base shell-language layer beneath this catalog; owns the hoisted language-general entries (1–3, 5, 8, 10, 11) plus cleanup traps, locking, and the live-host ops machinery.
-- [`skills/review-loop/references/common-review-findings.md`](../../review-loop/references/common-review-findings.md) #15 — review-side pointer to this reference (drill discipline stays in the shared catalogue so the review loop knows where to look).
+- [`skills/review-loop/references/common-review-findings.md`](../../review-loop/references/common-review-findings.md) #15 — review-side pointer to this reference (drill discipline stays in the shared catalog so the review loop knows where to look).
 - `tools/README.md` "Adding New Tools" — author-side pointer to this reference.
 - `../../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md` — when writing an installer that runs INSIDE a parallel-worktree stack, the gotchas there apply in addition.

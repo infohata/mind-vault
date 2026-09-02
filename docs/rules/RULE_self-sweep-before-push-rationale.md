@@ -41,7 +41,7 @@ Run from the project root, not the file's directory — the bot's review scope i
 
 ### What counts as a contract change worth sweeping
 
-- **Return type changes**: `return undefined` → `return Promise.reject(...)` (any sync→async). Callers without `.catch()` leak unhandled rejections; without `await` they see different behaviour.
+- **Return type changes**: `return undefined` → `return Promise.reject(...)` (any sync→async). Callers without `.catch()` leak unhandled rejections; without `await` they see different behavior.
 - **Throwing where the caller didn't expect**: previously infallible function now raises. Wrap-checking callers crash.
 - **Default parameter changes**: previously optional positional now required. Silent regressions everywhere.
 - **Async-ifying a sync function**: callers that ignored the return value silently complete out-of-order; races appear intermittently.

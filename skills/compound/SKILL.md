@@ -46,7 +46,7 @@ Per the sprint-workflow plan's Q6 decision. Two modes, probed in order:
 **2a. Narrative probe.** Ask up to three questions, one at a time, using the platform's blocking question tool when available:
 
 - "Is this specific to this project, or likely to recur in other projects?"
-- "Shape of the learning — fix recipe, guardrail rule, reviewer heuristic, tooling need, or behavioural preference?"
+- "Shape of the learning — fix recipe, guardrail rule, reviewer heuristic, tooling need, or behavioral preference?"
 - "If cross-project: is it a *pattern to add* somewhere, or a *guardrail to enforce*?"
 
 After the narrative probe, propose **one destination** with a one-sentence rationale and ask the user to confirm. If they confirm, skip 2b.

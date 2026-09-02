@@ -37,7 +37,7 @@ When N IDEAs run in parallel, all N worktrees write the same lines. **Every batc
 - **Replacing per-PR review.** The integration step is additive. Each `auto/*` PR still gets its own review pass against `main`.
 - **Replacing the human merge.** The integration branch never gets merged to `main`. Per-PR merges still go through GitHub's UI with the human at the controls (per `RULE_git-safety`).
 - **A long-lived develop/staging branch.** This is per-batch, disposable. Not gitflow.
-- **The existing project-level `staging` worktree** (which tracks `main` + manual human-present testing). That artefact is human-owned and untouched by sprint-auto. The new integration worktree is a separate disposable artefact named `integration/sprint-auto-<batch-iso>`.
+- **The existing project-level `staging` worktree** (which tracks `main` + manual human-present testing). That artifact is human-owned and untouched by sprint-auto. The new integration worktree is a separate disposable artifact named `integration/sprint-auto-<batch-iso>`.
 
 ______________________________________________________________________
 
@@ -45,9 +45,9 @@ ______________________________________________________________________
 
 ## Naming clarification — "integration" worktree vs. existing "staging" worktree
 
-These are two **distinct** artefacts the plan keeps strictly separate:
+These are two **distinct** artifacts the plan keeps strictly separate:
 
-| Artefact                                                                       | Purpose                                                                                                 | Lifecycle                                                                   | Owner       |
+| Artifact                                                                       | Purpose                                                                                                 | Lifecycle                                                                   | Owner       |
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ----------- |
 | **Existing `staging` worktree** (project-level, predates sprint-auto)          | Tracks `main`; human stacks manual experiments / pre-merge testing on top during human-present sessions | Long-lived; never owned by sprint-auto                                      | Human       |
 | **`integration/sprint-auto-<batch-iso>` worktree** (NEW, created by this plan) | Disposable per-batch sprint-auto integrator + test-runner; never receives manual edits                  | Created at S(-1); torn down post-merge by `/wrap NNN` of last-of-batch IDEA | Sprint-auto |
@@ -140,7 +140,7 @@ The per-IDEA loop's S0 narrows; new pre-batch state S(-1) for integration bootst
 | State      | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **S11.5**  | **Verify integration worktree state** — already up since S(-1). Final pre-merge reset: `docker compose down -v && docker compose up -d`, migrate + seed (back to clean main-equivalent state).                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| **S11.6**  | **Sequential merge** — `git checkout integration/sprint-auto-<batch-iso>`. For each `auto/<slug>` in batch-arg order: `git merge --no-ff auto/<slug>`. On conflict: resolve on integration branch using the algorithm catalogue (`references/integration-conflict-resolutions.md` — NEW), commit as separate `resolve: integrate auto/<X>` commit.                                                                                                                                                                                                                                                                    |
+| **S11.6**  | **Sequential merge** — `git checkout integration/sprint-auto-<batch-iso>`. For each `auto/<slug>` in batch-arg order: `git merge --no-ff auto/<slug>`. On conflict: resolve on integration branch using the algorithm catalog (`references/integration-conflict-resolutions.md` — NEW), commit as separate `resolve: integrate auto/<X>` commit.                                                                                                                                                                                                                                                                    |
 | **S11.7**  | **Batch wrap on integration branch** — compose all N devlog entries (chronological/numerical concat); apply all N ideas-index moves in one commit. ONE `wrap-batch: devlog + index for sprint-auto-<batch-iso>` commit.                                                                                                                                                                                                                                                                                                                                                                                               |
 | **S11.8**  | **Integration tests — union** — read each merged-in IDEA's plan-doc Verification section, union test paths, run pytest. Migrate up if migrations were merged. Failure → fix on integration branch, cap of 10 attempts (fresh commits, revert between attempts).                                                                                                                                                                                                                                                                                                                                                       |
 | **S11.9**  | **Full test suite** (sprint-end gate per Q5) — full pytest on the integrated state. Same fix discipline, cap of 10.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -192,7 +192,7 @@ First batches will calibrate; numbers above are starting points, not contracts.
 - `skills/sprint-auto/references/post-pr-sequence.md` — new state machine S(-1) → S0–S15 with verification routing
 - `skills/sprint-auto/references/worktree-lifecycle.md` — drops per-IDEA stack bootstrap from default; documents code-surface-only mode + integration-worktree-as-runtime model
 - `skills/sprint-auto/references/integration-stage.md` — NEW: integration worktree lifecycle, branch-switch protocol, DB reset protocol, \[INTEGRATION\] draft PR mechanic
-- `skills/sprint-auto/references/integration-conflict-resolutions.md` — NEW: catalogued resolution patterns (devlog chronological concat, index alphabetical/numerical re-sort, .po include-both, html/js per-case)
+- `skills/sprint-auto/references/integration-conflict-resolutions.md` — NEW: cataloged resolution patterns (devlog chronological concat, index alphabetical/numerical re-sort, .po include-both, html/js per-case)
 - `skills/sprint-auto/assets/auto-run-log-template.md` — Integration check section template (merge results, test results, review results, propagation results, re-review results)
 
 ### Cross-skill (verification routing)
@@ -257,14 +257,14 @@ When green-lit:
 - [`../work/SKILL.md`](../work/SKILL.md) — touched by this plan (verification routing via env var)
 - [`../review-loop/SKILL.md`](../review-loop/SKILL.md) — touched by this plan (Phase 0 skip-bootstrap rule when env var set, in the unified loop)
 - [`references/PARALLEL_WORKTREE_DOCKER.md`](references/PARALLEL_WORKTREE_DOCKER.md) — worktree pattern; v3.1 narrows the per-worktree stack assumption for sprint-auto
-- [`../../rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — confirms forward-sync (S11.11) is agent-allowed; the `[INTEGRATION]` draft PR is a non-merging artefact
+- [`../../rules/RULE_git-safety.md`](../../rules/RULE_git-safety.md) — confirms forward-sync (S11.11) is agent-allowed; the `[INTEGRATION]` draft PR is a non-merging artifact
 - Existing sprint-auto state machine: `skills/sprint-auto/SKILL.md` (S0–S15)
 
 ______________________________________________________________________
 
 ## Revision history
 
-- **2026-04-27 v3.1**: all open Qs resolved (env var name locked, review per-IDEA worktrees no-`.env`/no-docker, per-IDEA worktrees not maintained as forensic artefacts, cap budgets accepted); stakes context added; ready for implementation
+- **2026-04-27 v3.1**: all open Qs resolved (env var name locked, review per-IDEA worktrees no-`.env`/no-docker, per-IDEA worktrees not maintained as forensic artifacts, cap budgets accepted); stakes context added; ready for implementation
 - **2026-04-27 v3**: post-redirect on hardware constraint + results-oriented call. Single integration stack as the test-runner; per-IDEA worktrees code-surface-only; full DB reset between IDEAs guarantees independently deliverable PRs
 - **2026-04-27 v2**: Q4/Q5/Q6 redirects, wrap-stage insight surfaced, but kept N+1 docker stacks (rejected by hardware constraint)
 - **2026-04-27 v1**: initial draft with v1 recommendations on Q4/Q5/Q6 (superseded by v2)

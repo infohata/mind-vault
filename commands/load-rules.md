@@ -1,11 +1,11 @@
 ---
-description: Load mind-vault behavioural rules (RULE_*.md) — works on both the plugin and symlink channels
+description: Load mind-vault behavioral rules (RULE_*.md) — works on both the plugin and symlink channels
 agent: general
 ---
 
 # load-rules
 
-Load the mind-vault behavioural rules into working memory. Works on both
+Load the mind-vault behavioral rules into working memory. Works on both
 distribution channels:
 
 - **Plugin channel** — rules ship inside the plugin root. The env var

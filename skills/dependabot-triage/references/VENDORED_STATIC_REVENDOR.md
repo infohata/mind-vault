@@ -55,7 +55,7 @@ the old `src`. Recurring dist-layout traps:
   `url()` target.
 - **A library keeps its dist path stable across the major** (e.g. a UMD
   `dist/*.min.js` that just grew). Faithful re-vendor, no map change — but still
-  review the *consuming code* for API/behaviour breaks (the bump is a migration
+  review the *consuming code* for API/behavior breaks (the bump is a migration
   even when the file path isn't).
 
 ## The committed file may not be reproducible by a 1:1 copy

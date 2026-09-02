@@ -125,7 +125,7 @@ No test in any toolchain runs advice. Three shapes, in ascending severity:
 
 1. **A condition the tool could assert but only prints is not a control at all.** Observed: a repair
    script's dry run printed *"if the account is already the production one, STOP — do not `--apply`"*,
-   while `--apply` unconditionally reset that account and dropped the artefact it held. The repair was
+   while `--apply` unconditionally reset that account and dropped the artifact it held. The repair was
    two executable `die` guards ahead of the destructive stage. **Re-assert every precondition a dry run
    states, programmatically, in the destructive path — die, do not print.** A block pasted into an
    operator's terminal must `exit`, not warn: pasted blocks carry no strict mode, so a warning that
@@ -173,9 +173,9 @@ person who wrote it. The failure is habitual rather than knowledge-shaped — wh
 remedy has to be a check that executes, not a better note.
 
 **State the severity honestly when one of these is found.** In every documented case the gap was *latent*
-rather than a staged secret: the protected artefact did not yet exist, or the run that would have created
+rather than a staged secret: the protected artifact did not yet exist, or the run that would have created
 it had never happened, or the gap was caught in review before it reached the default branch. Verify the
-artefact existed inside the window before calling it exposed — a pattern's name is a record of intent, not
+artifact existed inside the window before calling it exposed — a pattern's name is a record of intent, not
 evidence of what was on disk.
 
 ## Staged gates rot — re-probe the dependency's source before honoring one

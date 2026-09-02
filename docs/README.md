@@ -20,7 +20,7 @@ All guides live under [`guides/`](guides/). Start with ONBOARDING and follow lin
 
 - **[ideas/](ideas/)** — open IDEA backlog (`IDEA-NNN-<slug>.md` per item, indexed by [ideas/README.md](ideas/README.md)). Managed by `/idea` and `/ideate`.
 - **[plans/](plans/)** — durable technical plans emitted by `/plan` for IDEAs without an archive dir yet.
-- **[artefacts/](artefacts/)** — externally-retrieved artefacts (research, validation logs) imported via `/artefact-retrieval`. Taxonomy in [artefacts/taxonomy.md](artefacts/taxonomy.md).
+- **[artefacts/](artefacts/)** — externally-retrieved artifacts (research, validation logs) imported via `/artefact-retrieval`. Taxonomy in [artefacts/taxonomy.md](artefacts/taxonomy.md).
 - **[archive/](archive/)** — shipped IDEAs (`YYYY-MM-idea-NNN-<slug>/`), archived research, historical session notes.
 - **[troubleshooting/](troubleshooting/)** — host-specific gotchas (WSL, etc.).
 
@@ -39,4 +39,4 @@ Checks regex-valid name, directory ↔ frontmatter `name` match, description len
 
 - **New skills / rule refactors** → [skills/skill-writer/SKILL.md](../skills/skill-writer/SKILL.md) (mind-vault's authoring enforcement: frontmatter, length budget, references/assets layout, trigger quality).
 - **Project-wide conventions** (naming, structure, git workflow) → [AGENTS.md](../AGENTS.md) at repo root.
-- **Always-on behavioural rules** → [rules/](../rules/) at repo root (auto-loaded into every session).
+- **Always-on behavioral rules** → [rules/](../rules/) at repo root (auto-loaded into every session).

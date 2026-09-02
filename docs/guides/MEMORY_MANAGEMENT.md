@@ -22,7 +22,7 @@ Auto-memory is for facts that are **about the user or project** and would help f
 - User preferences ("user prefers terminal over IDE for long-running loops")
 - Project status that decays slowly ("Phase 2 shipped 2026-04-23, follow-up tracked in IDEA-051")
 - References to external systems ("bugs live in Linear project INGEST")
-- Feedback that shapes behaviour ("never mock the database in integration tests — prod-divergence incident Q1 2026")
+- Feedback that shapes behavior ("never mock the database in integration tests — prod-divergence incident Q1 2026")
 
 ❌ **DON'T save to auto-memory**:
 
@@ -115,7 +115,7 @@ If the same memory would be true for someone else using mind-vault → it's a sk
 
 A few less-obvious layers worth naming:
 
-- **Plans** (`docs/archive/YYYY-MM-idea-NNN-<slug>/*-plan.md`) — durable record of how an IDEA was decomposed. Don't put plan content in memory; the plan IS the persistent artefact.
+- **Plans** (`docs/archive/YYYY-MM-idea-NNN-<slug>/*-plan.md`) — durable record of how an IDEA was decomposed. Don't put plan content in memory; the plan IS the persistent artifact.
 - **Tasks** (per-conversation TodoWrite list) — ephemeral, conversation-scoped. Don't persist task lists to memory.
 - **Git commit messages** — for the *why* of a change. Don't persist "we changed X because Y" to memory; the commit message holds it.
 

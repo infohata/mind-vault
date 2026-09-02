@@ -2,7 +2,7 @@
 
 Companion reference to [`PREVIEW_DRAWER_URL_STACK.md`](PREVIEW_DRAWER_URL_STACK.md). When a megastack-style preview drawer takes a snapshot of a frame before pushing a child (so the parent can be restored on pop), the naive `host.innerHTML` snapshot loses in-flight form state — typed-into textareas snap back to their server-rendered defaults, unsaved checkbox flips revert, in-progress selects reset.
 
-The fix isn't "serialize form state separately and merge on restore" — that path proliferates with every new widget. Instead, snapshot a *cloned host with form state mirrored onto its DOM*, then strip widget-specific artefacts via a public cleanup hook.
+The fix isn't "serialize form state separately and merge on restore" — that path proliferates with every new widget. Instead, snapshot a *cloned host with form state mirrored onto its DOM*, then strip widget-specific artifacts via a public cleanup hook.
 
 ## When to use
 
@@ -92,7 +92,7 @@ The pairing-by-position approach assumes the clone has identical DOM order — w
 
 ### The cleanup hook — `previewSurface:beforeSnapshot`
 
-Widgets that mount sibling DOM (toolbars, hidden state-mirror inputs, dropzone overlays) must clean their artefacts off the snapshot. The clone-mirror-strip pipeline dispatches a `previewSurface:beforeSnapshot` event on `document` with `{ clone, host }` in detail; widget modules subscribe and remove their own mounted siblings from `clone`:
+Widgets that mount sibling DOM (toolbars, hidden state-mirror inputs, dropzone overlays) must clean their artifacts off the snapshot. The clone-mirror-strip pipeline dispatches a `previewSurface:beforeSnapshot` event on `document` with `{ clone, host }` in detail; widget modules subscribe and remove their own mounted siblings from `clone`:
 
 ```js
 // TipTap widget — at mount time, registers a cleanup subscriber
@@ -165,21 +165,21 @@ test('snapshot preserves typed textarea content', () => {
     expect(snapshot).toContain('>User typed this</textarea>');
 });
 
-test('cleanup hook removes widget artefacts', () => {
+test('cleanup hook removes widget artifacts', () => {
     let cleanupCalled = false;
     const handler = (event) => {
         cleanupCalled = true;
-        event.detail.clone.querySelectorAll('.widget-artefact').forEach(el => el.remove());
+        event.detail.clone.querySelectorAll('.widget-artifact').forEach(el => el.remove());
     };
     document.addEventListener('previewSurface:beforeSnapshot', handler);
 
     const host = document.createElement('div');
-    host.innerHTML = '<div class="widget-artefact">should not be in snapshot</div><p>keep me</p>';
+    host.innerHTML = '<div class="widget-artifact">should not be in snapshot</div><p>keep me</p>';
 
     const snapshot = takeSnapshot(host);
 
     expect(cleanupCalled).toBe(true);
-    expect(snapshot).not.toContain('widget-artefact');
+    expect(snapshot).not.toContain('widget-artifact');
     expect(snapshot).toContain('keep me');
 
     document.removeEventListener('previewSurface:beforeSnapshot', handler);
@@ -189,7 +189,7 @@ test('cleanup hook removes widget artefacts', () => {
 ## Anti-patterns
 
 - ❌ **Serialise form state into a separate object on snapshot, merge on restore.** Proliferates state-store/restore code per widget; clone+mirror keeps the surface uniform.
-- ❌ **Skip the cleanup hook; let widget artefacts land in the snapshot.** Toolbars accumulate, ProseMirror's hidden nodes get re-serialised into the next render, IDs collide. The hook is cheap (~5 LoC per widget) and bounds the snapshot to clean HTML.
+- ❌ **Skip the cleanup hook; let widget artifacts land in the snapshot.** Toolbars accumulate, ProseMirror's hidden nodes get re-serialised into the next render, IDs collide. The hook is cheap (~5 LoC per widget) and bounds the snapshot to clean HTML.
 - ❌ **Re-fetch on every pop instead of snapshotting.** Loses the user's work the moment they push; defeats the form-friendly drawer use case.
 - ❌ **Mirror state ONLY for `<textarea>` because that's the most-edited element.** Selects, checkboxes, radios all lose state without their attribute updates too.
 

@@ -13,7 +13,7 @@ description: |
   </example>
 
   <example>
-  Context: A library's behaviour is uncertain and the plan depends on it.
+  Context: A library's behavior is uncertain and the plan depends on it.
   user: "Confirm how OpenCode's tools frontmatter actually parses."
   assistant: "I'll use the researcher agent to fetch the OpenCode docs and report the exact schema with source links."
   <commentary>

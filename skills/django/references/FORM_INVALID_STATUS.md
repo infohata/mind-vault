@@ -22,7 +22,7 @@ class HTMXFormStatusMixin:
 ```
 
 Pros: HTMX-side gating becomes `if (xhr.status >= 200 && xhr.status < 300)` — works as expected.
-Cons: every form view needs the mixin / override; legacy views without it produce confusing client behaviour. **Requires** the paired client-side `htmx:beforeSwap` listener below.
+Cons: every form view needs the mixin / override; legacy views without it produce confusing client behavior. **Requires** the paired client-side `htmx:beforeSwap` listener below.
 
 ### Option 2 — Gate on a canonical success `HX-Trigger` header (RECOMMENDED for HTMX flows)
 

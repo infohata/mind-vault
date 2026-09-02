@@ -120,7 +120,7 @@ classify the rc=128 fatal as `UNREADABLE`, never as clean/absent.
 
 ## Deploy + verify discipline
 
-- **One owner per fleet file.** The generator writes the artefact; exactly one
+- **One owner per fleet file.** The generator writes the artifact; exactly one
   deploy script pushes it. A second "convenience" deploy path guarantees divergence.
 - **Stage as a dot-name, validate, then atomic `mv`.** `sudoers.d` ignores
   filenames containing `.`, so `<name>.new` is never live: write → `chmod

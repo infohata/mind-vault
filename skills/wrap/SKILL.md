@@ -13,7 +13,7 @@ The sprint-workflow step that closes the loop from code-shipped back to docs-coh
 
 **Runs pre-merge.** The wrap commits (frontmatter flip, ideas-index move, devlog entry, downstream docs fixes) land on the feature branch, so the PR carries the final docs state into merge in one shot. No follow-up PR, no stale-on-main window between merge and wrap. The "what if the PR doesn't merge?" concern is a non-concern: unmerged commits never reach main, so no stale state can exist — if the branch is closed, the docs commits evaporate with it.
 
-**`/wrap` finalizes docs; it never merges.** A `/wrap NNN` runs the doc-finalization steps and stops — the safe behaviour the wrap-before-review pass wants: finalize docs, then let the single `/review-loop` review them at shipped state, then `/land NNN` merges. Merge + teardown are the separate **`/land`** stage (split out in IDEA-015), which opens with a precondition guard verifying this wrap ran. This replaces the older "`/wrap --scope=full` auto-merges" model.
+**`/wrap` finalizes docs; it never merges.** A `/wrap NNN` runs the doc-finalization steps and stops — the safe behavior the wrap-before-review pass wants: finalize docs, then let the single `/review-loop` review them at shipped state, then `/land NNN` merges. Merge + teardown are the separate **`/land`** stage (split out in IDEA-015), which opens with a precondition guard verifying this wrap ran. This replaces the older "`/wrap --scope=full` auto-merges" model.
 
 **`--scope=full` is deprecated.** Invoking `/wrap --scope=full NNN` emits a one-time deprecation notice, runs the `docs` doc-finalization steps, and at the end — where the old Step 8 atomic merge used to fire — prints the canonical next steps (run the single `/review-loop` over the wrapped PR, then `/land NNN`) and **"this did NOT merge (it did under the old `--scope=full`)"**. It never merges, and it never skips the review — `/land` is the merge. See [`Scope detection`](#scope-detection-alongside-mode-detection).
 
@@ -208,20 +208,20 @@ Living recap of the N-IDEA `<sprint-branch>` cohort (NNN→NNN). Read this first
 
 **Major architectural decisions (cross-cutting; amended as the sprint progresses)**
 
-1. **<Decision name>** — one-paragraph resolution. Source: link to the artefact / IDEA where it was locked. _Decided IDEA-NNN; amended IDEA-NNN._
+1. **<Decision name>** — one-paragraph resolution. Source: link to the artifact / IDEA where it was locked. _Decided IDEA-NNN; amended IDEA-NNN._
 2. …
 
-**Per-topic source-of-truth artefacts** (read for depth)
+**Per-topic source-of-truth artifacts** (read for depth)
 
-- [`<artefact-1>.md`](…) — covers decisions N, M.
-- [`<artefact-2>.md`](…) — covers decisions K.
+- [`<artifact-1>.md`](…) — covers decisions N, M.
+- [`<artifact-2>.md`](…) — covers decisions K.
 ```
 
 **Maintenance contract**:
 
 - `/plan` for a new IDEA in the cohort: append a row to the sprint-progress table; flip status to 🚧 when the IDEA enters in-progress.
 - `/wrap` for a completing IDEA: flip its row to ✅ with a one-line key decision; if any new cross-cutting decision was locked, append a numbered row to the architectural decisions block.
-- The recap **never duplicates** the per-topic artefacts — it indexes them. Each decision row points at the artefact where the full reasoning lives.
+- The recap **never duplicates** the per-topic artifacts — it indexes them. Each decision row points at the artifact where the full reasoning lives.
 
 **When to skip**: cohort \< ~10 IDEAs, or the IDEAs don't share enough context that re-reading their plans is expensive (typical for opportunistic backlog clearing). The recap pays off when there's a coherent sprint where late-cohort IDEAs need to know what early-cohort IDEAs decided.
 
@@ -265,7 +265,7 @@ Use the last two devlog entries in the same file as style anchors for heading st
 
 **Fires when** the project has a discoverable version source AND the scope is `docs` or `full` (i.e. not `idea-only`). **Skipped** when no version source exists (most internal projects without a published surface), or when scope is `idea-only` (per-IDEA wraps inside sprint-auto defer the version bump to the integration-branch batch wrap so the whole sprint ships as ONE versioned release).
 
-**Version-source detection.** A project carries one **PRIMARY** (narrative) source — where the human-facing version + headline lives — and zero-or-more **sync-required mirror** sources: version-compliance artefacts (e.g. a plugin manifest) that must *mirror* the primary number but never *originate* it. A bump advances the primary **and every mirror together**; the mechanism is generic ("N sync-required sources"), not special-cased to any one project.
+**Version-source detection.** A project carries one **PRIMARY** (narrative) source — where the human-facing version + headline lives — and zero-or-more **sync-required mirror** sources: version-compliance artifacts (e.g. a plugin manifest) that must *mirror* the primary number but never *originate* it. A bump advances the primary **and every mirror together**; the mechanism is generic ("N sync-required sources"), not special-cased to any one project.
 
 PRIMARY — first match wins (unchanged):
 
@@ -309,7 +309,7 @@ cv=$(grep -m1 -E '^## v[0-9]' CHANGELOG.md | sed -E 's/^## v([0-9.]+).*/\1/')
 
 **Negative triggers** (these alone are NOT bumps):
 
-- Single body refactor / debloat / file-rename within an existing artefact.
+- Single body refactor / debloat / file-rename within an existing artifact.
 - Bug-fix PR or doc-only PR (these still bump *patch* in strict-semver projects; whether to bump-per-PR or batch is a project policy decision — see "When patch-bumps are project policy" below).
 - A single isolated tool / script addition with no thematic siblings.
 - Internal-only changes that don't change the published surface (memory entries, internal helpers, test-only changes).
@@ -323,7 +323,7 @@ cv=$(grep -m1 -E '^## v[0-9]' CHANGELOG.md | sed -E 's/^## v([0-9.]+).*/\1/')
    - `setup.py` → in-place version-arg edit
    - `CHANGELOG.md` with `## v<N>` headers → insert a new section above the most recent dated/Unreleased block; move only entries that are *part of the new version's narrative*, leave unrelated rolling entries in place
    - `.claude-plugin/plugin.json` (mirror) → `jq` in-place `.version` edit to the bare `X.Y.Z` (no `v` prefix), equal to the primary's new number. After writing, re-run the consistency check above and confirm it's silent.
-3. **Write a headline paragraph** — one paragraph describing what's new, how it relates to the prior version, and what adopter-facing change (if any) it implies. Goes in CHANGELOG, GitHub release notes draft, or the project's release artefact. A HITL surface: plain register, reading-speed sentences (see [`../compound/references/mind-vault-promotion.md`](../compound/references/mind-vault-promotion.md) § Write for the two readers).
+3. **Write a headline paragraph** — one paragraph describing what's new, how it relates to the prior version, and what adopter-facing change (if any) it implies. Goes in CHANGELOG, GitHub release notes draft, or the project's release artifact. A HITL surface: plain register, reading-speed sentences (see [`../compound/references/mind-vault-promotion.md`](../compound/references/mind-vault-promotion.md) § Write for the two readers).
 4. **Update downstream version references** — README.md, ONBOARDING / docs callouts (`> You're reading the v<N> docs`), badge URLs that pin to `:latest` vs `:v4`, deploy manifests if the project releases container images, etc. The Step 6 grep pass catches these naturally; flag any that surface for explicit attention here.
 5. **Tag the commit** in the wrap branch's diff so the eventual GitHub release / `git tag` can fast-forward — but **don't `git tag` from the wrap commit itself** unless the project's CI requires it (the human is the tagger by default).
 6. **Surface the post-merge hand-back instruction.** When the project ships a `Makefile` with a `release` target (the mind-vault convention from [IDEA-003](../../docs/archive/2026-05-idea-003-version-tag-automation/IDEA-003-version-tag-automation.md)), include this line in the wrap summary handed back to the human: *"After merging, run `make release` to create the git tag + GitHub release; pass `VERSION=<tag>` if the auto-extracted version differs from the intended tag (the extractor takes the topmost `## vMAJOR.MINOR[.PATCH]` header — keep the newest release header fully-qualified so it isn't read as a bare `v5`; tags from `package.json` / `pyproject.toml` / `Cargo.toml` sources are typically `1.2.3` without a `v` prefix)."* Projects without a Makefile fall back to the manual `git tag -a -m "Release <tag>" -- <tag> && git push origin -- <tag> && gh release create --generate-notes -- <tag>` sequence (annotated tag + `--` separator so a tag name beginning with `-` is treated as a positional, not a flag); mention both forms so the user picks whichever applies. `make release` is idempotent — re-running when the tag already exists is a no-op with a clear "skipping" message, not a `git tag` failure.
@@ -384,9 +384,9 @@ When it fires: run the project-agnostic probes (version framing vs Step-4b `VER_
 
 ### Step 7 — Eval-gate manual evaluation checklist (PRE-MERGE ONLY, conditional)
 
-**Fires when** the IDEA's frontmatter has `auto_safe_with_eval_gate: true` AND the wrap is running in pre-merge mode (default) or in `--scope=idea-only` mode (sprint-auto S5). **Skipped** in post-merge fallback (the artefact is intended for the integration-PR walk; post-merge it's pointless) and when the frontmatter lacks the flag (the IDEA opted out of the gate).
+**Fires when** the IDEA's frontmatter has `auto_safe_with_eval_gate: true` AND the wrap is running in pre-merge mode (default) or in `--scope=idea-only` mode (sprint-auto S5). **Skipped** in post-merge fallback (the artifact is intended for the integration-PR walk; post-merge it's pointless) and when the frontmatter lacks the flag (the IDEA opted out of the gate).
 
-The gate exists for IDEAs whose behaviours render-and-assert tests cannot verify — visual correctness, keyboard nav, screen-reader semantics, animation timing, mobile gesture nuance. Wrap emits the checklist alongside the per-IDEA work; the human walks it as part of integration-PR review. Mechanics — emission shell snippet, placeholder substitution rules, Playwright-coverage pre-fill algorithm for Direction-1 IDEAs, MANUAL_EVAL_TRACKER hand-off when the walk surfaces issues — are in [`references/EVAL_GATE_EMISSION.md`](references/EVAL_GATE_EMISSION.md). Read that reference when this step fires.
+The gate exists for IDEAs whose behaviors render-and-assert tests cannot verify — visual correctness, keyboard nav, screen-reader semantics, animation timing, mobile gesture nuance. Wrap emits the checklist alongside the per-IDEA work; the human walks it as part of integration-PR review. Mechanics — emission shell snippet, placeholder substitution rules, Playwright-coverage pre-fill algorithm for Direction-1 IDEAs, MANUAL_EVAL_TRACKER hand-off when the walk surfaces issues — are in [`references/EVAL_GATE_EMISSION.md`](references/EVAL_GATE_EMISSION.md). Read that reference when this step fires.
 
 ### Step 8 — (moved to `/land`)
 
@@ -400,7 +400,7 @@ Atomic merge left `/wrap` in IDEA-015 — `/wrap` finalizes docs and **never mer
 - **Never auto-patch architectural docs** (reference `/architecture.md`, high-level guides). Human review required; list findings, let the author decide.
 - **Documentation catch-up is wrap-scope, never new-IDEA.** If a pattern exists in code but has no docs, the wrap pass that surfaces the gap is where it gets documented — not a future IDEA, not a separate PR. "Document existing thing" tickets never ship; the single review then sees the filled-in docs in the same PR cycle.
 - **In `sprint-auto` mode** (unattended orchestrator): the wrap runs as sprint-auto's S5 step **before** the single S6 review pass, invoked with `--scope=idea-only`. Steps 1, 2, 6 commit onto the `auto/<slug>` branch; Step 7 (eval-gate emission) runs when the IDEA's frontmatter has `auto_safe_with_eval_gate: true` and lands the checklist in the per-IDEA archive dir; the single S6 review then reviews those commits (including the eval-checklist) against the codebase; Steps 3 + 4 are deferred to sprint-auto's S11.7 batch wrap on the integration branch (eliminates the structural N-way line-conflict every parallel `/wrap` would otherwise produce); teardown is `/land --integration` at batch end, not wrap's job.
-- **Eval-gate is opt-in per IDEA, not per invocation.** Step 7 fires when the IDEA's own frontmatter declares `auto_safe_with_eval_gate: true`. There is no `--mode=eval-gate` flag — making the behaviour frontmatter-driven means manual `/wrap NNN` invocations on an eval-gate IDEA also emit the checklist (pre-merge), and post-merge fallbacks correctly skip emission without needing a flag distinction.
+- **Eval-gate is opt-in per IDEA, not per invocation.** Step 7 fires when the IDEA's own frontmatter declares `auto_safe_with_eval_gate: true`. There is no `--mode=eval-gate` flag — making the behavior frontmatter-driven means manual `/wrap NNN` invocations on an eval-gate IDEA also emit the checklist (pre-merge), and post-merge fallbacks correctly skip emission without needing a flag distinction.
 
 ## When NOT to use these patterns
 

@@ -10,7 +10,7 @@
 #     fallback (added 2026-05-06): bugbot can post the clean signal as a GitHub Check
 #     instead of a review-body — the script synthesizes BUGBOT_CLEAN_SIGNAL from a
 #     successful check-run when /reviews has no clean-signal review for HEAD.
-#   - Prints formatted inline findings (existing behaviour, unchanged).
+#   - Prints formatted inline findings (existing behavior, unchanged).
 #   - Prints any top-level PR comments from bugbot (umbrella summaries, retrigger
 #     acknowledgements, etc.) so the loop can detect truly-new activity by id.
 #   - Never early-exits before all four endpoints have been polled — a clean-signal
@@ -115,7 +115,7 @@ fi
 #   - The line-by-line stdout shape (independently empty-able markers in their
 #     existing order) IS a contract — `/review-loop` Phase 4 greps the
 #     `^BUGBOT_CLEAN_SIGNAL=` anchor; consolidating risks reordering or
-#     emitting empty placeholders that subtly change consumer behaviour.
+#     emitting empty placeholders that subtly change consumer behavior.
 #   - Three python3 spawns is ~150ms total — invisible at the loop's 270s
 #     polling cadence. Performance is not the load-bearing argument here.
 #

@@ -101,7 +101,7 @@ No parallel reviewer-contract exists. Same anchors, different verb.
 
 Pre-split, a stack rule was inline in the profile = always enforced. Post-split, it is
 enforced only if the stack skill loads. So **every `## Stack adapter` MUST state its
-resolution-failure behaviour**: when stack resolution yields no skill (no pin, no
+resolution-failure behavior**: when stack resolution yields no skill (no pin, no
 detect, ambiguous), the agent enforces its **craft core only** and **announces the
 unresolved-stack gap** — it never silently skips a stack rule. Silent fall-through on an
 un-provisioned repo is the exact failure a new-stack adopter would hit; announcing it is

@@ -45,7 +45,7 @@ You decide to wrap two of those children in a swap-target `<div>` for HTMX:
 
 **What happens**:
 
-- **Box tree** (layout): `display: contents` removes `#hot-swap-target`'s own box. Its children become flex items of `.snap-container` for layout purposes. Flex / grid / scroll-snap behaviour continues working as before. So far so good.
+- **Box tree** (layout): `display: contents` removes `#hot-swap-target`'s own box. Its children become flex items of `.snap-container` for layout purposes. Flex / grid / scroll-snap behavior continues working as before. So far so good.
 - **DOM tree** (selectors): the intermediate `<div>` is fully present. The selector `.snap-container > .pane-wrapper-A` no longer matches — `.pane-wrapper-A`'s parent is now `#hot-swap-target`, not `.snap-container`. The original SCSS rules silently no-op for the wrapped children.
 
 Symptom shape: `pane-wrapper-B` (the unwrapped sibling) keeps its `flex: 0 0 100%` + `scroll-snap-align: start`. `pane-wrapper-A` and `center-pane` lose theirs — they collapse to intrinsic width, scroll-snap stops engaging on them, swipes feel "broken" or "stuck" because only one snap target is properly sized.

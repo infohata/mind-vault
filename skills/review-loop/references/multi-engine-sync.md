@@ -49,7 +49,7 @@ Each engine's `<engine>_review_state` is tracked independently — under multi-e
 
 ## Retrigger discipline — different per engine, fired in deterministic order
 
-Phase 3 fires after the batch commit. For each engine in `ENGINES` (deterministic order: alphabetical so behaviour is reproducible — `bugbot` → `claude` → `copilot`):
+Phase 3 fires after the batch commit. For each engine in `ENGINES` (deterministic order: alphabetical so behavior is reproducible — `bugbot` → `claude` → `copilot`):
 
 - For `bugbot`: `./tools/bugbot_retrigger.sh <PR>` (posts a `bugbot run` comment).
 - For `claude`: `./tools/claude_retrigger.sh <PR>` (posts `@claude review once`) — **fired in Phase 3 whenever claude has already posted ≥1 review on the PR** (the normal path: claude's first review landed before this fix cycle, so the loop triaged its findings). The batch commit's push fires the `synchronize` auto-run, but the `code-review` plugin **skip-no-ops it once claude has already reviewed**, so the explicit retrigger is the *only* path to a fresh verdict on the fix — **no double-run race** (the auto-run skips, leaving `@claude review` the sole review for the head SHA). **Exception — first-review stall:** if the loop reached Phase 3 on *another* engine's findings while claude's first review is still in-flight (the Claude-stalled row above), claude has **not** posted yet, so the skip-no-ops precondition is unmet — **do NOT fire the explicit retrigger**; the fix push's `synchronize` auto-run carries claude's first posted review (firing `claude_retrigger.sh` on top would be the real double-run). `claude_retrigger.sh` also covers the zero-activity bootstrap. Corrected via the PR #169 + #180 self-dogfoods — see [`engine-claude.md`](engine-claude.md) § A7.

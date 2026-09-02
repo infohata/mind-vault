@@ -205,7 +205,7 @@ Slack on deploy result:
 
 ## Anti-patterns
 
-- ❌ Reimplementing deploy logic inside the pipeline — drift from `deploy.sh` guarantees CI behaviour diverges from local behaviour.
+- ❌ Reimplementing deploy logic inside the pipeline — drift from `deploy.sh` guarantees CI behavior diverges from local behavior.
 - ❌ Auto-deploy on `main` push — production deploys should always be deliberate.
 - ❌ Embedding the deploy key in the repo (even encrypted) — use the CI secret store.
 - ❌ Silent rollback on failure — leaves the human unaware the state changed.

@@ -1,6 +1,6 @@
 # Alpine 3 + HTMX bridge — seven subtle gotchas
 
-A set of behaviours that bite when wiring Alpine 3 components to HTMX events (custom-event bridges, OOB swaps with Alpine state, deferred handler binding, HX-on as a state-mutation seam, lazy-fetch on synthetic state changes), plus the JS-side i18n contract for cotton components and the listener-installation-order trap for refusable gates. Each is silent — no error, no warning — and only manifests after manual smoke or a corner-case input.
+A set of behaviors that bite when wiring Alpine 3 components to HTMX events (custom-event bridges, OOB swaps with Alpine state, deferred handler binding, HX-on as a state-mutation seam, lazy-fetch on synthetic state changes), plus the JS-side i18n contract for cotton components and the listener-installation-order trap for refusable gates. Each is silent — no error, no warning — and only manifests after manual smoke or a corner-case input.
 
 Load this reference when:
 - Writing an `Alpine.data('foo', () => ({...}))` factory that owns event listeners.
@@ -433,7 +433,7 @@ Each gotcha takes ≥30 minutes to diagnose because the symptoms always look unr
 
 When listening to per-X events (per-pane scroll, per-tab focus, per-region resize) where X changes over time, the natural pattern of "rebind listener on X-change-event" is fragile. Change events have edge cases that don't fire — sibling short-circuits, equality early-returns (`if (next === current) return` before the change-event dispatches), Alpine reactive equality bail-outs.
 
-**Symptom**: listener bound to a stale element after a state transition. Behaviour silently dies for affected users; no JS error, no console warning.
+**Symptom**: listener bound to a stale element after a state transition. Behavior silently dies for affected users; no JS error, no console warning.
 
 **Fix**: bind permanently to ALL candidate sources at init. Each handler reads a discriminator (DOM attribute mirrored from reactive state, or a global selector match) at event time and short-circuits if its source isn't currently active.
 
@@ -572,7 +572,7 @@ document.dispatchEvent(new CustomEvent('refresh', { bubbles: true }));
 swappedEl.dispatchEvent(new CustomEvent('refresh', { bubbles: true }));
 ```
 
-Mirrors HTMX's own dispatch behaviour (HTMX fires on the swapped target). The walker pattern in [`PREVIEW_DRAWER_URL_STACK.md`](PREVIEW_DRAWER_URL_STACK.md) § *Walker rebind contract* embodies this.
+Mirrors HTMX's own dispatch behavior (HTMX fires on the swapped target). The walker pattern in [`PREVIEW_DRAWER_URL_STACK.md`](PREVIEW_DRAWER_URL_STACK.md) § *Walker rebind contract* embodies this.
 
 ## 10. Alpine `:class="cond && 'str'"` short-circuit doesn't remove SSR-applied classes
 

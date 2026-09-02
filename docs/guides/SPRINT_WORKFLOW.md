@@ -60,7 +60,7 @@ When you've just solved a problem — or a PR-review finding has been cleared �
 | Guardrail-worthy hard rule (always-on, cross-cutting) | `mind-vault/rules/RULE_<name>.md`                                 | "Never push to main" / "Renames first, drops last"                               |
 | Reviewer-caught pattern                               | new pass appended to `agents/AGENT_<persona>.md`                  | "Dictionary key collisions silently swallow overrides"                           |
 | Tool-worthy repeatable action                         | `mind-vault/commands/<verb>.md` or `tools/<script>.sh`            | Regex sweep for `format_html(_(...))` migration drift                            |
-| User-behavioural preference                           | auto-memory `feedback_*` / `project_*` / `user_*` / `reference_*` | "Prefer bundled PR over split for this kind of refactor"                         |
+| User-behavioral preference                           | auto-memory `feedback_*` / `project_*` / `user_*` / `reference_*` | "Prefer bundled PR over split for this kind of refactor"                         |
 
 Mind-vault destinations land as commits on the active sprint branch (no new branch if one is in flight — no branch spam), with an open PR maintained by `/compound` itself. If mind-vault is on `main`, the skill creates a fresh `compound/YYYY-MM-DD-<slug>` branch first. `RULE_git-safety` is honoured: the agent never commits to `main`, never force-merges; the human merges the PR.
 
@@ -129,7 +129,7 @@ Per [`IDEAS_LOCATION_STATUS`](../../skills/idea/references/IDEAS_LOCATION_STATUS
     │   │   ├── research-*.md                    # investigation notes
     │   │   ├── session-notes/                   # agent session prompts
     │   │   └── README.md                        # completion summary (added on merge)
-    │   ├── 2026-04-idea-109-<slug>/             # superseded idea — same shape, fewer artefacts
+    │   ├── 2026-04-idea-109-<slug>/             # superseded idea — same shape, fewer artifacts
     │   │   └── IDEA-109-<slug>.md               # status: superseded
     │   └── 2026-04-DEVELOPMENT_LOG.md           # monthly chronological engineering log
     └── solutions/

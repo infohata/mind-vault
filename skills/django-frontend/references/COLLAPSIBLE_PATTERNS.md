@@ -58,7 +58,7 @@ Symptom cluster — any one of:
 </details>
 ```
 
-Data attributes only — no Alpine directives. The element is a passive carrier of behaviour configuration; JS reads attributes at bootstrap and on swap.
+Data attributes only — no Alpine directives. The element is a passive carrier of behavior configuration; JS reads attributes at bootstrap and on swap.
 
 ### CSS contract — chevron rotation via attribute selector
 

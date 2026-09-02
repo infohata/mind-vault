@@ -5,7 +5,7 @@ latency sweeps, posture audits, payload push + execute, per-host config fixes.
 
 ## Cold-probe hygiene (timing-sensitive probes)
 
-A probe that *measures* login behaviour (latency, PAM stalls, MOTD noise) must
+A probe that *measures* login behavior (latency, PAM stalls, MOTD noise) must
 ride a **cold** connection and be bounded **from the outside**:
 
 ```bash

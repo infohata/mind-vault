@@ -1,6 +1,6 @@
-# sprint-auto — integration-stage conflict-resolution catalogue
+# sprint-auto — integration-stage conflict-resolution catalog
 
-When **S11.6** (sequential merge of `auto/<slug>` branches into `integration/sprint-auto-<batch-iso>`) hits a conflict, this catalogue is the algorithm reference. Most conflicts are mechanical and fall into one of the patterns below; only a small minority need genuinely judgement-laden resolution, and those are flagged for extra scrutiny in S11.10's review pass.
+When **S11.6** (sequential merge of `auto/<slug>` branches into `integration/sprint-auto-<batch-iso>`) hits a conflict, this catalog is the algorithm reference. Most conflicts are mechanical and fall into one of the patterns below; only a small minority need genuinely judgement-laden resolution, and those are flagged for extra scrutiny in S11.10's review pass.
 
 The principle: **resolutions preserve every IDEA's contribution** unless the conflict shape unambiguously indicates a destructive overlap. When in doubt, "include both contributions" is always safer than picking one side.
 
@@ -138,15 +138,15 @@ Each resolution commit on the integration branch should be re-read by the agent 
 ```
 1. `git show <resolution-sha>` — does the diff make sense?
 2. `git diff HEAD~1..HEAD -- <conflicted-file>` — are both contributions visibly preserved?
-3. If suspicious, revert + re-attempt with the alternative pattern from this catalogue (e.g. if Pattern 4 "include both" produced bad HTML, try the "wrap in <div>" form).
+3. If suspicious, revert + re-attempt with the alternative pattern from this catalog (e.g. if Pattern 4 "include both" produced bad HTML, try the "wrap in <div>" form).
 ```
 
 This re-read is part of the merge step, not a separate phase.
 
-## What's catalogued here vs. what stays project-specific
+## What's cataloged here vs. what stays project-specific
 
-This catalogue is **project-agnostic**. Patterns 1–8 cover the structural conflict classes that arise from the parallel-IDEA workflow regardless of project specifics.
+This catalog is **project-agnostic**. Patterns 1–8 cover the structural conflict classes that arise from the parallel-IDEA workflow regardless of project specifics.
 
-**Project-specific resolutions** (e.g. "in this project, when both IDEAs edit `chat.html`, prefer the layout from `auto/audio-playback-*` because its Alpine state is canonical") are NOT catalogued here. They live in:
-- The project's own `tools/sprint-auto-hooks.sh` — specifically a new optional function `resolve_integration_conflict <file>` that the integration-stage bash machinery calls before falling back to this catalogue.
+**Project-specific resolutions** (e.g. "in this project, when both IDEAs edit `chat.html`, prefer the layout from `auto/audio-playback-*` because its Alpine state is canonical") are NOT cataloged here. They live in:
+- The project's own `tools/sprint-auto-hooks.sh` — specifically a new optional function `resolve_integration_conflict <file>` that the integration-stage bash machinery calls before falling back to this catalog.
 - A future per-project `docs/sprint-auto-conflict-overrides.md` if the project accumulates enough patterns to warrant one. Mind-vault doesn't ship a template for this; let it emerge organically from real batches.

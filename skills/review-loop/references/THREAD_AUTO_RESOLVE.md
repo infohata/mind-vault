@@ -224,7 +224,7 @@ The mutations are individually authenticated against the user's GitHub token. No
 The temptation is to leave a "bulk-resolved per audit X" comment on each PR for paper-trail discoverability. **Skip it.** Comments are themselves noise — adding 11 PR comments to clean up 129 stale threads recreates the very signal pollution the resolve is trying to clear. The paper trail lives in:
 
 - The compound PR that captured this pattern (this reference's commit history)
-- The audit's per-thread verdict log (the agent's task output, persisted in the project's artefacts/ as needed)
+- The audit's per-thread verdict log (the agent's task output, persisted into the consuming project's own artifact store as needed)
 - Memory entries naming the cleanup event for future sessions
 
 That's enough provenance. The PR thread pages then read clean.

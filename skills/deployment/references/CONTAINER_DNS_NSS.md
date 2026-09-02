@@ -10,7 +10,7 @@ Inside a container, the DNS resolution path is **not** public DNS. Three distinc
 
 1. **`/etc/hosts`** — usually inherited from the image, but on some runtimes (Compose, K8s, `--add-host`) can be augmented at container start. Exact-match wins over every other mechanism.
 2. **NSS modules** named in `/etc/nsswitch.conf` — typically `files` (hosts file), `myhostname` (returns loopback for the local hostname), `mdns`, then `dns`. `files` and `myhostname` run *before* `dns` and can return early with an address that has nothing to do with public DNS.
-3. **Docker's embedded resolver at 127.0.0.11** — injected into every container on user-defined networks. Resolves container names, service aliases, and forwards everything else upstream. Has its own cache and failover behaviour.
+3. **Docker's embedded resolver at 127.0.0.11** — injected into every container on user-defined networks. Resolves container names, service aliases, and forwards everything else upstream. Has its own cache and failover behavior.
 
 Only after all three pass the name through does the query reach whatever's in the container's `/etc/resolv.conf` (the host's configured resolver, or a Docker-injected one).
 

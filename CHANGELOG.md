@@ -10,6 +10,58 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.6 — the deliberate spelling PR the convention kept deferring, and a sample org with a domain
+
+Housekeeping, no behavior change: `LANGUAGE_CONVENTIONS` has said since v5.7.3 that the
+pre-existing UK pile should be cleared "deliberately as its own PR, never as a tail-end addition
+to unrelated work". This is that PR — compounded 2026-09-02.
+
+### Changed
+
+- **US spelling swept across the live surface for the three biggest terms** — `behaviour` →
+  `behavior`, `catalogue` → `catalog` (with its inflections: `catalogued` → `cataloged`,
+  `cataloguing` → `cataloging`), and `artefact` → `artifact` *as a common noun*. 118 files.
+  The live surface now reads `behavior` ~195 / `behaviour` ~4 and `catalog` ~93 / `catalogue`
+  ~4, where every survivor is a quoted example inside `LANGUAGE_CONVENTIONS` itself.
+- **`skills/django/references/MULTI_TENANT.md`** — the multi-tenancy sample used a hospitality
+  org ("Fancy Hotels" with Hotel/Restaurant scopes). Replaced with neutral placeholders (Acme
+  Group / Globex Labs, Warehouse / Storefront / Workshop scopes). The teaching point is
+  unchanged: one org with two scopes at *different* permission levels, one org with a single
+  scope.
+- **`skills/skill-writer/references/LANGUAGE_CONVENTIONS.md`** — records that the sweep
+  happened and what it deliberately did not touch, and gains the distinction the sweep forced:
+  **a term can be neither drift nor pile, because it is a name.** `artefact` still counts
+  UK-dominant only because `skills/artefact-retrieval/` (a published slash command) and
+  `docs/artefacts/` are directories; renaming those is a compatibility cliff for
+  `RULE_rename-before-drop`, not a spelling pass. Ask whether a term is a word or a name
+  *before* counting, or the count points at a rename you did not intend.
+
+### Fixed
+
+- **`hooks/load-rules.sh`** — the SessionStart fallback told the user "Behavioral rules are NOT
+  auto-loaded on the plugin channel", which reads as a permanent channel limitation. The hook
+  *does* auto-load them; that note only fires when it could not (no `jq`, `CLAUDE_PLUGIN_ROOT`
+  unset, no rules found), so anyone who hit it would wrongly conclude the plugin channel never
+  auto-loads rules and that `/mv:load-rules` is always required. Now states the failure and
+  that the fallback is the exception. Pre-existing, surfaced by review on a file this sweep
+  touched. Both paths re-verified: fallback emits valid JSON, success path still loads the full
+  rules body, and the POSIX-`sh` re-exec guard is intact.
+
+### Deliberately not swept
+
+- **`skills/artefact-retrieval/` and `docs/artefacts/`** — the two trees named after the term,
+  left internally consistent with their own directory names. Public-surface rename, needs its
+  own IDEA.
+- **Released `CHANGELOG` sections and `docs/archive/**`** — historical records are never
+  rewritten to match a later convention.
+- **A tail of ~20 smaller UK terms** (`centre` ~44, `normalis*` ~28, `honour` ~25, `recognis*`
+  ~20, `cancelled` ~18, `initialis*` ~18, `serialis*` ~16, `defence` ~15, `optimis*` ~13, …),
+  now inventoried in `LANGUAGE_CONVENTIONS` and still under the leave-it default.
+
+Safety: no skill `name:` or `description:` frontmatter changed, so no trigger surface moved; no
+markdown link or anchor target contains a swept word (verified), and the one dangling in-file
+anchor found is pre-existing on `main`. `make test` 55 passed, 0 failed.
+
 ## v5.8.5 — a poll budget cannot recover a lost one-shot, and a check that shares the edit's blind spot
 
 Two streams, one release. An overnight sprint-auto batch on a consuming project produced the

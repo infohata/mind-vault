@@ -473,7 +473,7 @@ When a cotton list-wrapper's outer is the `hx-target` of a filter form using `hx
 
 The cotton's inner items-container can still be unconditionally emitted (preserves structural invariant for OOB swap targets and for the load-more `beforeend` target). Only the *content* of the slot alternates — the cotton's structural shape is constant.
 
-**Architect-amendment caveat**: when an architect says "move empty-state outside so the items container stays present", separate STRUCTURAL INTENT (items container always present — preserve) from CONSEQUENT MECHANICS (where empty-state lives — re-derive against actual swap behaviour). The "OOB swap target" usually refers to the pager wrapper, not the items container; conflating the two leads to the double-empty regression.
+**Architect-amendment caveat**: when an architect says "move empty-state outside so the items container stays present", separate STRUCTURAL INTENT (items container always present — preserve) from CONSEQUENT MECHANICS (where empty-state lives — re-derive against actual swap behavior). The "OOB swap target" usually refers to the pager wrapper, not the items container; conflating the two leads to the double-empty regression.
 
 ## Pager + empty-state must be mutually exclusive (page-beyond-end edge)
 

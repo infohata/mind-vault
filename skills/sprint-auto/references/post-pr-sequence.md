@@ -1,6 +1,6 @@
 # sprint-auto — post-PR state machine
 
-Full state machine for the sprint-auto loop: pre-batch (S(-1)), per-IDEA (S0–S11), batch integration phase (S11.5–S11.13), batch compound (S12–S15). Normative expansion of `SKILL.md` §1–§4. Keep this diagrammatic — implementation detail lives in the referenced docs. This file and `SKILL.md` share a single state numbering; if they disagree, treat it as a defect in this file (the SKILL is the source of behaviour; this file is the source of structure).
+Full state machine for the sprint-auto loop: pre-batch (S(-1)), per-IDEA (S0–S11), batch integration phase (S11.5–S11.13), batch compound (S12–S15). Normative expansion of `SKILL.md` §1–§4. Keep this diagrammatic — implementation detail lives in the referenced docs. This file and `SKILL.md` share a single state numbering; if they disagree, treat it as a defect in this file (the SKILL is the source of behavior; this file is the source of structure).
 
 > **v3.1 vs v3.2 split.** The top-level state-machine diagrams reflect **v3.2 current** (integration branch is the merge gate; \[INTEGRATION\] PR is non-draft; per-IDEA PRs target the integration branch; S11.11 forward-sync + S11.12 re-review deleted). The detailed prose sections below (`### S11.10 — review via [INTEGRATION] draft PR`, `### S11.11 — forward-sync`, `### S11.12 — per-PR PR re-review + verification`) still describe **v3.1 historical behavior** and are retained as historical reference for compound provenance. **For current behavior, follow the diagrams + `SKILL.md`; ignore the v3.1 prose sections.** A future debloat pass should either remove the v3.1 prose entirely or rewrite each section in v3.2 form.
 
@@ -185,7 +185,7 @@ Concretely:
 | S6 review budget exhausted      | (not failure) → S9                 | Single review pass ends with `review_outcome: budget_exceeded`                                                                                                                                                                         |
 | S6a cap hit on review           | (not failure) → S9                 | Ship-non-clean; the wrapped PR carries unresolved findings transparently                                                                                                                                                               |
 
-**Why S10 (log finalization) always runs:** the log IS the diagnostic artefact. Skipping it would silently drop the failure from the paper trail.
+**Why S10 (log finalization) always runs:** the log IS the diagnostic artifact. Skipping it would silently drop the failure from the paper trail.
 
 **Why S9 (harvest) runs on failure paths:** plan-rejection, verification-failure, and bootstrap-failure patterns are themselves valuable compound signals.
 
@@ -345,11 +345,15 @@ cd "$SPRINT_AUTO_INTEGRATION_WORKTREE"
 git checkout integration/sprint-auto-<batch-iso>
 for slug in $batch_slugs_in_arg_order; do
     git merge --no-ff "auto/$slug" -m "merge: integrate auto/$slug" \
-        || resolve_per_catalogue_then_commit "auto/$slug"
+        || resolve_per_catalog_then_commit "auto/$slug"   # ← pseudocode, not a shipped helper
 done
 ```
 
-Resolution algorithm catalogue: [`integration-conflict-resolutions.md`](integration-conflict-resolutions.md). Track per-branch outcome: `clean | resolved | failed`.
+`resolve_per_catalog_then_commit` names the *step*, not a function this repo defines: on a
+conflict, resolve it using the algorithm catalog linked below, then commit the resolution as its
+own `resolve: integrate auto/<slug>` commit. Copy the loop, not that identifier.
+
+Resolution algorithm catalog: [`integration-conflict-resolutions.md`](integration-conflict-resolutions.md). Track per-branch outcome: `clean | resolved | failed`.
 
 ### S11.7 — batch wrap on integration branch
 
@@ -443,4 +447,4 @@ Per `SKILL.md`'s "Abort-the-batch triggers":
 - Two consecutive IDEAs fail S0 with the same error class (environmental degradation).
 - Mind-vault repo unreachable during S12 AND no more candidates would succeed anyway.
 
-On abort, jump directly to S15 with whatever partial state exists. Do NOT retroactively tear down the integration worktree — the human reviewer needs it as the diagnostic artefact (it's the only stack with state).
+On abort, jump directly to S15 with whatever partial state exists. Do NOT retroactively tear down the integration worktree — the human reviewer needs it as the diagnostic artifact (it's the only stack with state).

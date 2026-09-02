@@ -1,10 +1,10 @@
-# Manual-eval issues tracker artefact
+# Manual-eval issues tracker artifact
 
 The eval-checklist that `/wrap` Step 7 emits lists *scenarios for the human to walk*. The **manual-eval issues tracker** is the back-and-forth log that captures *issues found while walking those scenarios* with stable identifiers across cycles.
 
-The two artefacts are distinct:
+The two artifacts are distinct:
 
-| Artefact | Authored by | Purpose | Lifecycle |
+| Artifact | Authored by | Purpose | Lifecycle |
 |---|---|---|---|
 | `<DATE>-manual-evaluation.md` (eval-checklist) | `/wrap` Step 7 | Scenarios to walk | One-shot, written pre-merge, walked post-merge by reviewer |
 | `MANUAL_EVAL_ISSUES.md` (this tracker) | Agent + human, iteratively | Issues surfaced during the walk | Multi-cycle, lives until all rows are 🟢 VERIFIED |
@@ -13,7 +13,7 @@ The two artefacts are distinct:
 
 The first time a manual-eval gated IDEA produces a regression report. Don't wait for the third — once back-and-forth gets confused ("the user-menu thing is broken… the *other* user-menu thing"), you've already lost the cycle to ambiguity.
 
-## The artefact
+## The artifact
 
 A single Markdown file at `docs/archive/<YYYY-MM-idea-NNN-slug>/MANUAL_EVAL_ISSUES.md` alongside the eval-checklist:
 
@@ -52,7 +52,7 @@ The tracker also captures cycle history that the conversation drops on context c
 
 - ❌ Reusing M-IDs after dropping a row. Conversation history references the original assignment; reuse silently maps a dead ref onto a live row.
 - ❌ Skipping severity. Without it, the human can't sequence the walk; the merge gate ends up waiting on every-row-verified including low-priority polish.
-- ❌ "I'll just describe each issue in chat — no need for the file." Works for cycles 1-2, fails in cycle 3+. The artefact lives in the archive dir for the same reason every other PR artefact does: the conversation is ephemeral, the archive isn't.
+- ❌ "I'll just describe each issue in chat — no need for the file." Works for cycles 1-2, fails in cycle 3+. The artifact lives in the archive dir for the same reason every other PR artifact does: the conversation is ephemeral, the archive isn't.
 
 ## Provenance
 

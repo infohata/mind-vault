@@ -24,7 +24,7 @@ This is the interactive sibling of scripted privilege drop (see
 `setpriv` / `su -c` / `runuser` inside scripts). Here the point is *login-shell env*: you often
 **want** `-i`/`-l` precisely because the target's environment (PATH, `XDG_RUNTIME_DIR`, `DOCKER_HOST`
 for a rootless-docker service account, etc.) is set by its login profile — but that same login-shell
-behaviour is what breaks the chain.
+behavior is what breaks the chain.
 
 ## Two correct forms
 

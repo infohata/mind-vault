@@ -58,7 +58,7 @@ If any match:
 
 A candidate must be specific enough that a reader who's never touched the project could find the work. Test:
 
-- Does the summary name a file path, module, command, or concrete behaviour?
+- Does the summary name a file path, module, command, or concrete behavior?
 - If two different engineers picked up the candidate, would they produce the same `/plan`?
 - If the summary contains "improve", "modernise", "clean up", or "refactor" with no qualifier — challenge.
 

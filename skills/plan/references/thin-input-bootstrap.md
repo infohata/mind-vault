@@ -19,7 +19,7 @@ If none of these fire, skip this phase and go straight to plan drafting.
 - **One question at a time.** Never batch unrelated questions.
 - **Prefer the platform's blocking question tool** when available: `AskUserQuestion` (Claude Code), `request_user_input` (Codex), `ask_user` (Gemini). Fall back to numbered options in plain text and wait for a reply.
 - **Single-select by default.** Use multi-select only for compatible sets (constraints that can coexist, success criteria that can all apply).
-- **Resolve product decisions here.** User-facing behaviour, scope boundaries, success criteria — decide now. Detailed implementation design belongs in the plan body, not here.
+- **Resolve product decisions here.** User-facing behavior, scope boundaries, success criteria — decide now. Detailed implementation design belongs in the plan body, not here.
 - **Keep it to the bare minimum questions needed** to unblock planning. Do not try to exhaustively specify the feature; the plan itself handles detail.
 
 ## Question playbook

@@ -134,7 +134,7 @@ it, so 15 of its 19 nights escaped a window that looked correct by inspection.
 - **Set each end to the latest observed end plus margin — a bound, never a pin.**
 - **Treat a rising escape count as evidence the schedule changed**, not as a reason to widen further
   on reflex. Widening on reflex is how a suppression window grows until it covers the incident.
-- **Replay before and after.** The same measurement window, old config vs new, is the behavioural
+- **Replay before and after.** The same measurement window, old config vs new, is the behavioral
   test — and it is the only thing that distinguishes "I widened it correctly" from "I widened it".
 
 ### ⛔ Never suppress an outlier because it is inconvenient

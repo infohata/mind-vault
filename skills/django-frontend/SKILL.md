@@ -444,7 +444,7 @@ Concrete shape: write a one-line "mirror partner" docstring at the top of each s
 ```javascript
 /**
  * Mirror of templates/partials/_audio_attachment.html.
- * Same DOM shape, same Alpine bindings, same fallback behaviour.
+ * Same DOM shape, same Alpine bindings, same fallback behavior.
  * Edits land here AND in the partial; tests assert both produce identical chips.
  */
 function renderAudioAttachment(att) { ... }

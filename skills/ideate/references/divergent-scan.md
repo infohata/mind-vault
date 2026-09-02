@@ -7,7 +7,7 @@ Concrete generation prompts for each axis in `/ideate` step 2. Load on demand. P
 Every candidate should be specific enough to become a valid `IDEA-NNN-<slug>.md` entry after the filter. That means:
 
 - **Title** is 3–10 words, declarative (not a question).
-- **Summary** is one sentence, actionable, names a concrete artifact (file / module / behaviour).
+- **Summary** is one sentence, actionable, names a concrete artifact (file / module / behavior).
 - **Priority signal** is tentative (high / medium / low) — the filter may revise.
 - **Effort estimate** is rough (XS ≈ hour, S ≈ half-day, M ≈ day, L ≈ week+).
 

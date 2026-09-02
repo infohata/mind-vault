@@ -292,7 +292,7 @@ if [ "$HAS_TRANSLATIONS" = "true" ]; then
         echo "⚠️  Warning: Translation compilation failed, continuing..."
     }
     echo "✅ Translation messages compiled"
-    # Restart so the newly compiled .mo files are loaded — Django caches the catalogue at startup.
+    # Restart so the newly compiled .mo files are loaded — Django caches the catalog at startup.
     # Required especially when HAS_DEPENDENCIES=true: containers were started before compilemessages ran.
     echo "🔄 Restarting services to load compiled translations..."
     $DOCKER_COMPOSE restart web  # Customize: add worker/celery if they use translations

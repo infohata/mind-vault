@@ -184,7 +184,7 @@ function _rebroadcastSwap(target) {
 }
 ```
 
-Fire on the **swapped element**, not on `document` — events bubble UP. A listener on `document.body` will catch a dispatch on a descendant; a listener on `document.body` will **not** catch a dispatch on `document` (events don't propagate DOWN). Mirrors HTMX's own dispatch behaviour. See [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 3 for the bubble-direction rationale. The **binder side** — what widget binders must do to (re-)mount robustly under *either* dispatch shape (this element-dispatch one, or a body-replacer's `document`-dispatch + `detail.elt`), across the event / bind-target / detail-key axes — is [`HTMX_WIDGET_LIFECYCLE.md`](HTMX_WIDGET_LIFECYCLE.md) § 6.
+Fire on the **swapped element**, not on `document` — events bubble UP. A listener on `document.body` will catch a dispatch on a descendant; a listener on `document.body` will **not** catch a dispatch on `document` (events don't propagate DOWN). Mirrors HTMX's own dispatch behavior. See [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 3 for the bubble-direction rationale. The **binder side** — what widget binders must do to (re-)mount robustly under *either* dispatch shape (this element-dispatch one, or a body-replacer's `document`-dispatch + `detail.elt`), across the event / bind-target / detail-key axes — is [`HTMX_WIDGET_LIFECYCLE.md`](HTMX_WIDGET_LIFECYCLE.md) § 6.
 
 ### Edit-frame guard — short-circuit refreshes when the user has in-flight unsaved input
 
@@ -240,7 +240,7 @@ function onEntityChanged(event) {
 document.addEventListener('entityChanged', onEntityChanged, { capture: true });   // document, not document.body — see ALPINE_HTMX_GOTCHAS §11
 ```
 
-The trap: standing up a new entity surface and wanting the same drawer-close-on-delete behaviour, **reusing the file via `<script src="…/article_actions.js">` does NOT work** — the gate `payload.type !== 'article'` returns early for every `faq` / `event` payload, so the listener silently no-ops. The new entity's delete emits `entityChanged{type:'faq', action:'deleted'}`, the listener bails, the drawer stays open on the just-deleted record. The save-title cosmetic dies the same way.
+The trap: standing up a new entity surface and wanting the same drawer-close-on-delete behavior, **reusing the file via `<script src="…/article_actions.js">` does NOT work** — the gate `payload.type !== 'article'` returns early for every `faq` / `event` payload, so the listener silently no-ops. The new entity's delete emits `entityChanged{type:'faq', action:'deleted'}`, the listener bails, the drawer stays open on the just-deleted record. The save-title cosmetic dies the same way.
 
 It's **silent** — no console error; the page mostly works (the declarative `data-refresh-on` list refresh still fires — that's walker-owned, not gated), so the bug hides until someone deletes a record *while its drawer is open*. A template comment like "reused from the article surface — graceful no-op where article selectors aren't in the DOM" is the tell-tale wrong model: it doesn't no-op on missing *selectors*, it hard-returns on the *type gate* before touching the DOM.
 

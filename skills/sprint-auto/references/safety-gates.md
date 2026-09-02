@@ -4,7 +4,7 @@ Belt-and-suspenders: every IDEA in the batch must pass **all** gates. No single-
 
 ## Per-IDEA opt-in
 
-There are two opt-in modes — **`auto_safe`** (autonomous through to merge gate) and **`auto_safe_with_eval_gate`** (autonomous through to merge gate + emit a manual-evaluation checklist for the human reviewer to walk before merging). Sprint-auto includes IDEAs from BOTH modes in the same batch's cohort selection (S0); the only difference downstream is that eval-gate IDEAs additionally emit a checklist artefact at S5 (`/wrap --scope=idea-only`) and the integration PR's body at S11.10 lists each eval-checklist URL.
+There are two opt-in modes — **`auto_safe`** (autonomous through to merge gate) and **`auto_safe_with_eval_gate`** (autonomous through to merge gate + emit a manual-evaluation checklist for the human reviewer to walk before merging). Sprint-auto includes IDEAs from BOTH modes in the same batch's cohort selection (S0); the only difference downstream is that eval-gate IDEAs additionally emit a checklist artifact at S5 (`/wrap --scope=idea-only`) and the integration PR's body at S11.10 lists each eval-checklist URL.
 
 ### Mode A — `auto_safe: true`
 
@@ -31,7 +31,7 @@ eval_gate_reason: "Modal primitives ship focus-trap + screen-reader semantics + 
 ---
 ```
 
-For IDEAs whose **implementation** is mechanical enough to sprint-auto end-to-end, but which ship behaviours that need human eyes on visual / a11y / interaction review before merge. The merge gate (the integration PR per `RULE_git-safety`) is already HITL — eval-gate mode just structures that review by emitting a per-IDEA manual-evaluation checklist for the human to walk. Sprint-auto runs the IDEA all the way through `/wrap` and into integration without pausing.
+For IDEAs whose **implementation** is mechanical enough to sprint-auto end-to-end, but which ship behaviors that need human eyes on visual / a11y / interaction review before merge. The merge gate (the integration PR per `RULE_git-safety`) is already HITL — eval-gate mode just structures that review by emitting a per-IDEA manual-evaluation checklist for the human to walk. Sprint-auto runs the IDEA all the way through `/wrap` and into integration without pausing.
 
 - **`auto_safe_with_eval_gate: true`** — the second flag. Sprint-auto's S0 cohort selection accepts an IDEA when **either** `auto_safe: true` OR `auto_safe_with_eval_gate: true`.
 - **`auto_safe: false`** — explicit, paired with `auto_safe_with_eval_gate: true`. The two flags carry distinct semantics; the eval-gate flag does NOT override `auto_safe`. Both states are independently true.
@@ -61,7 +61,7 @@ requires_playwright: true   # IDEA wants Playwright tests for its surface
 
 **Semantics — three branches** (decided by combining the frontmatter flag with sprint-auto's S(-1) probe outcome — see [`../SKILL.md`](../SKILL.md) § 1 step 9):
 
-| Probe outcome | `requires_playwright` | Behaviour |
+| Probe outcome | `requires_playwright` | Behavior |
 |---|---|---|
 | Present | `true` | Plan author writes Playwright tests in the Verification section + a `playwright_test_coverage` YAML block. `/wrap` Step 7 pre-fills covered eval-checklist rows. |
 | Absent | `true` | Plan author writes ONLY manual-eval-checklist rows for Playwright-relevant scenarios. The flag stays as a backref so a later "set up Playwright" IDEA can backfill tests for these scenarios. **The IDEA still ships through sprint-auto with eval-gate as today.** |
@@ -111,7 +111,7 @@ These fire during the loop, not at preflight. The skill must recognise them and 
 - `/work`'s verification step fails (tests red, build broken)
 - Per-IDEA budget exceeded (default 60 minutes wall clock)
 
-Action: record outcome in the per-IDEA auto-run log, leave the worktree intact (diagnostic artefact), move to the next IDEA.
+Action: record outcome in the per-IDEA auto-run log, leave the worktree intact (diagnostic artifact), move to the next IDEA.
 
 ### Abort the entire batch
 
@@ -141,7 +141,7 @@ auto_safe: true
 auto_safe_reason: "Covered by existing tests; bounded to one file."
 priority: medium
 sensitive_paths_cleared: true
-sensitive_paths_cleared_reason: "Touches auth middleware only to rename a logging field — behaviour unchanged, covered by test_auth_logging.py"
+sensitive_paths_cleared_reason: "Touches auth middleware only to rename a logging field — behavior unchanged, covered by test_auth_logging.py"
 ---
 ```
 

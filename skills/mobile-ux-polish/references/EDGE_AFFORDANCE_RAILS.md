@@ -18,7 +18,7 @@ a gesture-tuned surface.
 
 ## 1. Render the chrome `position: fixed` OUTSIDE the snap container — never mutate snap geometry
 
-The snap container's swipe/settle behaviour is delicately tuned (see patterns 1–5). The temptation is
+The snap container's swipe/settle behavior is delicately tuned (see patterns 1–5). The temptation is
 to carve the rail's space out of the snap geometry — `scroll-padding`, a negative margin, a
 `clip-path` on the container. **Don't.** Any geometry change to the snap container risks the
 fast-swipe-overshoot / settle-ordering tuning you already paid for.

@@ -121,13 +121,13 @@ Reusable UI is an **`Ext.define` class with an `xtype`/`alias`**, composed by co
 layers of a typical repo: **`app/shared/`** (models, stores, `util`, `service`, cross-build
 dialogs), **`app/desktop/`** and **`app/phone/`** (per-build views; each has its own
 `Application.js` + `Application.scss`); builds never import each other — cross-build code goes to
-`shared`. Styling is the **named `ui` catalogue** (`@include button-ui($ui: 'primary-action-button')`
+`shared`. Styling is the **named `ui` catalog** (`@include button-ui($ui: 'primary-action-button')`
 in `Application.scss`, applied as `ui: 'primary-action-button'`); the stock Material components are
 deliberately *unstyled* until a `ui` is applied, so **no raw `Ext.*` UI without a `ui`/`cls`**.
 Form inputs are commonly an app-prefixed **wrapper field family** (`apptextfield`, `appselectfield`, `apptogglefield`, …):
 a container exposing `<xtype>Label/Name/Value/Info/Required/Hidden` configs (labels/info are
 translation keys) that publishes `*Value` back through the wrapper. Wrapper fields typically
-**exist only in the desktop build**; phone styles raw fields via `ui` from *its own* catalogue —
+**exist only in the desktop build**; phone styles raw fields via `ui` from *its own* catalog —
 names overlap but diverge, verify per build.
 
 Dialogs are mounted imperatively and are the unit of feature work:

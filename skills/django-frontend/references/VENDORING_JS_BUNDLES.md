@@ -10,7 +10,7 @@ Adding a JavaScript library (editor, syntax highlighter, charting lib, drag-hand
 
 - Django + HTMX + Alpine + Bulma is a server-rendered stack. The runtime image is Python + nginx; introducing Node solely to bundle one library doubles the image complexity, the CI surface, and the routine-development friction.
 - npm packages bring transitive-dependency churn (Dependabot noise, `npm audit` alerts you don't want, `package-lock.json` merge conflicts).
-- The vendored file is a **single artefact** in your version control — diffable, reviewable, rollback is `git revert`.
+- The vendored file is a **single artifact** in your version control — diffable, reviewable, rollback is `git revert`.
 - Upgrade ritual is bounded ("rebuild when bumping the library version"), unlike a Node toolchain which constantly demands attention.
 
 **When NOT to vendor:**
@@ -130,7 +130,7 @@ git add web/<app>/static/vendor/<library>/ tools/build-<library>-bundle/
 git commit -m "feat(<app>): vendor <library>@<version>"
 ```
 
-The disposable container leaves zero host artefacts. Day-to-day development has no Node.
+The disposable container leaves zero host artifacts. Day-to-day development has no Node.
 
 ### Path C: Browser ESM via importmap
 

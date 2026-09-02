@@ -31,9 +31,9 @@ A **cross-host configuration library** for AI coding agents. Skills, subagent pe
 
 ## 2. AI concepts — rules vs skills vs agents vs commands
 
-The four artefact types in mind-vault answer four different questions. Internalising the distinction up front makes the rest of the system click.
+The four artifact types in mind-vault answer four different questions. Internalising the distinction up front makes the rest of the system click.
 
-| Artefact                                | Loaded when?                                 | Decided by?                                                 | Cost                                          | Example                                                                                         |
+| Artifact                                | Loaded when?                                 | Decided by?                                                 | Cost                                          | Example                                                                                         |
 | --------------------------------------- | -------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | **Rule** (`rules/RULE_*.md`)            | Every session, unconditionally               | Auto-loaded by harness                                      | Permanent context budget                      | `RULE_git-safety` blocks pushes to `main` on every conversation                                 |
 | **Skill** (`skills/<name>/SKILL.md`)    | On demand, when description matches the task | The agent (probabilistic match against `description` field) | Per-invocation                                | `/wrap` for the pre-merge doc-finalization sweep; `django` skill loads when editing Django code |

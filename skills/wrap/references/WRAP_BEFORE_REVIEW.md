@@ -33,7 +33,7 @@ So wrap Step 2 gains a grep-and-sync sub-step: after editing frontmatter, grep t
 
 ### 2. Review-cycle commits can outdate the devlog — re-touch only if material
 
-Most review commits are noise (lint nits, translation-map entries, decorators) that don't change the devlog narrative — leave them. If a cycle lands a *material* user-facing change (a real bug fix altering behaviour the devlog describes), re-touch the bullet at merge. The bar: "would a devlog reader be misled?" — usually no.
+Most review commits are noise (lint nits, translation-map entries, decorators) that don't change the devlog narrative — leave them. If a cycle lands a *material* user-facing change (a real bug fix altering behavior the devlog describes), re-touch the bullet at merge. The bar: "would a devlog reader be misled?" — usually no.
 
 ## Evidence (one multi-engine run)
 

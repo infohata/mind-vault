@@ -504,16 +504,16 @@ Authorization: Token abc123...
 → [
     {
         "id": 1,
-        "name": "Fancy Hotels",
+        "name": "Acme Group",
         "scopes": [
-            {"name": "Hotel", "permission": "admin"},
-            {"name": "Restaurant", "permission": "write"}
+            {"name": "Warehouse", "permission": "admin"},
+            {"name": "Storefront", "permission": "write"}
         ]
     },
     {
         "id": 2,
-        "name": "Pizza Place",
-        "scopes": [{"name": "Kitchen", "permission": "admin"}]
+        "name": "Globex Labs",
+        "scopes": [{"name": "Workshop", "permission": "admin"}]
     }
   ]
 
@@ -575,7 +575,7 @@ class UserScope(models.Model):
         unique_together = ('user', 'scope')
 ```
 
-**Example**: john@company.com can be admin in "Hotel" scope but only write in "Restaurant" scope, both within the same organization.
+**Example**: john@company.com can be admin in the "Warehouse" scope but only write in the "Storefront" scope, both within the same organization.
 
 ## Serializer Validation and Scope Permissions
 
@@ -767,16 +767,16 @@ Authorization: Token abc123...
 → [
     {
         "id": 1,
-        "name": "Fancy Hotels",
+        "name": "Acme Group",
         "scopes": [
-            {"name": "Hotel", "permission": "admin"},
-            {"name": "Restaurant", "permission": "write"}
+            {"name": "Warehouse", "permission": "admin"},
+            {"name": "Storefront", "permission": "write"}
         ]
     },
     {
         "id": 2,
-        "name": "Pizza Place",
-        "scopes": [{"name": "Kitchen", "permission": "admin"}]
+        "name": "Globex Labs",
+        "scopes": [{"name": "Workshop", "permission": "admin"}]
     }
   ]
 
@@ -838,7 +838,7 @@ class UserScope(models.Model):
         unique_together = ('user', 'scope')
 ```
 
-**Example**: john@company.com can be admin in "Hotel" scope but only write in "Restaurant" scope, both within the same organization.
+**Example**: john@company.com can be admin in the "Warehouse" scope but only write in the "Storefront" scope, both within the same organization.
 
 ## 5-Layer Permission Checking
 

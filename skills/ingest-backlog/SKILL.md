@@ -67,7 +67,7 @@ See [`references/legacy-formats.md`](references/legacy-formats.md) for the full 
 Walk the detected entries and classify per [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md). Two dirs, not three:
 
 - **`status: idea`** → file lands in `docs/ideas/IDEA-NNN-<slug>.md`.
-- **`status: in-progress`** → file lands in `docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md`. `YYYY-MM` = month execution started (inferred from the brownfield source or current month when undated). The IDEA lives inside the archive dir from the moment it left backlog; artefacts (plans, research, screenshots) get co-located there as work proceeds.
+- **`status: in-progress`** → file lands in `docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md`. `YYYY-MM` = month execution started (inferred from the brownfield source or current month when undated). The IDEA lives inside the archive dir from the moment it left backlog; artifacts (plans, research, screenshots) get co-located there as work proceeds.
 - **`status: superseded`** (with determinable pointer) → file lands in `docs/archive/YYYY-MM-idea-NNN-<slug>/`. If the supersession link is unclear, fall back to `status: idea` and surface a warning.
 - **`status: rejected`** (from a `## ❌ Rejected` section or equivalent) → file lands in `docs/archive/YYYY-MM-idea-NNN-<slug>/`. Entries without an IDEA-NNN number stay as footer-only lines in the index (no file).
 - **`status: complete`** → footer-line only in the index. **Forward-only**: no file created. Already-complete entries have an existing execution archive dir as their canonical home; a new stub file is pure data migration with no gain.

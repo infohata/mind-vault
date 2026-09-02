@@ -117,7 +117,7 @@ def setUp(self):
     ...
 ```
 
-**Diagnosis signature**: passes solo (`make test-fresh ARGS="…ClassName"`), fails in the full run; the missing artefact is a *translated* string; instrumenting shows the lazy proxy resolving to `''` rather than the source text. The fix is one line and belongs in the class whose assertions depend on the message, not in the (innocent) sibling that corrupted the cache — though if you can find the sibling that force-loads a catalog without restoring it, fixing *that* is the more durable repair (see § *Gotchas both levers share* for the snapshot-restore discipline that prevents this class of cross-class state leak).
+**Diagnosis signature**: passes solo (`make test-fresh ARGS="…ClassName"`), fails in the full run; the missing artifact is a *translated* string; instrumenting shows the lazy proxy resolving to `''` rather than the source text. The fix is one line and belongs in the class whose assertions depend on the message, not in the (innocent) sibling that corrupted the cache — though if you can find the sibling that force-loads a catalog without restoring it, fixing *that* is the more durable repair (see § *Gotchas both levers share* for the snapshot-restore discipline that prevents this class of cross-class state leak).
 
 ## External API Testing Patterns
 

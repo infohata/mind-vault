@@ -46,7 +46,7 @@ The `BUGBOT_CLEAN_SIGNAL` `COMMIT` field is the **trigger-anchor** SHA, not the 
 
 ## § Common patterns (codified Tier 1)
 
-The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). Bugbot's catalogue is the empirically-validated baseline (multi-tenant Django SaaS PRs); no bugbot-specific deltas at present.
+The codified Tier-1 catalog is shared across engines — see [`common-review-findings.md`](common-review-findings.md). Bugbot's catalog is the empirically-validated baseline (multi-tenant Django SaaS PRs); no bugbot-specific deltas at present.
 
 ## § Review-state gate
 

@@ -72,7 +72,7 @@ Reasoning tokens land under `usage.completion_tokens_details.reasoning_tokens` �
 
 ## De-risk before writing app code
 
-A standalone probe (real key from `.env`, sweep effort, single- vs two-turn tool round-trip, separating readable vs encrypted) resolves §1–§4 at zero app cost and is worth writing first — the encrypted-on-tool-turns behaviour in particular is model-specific and decides whether the display feature is even achievable for your model.
+A standalone probe (real key from `.env`, sweep effort, single- vs two-turn tool round-trip, separating readable vs encrypted) resolves §1–§4 at zero app cost and is worth writing first — the encrypted-on-tool-turns behavior in particular is model-specific and decides whether the display feature is even achievable for your model.
 
 Docs: `openrouter.ai/docs/guides/best-practices/reasoning-tokens`.
 

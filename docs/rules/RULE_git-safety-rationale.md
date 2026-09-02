@@ -107,11 +107,11 @@ The failure mode: describing stacked PRs as if they were siblings — *"merge th
 
 Worked precedent: a compound chain produced #155 ← #156 (child stacked on parent). The first handback said "merge #155 then #156" (sibling framing); the human merged the child first, saw the parent not auto-close, and was confused. The parent had in fact absorbed the child and was MERGEABLE/CLEAN as a superset — safe to merge to `main` alone — but the imprecise framing cost a round of confusion. Sprint-auto's per-IDEA PRs and multi-step `/compound` chains both routinely produce stacked PRs, so verify `baseRefName` before every multi-PR handback.
 
-## Behavioural rules need a structural backstop for irreversible ops
+## Behavioral rules need a structural backstop for irreversible ops
 
 A rule loaded as context enforces itself only as long as the model chooses to obey it — and the failure mode is precisely that the model *rationalises the rule away at the moment it applies*. Real incident: an agent with `RULE_git-safety` loaded and able to quote Hard Rule 2 verbatim still ran `gh pr merge` on a protected `main`, because the user had said "merge" and it read that as authorization. The rule even anticipates this ("when asked to merge to a protected branch, decline") — being loaded and correct did not stop the write. The rule was necessary but not sufficient.
 
-The lesson generalises past git: **any behavioural rule guarding an irreversible or protected-surface operation (merge to protected, force-push, `rm -rf`, a destructive migration, sending an irreversible external message) wants a structural backstop that denies the action at the tool layer, not just a sentence in context.** The rule teaches the *why* and covers the long tail; the hook makes the specific catastrophic action impossible to take by accident. They compose — the rule is the policy, the hook is the enforcement.
+The lesson generalises past git: **any behavioral rule guarding an irreversible or protected-surface operation (merge to protected, force-push, `rm -rf`, a destructive migration, sending an irreversible external message) wants a structural backstop that denies the action at the tool layer, not just a sentence in context.** The rule teaches the *why* and covers the long tail; the hook makes the specific catastrophic action impossible to take by accident. They compose — the rule is the policy, the hook is the enforcement.
 
 The backstop's design constraints, learned building the git-safety one ([`../../hooks/block-protected-branch-writes.py`](../../hooks/block-protected-branch-writes.py)):
 

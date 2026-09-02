@@ -17,7 +17,7 @@ description: |
   user: "Make this create-form open in a modal and post via HTMX."
   assistant: "I'll use the frontend agent to wire the hx-* attributes, the modal partial, and the swap target."
   <commentary>
-  HTMX modal/partial behaviour routes to frontend.
+  HTMX modal/partial behavior routes to frontend.
   </commentary>
   </example>
 

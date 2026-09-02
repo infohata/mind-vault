@@ -1,11 +1,11 @@
 # IDEA-<NNN> — manual evaluation checklist
 
-**Surface**: `<one-line description of the surface or behaviour shipped, e.g. "modal primitives — confirm/error variants">`
+**Surface**: `<one-line description of the surface or behavior shipped, e.g. "modal primitives — confirm/error variants">`
 **Plan**: [`YYYY-MM-DD-<slug>-plan.md`](./YYYY-MM-DD-<slug>-plan.md)
 **PR**: <#NNN>
 **Date authored**: YYYY-MM-DD
 
-This checklist covers what render-and-assert tests cannot verify: visual correctness, focus & keyboard behaviour, screen-reader semantics, animation timing, and interaction nuance. **Walk every scenario in a real browser before the integration PR is merged.** Tick boxes as you go; jot notes on anything that surprises you. Deviations are not blockers — they are signal for the reviewer.
+This checklist covers what render-and-assert tests cannot verify: visual correctness, focus & keyboard behavior, screen-reader semantics, animation timing, and interaction nuance. **Walk every scenario in a real browser before the integration PR is merged.** Tick boxes as you go; jot notes on anything that surprises you. Deviations are not blockers — they are signal for the reviewer.
 
 ## Setup
 

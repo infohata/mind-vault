@@ -81,8 +81,8 @@ Architect amendments to a drafted plan sometimes pair a CORRECT structural inten
 **Discipline at `/work` time when consuming an architect amendment**:
 
 1. Read the amendment twice. Identify the STRUCTURAL INTENT (the invariant the architect cares about) separately from the CONSEQUENT MECHANIC (where the code goes to achieve it).
-2. Ground-truth the mechanic against actual runtime behaviour — swap semantics, event firing order, DOM state after N iterations of the affected flow. Render-and-assert tests pin fragment shape but not multi-swap DOM state; that's where mechanics-derived-from-architect-intuition most commonly fail.
-3. If the mechanic breaks something user-visible, **reinterpret the mechanic while preserving the structural intent**. Document the reinterpretation in the commit message ("Amendment A1 reinterpreted: items container still always present per intent, empty-state stays inside slot to preserve atomic-swap behaviour") so future readers see both the architect's verdict AND the implementation-time correction.
+2. Ground-truth the mechanic against actual runtime behavior — swap semantics, event firing order, DOM state after N iterations of the affected flow. Render-and-assert tests pin fragment shape but not multi-swap DOM state; that's where mechanics-derived-from-architect-intuition most commonly fail.
+3. If the mechanic breaks something user-visible, **reinterpret the mechanic while preserving the structural intent**. Document the reinterpretation in the commit message ("Amendment A1 reinterpreted: items container still always present per intent, empty-state stays inside slot to preserve atomic-swap behavior") so future readers see both the architect's verdict AND the implementation-time correction.
 
 This isn't permission to ignore architect findings — the intent is load-bearing. It's permission to refine the mechanic when implementation-time evidence (manual eval, browser walk, integration-shape failure) contradicts the architect's derivation. The architect reviewed the plan against the codebase as understood at review time; implementation-time evidence is downstream of that and authoritative for mechanics.
 

@@ -316,7 +316,7 @@ set -ga terminal-overrides ",xterm-256color:Tc,*256col*:Tc"
 # Focus events on — helps tools like vim detect lost focus.
 set -g focus-events on
 
-# --- Behaviour ---
+# --- Behavior ---
 # Mouse: scroll + click-to-select-pane + drag-to-resize — make tmux
 # feel like the IDE terminal even on a flaky SSH link.
 set -g mouse on

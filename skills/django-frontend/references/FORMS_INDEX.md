@@ -26,7 +26,7 @@ Entry point for form work across `django` (backend) and `django-frontend` (templ
 
 ## Filter forms (HTMX-driven session-persisted filters)
 
-- [`FILTER_FORM_TRIGGER_SINGLE_SOURCE.md`](FILTER_FORM_TRIGGER_SINGLE_SOURCE.md) — one `FILTER_FORM_HX_TRIGGER` constant + `{% filter_form_trigger %}` tag shared across surfaces; form-level event-filtered trigger; clear-✕ behaviour.
+- [`FILTER_FORM_TRIGGER_SINGLE_SOURCE.md`](FILTER_FORM_TRIGGER_SINGLE_SOURCE.md) — one `FILTER_FORM_HX_TRIGGER` constant + `{% filter_form_trigger %}` tag shared across surfaces; form-level event-filtered trigger; clear-✕ behavior.
 - [`SESSION_FILTER_PERSISTENCE.md`](SESSION_FILTER_PERSISTENCE.md) — per-entity vs cross-entity session split; `_filter_form=1` real-submit sentinel; `CHECKBOX_TOGGLE_KEYS` allowlist for absent-as-unchecked.
 
 ## Form state preservation
