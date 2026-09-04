@@ -88,6 +88,47 @@ done
 
 Arm it via `Monitor` with a bounded `timeout_ms` matched to the backstop (e.g. `1200000`), NOT `persistent: true` — see § Lifecycle. `description` should name the PR (`"PR #<N> review engines"`), per the Monitor "specific description" guidance.
 
+## A fourth event class: actionable-non-progress (`claude-noop`) — mind-vault PR #248, 2026-09-04
+
+The three events above all mean *"the loop can move"*. There is a fourth state worth an event, and it
+is not one of them: **an engine finished and produced nothing usable.** On installs where claude's
+`pull_request` auto-run skip-no-ops, its run completes with `CLAUDE_HEAD_VERDICTS=0` and
+`CLAUDE_VERDICT_SET_PROVEN=false`, so the fail-closed judge can never return CLEAN. `all-done` must
+**not** fire (nothing is decidable), but the agent has an immediate, correct action — fire the
+explicit retrigger. Without an event for it the loop sits out the full 1200s backstop to learn
+something the poller knew in 30 seconds.
+
+Two guards make this safe, and it is actively harmful without the second:
+
+```bash
+# (claude-noop) completed run, no usable verdict, and no claude workflow of ANY name in flight
+if [ "$status" = "completed" ]; then
+  hv=$(printf '%s\n' "$out" | grep -iE "^CLAUDE_HEAD_VERDICTS=" | sed -n 's/^[^=]*=\([0-9]*\).*/\1/p')
+  inflight=$(gh run list --limit 12 --json workflowName,status \
+               --jq '[.[] | select(.workflowName|startswith("Claude Code")) | select(.status!="completed")] | length' \
+             2>/dev/null || echo 1)          # unreadable ⇒ assume in flight, never "clear"
+  [ -z "$inflight" ] && inflight=1
+  if [ "$inflight" -eq 0 ] && { [ -z "$hv" ] || [ "$hv" -eq 0 ]; }; then
+    echo "claude-noop: completed with 0 head-SHA verdicts, nothing in flight — retrigger needed"; exit 0
+  fi
+fi
+```
+
+**The in-flight guard is the load-bearing half.** The adapter's `CLAUDE_CHECKRUN` samples only
+`claude-code-review.yml`, so a retrigger running as `claude.yml` is invisible to it
+([`engine-claude.md`](engine-claude.md) § the linked-run fix is documented but NOT implemented).
+Emitting `claude-noop` off the adapter alone fires it *while a retrigger is already running*, the
+agent retriggers again, and the poller re-fires — **billed reviews in an unbounded loop, driven by
+the accelerator.** Both false-positive firings were observed live before the guard was added.
+
+**The generalisable rule: an accelerator predicate built on one adapter's status field inherits that
+adapter's blind spots.** The Monitor is allowed to be wrong about *when* to wake the agent — that
+costs a wasted wake. It is **not** allowed to be wrong in a way that makes the agent take a billed,
+state-changing action; that is the read-only contract (§ The contract, rule 1) reaching one step
+further than "the script issues no writes". When an event's whole purpose is to prompt a retrigger,
+its predicate must be at least as wide as the thing it is prompting about — here, every workflow whose
+name starts `Claude Code`, not the single file the adapter happens to sample.
+
 ## Lifecycle — arm, GC, and the vanished-Monitor rule
 
 - **Arm after the scratch bootstrap write.** The script reads its frozen `ARM_SHA` and engine list from the scratch file's `last_push_sha` / `engines`. On the Phase 1 zero-activity path the scratch bootstrap write is mandatory *before* Phase 4 (`SKILL.md` Phase 1 § "Zero engine activity"); arm the Monitor only **after** that write, never before, or it freezes stale values.

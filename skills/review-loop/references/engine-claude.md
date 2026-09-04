@@ -272,6 +272,45 @@ both directions, and which a careless reimplementation loses:
 - Emit `LINKED_RUNS` / `LINKED_INCOMPLETE` / `LINKED_HOLDING=<ids>` so *"nothing linked"* and
   *"everything linked finished"* are distinguishable instead of both reading as silence.
 
+## § the linked-run fix is documented but NOT implemented (mind-vault PR #248, 2026-09-04)
+
+🔴 **Verified against the shipped adapter:** `tools/find_claude_comments.sh` queries exactly one
+endpoint for run state —
+`gh api repos/<o>/<r>/actions/workflows/$CLAUDE_WORKFLOW_FILE/runs` with
+`CLAUDE_WORKFLOW_FILE=claude-code-review.yml`. It emits **no** `LINKED_RUNS`, `LINKED_INCOMPLETE`, or
+`LINKED_HOLDING`, and never parses a `[View job run](.../actions/runs/<id>)` link. The fix prescribed
+in § *The fix — stop guessing at workflows and SHAs* was written down and never built.
+
+The section above therefore reads as settled when it is not. Treat it as **the design of record, not
+the behavior of record**, until an adapter change lands.
+
+**What the gap does in the loop.** With only the `pull_request` workflow visible, an explicit
+`claude_retrigger.sh` is invisible while it runs. The adapter keeps reporting the previous
+`claude-code-review.yml` run — `STATUS=completed`, `HEAD_VERDICTS=0` — which reads exactly like a
+skip-no-op that needs another retrigger. Observed live: check-run `[Claude Code Review]` completed on
+the head SHA with zero verdicts while `[Claude Code]` (`issue_comment`) was `in_progress` on the same
+PR. Acting on that reading fires a second retrigger into a live run, and since the second one is
+equally invisible, the condition never clears — **an unbounded loop of billed reviews.**
+
+**Interim guard — cheap, and independent of the adapter.** Before treating
+`STATUS=completed` + `HEAD_VERDICTS=0` as a skip-no-op that warrants a retrigger, require that **no
+claude workflow of any name is in flight**:
+
+```bash
+gh run list --limit 12 --json workflowName,status \
+  --jq '[.[] | select(.workflowName|startswith("Claude Code")) | select(.status!="completed")] | length'
+```
+
+Non-zero → a claude run is live: **do not retrigger, wait.** Unreadable (no `actions: read`, API
+error) → treat as non-zero and wait, per this file's standing degrade-to-RUNNING rule; never let an
+error read as "nothing in flight". The prefix match covers both `Claude Code Review` and `Claude
+Code`, so it does not need to know which workflow the retrigger happens to use.
+
+**The generalisable point.** Two workflows, two events, one synthesized status field — and the field
+is named for the *engine*, not for the workflow it actually samples. A status field that silently
+covers a subset of the thing it is named after will be read as covering all of it. Either widen the
+sample or rename the field to what it measures.
+
 ## § calibration update — the verdict comment has THREE body stages, and only the third is a verdict (downstream, 2026-08-25)
 
 The bot edits **one comment id** in place through three distinct bodies:

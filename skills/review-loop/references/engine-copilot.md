@@ -73,6 +73,49 @@ What the loop does about it:
 - **User-relayed suppressed findings are first-class loop input**: they enter the current cycle's fix batch exactly like an engine finding (verify against the tree first — suppression correlates with low confidence, so the false-positive rate is higher than for posted comments; the incident's finding was valid).
 - **Never weaken the verdict machinery over this**: the CLEAN classification stays structural (active-findings count over the visible set). The blind spot is documented and human-checked, not papered over with a always-HUNG or always-dirty verdict that would break convergence.
 
+## § A finding can ride the body's LEAD PROSE — zero inline, zero suppressed (mind-vault PR #248, 2026-09-04)
+
+The incident: copilot posted `### 🟡 Changes recommended` whose **first sentence** was the entire
+finding — *"The newly added Playwright example snippet has unbalanced braces (missing a closing
+`});`), making the documentation's copy/paste example syntactically invalid."* It was real: the
+fenced block opened `test.describe(… => {` and `test.beforeEach(… => {` and closed only the
+`beforeEach`, so the snippet was invalid JavaScript. The `<details>` block said
+`Comments generated: 0`. There was **no `### Suppressed comments` section at all.**
+
+So all three counting surfaces read zero:
+
+| surface | value | 
+|---|---|
+| inline comments on `/pulls/<N>/comments` | 0 |
+| `COPILOT_SUPPRESSED` | not emitted (`n=0`) |
+| structural active-finding count | **0 → reads CLEAN** |
+
+The only dissent was the trailing legacy `CLEAN=false` token on `COPILOT_LATEST_REVIEW` — which
+[`../SKILL.md`](../SKILL.md) § Per-engine fetch explicitly instructs the orchestrator to **ignore**.
+The finding was caught only because the operator read the review body by hand after noticing the
+header said "Changes recommended" while the adapter reported nothing to fix.
+
+**This is the third instance of the same class** — after the suppressed-comments blind spot and the
+`CLEAN=`-token-nobody-reads reversal above. The channel is new each time; the shape is identical: *a
+detection that terminates somewhere the verdict machinery does not read is not a mitigation.* The
+body's lead prose is now known to be a **fourth finding channel**, alongside inline comments,
+suppressed items, and the bucket header.
+
+**Operational guard, until the adapter parses it:** treat a non-green bucket header
+(`🟡 Changes recommended` / `🔵 Needs a closer look`) with a **zero** structural count as a
+**contradiction, not a clean** — read the review body verbatim before accepting CLEAN. A green
+header (`🟢 Approval recommended`) with a zero count is the only combination that is self-consistent.
+Cheap and exact:
+
+```bash
+gh api "repos/<owner>/<repo>/pulls/<N>/reviews/<review-id>" --jq '.body'
+```
+
+**Why not just trust the header?** Because the header is prose too, and § Clean detection already
+records it drifting silently once. The rule is the contradiction check, not a new single signal:
+when two surfaces disagree about whether there is anything to fix, the loop reads the body — it never
+picks the surface that lets it converge.
+
 ## § Stale-context findings — when to bail
 
 **Pattern**: Copilot's review prompt window includes prior review summaries / context, not just the current file state. When a fix lands that resolves a finding category at the root, Copilot may still flag the same category on an *adjacent surface* in the next cycle — arguing about the original broken-state geometry rather than the post-fix geometry. The agent's first instinct is "fix the new angle too", which triggers another cycle, and the pattern repeats.

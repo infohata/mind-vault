@@ -10,6 +10,42 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.8 — the finding that rode the header sentence, and a fix that was only ever written down
+
+Four review-loop learnings from driving one compound PR through a nine-cycle dual-engine loop —
+compounded 2026-09-04.
+
+**`skills/review-loop/references/engine-copilot.md`** — a **fourth finding channel**. Copilot posted a
+real, valid finding as the *lead sentence of its review body*, with `Comments generated: 0`, no inline
+comments, and no `### Suppressed comments` block at all. All three counting surfaces read zero, so the
+structural verdict was CLEAN while the header said "Changes recommended". The third instance of one
+class: a detection that terminates somewhere the verdict machinery does not read is not a mitigation.
+Interim guard: a non-green bucket header with a zero finding count is a **contradiction**, and the loop
+reads the body verbatim before accepting CLEAN.
+
+**`skills/review-loop/references/engine-claude.md`** — the linked-run fix this file has prescribed
+since the two-workflow incident is **documented but not implemented**. The shipped adapter queries one
+endpoint (`actions/workflows/claude-code-review.yml/runs`) and emits no `LINKED_RUNS`/`LINKED_HOLDING`,
+so a retrigger running as `claude.yml` (`issue_comment`) stays invisible while it runs. The adapter then
+reports the previous run as completed-with-zero-verdicts, which reads exactly like a skip-no-op needing
+another retrigger — an unbounded loop of billed reviews. Interim guard included; the section is now
+marked design-of-record, not behavior-of-record.
+
+**`skills/review-loop/references/MONITOR_ACCELERATION.md`** — a fourth event class,
+**actionable-non-progress**. An engine that finishes having produced nothing usable is not `all-done`
+(nothing is decidable) but is immediately actionable, and without an event the loop waits out the full
+backstop to learn what the poller knew in 30 seconds. Its in-flight guard is load-bearing: an
+accelerator predicate built on one adapter's status field inherits that adapter's blind spots, and the
+read-only contract extends to never prompting the agent into a billed action on a false reading.
+
+**`skills/review-loop/references/REFUTING_A_FINDING.md`** (new) — the evidence bar for declaring a
+finding a false positive. Both failure shapes came from the same PR: one refutation rested on a
+remembered premise about our own pipeline that the pipeline's own skill body contradicted (reversed two
+cycles later, both engines having been right); the other tested the claim in a throwaway repo and held.
+Read a premise about our own repo rather than recalling it, test a platform claim rather than asserting
+it, treat two engines converging as raising the bar, and record the refutation in the commit message so
+the next cycle's reviewer can rebut it in-band.
+
 ## v5.8.7 — one value in two homes, and the keyword that never fires
 
 Five ExtJS state/date traps and two batch-routing corrections, all from a single overnight
