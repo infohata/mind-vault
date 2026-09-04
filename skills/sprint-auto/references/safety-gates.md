@@ -87,6 +87,38 @@ Run these checks at preflight. Any fail → IDEA dropped from the batch with a l
 | `depends_on` references an IDEA that is not `status: complete` | Pipeline not ready; don't run work that will need to rebase onto unmerged prerequisites |
 | IDEA body lists a file path under a sensitive-paths default-deny list | See below — override with explicit frontmatter acknowledgement |
 
+### Encoding an IN-BATCH dependency: use the branch point, not `depends_on`
+
+The `depends_on` disqualifier above is a **preflight DROP**, not a wait. Two IDEAs in the same batch
+where B must build on A therefore cannot express that with `depends_on: [A]` — B is simply
+removed from the run, silently, and the human finds out in the morning summary.
+
+Encode it with the **branch point** instead:
+
+```bash
+# A runs first (argument order), then B branches off A's branch rather than origin/main
+git worktree add ../<project>-auto-<B-slug> -b auto/<B-slug> origin/auto/<A-slug>
+```
+
+…and open B's PR with `--base auto/<A-slug>`, so B's diff stays IDEA-isolated for review
+instead of showing A's work too. Both branches land in the integration branch in argument
+order, and the stacking disappears at merge.
+
+Field-tested on a batch where two IDEAs edited the same `requires` array and the same
+constructor block in one file. Three consequences to plan for:
+
+- **B's PR will not auto-close** on the integration merge. Its base is A's branch, not the
+  integration branch, so the merged-ancestor auto-close never applies to it. In the batch this
+  was observed on, deleting A's branch at teardown did close it — treat that as an observation,
+  not a platform guarantee: GitHub also documents *retargeting* an open PR onto the merged
+  base when the base branch's own PR was merged and that branch deleted, which would leave B
+  open instead. **Check B's PR at teardown and close it by hand if it is still open.** A manual
+  retarget to the integration branch is refused either way — "no new commits between base and
+  head" — which is the platform confirming the containment.
+- **Anchor B's edits on TEXT, never line numbers.** A has already shifted them.
+- **If A adds a test that exercises code B changes**, B must patch that test in the same
+  commit. Belt-and-braces beats a merge-time surprise.
+
 ### Default-deny sensitive-path list
 
 Anything the IDEA's body mentions editing under these paths drops it from the batch unless the frontmatter has `sensitive_paths_cleared: true` + `sensitive_paths_cleared_reason: "..."`:

@@ -257,3 +257,39 @@ orphans the webpack dev server, and `reuseExistingServer: true` then latches eve
 later run onto the wedged instance — kill the process tree before retrying; and
 `pkill -f <pattern>` matches its own wrapping shell when the pattern appears in your
 command line — bracket the first character (`pkill -f '[w]ebpack serve'`).
+
+## 12. An environment-constraint `test.skip` belongs in `beforeEach`, not on one test
+
+A suite carried a per-test skip for the mobile project — dev mode serves the desktop
+profile only, so the mobile project has no bundle to load, never leaves the boot splash,
+and times out in `waitForExtReady`. Correct skip, correct reason.
+
+It was written **inside one test**. The sibling test in the same `describe` did not get it,
+and sat as a **permanent red in the local gate** — on the default branch, for weeks. CI
+never saw it (CI runs the static/image mode, where both manifests exist and the device UA
+picks the right one), so nothing upstream contradicted it, and a suite that always has one
+red trains people to skim past reds.
+
+The rule: **a skip that expresses an ENVIRONMENT constraint is a property of the whole
+block, so put it in the block's `beforeEach`.** Only a skip that expresses something about
+*that one test* belongs on the test.
+
+```js
+test.describe('…', () => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'dev mode serves the desktop profile only');
+    …
+  });
+});
+```
+
+Two diagnostic notes worth keeping:
+
+- **Read the page snapshot before theorizing.** A bare `LOADING…` in the failure artifact
+  says "never booted", which is a different bug from "booted slowly" — and it rules out the
+  budget as the fix immediately.
+- **Discriminate against the default branch before blaming the change under test.** Running
+  the same spec on an unmodified checkout is one command and it converts "did I break this?"
+  into a fact. Here it proved the red was pre-existing, which changed the fix from *repair a
+  bundle* to *add the missing skip* — opposite actions, and guessing wrong either hides a
+  broken bundle or deletes real coverage.

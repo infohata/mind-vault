@@ -10,6 +10,39 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.7 — one value in two homes, and the keyword that never fires
+
+Five ExtJS state/date traps and two batch-routing corrections, all from a single overnight
+batch on a consuming project — compounded 2026-09-04.
+
+**`skills/extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md`** — three new sections.
+**§24** the same value living as both a component `config` and a ViewModel mirror: the
+config updater is skipped when the value is unchanged, so the mirror silently keeps the
+previous record's data (`0` → `0` is a no-op). **§25** never bind `required` — the required
+bind and the value bind land on one scheduler tick in no contractual order and
+`updateRequired` validates on delivery, so bind `disabled` instead and keep `required`
+static. **§26** calendar-date arithmetic is not a timestamp difference: the framework's DAY
+diff floors ms/86400000, which loses a night on every stay whose checkout time precedes its
+check-in time, and breaks again on DST and on UTC-midnight instants.
+
+**`skills/extjs-frontend/references/JEST_EXT_STUB_HARNESS.md` §8** — the `node` test
+environment has no `window`; supply a minimal stand-in rather than switching to jsdom, and
+watch the seconds-zeroing clock-assertion trap.
+
+**`skills/extjs-frontend/references/PLAYWRIGHT_COMPONENTQUERY_E2E.md` §12** — an
+environment-constraint `test.skip` belongs in the block's `beforeEach`. Written per-test, a
+sibling missed it and sat as a permanent red in the local gate that CI could never see.
+
+**`skills/sprint-auto/references/safety-gates.md`** — how to encode an IN-BATCH dependency.
+`depends_on` is a preflight DROP, not a wait, so two IDEAs in one batch stack via the
+**branch point** instead; includes the three consequences (the stacked PR will not
+auto-close, anchor edits on text, patch the sibling's tests in the same commit).
+
+**`skills/sprint-auto/references/integration-stage.md`** — issue-closing keywords belong on
+the `[INTEGRATION]` PR. Per-IDEA PRs merge into the integration branch, not the default
+branch, so their `Closes #NNN` never fires; a seven-IDEA batch landed with all seven issues
+still open. Plus the check that a backend-gated IDEA's issue should often stay open.
+
 ## v5.8.6 — the deliberate spelling PR the convention kept deferring, and a sample org with a domain
 
 Housekeeping, no behavior change: `LANGUAGE_CONVENTIONS` has said since v5.7.3 that the

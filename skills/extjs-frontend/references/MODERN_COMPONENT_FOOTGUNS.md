@@ -403,6 +403,92 @@ with transport errors; open dialogs outside promise chains so a render failure s
 as itself. Pin with an e2e that opens the dialog with the exact production config inside
 the same promise framing and asserts no captured rejection.
 
+## 24. One value, two homes: a `config` mirrored into a ViewModel goes stale, because the updater is skipped when the value is unchanged
+
+A panel showed "1 note" on reservations that had none. The store behind the list was
+reloading correctly per selection — only the badge lied.
+
+The value existed **twice**: as an `Ext.Component` **config** on the panel (written by the
+parent view when the selection changed) and as **ViewModel data** under the same name
+(written by the list's load callback). Ext runs a config's `update<Name>` hook **only when
+the value actually changes** (`ext-core/src/class/Config.js`, the `value !== oldValue`
+guard). So selecting a record whose count matched the previous config value — `0` → `0` —
+was a no-op, the mirror was never re-written, and the ViewModel kept the PREVIOUS record's
+number. The list itself was right because it re-queried; the derived display was wrong
+because it was only ever pushed.
+
+Recognize the shape: **a config setter is a change notifier, not an assignment.** Any
+`updateX() { this.getViewModel().set('x', x) }` mirror is stale-by-construction for
+repeat values.
+
+Fixes, in preference order:
+
+1. **Have one home.** Bind the display to the ViewModel and write only the ViewModel.
+2. If the config must stay (a public setter surface other callers use), **re-seed the
+   mirror from the config on the event that already fires** — the identity change that
+   selection implies (`updateRecordId`, `updateReservationId`, …), which by definition
+   *does* change. Seed first, then let the async load correct it.
+3. Never rely on the two staying in sync "because both get written".
+
+The async correction wants two guards while you are there: return early when the load
+failed (a failure callback that dereferences `records.length` on `null` throws), and drop
+a response whose request no longer matches the current selection — stores do not cancel
+in-flight loads, so two quick selections can land out of order and the older one wins.
+
+## 25. Never bind `required` — bind `disabled` instead
+
+`required: '{someFlag}'` looks like the obvious way to make a field conditionally
+mandatory. It is a race.
+
+The `required` bind and the `value` bind are delivered on the same ViewModel scheduler
+tick, and the delivery order between two bindings on one component is **not contractual**.
+`updateRequired` validates **immediately** on delivery (`ext-modern/src/field/Field.js`).
+So a field can be validated in the instant after `required: true` arrives but *before* its
+value does — an intermittent red required-marker on open that no e2e can reliably
+distinguish from a real validation failure.
+
+Keep `required: true` **static** and gate the mode some other way — usually `disabled`,
+which has no validation side effect. A disabled empty required field is safe: `validate()`
+short-circuits disabled fields and clears the error, and empty→empty transitions are
+skipped. What you must NOT do on that path is call `form.validate()` yourself, so the
+submit handler for the mode that disables the field should compose its payload directly.
+
+Related trap on the same path: `formpanel.getValues()` with no `enabled` argument
+**includes disabled fields**. Harmless when the disabled field is null and the composer
+ignores it — but do not read "it's disabled" as "it won't be in the payload".
+
+## 26. Calendar-date arithmetic is not a timestamp difference
+
+`Ext.Date.diff(from, to, Ext.Date.DAY)` is `Math.floor((+to - +from) / 86400000)` in the
+bundled ext-core. That is a *duration in whole 24-hour blocks*, which is not what any
+domain means by "days between two dates".
+
+The incident: a hotel stay runs 15:00 → 11:15, i.e. 20 h 15 min = **0.84 day**, floored to
+**0 nights**. Every ordinary stay lost exactly one night; a four-night booking showed
+three. The formula was wrong in **four** places, and three of them looked correct only
+because their feeders happened to pass date-only values (whole-day multiples). One feeder
+change away from four visible bugs.
+
+Count calendar days from the **local Y/M/D components**, not from the instants:
+
+```js
+var a = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate()),
+    b = Date.UTC(to.getFullYear(),   to.getMonth(),   to.getDate());
+return Math.round((b - a) / 86400000);   // exact integer
+```
+
+That is immune to three separate hazards at once — clock times, **DST** (a local-midnight
+pair across a change measures 23 h or 25 h, so a floored ms/day silently drops a day every
+spring), and **UTC-midnight instants** (`new Date('2026-08-31')` is midnight UTC, i.e. the
+previous calendar day in any negative-offset zone — so parse `'Y-m-d'` strings by regex
+into `Date.UTC` rather than through `new Date`).
+
+Two design notes that paid off: put the helper in shared code and route **every** existing
+copy through it in the same change — the three that were "already correct" were correct by
+luck, not by design. And when the pin suite no longer needs `Ext.Date`, drop its stub
+registration: with the fail-loud harness, a regression back to `Ext.Date.diff` then throws
+a named "not stubbed" error instead of silently returning a floored value.
+
 ## Related
 
 - [JEST_EXT_STUB_HARNESS](JEST_EXT_STUB_HARNESS.md) — why the stub cannot catch #2 (define flatten).
