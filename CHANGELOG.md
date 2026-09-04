@@ -13,7 +13,7 @@ _(none)_
 ## v5.8.7 — one value in two homes, and the keyword that never fires
 
 Five ExtJS state/date traps and two batch-routing corrections, all from a single overnight
-batch on a consuming project.
+batch on a consuming project — compounded 2026-09-04.
 
 **`skills/extjs-frontend/references/MODERN_COMPONENT_FOOTGUNS.md`** — three new sections.
 **§24** the same value living as both a component `config` and a ViewModel mirror: the
