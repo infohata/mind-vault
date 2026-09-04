@@ -417,7 +417,7 @@ was a no-op, the mirror was never re-written, and the ViewModel kept the PREVIOU
 number. The list itself was right because it re-queried; the derived display was wrong
 because it was only ever pushed.
 
-Recognise the shape: **a config setter is a change notifier, not an assignment.** Any
+Recognize the shape: **a config setter is a change notifier, not an assignment.** Any
 `updateX() { this.getViewModel().set('x', x) }` mirror is stale-by-construction for
 repeat values.
 

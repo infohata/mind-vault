@@ -285,7 +285,7 @@ test.describe('…', () => {
 
 Two diagnostic notes worth keeping:
 
-- **Read the page snapshot before theorising.** A bare `LOADING…` in the failure artifact
+- **Read the page snapshot before theorizing.** A bare `LOADING…` in the failure artifact
   says "never booted", which is a different bug from "booted slowly" — and it rules out the
   budget as the fix immediately.
 - **Discriminate against the default branch before blaming the change under test.** Running
