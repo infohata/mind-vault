@@ -280,6 +280,7 @@ test.describe('…', () => {
     test.skip(testInfo.project.name === 'mobile', 'dev mode serves the desktop profile only');
     …
   });
+});
 ```
 
 Two diagnostic notes worth keeping:
