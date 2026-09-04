@@ -107,9 +107,13 @@ Field-tested on a batch where two IDEAs edited the same `requires` array and the
 constructor block in one file. Three consequences to plan for:
 
 - **B's PR will not auto-close** on the integration merge. Its base is A's branch, not the
-  integration branch, so it stays open until that branch is deleted at teardown (which does
-  close it). GitHub also refuses to retarget it to the integration branch — "no new commits
-  between base and head" — which is the platform confirming the containment.
+  integration branch, so the merged-ancestor auto-close never applies to it. In the batch this
+  was observed on, deleting A's branch at teardown did close it — treat that as an observation,
+  not a platform guarantee: GitHub also documents *retargeting* an open PR onto the merged
+  base when the base branch's own PR was merged and that branch deleted, which would leave B
+  open instead. **Check B's PR at teardown and close it by hand if it is still open.** A manual
+  retarget to the integration branch is refused either way — "no new commits between base and
+  head" — which is the platform confirming the containment.
 - **Anchor B's edits on TEXT, never line numbers.** A has already shifted them.
 - **If A adds a test that exercises code B changes**, B must patch that test in the same
   commit. Belt-and-braces beats a merge-time surprise.
