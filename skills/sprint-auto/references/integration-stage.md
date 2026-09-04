@@ -310,3 +310,33 @@ Three reasons:
 1. The integration step has no meaning outside sprint-auto's batch context. It needs `auto/<slug>` branches with `auto_safe` provenance, isolated worktrees with bootstrap-script-validated environments, and a known port-offset scheme. None of those preconditions exist for a manual "I have N feature branches, integrate them" use case.
 2. Promoting to `/integrate` would invite future use without sprint-auto's preconditions — manually-typed branch names, no `auto_safe` gate, host-port collision with a primary stack. We'd either re-implement the gates inside `/integrate` or ship a less-safe public surface.
 3. Splitting `/integrate` later (if usage demand surfaces) is a cheap refactor — extract S11.5–S11.13 logic + parameterise the branch-discovery step. Not pre-emptive worth.
+
+## Issue-closing keywords belong on the INTEGRATION PR, not the per-IDEA PRs
+
+A batch shipped seven IDEAs, each PR carrying a correct `Closes #NNN` for the issue it
+fixed. After the integration PR merged, **all seven issues were still open.**
+
+GitHub fires a closing keyword only when the PR merges into the repository's **default
+branch**. Per-IDEA PRs target the *integration* branch, so their keywords never fire; and
+the integration PR — the only one that reaches the default branch — typically lists the
+issues in a table rather than in keyword form. The batch lands, the tracker does not move,
+and nobody notices until someone reads the issue list.
+
+**Put the keywords in the `[INTEGRATION]` PR body**, one line per IDEA:
+
+```
+Closes #<issue-a>
+Closes #<issue-b>
+Closes #<issue-c>
+```
+
+Keep the per-IDEA references too — they are useful cross-links — but do not rely on them
+to close anything.
+
+Two things to check by hand after any batch merge, because neither is automatic:
+
+- **Issues actually closed.** If they were not, close them with a comment that says what
+  shipped and where the record is.
+- **Whether every issue SHOULD close.** A batch that ships the client half of a
+  backend-gated IDEA must leave that issue open — the issue often describes the *backend*
+  task, and closing it marks undone work as done. Read the issue body, not the IDEA title.

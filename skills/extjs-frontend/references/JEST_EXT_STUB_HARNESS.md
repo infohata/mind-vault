@@ -152,3 +152,44 @@ at the repo root stays empty.
 The unit job is browser-free and fast, but `npm ci` resolves the **whole** manifest including
 private `@sencha/*` packages → the job still needs the registry token (and a same-repo fork
 guard). Don't add a perpetual "no `app/**` edits" gate — util PRs legitimately touch `app/`.
+
+## 8. The `node` test environment has no `window` — supply one for anything that reads it
+
+Jest's default `testEnvironment: 'node'` is what makes this harness fast, and it is fine
+for pure utils and flattened controller methods. It has no `window`, no `document`, no
+`location`.
+
+That is invisible until a probe reaches production code that reads one. A controller
+deciding between an in-app back-navigation and a route redirect reads
+`window.history.length`; under the node env that is a bare `ReferenceError: window is not
+defined` inside the callback, which surfaces as a confusing test failure rather than an
+obvious environment gap.
+
+Supply a minimal stand-in in the suite that needs it, and let the probe shape it:
+
+```js
+beforeEach(() => {
+  global.window = { history: { length: 5 } };   // in-app navigation
+});
+afterEach(() => {
+  delete global.window;
+});
+
+test('a deep-linked open has no SPA history', () => {
+  global.window.history = { length: 1 };        // the branch under test
+  …
+});
+```
+
+Prefer this over switching the whole suite to `jsdom`: the stand-in states exactly which
+browser surface the code under test depends on, which is itself worth pinning, and it keeps
+the suite's runtime in the milliseconds.
+
+Two related gotchas from the same family:
+
+- **Zeroing seconds widens your clock assertion.** A helper that returns "now with seconds
+  zeroed" can land up to 59.999 s *behind* `Date.now()`, so a 5 s tolerance fails at :59
+  past the minute. Assert a window wider than a minute, and say why in a comment.
+- **Register `Ext.Date` only while a probe still needs it.** Once the code under test stops
+  calling it, drop the registration — the fail-loud stub then turns a regression back to
+  the framework helper into a named "not stubbed" error instead of a silent wrong answer.
