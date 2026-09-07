@@ -178,6 +178,50 @@ it had never happened, or the gap was caught in review before it reached the def
 artifact existed inside the window before calling it exposed — a pattern's name is a record of intent, not
 evidence of what was on disk.
 
+### A check that cannot fail is not a check
+
+The two shapes above are records that never execute. This one executes, reports green, and still
+carries no information — because it would have reported green whether or not the thing it names was
+true. It is the most expensive member of the family, because the green is *consumed as evidence* and
+travels: into a ledger, into a plan's verification section, into someone else's issue tracker.
+
+Four instances, all from one audit-and-fix cycle on a client SPA, all caught by something other than
+the person who produced them:
+
+1. **An absence claim asserted from one frame of the call stack.** *"This endpoint never checks the
+   destination's lock"* — read off the controller, which delegated to a service that threw a 403
+   exactly there. The claim reached a contract ledger marked "answered from source", two archived
+   idea records, a memory note, and a comment on **another team's issue** that they were expected to
+   act on. A positive claim is refuted by one counter-example; a **negative** claim (*"X does not
+   happen"*) is only supported by walking every path to a leaf. Reading the entry point is a glance.
+2. **A test proposed to pin a premise it could not observe.** The plan said *"the field-inference
+   assumption is load-bearing, so pin it in a test."* Three candidate harnesses existed; **all three
+   pass whether or not the framework preserves the field**, because each fabricates the object the
+   assumption is about. The premise was settled instead by reading the framework's source, and
+   guarded by an `INVARIANT:` comment at the place a future edit would break it — a comment that
+   cannot fail is at least honest about being a comment.
+3. **A verdict passed in as a parameter.** An end-to-end test drove `builder(data, verdict)` with a
+   hardcoded `true` and asserted the refusal. It pins the builder's contract and consults **no
+   predicate**; the guard could be deleted and it would still pass. The verdict was derived one frame
+   up, in the caller. *Test at the seam where the decision is made, not where it is consumed* — and
+   note that the pre-existing test this one was copied from had the same shape, so the pattern
+   propagates by imitation.
+4. **A gate that green-lights a surface it never ran.** The local suite covers one build target; the
+   second target only runs in CI. Nothing in a local green says anything about the other one — and
+   instance 3 was invisible locally *by construction* and surfaced only in CI. Treating a partial
+   gate's green as coverage is the same error as the three above, wearing a build system.
+
+**The probe, before writing any check or citing any green:** *if the thing I am claiming were false,
+would this have failed?* If the honest answer is no — or "only on a surface this run skipped" — then
+what you have is a ritual, and the finding it supports is unverified. Say so in the artifact rather
+than letting the green stand in for the claim.
+
+**Corollary for absence findings that already shipped.** They do not decay quietly; they get *cited*,
+and each citing document adds apparent weight while the original goes unre-tested. When one is
+overturned, correct every surface it reached — including the outward-facing ones — and say plainly
+that it was wrong rather than quietly narrowing it. The correction is cheap; a downstream team
+planning around a phantom gap is not.
+
 ## Staged gates rot — re-probe the dependency's source before honoring one
 
 A phase plan parked a feature set as *"backend-gated — pending amounts are not in the record's

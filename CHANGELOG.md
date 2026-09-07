@@ -10,6 +10,37 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.9 — a check that cannot fail is not a check
+
+Four verification failures from one audit-and-fix cycle on a client SPA, all of which produced a
+green or a confident finding without observing the thing they named, and none of which were caught by
+the person who produced them — compounded 2026-09-07.
+
+**`skills/plan/references/DEFERRAL_EXPIRY_TRIGGERS.md`** — a third sibling in the *"a record is not a
+mechanism"* family: **a check that cannot fail is not a check**. The two existing shapes are records
+that never execute; this one executes, reports green, and still carries no information, because it
+would have been green either way. The four instances: an **absence claim read off one frame of the
+call stack** (the entry point delegated to a service that did the check, and the false finding reached
+a ledger, two archives and another team's tracker); a **test proposed to pin a premise it cannot
+observe** (all three candidate harnesses pass whether or not the premise holds, because each fabricates
+the object the premise is about — settled by reading framework source and guarded with an `INVARIANT:`
+comment instead); a **verdict passed in as a parameter** (an end-to-end test asserting a refusal it
+hardcoded, which consults no predicate and would pass with the guard deleted — test at the seam where
+the verdict is *derived*); and a **gate that green-lights a surface it never ran** (a local suite
+covering one build target, where the parameter-verdict defect was invisible by construction and
+surfaced only in CI). The probe: *if the thing I am claiming were false, would this have failed?*
+Plus the corollary for absence findings that already shipped — correct every surface they reached,
+outward-facing ones included, rather than quietly narrowing them.
+
+**`agents/AGENT_architect.md`** — two probes. **PASS 5** extends the absence-claim rule: it can be
+established neither by a search hit *nor by reading the entry point of something that delegates*;
+budget the walk to a leaf or downgrade the claim to "not found at `<frame>`". **PASS 2** gains a
+coupling probe: **one consumer over two payload shapes of the same logical resource half-works,
+silently** — a shared guard reading `a || b` where one producer supplies only `a` and the other only
+`b` is a guard on neither, fails OPEN on the payload nobody tested, and the shared code makes both
+call sites look covered by one audit; prefer the field the producers have in common over the
+convenience object only one attaches.
+
 ## v5.8.8 — the finding that rode the header sentence, and a fix that was only ever written down
 
 Four review-loop learnings from driving one compound PR through a nine-cycle dual-engine loop —
