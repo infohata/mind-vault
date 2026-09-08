@@ -10,6 +10,28 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.10 — a tool fix is not delivered when it merges
+
+Downstream self-dogfood, 2026-09-08 ([PR #250](https://github.com/infohata/mind-vault/pull/250)).
+
+### Changed
+
+- **`skills/compound/references/mind-vault-promotion.md`** — new section: *a TOOL fix is not
+  delivered when it merges.* Skills and rules reach consumers through the plugin channel and version
+  themselves; `tools/*.sh` are **copied**, so a fix merged here changes nothing downstream until
+  someone re-vendors, and nothing signals a stale copy. Measured: the @-mention task-shape fix landed
+  2026-07-15 (v-era PR #221) and a downstream copy was still 99 lines and one `CLAUDE_BODY_SIGNATURES`
+  entry behind **two months later** — its loop enumerated one of two verdict streams and two real
+  findings sat unread across four fix rounds while the orchestrator reported the PR clean. The
+  section adds three obligations when compounding under `tools/`: say "re-vendor" in the PR body and
+  the CHANGELOG bullet, name the **observable symptom** rather than the diff, and recommend a
+  drift gate in the consuming project. **The failure shape is the point — a stale adapter does not
+  error, it returns fewer verdicts confidently.**
+- **`skills/work/references/WATCHER_HYGIENE.md`** — self-match avoidance gains the **bracket form**
+  (`pgrep -af "[p]laywright test"`), the only workaround that survives being copied into a `pkill`,
+  where a self-match kills your own command with exit 143/144 instead of merely hanging. Observed
+  three times in one session, once *after* writing a note about it.
+
 ## v5.8.9 — a check that cannot fail is not a check
 
 Four verification failures from one audit-and-fix cycle on a client SPA, all of which produced a
