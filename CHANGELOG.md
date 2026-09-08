@@ -20,7 +20,7 @@ Downstream self-dogfood, 2026-09-08 ([PR #250](https://github.com/infohata/mind-
   delivered when it merges.* Skills and rules reach consumers through the plugin channel and version
   themselves; `tools/*.sh` are **copied**, so a fix merged here changes nothing downstream until
   someone re-vendors, and nothing signals a stale copy. Measured: the @-mention task-shape fix landed
-  2026-07-15 (v-era PR #221) and a downstream copy was still 99 lines and one `CLAUDE_BODY_SIGNATURES`
+  2026-07-15 (PR #221) and a downstream copy was still 99 lines and one `CLAUDE_BODY_SIGNATURES`
   entry behind **two months later** — its loop enumerated one of two verdict streams and two real
   findings sat unread across four fix rounds while the orchestrator reported the PR clean. The
   section adds three obligations when compounding under `tools/`: say "re-vendor" in the PR body and

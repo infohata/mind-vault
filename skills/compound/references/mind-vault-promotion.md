@@ -111,6 +111,41 @@ shape (PR #217: a "v3.5+" gate on a v3.0 feature; a hook blamed for a permission
   several candidate sources (harness permission matcher, plugin hook, repo hook, server-side rule).
   Reproduce against the specific component you're about to blame — if it has a self-test, run it.
 
+## A TOOL fix is not delivered when it merges — downstreams hold copies
+
+Skills and rules reach consuming projects through the plugin channel and version themselves. **The
+`tools/*.sh` adapters do not.** They are *copied* into each project, so a fix merged here changes
+nothing downstream until someone re-vendors it, and nothing signals that a copy has gone stale.
+
+Measured 2026-09-08 and it was expensive. mind-vault fixed the review adapter's blind spot to the
+@-mention task shape on **2026-07-15** (`skills/review-loop/references/engine-claude.md § the
+@-mention TASK SHAPE`, after its own PR #221 lost a blocking finding across four cycles). A
+downstream project's copy was still **99 lines and one `CLAUDE_BODY_SIGNATURES` entry behind two
+months later** — so its review loop enumerated one of two verdict streams, and two real findings sat
+unread through four fix rounds while the orchestrator reported the PR clean.
+
+**The failure shape is what makes this worth a rule:** a stale review adapter does not error. It
+returns *fewer verdicts, confidently*. Nothing in the output says "I only looked at half".
+
+So when a compound lands a change under `tools/`:
+
+1. **Say so explicitly in the PR body and the CHANGELOG bullet** — "downstream copies must be
+   re-vendored", naming the file. A tool bullet that reads like a skill bullet will be treated like
+   one, i.e. assumed to propagate.
+2. **Name the observable symptom**, not just the fix. "Adapters older than X enumerate one stream"
+   is actionable from a downstream's console; "added `claude finished` to the signature list" is not.
+3. **Recommend a drift gate in the consuming project** rather than a manual sweep here — mind-vault
+   cannot see its consumers. The byte-compare-against-a-pinned-ref workflow that projects already
+   use for other vendored sets is the pattern; the open questions are the credential for a private
+   source repo, whether to pin a SHA or a plugin version, and fail-vs-warn.
+
+*Invalidating condition:* if `tools/` ever ships through the plugin channel (versioned, loaded
+rather than copied), this section is obsolete — delete it rather than maintaining a warning about a
+propagation problem that no longer exists.
+
+Wired: compound SKILL.md step 3 (destination write-up) · this file § Self-mode CHANGELOG bump (the
+bullet that carries the re-vendor line) · this file § PR body skeleton.
+
 ## Self-mode CHANGELOG bump (mind-vault self-promotion only)
 
 When `/compound` writes to mind-vault **itself** (a self-promotion — not a project-local `docs/solutions/` write), maintain `CHANGELOG.md` in the SAME commit:
@@ -121,6 +156,7 @@ When `/compound` writes to mind-vault **itself** (a self-promotion — not a pro
 - **Pre-commit assertion (structural backstop — do not skip; both halves have been missed in the wild, each costing a follow-up fix PR):** two local checks, no network (the fetch already happened at branch time):
   1. `git diff --staged CHANGELOG.md | grep '^+## v'` matches — the staged diff **adds a new section header**. Appending bullets into the released top section is the recurring miss.
   2. `jq -r '.version' .claude-plugin/plugin.json` equals the new top CHANGELOG version.
+- **If the commit touches `tools/`, the bullet must carry the re-vendor line** and the observable symptom of a stale copy — see § A TOOL fix is not delivered when it merges. A tool bullet written like a skill bullet is read as one, i.e. assumed to propagate.
 - **`## Unreleased` stays `_(none)_`** — a compound that is the shipping unit writes its `## v` section directly, not a parked Unreleased bullet.
 - **Post-merge:** `make release` cuts the tag from the topmost CHANGELOG header (see wrap SKILL.md Step 4b § Mechanics, `make release` sub-bullet).
 - **Remote/overnight note:** this is why the policy lives here, not in auto-memory — a compound run on the VPS (sprint-auto, overnight) must apply the same bump. Auto-memory doesn't sync across hosts; mind-vault does.
@@ -167,39 +203,9 @@ Never `gh pr merge`. Never `git push --force-with-lease origin main`. The human 
 
 The PR body is a HITL surface — fill the skeleton in the plain register per § Write for the two readers.
 
+If the branch touches `tools/`, add a line saying downstream copies must be re-vendored, naming the file — § A TOOL fix is not delivered when it merges.
+
 ```markdown
-## A TOOL fix is not delivered when it merges — downstreams hold copies
-
-Skills and rules reach consuming projects through the plugin channel and version themselves. **The
-`tools/*.sh` adapters do not.** They are *copied* into each project, so a fix merged here changes
-nothing downstream until someone re-vendors it, and nothing signals that a copy has gone stale.
-
-Measured 2026-09-08 and it was expensive. mind-vault fixed the review adapter's blind spot to the
-@-mention task shape on **2026-07-15** (`skills/review-loop/references/engine-claude.md § the
-@-mention TASK SHAPE`, after its own PR #221 lost a blocking finding across four cycles). A
-downstream project's copy was still **99 lines and one `CLAUDE_BODY_SIGNATURES` entry behind two
-months later** — so its review loop enumerated one of two verdict streams, and two real findings sat
-unread through four fix rounds while the orchestrator reported the PR clean.
-
-**The failure shape is what makes this worth a rule:** a stale review adapter does not error. It
-returns *fewer verdicts, confidently*. Nothing in the output says "I only looked at half".
-
-So when a compound lands a change under `tools/`:
-
-1. **Say so explicitly in the PR body and the CHANGELOG bullet** — "downstream copies must be
-   re-vendored", naming the file. A tool bullet that reads like a skill bullet will be treated like
-   one, i.e. assumed to propagate.
-2. **Name the observable symptom**, not just the fix. "Adapters older than X enumerate one stream"
-   is actionable from a downstream's console; "added `claude finished` to the signature list" is not.
-3. **Recommend a drift gate in the consuming project** rather than a manual sweep here — mind-vault
-   cannot see its consumers. The byte-compare-against-a-pinned-ref workflow that projects already
-   use for other vendored sets is the pattern; the open questions are the credential for a private
-   source repo, whether to pin a SHA or a plugin version, and fail-vs-warn.
-
-*Invalidating condition:* if `tools/` ever ships through the plugin channel (versioned, loaded
-rather than copied), this section is obsolete — delete it rather than maintaining a warning about a
-propagation problem that no longer exists.
-
 ## Compounded learnings
 
 Learnings captured from sprint work, promoted from target projects into mind-vault per the sprint workflow's compound stage.
