@@ -10,6 +10,36 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.11 — state that outlives its subject
+
+A cleanup pass found 108 loop-scratch files on one machine, the oldest four months old, and two
+distinct reasons they were there — compounded 2026-09-08 ([PR #251](https://github.com/infohata/mind-vault/pull/251)).
+
+### Changed
+
+- **`skills/work/references/WATCHER_HYGIENE.md`** — two new Hard Rules. **7: durable state keyed to
+  an external subject is retired by its writer, at the writer's terminal step.** The review loop
+  checkpoints per-PR scratch so it survives compaction; the write-site fires every cycle and nothing
+  fires when the PR merges, so one project's scratch dir reached **41 files across three months**
+  (108 across all projects). Rule 6 — the session-end `tasks/` sweep — had existed the whole time and
+  did not help: it is optional, addressed to nobody, and scoped to a different directory. The fix is
+  an owner and a moment, not another sweep: the branch that declares the loop finished deletes the
+  file. With two guards — **confirm the subject is really closed** (an open PR's file is live
+  resumable state, and an mtime-based sweep cannot tell those apart) and **read the file first**, since
+  loop scratch collects parked "compound candidate" notes that are sometimes the only copy of an
+  unfiled lesson.
+  **8: two stores one path-segment apart is a leak waiting to happen.** Loop scratch lives at
+  `<root>/memory/projects/<slug>/`, long-term memory at `<root>/projects/<slug>/memory/`. Seven loop
+  files had been written into the *memory* store, the oldest four months old — unindexed, so the
+  memory index never named them, and outside the scratch tree, so no sweep would ever reach them:
+  invisible from both sides. Resolve the path from the store's contract at write time, and treat an
+  unindexed file in an indexed store as a defect.
+- **`skills/review-loop/SKILL.md`** — wired at both write-sites: § Scratch-file persistence gains the
+  retire-at-terminal obligation and the which-store warning, and § Hand-back report gains step 6, the
+  terminal step that actually performs the deletion.
+- **`skills/compound/SKILL.md`** — the auto-memory write-up names the scratch path it must not be
+  confused with, and states that every file in the memory store should be named by `MEMORY.md`.
+
 ## v5.8.10 — a tool fix is not delivered when it merges
 
 Downstream self-dogfood, 2026-09-08 ([PR #250](https://github.com/infohata/mind-vault/pull/250)).
