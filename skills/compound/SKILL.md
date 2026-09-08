@@ -71,6 +71,8 @@ For project-local: write and stop. No branch management — this is the target p
 
 **Version-gated claims get fact-checked before they're written** ("added in vN" / "absent until vN" / "unchanged across A–B"): verify against release notes or the introducing PR — never version-pinned doc pages — and demote unverifiable gates to observations-with-provenance. See [`references/mind-vault-promotion.md`](references/mind-vault-promotion.md) § Fact-check version-gated claims.
 
+**A `tools/` change is not delivered when it merges.** Skills and rules propagate through the plugin channel; `tools/*.sh` are copied into each consuming project, so a merged fix reaches nobody until they re-vendor — and a stale adapter does not error, it returns fewer results confidently. When a compound touches `tools/`, say "downstream copies must be re-vendored" in the PR body AND the CHANGELOG bullet, and name the observable symptom. See [`references/mind-vault-promotion.md`](references/mind-vault-promotion.md) § A TOOL fix is not delivered when it merges.
+
 **Two readers, two registers**: HITL surfaces (CHANGELOG section, PR body, commit messages) are written plain and concrete for the human reviewer; agent-loaded surfaces (reference/skill bodies) may stay dense but open concrete-first — incident or worked example, then the general claim. See [`references/mind-vault-promotion.md`](references/mind-vault-promotion.md) § Write for the two readers.
 
 For mind-vault destinations: apply step 4 before emitting.
