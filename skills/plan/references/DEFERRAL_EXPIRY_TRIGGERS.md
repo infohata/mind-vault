@@ -107,10 +107,13 @@ Two halves, and a deferral note manages to be both:
   so only drift somebody happened to notice is ever corrected. Everything above is this half; a backlog
   item's scope statement and a "resolved" question note expire the same way, silently.
 - **Not enforced.** The record is true *right now* and still does nothing, because no code path reads it
-  at the moment it matters. The two instance families below are this half.
+  at the moment it matters. The first two instance families below are this half. The third is a
+  variant of it: the check *does* run and does report, and still enforces nothing, because it would
+  have reported the same thing had the claim been false.
 
-One obligation per half: **every deferral needs an expiry trigger, not just a successor ticket; every
-condition you could assert should be asserted rather than printed.**
+One obligation per half, plus one for the variant: **every deferral needs an expiry trigger, not just
+a successor ticket; every condition you could assert should be asserted rather than printed; and every
+check you write must be one that could have come back red.**
 
 **Discriminator.** If several live copies of a fact disagree, that is the sweep pattern
 ([`../../../rules/RULE_self-sweep-before-push.md`](../../../rules/RULE_self-sweep-before-push.md)) —
