@@ -137,7 +137,9 @@ For every Tier 1 and Tier 2 finding, write a one-sentence justification: *why is
 
 ### Scratch-file persistence
 
-Persist to `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (engine-agnostic filename) so the next wake cycle can reload state without re-reading summaries. **Supersedes the older per-engine `bugbot-pr-<N>.md` / `copilot-pr-<N>.md` scratch paths** from the pre-shared-core single-engine wrappers. When migrating a project off those, drop the per-engine scratch files; the shared file holds all engines' state. The scratch file must checkpoint every piece of state that a hard bound depends on, after every mutation:
+Persist to `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (engine-agnostic filename) so the next wake cycle can reload state without re-reading summaries. **Supersedes the older per-engine `bugbot-pr-<N>.md` / `copilot-pr-<N>.md` scratch paths** from the pre-shared-core single-engine wrappers. When migrating a project off those, drop the per-engine scratch files; the shared file holds all engines' state. **Retire it at the terminal hand-back** — the branch that declares every engine DONE-and-clean (or hands back on a bound) deletes the scratch file for a PR that has since merged, per [`../work/references/WATCHER_HYGIENE.md`](../work/references/WATCHER_HYGIENE.md) Hard Rule 7. Nothing else will: the write-site fires every cycle and no site fires on close, which is how one project's scratch dir reached 41 files over three months. Confirm the PR is actually merged first (an open PR's file is live resumable state) and check the file for parked `compound candidate` notes before dropping it. **Write to the scratch path above, not the auto-memory store** — the two sit one path segment apart and a file misfiled into memory is both unindexed and unsweepable (Hard Rule 8).
+
+The scratch file must checkpoint every piece of state that a hard bound depends on, after every mutation:
 
 - `commits_this_session` (int, /20)
 - `active_work_minutes` (int, /240; best-effort)
@@ -244,6 +246,7 @@ Always end with:
 3. **Tier 3 escalations** with reasoning (need human decision).
 4. **Suggested broader regression command** for pre-merge.
 5. **PR URL**.
+6. **Retire the scratch file** once the loop is terminal AND its PR has merged — the hand-back is the step that says "done", so it is the step that says so in the filesystem too ([`../work/references/WATCHER_HYGIENE.md`](../work/references/WATCHER_HYGIENE.md) Hard Rule 7). Still open, or handed back on a bound with work left? Keep it — that file is how the next session resumes.
 
 Do not merge. Do not push to main. The loop hands the PR back to the user for final review and merge.
 

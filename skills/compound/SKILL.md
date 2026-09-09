@@ -77,7 +77,7 @@ For project-local: write and stop. No branch management — this is the target p
 
 For mind-vault destinations: apply step 4 before emitting.
 
-For auto-memory: write into the memory filesystem at `~/.claude/projects/<project-id>/memory/` and update `MEMORY.md`'s one-line index. Honour the type classification (feedback / project / user / reference) from the global `CLAUDE.md` auto-memory rules. Memory notes that cite another project's ideas use the namespaced `IDEA-NNN:project` spelling, not ad-hoc `(project) IDEA-N` prose (see [`../idea/references/CROSS_PROJECT_IDEA_REFS.md`](../idea/references/CROSS_PROJECT_IDEA_REFS.md)).
+For auto-memory: write into the memory filesystem at `~/.claude/projects/<project-id>/memory/` and update `MEMORY.md`'s one-line index. **That path is not the loop-scratch path** (`~/.claude/memory/projects/<project-slug>/`) — the two differ by one segment, and loop state misfiled into the memory store is unindexed and never swept; see [`../work/references/WATCHER_HYGIENE.md`](../work/references/WATCHER_HYGIENE.md) Hard Rule 8. Every file in the memory store should be named by `MEMORY.md`; an unindexed one is a defect, not a stray. Honor the type classification (feedback / project / user / reference) from the global `CLAUDE.md` auto-memory rules. Memory notes that cite another project's ideas use the namespaced `IDEA-NNN:project` spelling, not ad-hoc `(project) IDEA-N` prose (see [`../idea/references/CROSS_PROJECT_IDEA_REFS.md`](../idea/references/CROSS_PROJECT_IDEA_REFS.md)).
 
 #### Mind-vault placement — references / assets first, body last
 
