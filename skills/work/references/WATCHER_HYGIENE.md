@@ -24,11 +24,13 @@ Orchestrator agents that arm `run_in_background` Bash watchers to poll external 
 
    **Read what the file carries before dropping it.** Loop scratch accumulates parked notes — "compound candidate", "unfiled", "promote later" — that are often the only record of a lesson nobody filed yet. Grep for those markers first and either promote them or confirm they are already codified; only then delete. A cleanup that silently discards the one copy of an un-promoted finding costs far more than the disk it reclaims.
 
+   Wired: review-loop SKILL.md § Scratch-file persistence (the retire-at-terminal obligation) · review-loop SKILL.md § Hand-back report step 6 (the terminal step that performs it).
+
 8. **Two stores one path-segment apart is a leak waiting to happen — verify which one you are writing.** Durable scratch and permanent memory can sit at confusingly parallel paths (e.g. `<root>/memory/projects/<slug>/` for swept loop state versus `<root>/projects/<slug>/memory/` for indexed long-term memory). Writing loop state into the *memory* store fails **silently and permanently**: it is unindexed, so the memory index never names it and nothing surfaces it; and it is outside the scratch tree, so no sweep ever reaches it. Seven such files were found in one memory store, the oldest four months old — invisible from both sides.
 
    Resolve the path from the store's documented contract at the moment of writing, never from recall and never from where a sibling file happens to live. Then treat **an unindexed file in an indexed store as a defect**: a store whose index is meant to be its contents list should have zero entries the index does not name. Counting that is a one-line audit, worth running whenever either store is touched.
 
-   Wired: review-loop SKILL.md § Scratch-file persistence (retire-at-terminal + which store) · review-loop SKILL.md § Hand-back report (the terminal step that performs it) · compound SKILL.md § 3 auto-memory write-up (the other side of the path collision).
+   Wired: review-loop SKILL.md § Scratch-file persistence (which store the loop writes to) · compound SKILL.md § 3 auto-memory write-up (the other side of the path collision).
 
 9. **Never `set -u` in a `Monitor` / background poll-script.** The background shell sources the host shell-snapshot, which references optional vars with no default (e.g. `ZSH_VERSION`). Under `set -u` (nounset) that becomes a fatal "unbound variable" error that floods stderr and stalls the loop — the script keeps running but never reaches its emit, so the watcher just times out with no event (a *silent* failure: the orchestrator sees no signal, not an error). Use `set -o pipefail` alone; never add `-u`. (This is the inverse of the usual "scripts should be strict" advice — a sourced-snapshot background shell is not a strict-clean environment.)
 

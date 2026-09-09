@@ -39,6 +39,9 @@ distinct reasons they were there — compounded 2026-09-08 ([PR #251](https://gi
   terminal step that actually performs the deletion.
 - **`skills/compound/SKILL.md`** — the auto-memory write-up names the scratch path it must not be
   confused with, and states that every file in the memory store should be named by `MEMORY.md`.
+- **Renumber:** the two `Monitor` poll-script rules added in v5.3 as Hard Rules 7 + 8 (`set -u`,
+  case-insensitive poll markers) are now **9 + 10**; the trailer that discusses them moved with them.
+  Nothing outside the file cited either by number.
 
 ## v5.8.10 — a tool fix is not delivered when it merges
 
