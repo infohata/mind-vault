@@ -4,7 +4,7 @@ How this repository uses [Grok Build](https://docs.x.ai/build) (xAI `grok` CLI) 
 
 ## What you get
 
-1. **Interactive agent** — `grok` in a checkout, with project `.grok/config.toml`, native `.grok/agents` + `.grok/skills` symlinks, and optional user-level wiring via `scripts/setup-grok-symlinks.sh`.
+1. **Interactive agent** — `grok` in a checkout, with project `.grok/config.toml` and native `.grok/agents` + `.grok/skills`. Prefer the **plugin marketplace** install (below); symlink wiring is legacy/optional.
 2. **CI PR review** — `.github/workflows/grok-code-review.yml` posts a sticky `<!-- grok-code-review -->` comment (parallel to Claude Code Review; Claude workflows stay).
 3. **review-loop engine** — `grok` in `/review-loop` (`tools/find_grok_comments.sh` + `tools/grok_retrigger.sh`). Reachability-probed: absent workflow → self-excludes from the default engine set.
 
@@ -20,6 +20,26 @@ Install the CLI:
 ```bash
 curl -fsSL https://x.ai/cli/install.sh | bash
 ```
+
+
+## Install channels (plugin preferred)
+
+Grok Build has a **plugin + marketplace** system similar to Claude Code. Prefer it for consumer machines:
+
+```bash
+grok plugin marketplace add infohata/mind-vault   # GitHub shorthand or git URL
+grok plugin install mv --trust                    # or: grok plugin install infohata/mind-vault --trust
+```
+
+Marketplace installs clone the repo’s **default branch** (`main`) into a pinned snapshot — not your feature-branch working tree. So this channel only picks up mind-vault’s Grok wiring **after** that work is merged to `main` (then `grok plugin update`). `grok plugin validate .` already accepts the existing `.claude-plugin/plugin.json` manifest on this tree.
+
+**Symlink channel is legacy / optional** and may stay for authoring or hosts that already use `scripts/setup-*-symlinks.sh`:
+
+```bash
+./scripts/setup-grok-symlinks.sh   # wires ~/.grok/{skills,commands,agents,rules,docs/rules}
+```
+
+Pick **one channel per machine** (plugin *or* symlinks) — both at once double-loads skills/commands/agents. Project-level `.grok/{config.toml,agents,skills}` in a checkout still applies when you `grok` inside that repo regardless of channel.
 
 ## Project layout
 
@@ -41,7 +61,9 @@ allow = ["Read(**)", "Grep(**)", "Bash(git *)", "Bash(gh *)"]
 
 Do **not** put `Bash(git push*)` in the project `deny` list — interactive Grok needs to push feature branches. CI review invokes `grok -p "…" --output-format plain --yolo` (or `--always-approve`) and adds `--deny` for Write/Edit/`Bash(git push*)` only in the workflow. The sticky `<!-- grok-code-review -->` output shape is required by `tools/find_grok_comments.sh` (not optional fluff).
 
-## User-level symlinks
+## User-level symlinks (legacy)
+
+Kept for authoring / already-wired machines. Prefer [Install channels](#install-channels-plugin-preferred) for new setups.
 
 ```bash
 # From mind-vault root (or set MIND_VAULT=…)
@@ -94,7 +116,8 @@ On first open of a directory, Grok may prompt to trust the folder (same class of
 
 - [ ] `curl -fsSL https://x.ai/cli/install.sh | bash`
 - [ ] Interactive: SuperGrok or X Premium+ login; trust the folder
-- [ ] Optional: `./scripts/setup-grok-symlinks.sh`
+- [ ] Prefer: `grok plugin marketplace add infohata/mind-vault` then `grok plugin install mv --trust` (after merge to `main`)
+- [ ] Legacy/optional: `./scripts/setup-grok-symlinks.sh`
 - [ ] CI: add `XAI_API_KEY` repo secret; merge `grok-code-review.yml` to default branch
 - [ ] Verify: `grok inspect`; on a PR, wait for sticky or run `./tools/grok_retrigger.sh <PR>`
 - [ ] review-loop: `/review-loop <PR> grok` or include `grok` in the engine list

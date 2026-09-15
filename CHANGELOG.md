@@ -23,6 +23,7 @@ Adds Grok Build (xAI) as a fourth `/review-loop` engine alongside Bugbot, Copilo
 
 ### Changed
 
+- **`docs/guides/GROK_BUILD.md`** — prefer Grok **plugin marketplace** install (`marketplace add` → `plugin install`); symlink channel documented as legacy/optional. Marketplace tracks **`main`**, not feature branches.
 - **`skills/review-loop/` + `commands/review-loop.md`** — multi-engine sync / command docs list `grok` with Claude as the comment-anchored pair.
 - **README / ONBOARDING / SPRINT_WORKFLOW** — engine pickers and examples include Grok where Bugbot/Copilot/Claude were enumerated.
 
