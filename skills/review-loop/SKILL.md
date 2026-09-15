@@ -1,1 +1,1 @@
-LOADING
+LOAD_FROM:/workspace/mv-push/SKILL_TO_PUSH.md
