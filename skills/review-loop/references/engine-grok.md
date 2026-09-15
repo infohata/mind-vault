@@ -40,7 +40,7 @@ Single sticky per PR (updated in place). `GROK_LATEST_REVIEW` is the sticky **is
 
 ## § Race-condition caveats
 
-- **Sticky lag after job complete.** The post-sticky step runs after `grok` finishes; a poll in that gap must not read DONE+empty as CLEAN. `find_grok_comments.sh` holds `STATUS=in_progress` until the sticky appears; `GROK_REVIEW_SETTLE_SECONDS` (default 600) only releases a review-less **success** job as `GROK_REVIEW_SILENT` (not clean).
+- **Sticky lag after job complete.** The post-sticky step runs after `grok` finishes; a poll in that gap must not read DONE+empty as CLEAN. `find_grok_comments.sh` holds `STATUS=in_progress` until the sticky appears; `GROK_REVIEW_SETTLE_SECONDS` (env override; default **600**) only releases a review-less **success** job as `GROK_REVIEW_SILENT` (not clean). Race: slow runners / API lag can still post the sticky after settle — treat late stickies as a new verdict on the next wake, never as a prior SILENT flip to CLEAN. Timestamps are GitHub Zulu (`…Z`); parse failures fail closed (`AGE_OK=false` → keep pending).
 - **Per-commit billing.** Non-draft same-repo pushes auto-run the workflow. `/work` keeps PRs draft until `/review-loop` un-drafts (same cadence as Claude).
 - **Retrigger vs push.** Unlike Claude's skip-no-op plugin, Grok re-runs on every `synchronize`. Phase 3 may still fire `grok_retrigger.sh` after a fix push when the push auto-run is unreliable (or for zero-activity bootstrap); concurrent runs cancel via workflow `concurrency`. Prefer the push auto-run when it is healthy; use the comment retrigger when Actions:write is unavailable on the PAT.
 

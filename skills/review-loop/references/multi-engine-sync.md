@@ -26,7 +26,7 @@ Hard "wait for slowest" risks blocking the loop indefinitely if one engine hangs
 Replicate per engine in the loop's scratch file:
 
 ```yaml
-engines: bugbot,claude,copilot
+engines: bugbot,claude,copilot,grok
 bugbot_review_state:  NOT_TRIGGERED|TRIGGERED|RUNNING|DONE
 claude_review_state:  NOT_TRIGGERED|TRIGGERED|RUNNING|DONE
 copilot_review_state: NOT_TRIGGERED|TRIGGERED|RUNNING|DONE
@@ -58,7 +58,7 @@ Phase 3 fires after the batch commit. For each engine in `ENGINES` (deterministi
 - For `copilot`: `./tools/copilot_retrigger.sh <PR>` (`gh pr edit <PR> --add-reviewer @copilot`; Copilot self-removes from `requested_reviewers` post-review so bare `--add` is the canonical retrigger — see [`engine-copilot.md`](engine-copilot.md) § Tool invocations for the still-pending fallback case).
 - For `grok`: `./tools/grok_retrigger.sh <PR>` (posts `grok review`) — **fallback / PAT-friendly retrigger**; the push `synchronize` auto-run usually re-reviews without skip-no-op. Still fire after a fix push when you need a guaranteed fresh sticky, or when Actions:write is unavailable on the PAT. See [`engine-grok.md`](engine-grok.md).
 
-All engine retriggers happen post-push and fire once each, back-to-back (different queues, no interval): bugbot/copilot via their check-run / reviewer-request mechanisms, claude via the explicit `@claude review` (its `synchronize` auto-run skip-no-ops after the first review, so the explicit request is the real one for the new SHA). The orchestrator never retriggers while an engine's check-run/Actions job is RUNNING, so there is nothing to space out.
+All engine retriggers happen post-push and fire once each, back-to-back (different queues, no interval): bugbot/copilot via their check-run / reviewer-request mechanisms, claude via the explicit `@claude review` (its `synchronize` auto-run skip-no-ops after the first review, so the explicit request is the real one for the new SHA), grok via `./tools/grok_retrigger.sh` posting `grok review` (same auto-run skip-no-op pattern once the workflow is on the default branch). The orchestrator never retriggers while an engine's check-run/Actions job is RUNNING, so there is nothing to space out.
 
 ## Hand-back when only one engine cleared
 

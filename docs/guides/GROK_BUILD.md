@@ -40,7 +40,7 @@ deny = ["Bash(git push*)"]
 allow = ["Read(**)", "Grep(**)", "Bash(git *)", "Bash(gh *)"]
 ```
 
-CI review invokes `grok -p "…" --output-format plain --yolo` (or `--always-approve`) and adds extra `--deny` for Write/Edit.
+CI review invokes `grok -p "…" --output-format plain --yolo` (or `--always-approve`) and adds extra `--deny` for Write/Edit/`Bash(git push*)`. That is intentional: the project `[permission]` allow list is for **interactive** Grok Build; the workflow hardens CI further so review jobs cannot mutate the tree. The sticky `<!-- grok-code-review -->` output shape is required by `tools/find_grok_comments.sh` (not optional fluff).
 
 ## User-level symlinks
 

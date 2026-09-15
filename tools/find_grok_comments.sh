@@ -50,6 +50,7 @@ REPO_NAME="${REPO_FULL#*/}"
 
 GROK_WORKFLOW_FILE="grok-code-review.yml"
 GROK_MARKER='<!-- grok-code-review -->'
+# Override for dogfood/tests, e.g. GROK_REVIEW_SETTLE_SECONDS=60. Default 600 = fail-closed sticky lag window.
 GROK_REVIEW_SETTLE_SECONDS="${GROK_REVIEW_SETTLE_SECONDS:-600}"
 
 # ── Reachability probe ──────────────────────────────────────────────────────
