@@ -74,7 +74,7 @@ if [ "$ACTION_INSTALLED" != "true" ]; then
     exit 0
 fi
 
-# ── Draft-PR no-op ────────────────────────────────────────────────────────────
+# ── Draft-PR no-op ──────────────────────────────────────────────────────────
 PR_IS_DRAFT=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER" -q '.draft' 2>/dev/null || echo "")
 if [ "$PR_IS_DRAFT" = "true" ]; then
     echo "GROK_DRAFT_NOOP=true"
@@ -115,7 +115,7 @@ conclusion = r.get('conclusion') or ''
 # Map GitHub Actions status → contract STATUS
 if status in ('queued', 'waiting', 'requested', 'pending'):
     out_status = 'queued'
-elif status in ('in_progress', 'waiting'):
+elif status in ('in_progress',):
     out_status = 'in_progress'
 elif status == 'completed':
     out_status = 'completed'
