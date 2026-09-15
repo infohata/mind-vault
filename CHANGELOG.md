@@ -12,7 +12,7 @@ _(none)_
 
 ## v5.8.13 — Grok marketplace short-name install
 
-Makes `grok plugin marketplace add infohata/mind-vault` + `grok plugin install mv --trust` resolve the catalog short name. Dogfood on 5.8.12 showed direct `install infohata/mind-vault` worked, but `install mv` failed until Grok could read a `.grok-plugin/` marketplace index.
+Makes `grok plugin marketplace add infohata/mind-vault` + `grok plugin install mv --trust` resolve the catalog short name. Dogfood on 5.8.12 showed direct `install infohata/mind-vault` worked, but `install mv` failed until Grok could read a `.grok-plugin/` marketplace index ([#253](https://github.com/infohata/mind-vault/pull/253)).
 
 ### Added
 
