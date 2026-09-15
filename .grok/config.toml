@@ -1,0 +1,19 @@
+# Project Grok Build config for mind-vault.
+# Only [mcp_servers], [plugins], [permission] are read from project files
+# (see https://docs.x.ai/build/settings/reference).
+# Claude/Cursor layouts stay intact; Grok also scans .cursor/* via default compat cells.
+# Native project agents/skills live under .grok/{agents,skills}/ (Cursor compat does
+# NOT load .cursor/agents — verified via `grok inspect`).
+
+[permission]
+# Compact allow/deny string arrays (deny > ask > allow). Interactive default stays ask;
+# CI headless uses --yolo / --always-approve (deny still wins).
+deny = [
+  "Bash(git push*)",
+]
+allow = [
+  "Read(**)",
+  "Grep(**)",
+  "Bash(git *)",
+  "Bash(gh *)",
+]
