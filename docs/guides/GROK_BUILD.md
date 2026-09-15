@@ -36,11 +36,10 @@ Permission rules use the compact form (see [permissions reference](https://docs.
 
 ```toml
 [permission]
-deny = ["Bash(git push*)"]
 allow = ["Read(**)", "Grep(**)", "Bash(git *)", "Bash(gh *)"]
 ```
 
-CI review invokes `grok -p "…" --output-format plain --yolo` (or `--always-approve`) and adds extra `--deny` for Write/Edit/`Bash(git push*)`. That is intentional: the project `[permission]` allow list is for **interactive** Grok Build; the workflow hardens CI further so review jobs cannot mutate the tree. The sticky `<!-- grok-code-review -->` output shape is required by `tools/find_grok_comments.sh` (not optional fluff).
+Do **not** put `Bash(git push*)` in the project `deny` list — interactive Grok needs to push feature branches. CI review invokes `grok -p "…" --output-format plain --yolo` (or `--always-approve`) and adds `--deny` for Write/Edit/`Bash(git push*)` only in the workflow. The sticky `<!-- grok-code-review -->` output shape is required by `tools/find_grok_comments.sh` (not optional fluff).
 
 ## User-level symlinks
 

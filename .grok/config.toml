@@ -6,14 +6,10 @@
 # NOT load .cursor/agents — verified via `grok inspect`).
 
 [permission]
-# Compact allow/deny string arrays (deny > ask > allow). Interactive SuperGrok stays ask;
-# CI headless uses --yolo / --always-approve (deny still wins). The workflow also passes
-# extra --deny Write(**) / Edit(**) / Bash(git push*) so review jobs stay read-only even
-# when this project allow list includes Bash(git *) and Bash(gh *) for interactive use.
-# See skills/review-loop/references/engine-grok.md + docs/guides/GROK_BUILD.md.
-deny = [
-  "Bash(git push*)",
-]
+# Compact allow/deny string arrays (deny > ask > allow).
+# Interactive SuperGrok: do NOT deny git push here — agents need to push feature
+# branches. CI review hardens separately via workflow --deny Write/Edit/git push
+# (see .github/workflows/grok-code-review.yml).
 allow = [
   "Read(**)",
   "Grep(**)",
