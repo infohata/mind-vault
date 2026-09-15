@@ -1,4 +1,5 @@
-# Parallel Grok Build PR review — does NOT replace Claude Code Review.
+# Parallel Grok Build PR review
+# Sticky body MUST end with <!-- grok-code-review --> — required by tools/find_grok_comments.sh (adapter contract). — does NOT replace Claude Code Review.
 # Requires repo secret XAI_API_KEY (xAI API key for the grok CLI).
 #
 # Retrigger without Actions:write on a PAT: comment `grok review` on the PR
