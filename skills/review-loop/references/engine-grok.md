@@ -48,7 +48,7 @@ Single sticky per PR (updated in place). `GROK_LATEST_REVIEW` is the sticky **is
 
 | Symptom | Detection | Orchestrator action |
 |---|---|---|
-| Grok not installed | `GROK_NOT_INSTALLED=true` | Default set self-excludes; explicit `grok` → loud hand-back (`docs/GROK_BUILD.md` + `XAI_API_KEY`). |
+| Grok not installed | `GROK_NOT_INSTALLED=true` | Default set self-excludes; explicit `grok` → loud hand-back (`docs/guides/GROK_BUILD.md` + `XAI_API_KEY`). |
 | Draft no-op | `GROK_DRAFT_NOOP=true` | Un-draft; never treat as clean/SILENT/HUNG. |
 | Job hung | `GROK_CHECKRUN STATUS=in_progress` past ~15–20 min | Proceed with other engines; retrigger post-push; surface if never recovers. |
 | Silent success | `GROK_REVIEW_SILENT=true` | NOT clean — retrigger or hand back; check `XAI_API_KEY` / install step logs. |

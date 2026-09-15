@@ -11,7 +11,7 @@ This guide is for agentic coding assistants (Claude Code, OpenCode, Grok Build) 
 - **rules/** - Shared behavioral rules (RULE.md files)
 - **docs/** - Analysis and pattern documentation
 - **.claude-plugin/** - Claude Code plugin manifests (additive CC install channel; see below)
-- **.grok/** - Grok Build project config + native agents/skills symlinks (see [`docs/GROK_BUILD.md`](docs/GROK_BUILD.md))
+- **.grok/** - Grok Build project config + native agents/skills symlinks (see [`docs/guides/GROK_BUILD.md`](docs/guides/GROK_BUILD.md))
 
 This is **not** a typical application - there are no tests, build steps, or runtime execution. Focus is on **clarity, completeness, and reusability**.
 

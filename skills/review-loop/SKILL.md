@@ -1,11 +1,273 @@
 ---
 name: review-loop
-description: Drive a bounded-autonomy review-fix-rerun loop against one or more pluggable review engines (Cursor Bugbot, GitHub Copilot, Claude Code Review, Grok Build, future N-engines) on a PR.
+description: Drive a bounded-autonomy review-fix-rerun loop against one or more pluggable review engines (Cursor Bugbot, GitHub Copilot, Claude Code Review, Grok Build, future N-engines) on a PR. Triages findings into Tier 1 / 2 / 3, batches per-cycle fixes into single commits, retriggers engines after each push, tracks each engine through a review-state machine (NOT_TRIGGERED → TRIGGERED → RUNNING → DONE) read from its check-run status, treats an engine as clean only when DONE with zero active findings, and hands back to the user with a structured report. Engine-agnostic core; per-engine specifics live in references/engine-<name>.md per the adapter contract.
 ---
+
+Drive a review-fix-rerun cycle on the given PR using one or more review engines. The orchestrator is engine-agnostic — all engine-specific work routes through adapters described in `references/engine-adapter-contract.md`.
 
 **Inputs**:
 
 - `PR_NUMBER` (optional; defaults to PR for current branch).
-- `ENGINES` (one or more of: `bugbot`, `copilot`, `claude`, `grok`; defaults to `bugbot,copilot,claude,grok`).
+- `ENGINES` (one or more of: `bugbot`, `copilot`, `claude`, `grok`; defaults to `bugbot,copilot,claude,grok` — all engines whose adapter is present + retrigger tool is reachable. **Reachability caveat (A2):** `claude` / `grok` join the default set only where their action workflows (`claude-code-review.yml` / `grok-code-review.yml`) are installed; where absent, `find_*_comments.sh` emits `<ENGINE>_NOT_INSTALLED=true` and that engine **self-excludes from the default** so a bare `/review-loop` doesn't block to HUNG. An explicit `/review-loop <PR> claude` or `grok` still attempts it and degrades **loudly** — see [`references/engine-claude.md`](references/engine-claude.md) / [`references/engine-grok.md`](references/engine-grok.md) § Tool invocations.)
 
-See references/engine-grok.md and docs/GROK_BUILD.md. Full skill body must be restored from SKILL_TO_PUSH.md (md5 634f3b21c52dd2d248c3a3875eb68c9c).
+This skill is invoked via `commands/review-loop.md` — the single review entry point. Pass `ENGINES` as `bugbot`, `copilot`, `claude`, `grok`, or any subset (e.g. `bugbot,copilot,claude,grok`); single-engine runs are just a one-element list.
+
+**Before you trigger engines — wrap docs first if this is a doc-heavy / IDEA PR.** If the PR carries substantial docs (IDEA file, plan, index, devlog, guides), run a bare `/wrap` (the `--scope=docs` default) FIRST, then trigger engines — so the reviewer sees docs at their merged shape and doc-consistency findings land in this **single** review pass instead of as post-review drift. `/wrap` never merges, so it is safe to run before review; this is the wrap-before-review single-review cadence — one pass over the wrapped PR covers code + docs (no separate deliverables/docs passes), then `/land` merges. Mechanics: [`skills/wrap/references/WRAP_BEFORE_REVIEW.md`](../wrap/references/WRAP_BEFORE_REVIEW.md). (Code-only PRs: skip — go straight to the loop.)
+
+**Pre-flight — un-draft the PR.** `/work` opens PRs as **draft** so the push-triggered Claude engine doesn't bill a review on every WIP commit (see [`references/engine-claude.md`](references/engine-claude.md) § Push-triggered model). The review stage is where that flips: if `claude` or `grok` is in `ENGINES` and `gh pr view <PR> --json isDraft -q .isDraft` is `true`, mark it ready (`gh pr ready <PR>`) **before** Phase 1 — a draft PR makes claude no-op / grok skip (workflow draft guard), so those verdicts are unavailable until ready. Bugbot/Copilot are unaffected by draft state. Skip the un-draft only if the user explicitly wants the PR to stay draft.
+
+## Hard bounds (enforced by the loop)
+
+- `max_commits_per_session = 20`
+- `max_active_work_minutes = 240` (excludes ScheduleWakeup sleep time; 240 covers large multi-engine surface-migration PRs whose fix-cycle count legitimately accumulates past 180)
+- `max_idle_polls = 10` (consecutive wakes with no new finding AND no new push, across all engines). Lowered from 20: with the 1200s Phase 4 backstop (step 1), 10 idle polls ≈ 3.3h wall-clock — within `max_active_work_minutes`, and the Monitor accelerator ([`references/MONITOR_ACCELERATION.md`](references/MONITOR_ACCELERATION.md)) ends most waits on a real event rather than a poll, so this count is a backstop, not the primary cadence. **New-push detection**: Phase 4 compares the scratch file's `last_push_sha` against `git rev-parse HEAD` on each wake; if they differ (e.g. an out-of-band push by another process or the user), reset `idle_polls=0`, update scratch `last_push_sha`, and re-enter Phase 1 to fetch fresh state for the new SHA. Without this check the counter accumulates forever past a push the loop didn't initiate.
+- Targeted tests only inside the loop; broader regression deferred to hand-back
+- Feature branch only — never main (per `RULE_git-safety`)
+- Batch fixes per cycle into one commit, not one-per-finding
+- **Commits**: standard `RULE_git-safety` applies — feature branches are the agent's sandbox, so the loop commits and pushes Tier 1 fixes autonomously. Tier 2 still needs explicit per-finding *fix-direction* approval. Protected-branch guardrails remain in force: never main, never merge into a protected branch, never force-push to protected, never `--no-verify`.
+
+## Multi-engine mode
+
+When `|ENGINES| > 1`, see [`references/multi-engine-sync.md`](references/multi-engine-sync.md) for the synchronisation contract: wait for the slowest engine per push SHA, batch findings from all engines into one fix commit, push once, retrigger all engines, surface asymmetric clearance (one engine clean + another hung) prominently in hand-back.
+
+## Phase 0: Worktree environment bootstrap
+
+**Sprint-auto v3.1 mode — short-circuit**: if `SPRINT_AUTO_INTEGRATION_WORKTREE` is set in the environment, **skip Phase 0 entirely**. Per-IDEA worktrees under sprint-auto v3.1 are pure code surfaces — no `.env`, no docker compose stack. The loop's role in this mode narrows to (a) reading findings via the GitHub API and (b) committing fixes to the per-IDEA branch. When fix-verification runs in Phase 2, it routes to the integration worktree — see [`skills/sprint-auto/references/integration-stage.md`](../sprint-auto/references/integration-stage.md) for the full env-var contract.
+
+**Standalone mode (default)**: if `SPRINT_AUTO_INTEGRATION_WORKTREE` is unset, fall through to the existing worktree-bootstrap logic below.
+
+**Primary working tree** (NOT a worktree — `git rev-parse --git-common-dir` equals `.git`): skip Phase 0 entirely; the primary tree's `.env` and docker stack are assumed to be already provisioned by the user.
+
+**Worktree** (`git rev-parse --git-common-dir` differs from `.git`):
+
+1. If `.env` already exists → skip to step 3 (containers only).
+2. Else (`.env` missing):
+   - If `.env.template` exists:
+     - Copy template → `.env`.
+     - Replace any `*_API_KEY=` / `*_TOKEN=` / `*_SECRET=` values with `test-not-a-real-key`.
+     - Replace `SECRET_KEY=` with `test-<random-hex>` — generate the literal value via `openssl rand -hex 16` and paste the output. (Do NOT write the literal `$(openssl ...)` form into `.env` — most dotenv loaders don't evaluate shell substitution.)
+     - Scope DB/Redis URLs to the worktree's docker compose project namespace.
+   - If `.env.template` missing → escalate to user; do not proceed.
+3. Spin up containers: `docker compose up -d`.
+
+This is the **only** authorised place to create `.env` — see exception clause in global `CLAUDE.md`.
+
+## Phase 1: Triage
+
+### Per-engine fetch
+
+For each `<engine>` in `ENGINES`, invoke `./tools/find_<engine>_comments.sh [PR_NUMBER]` and parse the output per the contract in [`references/engine-adapter-contract.md`](references/engine-adapter-contract.md). Parse by **anchor-based grep on `^<ENGINE>_<MARKER>=` lines** — NOT positional order — because the actual `find_*_comments.sh` scripts may emit markers in varying orders (e.g. the `*_CHECKRUN` line often appears before `*_LATEST_REVIEW`).
+
+The script can emit these markers (each on its own line):
+
+- `<ENGINE>_LATEST_REVIEW=<id> COMMIT=<sha> AT=<ts>` — the most-recent review id (the staleness anchor). Mandatory when any review exists for the PR. (The scripts may append a trailing legacy `CLEAN=<bool>` token; the orchestrator **ignores** it — clean is structural, not this flag. Parsers must tolerate extra trailing fields.)
+- `<ENGINE>_CHECKRUN=<id> COMMIT=<sha> STATUS=<status> CONCLUSION=<concl> AT=<ts>` — the **review-state gate**. `STATUS` is the engine's own check-run status: `queued` / `in_progress` = **RUNNING**, `completed` = **DONE** (exact tokens — copilot's check-run is `copilot-pull-request-reviewer`, bugbot's per its adapter). `CONCLUSION` (`success` etc.) is the run outcome, **NOT a verdict** — an engine concludes `success` even when it posted inline findings, so never read clean/not-clean off `CONCLUSION`.
+- Zero or more inline findings, each tagged `(comment id <cid>, review <rid>)`.
+- `<ENGINE>_SUPPRESSED=<n> REVIEW=<id> COMMIT=<sha> AT=<ts>` followed by the items verbatim — findings the engine's confidence filter held back from posting as **inline** comments, rendered only inside the review body (copilot is the first instance; see [`references/engine-copilot.md`](references/engine-copilot.md) § Suppressed comments). Emitted only when `n>0`. Each item carries `file:line` + text, so these are structured findings that merely arrive by another route: **they count toward the active-finding total**, and `n>0` for the head SHA means the engine is **not clean**. This marker is authoritative, unlike the legacy `CLEAN=` token above — do not conflate the two.
+
+**Clean is structural, not prose.** An engine is CLEAN for the head SHA iff its check-run is **DONE** (`STATUS=completed`) AND zero active findings remain across the head SHA's **verdict set** (see § Staleness — for single-verdict engines that's the findings matching `<ENGINE>_LATEST_REVIEW`; for multi-verdict engines, the union over every substantive verdict posted for the head SHA). Count active findings explicitly — **inline findings plus any `<ENGINE>_SUPPRESSED` items for that verdict** (an engine that surfaced suppressed findings is never clean, whatever its inline count and header say); never derive clean from review-body prose ("no new issues" and the like) or from `CONCLUSION`. **RUNNING is never clean and never not-clean — wait for DONE before reading a verdict.**
+
+> **Carve-out, typed to cause — prose-only verdict surfaces (IDEA-022).** "Clean is structural, never prose" holds for every engine with a **structured verdict surface** (bugbot/copilot post severity-tagged structured findings a machine reads). An engine that has **no structured surface** — its verdict *is* prose (claude: no severity JSON, no named check-run) — is the exception: for a prose-only surface the prose IS the structural signal, so its adapter SURFACES the material (RUNNING/DONE, the verdict-body enumeration, inline findings, `CLAUDE_VERDICT_SET_PROVEN`) and a **model-judge** classifies it (§ Per-engine model-judge below). The carve-out is licensed by *absence of a structured surface* and applies to any future prose-only engine — not to claude by name. Structured-surface engines are unaffected: still structural, still no model in the loop for them.
+
+**Meta-risk when reviewing this skill**: a diff that adds/modifies this skill's text may quote finding/status strings into the engine's review body. Because clean is structural (DONE + zero active findings), quoted strings cannot fabricate a clean verdict — but still identify findings by `comment id` + `review <rid>`, never by body text.
+
+### Dual-signal enumeration — mandatory output shape every cycle
+
+For each engine, present its **review state** (check-run `STATUS`) and its **active-finding count** explicitly every cycle. They are independent: the check-run reports whether the review has *finished*, `/comments` reports what it *found*. Inline comments from prior reviews persist in `/comments` until a reviewer clicks "Resolve conversation", so stale findings linger until aged out by the staleness rule. Required shape per engine:
+
+```text
+[<engine>] check-run : RUNNING (queued|in_progress) | DONE (completed) | none-for-head-SHA
+[<engine>] findings  : <N> active finding(s) matching LATEST_REVIEW [ids + L# ranges]
+                       + <S> suppressed finding(s) for that review (copilot; 0 when none)
+```
+
+Then apply Phase 4's decision tree. **Never collapse state + findings into a single "is the PR clean?" line at Phase 1 output time** — clean is *DONE + zero active findings*, and a RUNNING engine has no verdict yet. The explicit two-line presentation is what survives `ScheduleWakeup` compaction.
+
+### Staleness rule — primary, by `pull_request_review_id`
+
+A finding is active iff its `review <rid>` matches the engine's `<ENGINE>_LATEST_REVIEW` id (single-verdict engines — for multi-verdict engines see the carve-out below). Findings whose `rid` is older are stale persistent threads — GitHub keeps them visible in `/comments` until a human clicks "Resolve conversation", but the engine is no longer flagging them on the current code.
+
+**Multi-verdict carve-out (claude).** For engines whose adapter documents multiple substantive verdicts per head SHA ([`engine-claude.md`](references/engine-claude.md) § dual substantive verdicts — the push auto-run's skip is install-dependent, so a fix push can yield TWO full reviews of one SHA that disagree), staleness ages out by **SHA, not review id**: every substantive verdict posted **for the head SHA** stays in the active set, and a finding is active iff it belongs to any of them and is unaddressed. A newer clean verdict on the same SHA never retires an earlier findings-bearing one — findings are addressed by fixes, not by a luckier second roll. Latest-wins reading applies only across SHAs.
+
+**Line-number drift is NOT a new-finding signal.** GitHub line-anchored comments track code position across commits — the same `comment id` reappears at different line numbers as the file changes around it. Identify findings by `comment id`, never by `file:line`.
+
+### Zero engine activity for `last_push_sha`
+
+If for any engine in `ENGINES` the review state is `NOT_TRIGGERED` for the current `last_push_sha` — i.e. **no check-run on the head SHA AND no trigger fired this SHA** (check-run presence counts as activity even when reviews/comments are still empty, so a `TRIGGERED`/`RUNNING` engine does NOT match this branch):
+
+- Invoke `./tools/<engine>_retrigger.sh [PR_NUMBER]` once for that engine.
+- Record any trigger-output id the script emits (a GitHub comment id for bugbot; reviewer-assignment doesn't produce a comment id for Copilot — in that case leave `last_seen_<engine>_signal_id` unchanged and rely on `<ENGINE>_LATEST_REVIEW` advancement to detect the eventual response). The shared field name is **`last_seen_<engine>_signal_id`**, engine-defined: for comment-based engines it's a comment id; for reviewer-assignment engines it stays unset until the first review posts.
+- **HARD SHORT-CIRCUIT**: when this branch fires (one or more engines had zero activity and got triggered this cycle), **SKIP the triage tier classification step AND SKIP Phase 2 AND SKIP Phase 3 entirely. Jump directly to Phase 4** after writing the scratch-file bootstrap below. The "then enter Phase 4" wording is a control-flow directive, not a soft suggestion — Phase 2/3 must NOT execute on a trigger-only cycle, because there are no findings to triage and no fixes to commit. Going through Phase 2/3 on a trigger-only cycle risks the agent fabricating "findings" to fix or committing empty.
+- **Scratch-file bootstrap is still required** on the trigger-only cycle: write `engines`, `last_push_sha`, and the per-engine `<engine>_review_state` (set to `TRIGGERED`), plus `last_seen_<engine>_signal_id` if the trigger script emitted a comment id. Without these, Phase 4's wake-loop can't construct the resume prompt's engine list and can't compare against `last_push_sha` for new-push detection — the scratch is what Phase 4 reads after compaction.
+- **Guardrail**: trigger only when the engine has no check-run for the head SHA (state `NOT_TRIGGERED`). **Never** retrigger while a check-run is `RUNNING`, nor on a bare wake-poll — a retrigger happens exactly twice in a SHA's life: this zero-activity bootstrap, or Phase 3 after a fix push. Engines are rate-limited and each review is billed.
+
+**Under multi-engine mode** the per-engine zero-activity branch above does NOT permit fixing findings from engines that are already `DONE` while a sibling engine is still `TRIGGERED`/`RUNNING` — that violates the multi-engine sync rule (see [`references/multi-engine-sync.md`](references/multi-engine-sync.md)). Instead, the orchestrator waits for the slowest engine to reach `DONE` for `last_push_sha` before batching fixes from all engines and pushing. The escape hatches in `multi-engine-sync.md` § Trade-off escape hatch govern when to break sync (engine stalled past N× normal latency, service-errored consecutively, etc.) — those, not "this engine has findings now", are the only valid reasons to push mid-cycle while another engine is still RUNNING.
+
+### Per-engine model-judge — prose-only surfaces (claude) — IDEA-022
+
+For an engine flagged prose-only by its adapter (claude — § Per-engine fetch carve-out), the adapter posts **no** clean/findings verdict. Once it is **DONE with readable material** (not RUNNING/PENDING/SILENT/NOOP/DRAFT), run the **model-judge inline** per [`references/engine-claude.md`](references/engine-claude.md) § Verdict judge: read every surfaced in-window verdict body (verbatim) + every head-SHA inline finding + `CLAUDE_VERDICT_SET_PROVEN`, and emit one tiered verdict:
+
+```text
+CLEAN              → engine is clean for the head SHA (sync gate: clean)
+BLOCKING           → engine is STILL_FINDING; the blocking items enter triage as findings
+NON_BLOCKING[...]  → engine is clean for the sync gate; items recorded, not iterated
+```
+
+- **Convergence (R2):** only `BLOCKING` keeps the loop iterating. `CLEAN` **and** `NON_BLOCKING`-only both count as **clean for the multi-engine sync gate** (the loop can converge). A review may be `BLOCKING` *with* `NON_BLOCKING` items alongside — blocking dominates; the non-blocking items ride along to disposition once blocking clears.
+- **Proven-set fail-closed (structural, non-overridable):** if `CLAUDE_VERDICT_SET_PROVEN` is not `true`, the judge **cannot** return `CLEAN` — re-poll / re-trigger until the set is proven (the adapter couldn't prove it saw the whole verdict set, so a masked earlier verdict can't be ruled out).
+- **Cache per head SHA (architect S2):** persist the judge result as `claude_judge_verdict @ <sha>` in the scratch file; it's a model call — do **not** re-judge unchanged material on every idle poll. Re-run only when the head SHA changes or new claude material posts for the current SHA.
+
+**Disposition of `NON_BLOCKING` items (R3) — mode-split.** Non-blocking items never block convergence; they route through the existing Tier machinery, but the *formalize* path splits on cost asymmetry:
+
+- **Always:** a trivial, in-scope non-blocking item → **absorbed** (fixed this PR as a Tier-1 batch fix).
+- **Interactive `/review-loop`** (human present, `SPRINT_AUTO_INTEGRATION_WORKTREE` unset): a non-trivial non-blocking item is **surfaced at hand-back with a proposed `/idea` line** for the human to confirm — no auto-IDEA-spam (a human is right there to triage).
+- **sprint-auto `/review-loop`** (unattended, `SPRINT_AUTO_INTEGRATION_WORKTREE` set): a non-trivial non-blocking item is **auto-formalized into a real IDEA file** (via the `/idea` schema) and listed in the batch/integration summary — "surfaced in the hand-back" = lost in never-read overnight output, so a recorded-and-pruned IDEA file beats a forgotten suggestion. The human prunes the throwaways at batch review.
+- **Formalized deferrals carry their expiry trigger.** Whether proposed at hand-back or auto-formalized, an IDEA that defers a finding on a context claim ("acceptable — all callers are trusted") writes the invalidating condition per [`skills/plan/references/DEFERRAL_EXPIRY_TRIGGERS.md`](../plan/references/DEFERRAL_EXPIRY_TRIGGERS.md); a reason-only deferral waits on backlog priority while its trigger condition lapses unobserved.
+- **The committed IDEA doc is the in-band acknowledgment that closes the loop.** Once a formalized IDEA file (or the absorbed fix) lands in the PR diff, the next review cycle's judge **reads it in the diff**, sees the concern is tracked/accounted-for, and stops re-raising it as an open finding — the natural convergence mechanism of a model-judge reviewer (the deferred concern is acknowledged *in-band*, a reviewable artifact, not only in an out-of-band hand-back the reviewer never sees). Same effect interactively whenever the proposed IDEA is committed to the branch.
+
+### Triage tier classification
+
+For each active finding (across all engines), classify into a tier:
+
+- **Tier 1 — Auto-fix**: matches a codified pattern in the engine's adapter (see `references/engine-<engine>.md` § Common Patterns), touches ≤1 file, targeted test exists.
+- **Tier 2 — Approve-then-fix**: actionable but uncodified, OR touches shared helper/mixin.
+- **Tier 3 — Escalate**: cross-file, architectural, conflicts with project convention, OR engine self-withdrew.
+
+For every Tier 1 and Tier 2 finding, write a one-sentence justification: *why is this actually a bug?* If the explanation is hand-wavy or just paraphrases the bot → drop to Tier 3.
+
+### Scratch-file persistence
+
+Persist to `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (engine-agnostic filename) so the next wake cycle can reload state without re-reading summaries. **Supersedes the older per-engine `bugbot-pr-<N>.md` / `copilot-pr-<N>.md` scratch paths** from the pre-shared-core single-engine wrappers. When migrating a project off those, drop the per-engine scratch files; the shared file holds all engines' state. **Retire it at the terminal hand-back** — the branch that declares every engine DONE-and-clean (or hands back on a bound) deletes the scratch file for a PR that has since merged, per [`../work/references/WATCHER_HYGIENE.md`](../work/references/WATCHER_HYGIENE.md) Hard Rule 7. Nothing else will: the write-site fires every cycle and no site fires on close, which is how one project's scratch dir reached 41 files over three months. Confirm the PR is actually merged first (an open PR's file is live resumable state) and check the file for parked `compound candidate` notes before dropping it. **Write to the scratch path above, not the auto-memory store** — the two sit one path segment apart and a file misfiled into memory is both unindexed and unsweepable (Hard Rule 8).
+
+The scratch file must checkpoint every piece of state that a hard bound depends on, after every mutation:
+
+- `commits_this_session` (int, /20)
+- `active_work_minutes` (int, /240; best-effort)
+- `idle_polls` (int, /10)
+- `engines` (comma-separated list of active engines for this session)
+- `reentry_command` — the channel-matched slash command this loop re-invokes itself with (`review-loop` symlink channel, `mv:review-loop` plugin channel); mirror the form you were invoked as. Without it persisted, a post-compaction wake can't reconstruct a re-entry prompt that actually resolves (Phase 4 step 1).
+- `last_push_sha`
+- `no_progress_map` — **always namespaced per engine** (uniform across single-engine and multi-engine modes): `{ bugbot: {<category>: <count>} }` for a bugbot-only run, `{ copilot: {<category>: <count>} }` for copilot-only, `{ bugbot: {...}, copilot: {...}, claude: {...} }` for a multi-engine run. Flat (un-namespaced) maps from pre-shared-core sessions must be migrated to the per-engine shape on first wake — otherwise Phase 4's no-progress guard reads the wrong slot and never trips.
+
+Per-engine state slots (replicate the pattern for each engine in `engines`):
+
+- `<engine>_review_state` — `NOT_TRIGGERED` | `TRIGGERED` (fired, no check-run yet) | `RUNNING` (check-run `queued`/`in_progress`) | `DONE` (check-run `completed`), for the current `last_push_sha`.
+- `last_seen_<engine>_review` — `<id> @ <sha>` (the LATEST_REVIEW last acted on; staleness anchor for new-finding detection).
+- `last_seen_<engine>_signal_id` — engine-defined: comment id for comment-based engines (bugbot); unset for reviewer-assignment engines (Copilot) until the first review posts. Tracked so Phase 4's "new findings since" comparison doesn't misread the loop's own trigger as a finding.
+
+Prose-only-engine slots (claude — IDEA-022; replicate per prose-only engine in `engines`):
+
+- `claude_judge_verdict` — `CLEAN | BLOCKING | NON_BLOCKING @ <sha>` — the cached § Per-engine model-judge result for the current head SHA, so an idle-poll wake doesn't re-run the model on unchanged material (re-judge only when the SHA changes or new claude material posts).
+- `claude_non_blocking` — the list of recorded non-blocking items not yet dispositioned (`{title, why, where}`), namespaced like `no_progress_map`. **Must be checkpointed**: a non-blocking item raised pre-compaction is otherwise summarized away on the next `ScheduleWakeup` wake, losing both the hand-back surface (interactive) and the auto-formalize input (sprint-auto).
+
+Plus the per-cycle triage table (findings + tier + justification + outcome).
+
+If any of these live only in conversation context, they will be summarised away across `ScheduleWakeup` boundaries and the hard bounds become unenforceable.
+
+## Phase 2: Execute
+
+For each Tier 1 finding (no prompt) and each Tier 2 finding (after explicit `yes` from user):
+
+1. Apply the edit.
+2. **Audit newly-reachable code** when the edit REMOVES a short-circuit. See [`skills/work/references/AUDIT_NEWLY_REACHABLE_CODE.md`](../work/references/AUDIT_NEWLY_REACHABLE_CODE.md) for the audit procedure. Fold same-file / tightly-coupled latents into the same Phase 3 commit; cross-file latents land as a follow-on commit on the same branch.
+3. Run targeted test (`make test-fresh ARGS="app.tests.ClassName"` or project equivalent) — class scope only. **Verification routing — see § "Sprint-auto v3.1 verification routing" below for the env-var-driven mode.**
+4. If test fails: revert edit, log to scratch file, move to next finding (do not retry-fix in the same cycle).
+
+Tier 3 findings: skip the fix, log to the scratch file, continue. List all Tier 3 escalations in the final hand-back. When the engine set includes copilot, the final hand-back also carries the suppressed-comments caveat — copilot CLEAN covers API-visible comments only; the human expands any suppressed comments in the PR UI before merging (see [`references/engine-copilot.md`](references/engine-copilot.md) § Suppressed comments).
+
+### Sprint-auto v3.1 verification routing
+
+Under sprint-auto v3.1 (`SPRINT_AUTO_INTEGRATION_WORKTREE` is set), step 3's targeted test does NOT run in the per-IDEA worktree (which is code-surface only with no `.env` or docker stack). The **test command's location** changes — the edit-then-test contract per finding is unchanged, and Phase 3's "one commit per cycle" batching still applies.
+
+The test routes to the integration worktree's docker stack via `pushd "$SPRINT_AUTO_INTEGRATION_WORKTREE" && docker compose exec -T web pytest <targeted path>`. The per-IDEA worktree must expose its in-progress edits to the integration worktree's containers before the test runs — the contract is project-specific (rsync-with-exclude, bind-mount, or a `tools/sprint-auto-hooks.sh` hook). Projects that can't satisfy mid-cycle routing fall back to: apply the edit, skip the targeted test, rely on the next bugbot/copilot retrigger cycle to surface regressions via review.
+
+When `SPRINT_AUTO_INTEGRATION_WORKTREE` is unset (standalone mode), step 3 runs the targeted test against the current worktree's stack — no behavior change.
+
+**Phase 3 is unchanged in v3.1**: at the end of each cycle, all successfully-applied fixes still batch into ONE commit, push once, retrigger each engine once after the push. The v3.1 routing only affects WHERE the test runs, NOT WHEN the commit happens.
+
+## Phase 3: Commit + push + per-engine retrigger
+
+**Skip condition**: if zero fixes were applied (all findings Tier 3, or all reverted on test failure), skip Phase 3 AND Phase 4 — hand back immediately with Tier 3 escalations surfaced.
+
+If at least one fix was applied:
+
+1. **One commit per cycle**, not per finding.
+
+   - Format: `fix(scope): address review N (PR #M)` — under multi-engine mode the body lists all findings closed across engines.
+
+2. `git push origin HEAD`, then **update scratch `last_push_sha` to the new HEAD**. Phase 4's new-push detection compares against it — without this update the loop reads its *own* push as an out-of-band change next wake, resets every engine to `NOT_TRIGGERED`, and double-retriggers (wasting billed reviews).
+
+3. **Resolve the threads for the findings fixed this cycle** (forward auto-resolve — [`references/THREAD_AUTO_RESOLVE.md`](references/THREAD_AUTO_RESOLVE.md) Pattern 1). For each finding closed by this commit, map its `comment id` → thread node id (`PRRT_*`) via the `reviewThreads` query and call `resolveReviewThread`. **Leave Tier-3 / won't-fix / escalated-elsewhere threads OPEN** — they are the live tracker; resolving them loses the signal. For a won't-fix (false positive), post a one-line reply documenting the rationale *before* resolving. This step is NOT optional bookkeeping: skipping it accumulates stale "N unresolved conversations" that hide the real open findings and force a manual sweep at hand-back (the failure mode THREAD_AUTO_RESOLVE was written to prevent). Engine adapters should capture the thread id alongside the comment id at fetch time so this step needs no extra round-trip; until they do, the inline `gh api graphql` reviewThreads query is the fallback.
+
+4. **Retrigger** — for each `<engine>` in `ENGINES` (iterated **alphabetically** for reproducibility, matching [`references/multi-engine-sync.md`](references/multi-engine-sync.md) § Retrigger discipline): fire `./tools/<engine>_retrigger.sh [PR_NUMBER]` once and set `<engine>_review_state=TRIGGERED`, **subject to the withhold rule below**. No interval, no defer — the push just created a new SHA, so there is no in-flight review for it to stack behind. **Push-triggered engines (claude) are retriggered here too, not skipped in the normal path:** the fix push's `synchronize` auto-run skip-no-ops once claude has already reviewed the PR, so the explicit `claude_retrigger.sh` is what guarantees a fresh verdict on the fix. The skip is install-dependent — non-skipping installs yield TWO substantive verdicts per SHA which can disagree; the loop must read every head-SHA verdict and let any unaddressed findings-bearing verdict keep the engine STILL_FINDING (a newer clean verdict never overrides it). See [`references/engine-claude.md`](references/engine-claude.md) § A7 + § dual substantive verdicts.
+
+   **A retrigger is withheld in two situations only:** (a) any engine whose check-run is `RUNNING` — never retrigger a live run (the Phase-4 wait state; Phase 3 doesn't normally hit it, since a fix push supersedes any prior SHA's review); and (b) `claude` when its **first** review is still in-flight (the Claude-stalled escape hatch in [`references/multi-engine-sync.md`](references/multi-engine-sync.md) § Retrigger discipline) — claude hasn't posted yet, so the push's `synchronize` auto-run carries its first review and an explicit `claude_retrigger.sh` would double-run. Both reduce to one rule: **don't fire `claude_retrigger.sh` until claude has posted ≥1 review, and never retrigger any engine mid-run.**
+
+5. Increment `commits_this_session`. If ≥ 20 → stop and hand back.
+
+## Phase 4: Wait + wake
+
+The wake-loop in this phase IS a watcher in the [`skills/work/references/WATCHER_HYGIENE.md`](../work/references/WATCHER_HYGIENE.md) sense: orchestrator-armed, supersede-able, never wall-clock-timeout-bound. Apply that reference's discipline. (The `ScheduleWakeup` re-invocation spine is the never-timeout-bound watcher meant here; the optional `Monitor` accelerator armed in step 1 is a *separate*, read-only, bounded poller — see [`references/MONITOR_ACCELERATION.md`](references/MONITOR_ACCELERATION.md) for why its bounded `timeout_ms` does not violate WATCHER_HYGIENE Hard Rule 3.)
+
+1. **Enter the wait state** on **any** Phase 4 entry (after a Phase 3 fix push OR a Phase 1 zero-activity trigger) *and* on every decision-tree branch in step 4 that loops back. The wait state is a **bundle of two actions, always armed together** — never a bare `ScheduleWakeup` without the Monitor, nor vice-versa:
+
+   - (a) **arm the Monitor accelerator** (the Monitor bullet below), and
+   - (b) `ScheduleWakeup(delaySeconds=1200, prompt="/<reentry_command> <PR_NUMBER> <ENGINES>")` — the 20-min resilient backstop. **The `prompt` arg is mandatory** — it's what re-enters the loop.
+
+   The Monitor is the fast path (re-enters within one poll interval of an engine event); the 1200s `ScheduleWakeup` is the backstop that survives the Monitor dying / compaction / disconnect. There is **no separate short first-poll**: the Monitor covers fast detection, so an early 180s wake would only `TaskStop` (step 2) and re-arm the just-armed Monitor — wasted churn (IDEA-021 dogfood, F-dogfood-2).
+
+   - **Arm the Monitor accelerator (after the scratch-file write).** After the scratch bootstrap is written (mandatory on the Phase 1 zero-activity path — § Phase 1), arm one bounded, **read-only** `Monitor` per the recipe in [`references/MONITOR_ACCELERATION.md`](references/MONITOR_ACCELERATION.md): it polls the engine adapters and emits **one** event the moment the loop can progress (all engines `DONE` for the head SHA / head SHA changed vs the frozen arm-time baseline / an escape-hatch-recognized engine error), then exits, re-invoking the loop faster than the 1200s backstop. It is an **accelerator only** — it never retriggers (read-only), and **correctness never depends on it**: if it dies, errors, times out, or is auto-stopped, that absence is a silent no-op and the 1200s `ScheduleWakeup` still drives the loop. One **aggregate** Monitor for the whole engine set (mirrors the single all-engines wake), not one per engine. **The Monitor is armed as part of the wait-state bundle on every loop-back, not just the first entry** — a branch that schedules a wait without re-arming the Monitor disables fast detection after the first wake (`TaskStop` in step 2 leaves nothing running). IDEA-021 dogfood.
+
+   - **`<reentry_command>` MUST match the install channel** — a self-invoking slash command does NOT fire by description; it's a literal command lookup. The plugin channel namespaces commands under `mv:`, the symlink channel does not, so the re-entry token is **`review-loop` on the symlink channel** and **`mv:review-loop` on the plugin channel**. The wrong prefix means the wake fires but the loop never re-enters (a bare `/review-loop` doesn't resolve on a plugin-only machine; `/mv:review-loop` doesn't resolve on a symlink-only machine). **Mirror the prefix you were invoked with** — `${CLAUDE_PLUGIN_ROOT}` is not exposed in the agent's shell, so the invocation form, not an env probe, is the signal — and **persist it as `reentry_command` in the scratch file** (§ Scratch-file persistence) so it survives `ScheduleWakeup` compaction. This is the one carve-out from the IDEA-017 "don't rewrite skill bodies channel-aware — skills fire by description" rule: re-entry is a literal command, not a description-invoke. The general convention (all three executed-dispatch mechanisms — `Skill` / slash / `subagent_type`) lives in [`../work/references/CHANNEL_AWARE_DISPATCH.md`](../work/references/CHANNEL_AWARE_DISPATCH.md); `reentry_command` is its literal-slash instance.
+   - **`<ENGINES>` MUST be the literal comma-separated engine list from the scratch file's `engines` field**, never the placeholder string (a bare `<PR>` with no engine list would default to all available engines, diverging from a subset run).
+
+2. On wake: **first `TaskStop` the current Monitor (if any), unconditionally — before the re-fetch, regardless of whether a Monitor event or the `ScheduleWakeup` backstop woke the agent.** This is the accelerator's garbage collection ([`references/MONITOR_ACCELERATION.md`](references/MONITOR_ACCELERATION.md) § Lifecycle; WATCHER_HYGIENE Hard Rule 2 — explicit-stop, not exit-condition self-clean, is the real GC). Then re-fetch each engine via `./tools/find_<engine>_comments.sh` and recompute each `<engine>_review_state` from its check-run `STATUS` — `queued`/`in_progress` → `RUNNING`; `completed` → `DONE`; no check-run for head SHA → `TRIGGERED` if a trigger already fired this SHA, else `NOT_TRIGGERED`. (Each looping decision-tree branch re-enters the **wait state** from step 1, which re-arms a fresh Monitor — so a `TaskStop` here is always paired with a re-arm on the way back into the wait, never a one-way teardown.)
+
+3. **New-push detection (run BEFORE the decision tree)**: compare scratch's `last_push_sha` against `git rev-parse HEAD`. If they differ (out-of-band push by another process or the user), reset `idle_polls=0`, update `last_push_sha`, reset every `<engine>_review_state` to `NOT_TRIGGERED`, and re-enter Phase 1 for the new SHA. Without this the counter accumulates past a push the loop didn't initiate.
+
+4. **Decision tree — evaluate in order** (every **"enter the wait state"** below is shorthand for step 1's bundle — re-arm the Monitor accelerator **and** `ScheduleWakeup(delaySeconds=1200, prompt="/<reentry_command> <PR_NUMBER> <ENGINES>")`, with `<reentry_command>` channel-matched per step 1; the `prompt` arg is never optional, and the Monitor re-arm is never omitted):
+
+   - **Guard: `commits_this_session` ≥ 20 OR active-work minutes ≥ 240** → hand back.
+   - **Guard: no-progress detector trips** — same finding category flagged 2× across cycles where a commit *attempted* that category (success-or-revert both count), namespaced per engine → hand back. Repeated same-category **cosmetic-prose** nits (changelog/doc/persona wording) count even when each cycle's exact text differs — the category recurrence is the signal. When the substance engine is clean while a prose-sensitive engine won't converge, adopt/codify the convention or hard-stop; see [`references/COSMETIC_NONCONVERGENCE.md`](references/COSMETIC_NONCONVERGENCE.md).
+   - **Any engine `NOT_TRIGGERED`** → fire its retrigger (Phase 1 zero-activity path), set it `TRIGGERED`, **enter the wait state** (re-arm Monitor + `ScheduleWakeup(1200s)`).
+   - **Any engine `TRIGGERED` or `RUNNING`** (review requested but check-run not yet `completed`) → still in flight: do NOT retrigger, do NOT read a verdict. This is the multi-engine sync gate — **wait for the slowest engine to reach `DONE` before reading any verdict.** Increment `idle_polls`, **enter the wait state** (re-arm Monitor + `ScheduleWakeup(1200s)`; the Monitor will usually re-enter sooner on the engine's `DONE` event). `idle_polls ≥ 10` here = a check-run wedged in `queued`/`in_progress` → treat as HUNG, hand back. (This is the sole idle backstop — once every engine is `DONE` the verdict is final and the branches below terminate without further polling.)
+   - **Prose-only engines (claude) — the judge verdict IS the finding count (IDEA-022).** A material-surfacing adapter emits **zero structural active findings by design** (it surfaces verdict bodies, the judge classifies — § Per-engine model-judge), so the structural counts in the two branches below would read claude as "zero findings" even when the judge returned `BLOCKING`. For a prose-only engine, substitute its cached `claude_judge_verdict` for the structural count: `BLOCKING` ⇒ the engine **has active findings** (the judge's blocking items); `CLEAN` / `NON_BLOCKING`-only ⇒ zero active findings (clean for the gate). Apply this substitution wherever the two branches below say "active findings" for claude.
+   - **\[All engines `DONE`\] New findings since `last_seen_<engine>_signal_id` (any engine)** → reset `idle_polls=0`, update each engine's `last_seen_<engine>_signal_id` to its newest finding id, reload triage state, return to Phase 1 (which batch-triages every engine's active findings into one fix cycle). Compare against `last_seen_<engine>_signal_id`, not `last_push_sha` — see references/engine-adapter-contract.md. **For claude:** a fresh `claude_judge_verdict == BLOCKING` (or new blocking items vs the last cycle) is the "new findings" trigger — its blocking items enter triage as the findings to fix.
+   - **\[All engines `DONE`\] No new findings** → terminal hand back, no further polling:
+     - **CLEAN** if every engine has zero active findings across its head-SHA verdict set (§ Staleness — `LATEST_REVIEW` for single-verdict engines; every head-SHA verdict for multi-verdict engines, where an unaddressed findings-bearing verdict keeps the engine **STILL_FINDING** even when a newer same-SHA verdict reads clean) **AND every prose-only engine's `claude_judge_verdict` is `CLEAN` or `NON_BLOCKING`** (a `BLOCKING` verdict keeps that engine STILL_FINDING — the judge is the authority, since the adapter emits no structural finding count to fall back on). (Structural for structured-surface engines; the judge verdict for prose-only engines — never inferred from `CONCLUSION` or raw review-body prose.)
+     - else surface the **residual active findings** (already-seen / Tier-3 escalations the loop chose not to fix — including a prose-only engine's unaddressed `BLOCKING` judge items) and hand back — the loop can't make further progress on this SHA.
+
+## Hand-back report
+
+Always end with:
+
+1. **Engines summary** — per engine: cycles run, findings auto-fixed, findings approved, findings escalated, findings skipped, final verdict (CLEAN / HUNG / ERRORED / STILL_FINDING).
+2. **Asymmetric clearance** — if some engines CLEAN and others not, surface prominently. See [`references/multi-engine-sync.md`](references/multi-engine-sync.md) for the message templates.
+3. **Tier 3 escalations** with reasoning (need human decision).
+4. **Suggested broader regression command** for pre-merge.
+5. **PR URL**.
+6. **Retire the scratch file** once the loop is terminal AND its PR has merged — the hand-back is the step that says "done", so it is the step that says so in the filesystem too ([`../work/references/WATCHER_HYGIENE.md`](../work/references/WATCHER_HYGIENE.md) Hard Rule 7). Still open, or handed back on a bound with work left? Keep it — that file is how the next session resumes.
+
+Do not merge. Do not push to main. The loop hands the PR back to the user for final review and merge.
+
+Under sprint-auto v3.1, the "user" the loop hands back to is sprint-auto itself (the orchestrator), which uses the Tier-3 list to drive its escalation cycle. The hand-back semantics are unchanged.
+
+## References
+
+- [`references/engine-adapter-contract.md`](references/engine-adapter-contract.md) — what an engine adapter must implement.
+- [`references/engine-bugbot.md`](references/engine-bugbot.md) — Cursor Bugbot adapter.
+- [`references/engine-copilot.md`](references/engine-copilot.md) — GitHub Copilot adapter, incl. § Suppressed comments (a valid finding the API never shows — CLEAN is clean-over-the-visible-set).
+- [`references/engine-claude.md`](references/engine-claude.md) — Claude Code Review adapter (action + `code-review` plugin; push-triggered, comment-anchored — NOT the managed App).
+- [`references/engine-grok.md`](references/engine-grok.md) — Grok Build adapter (push-triggered sticky `<!-- grok-code-review -->`; parallel/fallback to Claude — see also [`docs/guides/GROK_BUILD.md`](../../../docs/guides/GROK_BUILD.md)).
+- [`references/engine-claude-onboarding.md`](references/engine-claude-onboarding.md) — onboarding a project to the claude engine: ship the write-perm + guarded workflow templates ([`assets/claude-code-review.yml`](assets/claude-code-review.yml) + [`assets/claude.yml`](assets/claude.yml)) to the default branch (NOT `/install-github-app`'s read-only default), the anti-tampering bootstrap catch-22, and the fork-PR / author-association guards.
+- [`references/GITHUB_APP_DRIVEN_LOOP.md`](references/GITHUB_APP_DRIVEN_LOOP.md) — running the loop as a **GitHub-App bot actor** (unattended/remote sessions whose pushes ride a scoped write App, not a human `gh auth`): the bot-allowance the `@claude` retrigger needs (`author_association=NONE` → exact-login `if:` clause + `allowed_bots` on both `claude.yml` and `claude-code-review.yml`, default-branch-only); dependabot slash-commands being human-only; the `gh` App-token mint shim for agent hosts; the App-token CI-read scope gap (`checks:read`/`actions:read` 403 → read comments, not check-runs). Load when the loop runs non-interactively as an App.
+- [`references/multi-engine-sync.md`](references/multi-engine-sync.md) — multi-engine synchronisation contract.
+- [`references/MONITOR_ACCELERATION.md`](references/MONITOR_ACCELERATION.md) — the bounded, read-only `Monitor` accelerator over the Phase 4 `ScheduleWakeup` spine: poll-script template, the three trigger events (all-done / sha-changed / engine-error), the read-only + TaskStop-first + vanished-is-a-no-op lifecycle, and the bounded-timeout carve-out from WATCHER_HYGIENE Hard Rule 3. Load when implementing or modifying the Phase 4 wait.
+- [`references/common-review-findings.md`](references/common-review-findings.md) — shared codified Tier-1 catalog (engine-agnostic).
+- [`references/THREAD_AUTO_RESOLVE.md`](references/THREAD_AUTO_RESOLVE.md) — closing review threads in step with the fixes: forward (in-loop, Phase 3) auto-resolve via `resolveReviewThread` GraphQL mutation; retroactive audit + bulk-resolve recipe for PRs accumulated under the prior pattern. Load when wiring engine-adapter thread-ID capture, when a PR carries visible stale-thread debt, or when designing the user-facing "merge cleanly" handoff.
+- [`skills/wrap/references/WRAP_BEFORE_REVIEW.md`](../wrap/references/WRAP_BEFORE_REVIEW.md) — for doc-heavy / IDEA PRs, run `/wrap` (`--scope=docs` default) BEFORE entering this loop so the engines review finalized docs in one pass; merge is the separate post-review `/land` stage. Read at trigger-time for the pre-flight wrap decision.
+- [`references/LARGE_PR_INDEPENDENT_REVIEW.md`](references/LARGE_PR_INDEPENDENT_REVIEW.md) — a single fast-bot CLEAN pass on a very large PR (≥~25 commits / ~2k net lines / high-blast-radius surface) is necessary-not-sufficient. At hand-back, escalate to an independent two-lens deep review (correctness/security + architecture/convention/doc-accuracy subagents) on the net diff before declaring merge-ready; fold findings back as a fresh fix cycle.
+- `RULE_git-safety` — feature-branch sandbox, never-merge-to-protected discipline.
+- [`references/REFUTING_A_FINDING.md`](references/REFUTING_A_FINDING.md) — the evidence bar for declaring a finding a false positive: read a premise about our own pipeline rather than recalling it, test a platform/tool claim rather than asserting it, treat two engines converging as raising the bar, and record the refutation in the commit message so the next cycle's reviewer can agree or rebut it in-band. Load when a cycle is about to decline a finding.
+- [`references/COSMETIC_NONCONVERGENCE.md`](references/COSMETIC_NONCONVERGENCE.md) — knowing when to stop fixing: adopt/codify a convention an engine keeps flagging (don't re-litigate per cycle), and hard-stop on the clean substance engine when a prose-sensitive engine emits one cosmetic nit per cycle.
+- `RULE_self-sweep-before-push` — pyflakes self-sweep between Phase 2 and Phase 3.

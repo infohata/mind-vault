@@ -16,7 +16,7 @@ and does **not** hold scripts that skills invoke at runtime (that's
 | --- | --- |
 | `setup-claude-code-symlinks.sh` | `~/.claude/` (skills, commands, agents, rules, docs/rules, statusline) |
 | `setup-cursor-symlinks.sh` | Cursor's host config dir |
-| `setup-grok-symlinks.sh` | `~/.grok/` (skills, commands, agents, rules, docs/rules) — see [`../docs/GROK_BUILD.md`](../docs/GROK_BUILD.md) |
+| `setup-grok-symlinks.sh` | `~/.grok/` (skills, commands, agents, rules, docs/rules) — see [`../docs/guides/GROK_BUILD.md`](../docs/guides/GROK_BUILD.md) |
 | `setup-opencode-symlinks.sh` | OpenCode's host config dir |
 | `setup-vscode-copilot-symlinks.sh` | VS Code Copilot's host config dir |
 | `setup-antigravity-symlinks.sh` | Antigravity's host config dir |

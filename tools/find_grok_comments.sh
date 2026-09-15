@@ -69,7 +69,7 @@ print('true' if hit else 'false')
 if [ "$ACTION_INSTALLED" != "true" ]; then
     echo "GROK_NOT_INSTALLED=true"
     echo -e "${YELLOW}⚠️  grok-code-review action not installed on $REPO_OWNER/$REPO_NAME (no $GROK_WORKFLOW_FILE workflow).${NC}"
-    echo "   Add .github/workflows/grok-code-review.yml + secret XAI_API_KEY (see docs/GROK_BUILD.md)."
+    echo "   Add .github/workflows/grok-code-review.yml + secret XAI_API_KEY (see docs/guides/GROK_BUILD.md)."
     echo "   The /review-loop default set self-excludes grok here; an explicit 'grok' degrades loudly."
     exit 0
 fi
