@@ -17,6 +17,8 @@ Hard "wait for slowest" risks blocking the loop indefinitely if one engine hangs
 | Copilot service-errored 3× consecutive | Third consecutive error | Hand back to user — durable service issue, can't resolve from the loop. |
 | Claude stalled | Claude's Actions job `STATUS=in_progress` (RUNNING) past observed latency on `last_push_sha` — see [`engine-claude.md`](engine-claude.md) § Failure modes | Proceed with other engines' findings if any. **Don't retrigger while it's RUNNING.** If this is claude's **first** review still in-flight, also do NOT fire `claude_retrigger.sh` on the next fix push — claude hasn't posted, so the skip-no-ops precondition is unmet and the push's `synchronize` auto-run carries its first review (an explicit retrigger would double-run). Only **once claude has posted ≥1 review** does the explicit Phase-3 retrigger become the path to a fresh post-fix verdict (see [`engine-claude.md`](engine-claude.md) § A7). Surface in hand-back if it never recovers. |
 | Claude action not installed | `CLAUDE_NOT_INSTALLED=true` (no `claude-code-review.yml` workflow on the repo) | In a multi-engine run, claude self-excludes from the **default** set; proceed with the other engines. On an **explicit** `...,claude` run, surface loudly in hand-back ("run `/install-github-app`"), never HUNG. |
+| Grok action not installed | `GROK_NOT_INSTALLED=true` (no `grok-code-review.yml` workflow) | Same self-exclude / loud explicit pattern as claude; see [`engine-grok.md`](engine-grok.md) + [`docs/guides/GROK_BUILD.md`](../../../docs/guides/GROK_BUILD.md) (`XAI_API_KEY`). |
+| Grok stalled | Grok Actions job `STATUS=in_progress` past ~15–20 min on `last_push_sha` — see [`engine-grok.md`](engine-grok.md) § Failure modes | Proceed with other engines; retrigger post-push (`grok_retrigger.sh` or push auto-run). |
 | One engine DONE+clean + another still RUNNING | one engine `DONE` with zero active findings for `last_push_sha` + another engine's check-run/Actions job still `queued`/`in_progress` past idle-poll threshold | Wait up to the Phase 4 idle backstop (`max_idle_polls` × the backstop poll cadence — both defined in [`SKILL.md`](../SKILL.md) § Hard bounds + Phase 4 step 1; do not re-state the literals here, they change together); if the RUNNING engine never reaches `DONE`, hand back with the cleared engine(s)' CLEAN status documented prominently. |
 
 ## Sync state — scratch-file fields per engine
@@ -24,7 +26,7 @@ Hard "wait for slowest" risks blocking the loop indefinitely if one engine hangs
 Replicate per engine in the loop's scratch file:
 
 ```yaml
-engines: bugbot,claude,copilot
+engines: bugbot,claude,copilot,grok
 bugbot_review_state:  NOT_TRIGGERED|TRIGGERED|RUNNING|DONE
 claude_review_state:  NOT_TRIGGERED|TRIGGERED|RUNNING|DONE
 copilot_review_state: NOT_TRIGGERED|TRIGGERED|RUNNING|DONE
@@ -49,13 +51,14 @@ Each engine's `<engine>_review_state` is tracked independently — under multi-e
 
 ## Retrigger discipline — different per engine, fired in deterministic order
 
-Phase 3 fires after the batch commit. For each engine in `ENGINES` (deterministic order: alphabetical so behavior is reproducible — `bugbot` → `claude` → `copilot`):
+Phase 3 fires after the batch commit. For each engine in `ENGINES` (deterministic order: alphabetical so behavior is reproducible — `bugbot` → `claude` → `copilot` → `grok`):
 
 - For `bugbot`: `./tools/bugbot_retrigger.sh <PR>` (posts a `bugbot run` comment).
 - For `claude`: `./tools/claude_retrigger.sh <PR>` (posts `@claude review once`) — **fired in Phase 3 whenever claude has already posted ≥1 review on the PR** (the normal path: claude's first review landed before this fix cycle, so the loop triaged its findings). The batch commit's push fires the `synchronize` auto-run, but the `code-review` plugin **skip-no-ops it once claude has already reviewed**, so the explicit retrigger is the *only* path to a fresh verdict on the fix — **no double-run race** (the auto-run skips, leaving `@claude review` the sole review for the head SHA). **Exception — first-review stall:** if the loop reached Phase 3 on *another* engine's findings while claude's first review is still in-flight (the Claude-stalled row above), claude has **not** posted yet, so the skip-no-ops precondition is unmet — **do NOT fire the explicit retrigger**; the fix push's `synchronize` auto-run carries claude's first posted review (firing `claude_retrigger.sh` on top would be the real double-run). `claude_retrigger.sh` also covers the zero-activity bootstrap. Corrected via the PR #169 + #180 self-dogfoods — see [`engine-claude.md`](engine-claude.md) § A7.
 - For `copilot`: `./tools/copilot_retrigger.sh <PR>` (`gh pr edit <PR> --add-reviewer @copilot`; Copilot self-removes from `requested_reviewers` post-review so bare `--add` is the canonical retrigger — see [`engine-copilot.md`](engine-copilot.md) § Tool invocations for the still-pending fallback case).
+- For `grok`: `./tools/grok_retrigger.sh <PR>` (posts `grok review`) — **fallback / PAT-friendly retrigger**; the push `synchronize` auto-run usually re-reviews without skip-no-op. Still fire after a fix push when you need a guaranteed fresh sticky, or when Actions:write is unavailable on the PAT. See [`engine-grok.md`](engine-grok.md).
 
-All three retriggers happen post-push and fire once each, back-to-back (different queues, no interval): bugbot/copilot via their check-run / reviewer-request mechanisms, claude via the explicit `@claude review` (its `synchronize` auto-run skip-no-ops after the first review, so the explicit request is the real one for the new SHA). The orchestrator never retriggers while an engine's check-run/Actions job is RUNNING, so there is nothing to space out.
+All engine retriggers happen post-push and fire once each, back-to-back (different queues, no interval): bugbot/copilot via their check-run / reviewer-request mechanisms, claude via the explicit `@claude review` (its `synchronize` auto-run skip-no-ops after the first review, so the explicit request is the real one for the new SHA), grok via `./tools/grok_retrigger.sh` posting `grok review` (same auto-run skip-no-op pattern once the workflow is on the default branch). The orchestrator never retriggers while an engine's check-run/Actions job is RUNNING, so there is nothing to space out.
 
 ## Hand-back when only one engine cleared
 

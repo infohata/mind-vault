@@ -20,7 +20,7 @@ symlinking mind-vault into an agent host, that's `scripts/`.
 ## Review-loop engine adapters
 
 The `/review-loop` skill drives PR review across multiple engines (bugbot, claude,
-copilot). For each engine there's a **finder** (scrape the engine's review
+copilot, grok). For each engine there's a **finder** (scrape the engine's review
 comments off a PR) and a **retrigger** (ask the engine to re-review the new HEAD):
 
 | Script | Role |
@@ -28,9 +28,11 @@ comments off a PR) and a **retrigger** (ask the engine to re-review the new HEAD
 | `find_bugbot_comments.sh` | Scrape Bugbot review comments for a PR |
 | `find_claude_comments.sh` | Scrape Claude review comments for a PR |
 | `find_copilot_comments.sh` | Scrape Copilot review comments for a PR |
+| `find_grok_comments.sh` | Scrape Grok Build sticky review comments for a PR |
 | `bugbot_retrigger.sh` | Re-request a Bugbot review on the current HEAD |
 | `claude_retrigger.sh` | Re-request a Claude review on the current HEAD |
 | `copilot_retrigger.sh` | Re-request a Copilot review on the current HEAD |
+| `grok_retrigger.sh` | Re-request a Grok review (`grok review` comment) |
 
 The finder/retrigger **contract** (output schema, exit codes, the per-engine
 quirks each adapter normalizes) is documented in depth under

@@ -1,0 +1,194 @@
+# Parallel Grok Build PR review
+# Sticky body MUST end with <!-- grok-code-review --> — required by tools/find_grok_comments.sh (adapter contract). — does NOT replace Claude Code Review.
+# Requires repo secret XAI_API_KEY (xAI API key for the grok CLI).
+#
+# Retrigger without Actions:write on a PAT: comment `grok review` on the PR
+# (issue_comment path). Same-repo + non-draft guards mirror Claude.
+name: Grok Code Review
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to review (required for manual runs)"
+        required: true
+        type: string
+
+concurrency:
+  group: grok-review-${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  grok-review:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.draft == false &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, 'grok review') &&
+       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve PR number
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PR="${{ inputs.pr_number }}"
+          elif [ "${{ github.event_name }}" = "issue_comment" ]; then
+            PR="${{ github.event.issue.number }}"
+          else
+            PR="${{ github.event.pull_request.number }}"
+          fi
+          echo "number=$PR" >> "$GITHUB_OUTPUT"
+
+          # Draft + fork guards for comment / dispatch paths (pull_request path is gated in job if:)
+          META=$(gh api "repos/${{ github.repository }}/pulls/$PR" --jq '{draft:.draft, full_name:.head.repo.full_name}')
+          DRAFT=$(echo "$META" | jq -r .draft)
+          HEAD_FULL=$(echo "$META" | jq -r .full_name)
+          if [ "$DRAFT" = "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "PR #$PR is draft — skipping Grok review (same as Claude draft no-op)."
+            exit 0
+          fi
+          if [ "$HEAD_FULL" != "${{ github.repository }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Fork PR ($HEAD_FULL) — skipping (no shared secrets / same-repo guard)."
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$(gh api "repos/${{ github.repository }}/pulls/$PR" --jq .head.sha)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        if: steps.pr.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.pr.outputs.head_sha }}
+
+      - name: Install Grok Build CLI
+        if: steps.pr.outputs.skip != 'true'
+        run: |
+          curl -fsSL https://x.ai/cli/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          # Some installers also place under ~/.grok/bin
+          echo "$HOME/.grok/bin" >> "$GITHUB_PATH"
+          command -v grok
+          grok --version || true
+
+      - name: Collect PR context
+        if: steps.pr.outputs.skip != 'true'
+        id: ctx
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR="${{ steps.pr.outputs.number }}"
+          BASE=$(gh pr view "$PR" --json baseRefName -q .baseRefName)
+          TITLE=$(gh pr view "$PR" --json title -q .title)
+          BODY=$(gh pr view "$PR" --json body -q .body)
+          mkdir -p /tmp/grok-review
+          {
+            echo "# PR #$PR: $TITLE"
+            echo
+            echo "$BODY"
+            echo
+            echo "## Diff (unified, vs origin/$BASE)"
+            echo
+            git fetch origin "$BASE" --depth=50 2>/dev/null || true
+            git diff --stat "origin/$BASE"...HEAD || git diff --stat "origin/$BASE" HEAD
+            echo
+            git diff "origin/$BASE"...HEAD || git diff "origin/$BASE" HEAD
+          } > /tmp/grok-review/context.md
+          wc -c /tmp/grok-review/context.md
+
+      - name: Run Grok review
+        if: steps.pr.outputs.skip != 'true'
+        id: review
+        env:
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+        run: |
+          if [ -z "$XAI_API_KEY" ]; then
+            echo "::error::Missing repo secret XAI_API_KEY — add it under Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          PROMPT=$(cat <<'PROMPT'
+          You are reviewing a pull request for the mind-vault repository (agent skills, rules, agents, hooks, CI).
+
+          Read /tmp/grok-review/context.md (PR title, body, and full diff). Optionally inspect changed files with read/grep if the diff is incomplete.
+
+          Produce a concise sticky-style review:
+          1. One-line verdict: APPROVE / REQUEST_CHANGES / COMMENT
+          2. Bullet findings ordered High → Medium → Low (skip noise)
+          3. For each finding: file path, what's wrong, why it matters, concrete fix
+          4. Note anything that would break Claude Code, Cursor, or existing review-loop adapters
+          5. End with: <!-- grok-code-review -->
+
+          Do not modify files. Do not run destructive git commands. Plain markdown only.
+          PROMPT
+          )
+          set +e
+          # --yolo / --always-approve: headless auto-approve. Extra --deny keeps CI review read-ish.
+          grok -p "$PROMPT" --output-format plain --yolo \
+            --deny 'Write(**)' --deny 'Edit(**)' --deny 'Bash(git push*)' \
+            > /tmp/grok-review/out.md 2>/tmp/grok-review/err.txt
+          RC=$?
+          set -e
+          if [ $RC -ne 0 ] || [ ! -s /tmp/grok-review/out.md ]; then
+            echo "::warning::grok exited $RC; falling back to error summary"
+            {
+              echo "## Grok Code Review — failed"
+              echo
+              echo '```'
+              tail -n 80 /tmp/grok-review/err.txt || true
+              echo '```'
+              echo
+              echo "<!-- grok-code-review -->"
+            } > /tmp/grok-review/out.md
+          fi
+          # Cap comment size for GitHub
+          head -c 60000 /tmp/grok-review/out.md > /tmp/grok-review/out.clipped.md
+          mv /tmp/grok-review/out.clipped.md /tmp/grok-review/out.md
+
+      - name: Post sticky PR comment
+        if: steps.pr.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR="${{ steps.pr.outputs.number }}"
+          MARKER='<!-- grok-code-review -->'
+          BODY_FILE=/tmp/grok-review/body.md
+          {
+            echo "## Grok Code Review"
+            echo
+            echo "_Automated review via [Grok Build](https://docs.x.ai/build). Claude Code Review is unchanged._"
+            echo
+            cat /tmp/grok-review/out.md
+            if ! grep -qF "$MARKER" /tmp/grok-review/out.md; then
+              echo
+              echo "$MARKER"
+            fi
+          } > "$BODY_FILE"
+
+          EXISTING=$(gh api "repos/${{ github.repository }}/issues/${PR}/comments" --paginate \
+            -q ".[] | select(.body | contains(\"${MARKER}\")) | .id" | head -n1 || true)
+
+          if [ -n "$EXISTING" ]; then
+            gh api --method PATCH "repos/${{ github.repository }}/issues/comments/${EXISTING}" \
+              -F body="$(cat "$BODY_FILE")"
+            echo "Updated sticky comment $EXISTING"
+          else
+            gh pr comment "$PR" --body-file "$BODY_FILE"
+            echo "Created sticky comment"
+          fi
