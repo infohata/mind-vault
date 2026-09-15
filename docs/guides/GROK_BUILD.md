@@ -27,11 +27,15 @@ curl -fsSL https://x.ai/cli/install.sh | bash
 Grok Build has a **plugin + marketplace** system similar to Claude Code. Prefer it for consumer machines:
 
 ```bash
-grok plugin marketplace add infohata/mind-vault   # GitHub shorthand or git URL
-grok plugin install mv --trust                    # or: grok plugin install infohata/mind-vault --trust
+grok plugin marketplace add infohata/mind-vault
+grok plugin install mv --trust
+# fallback if the short name is not yet indexed:
+#   grok plugin install infohata/mind-vault --trust
 ```
 
-Marketplace installs clone the repo’s **default branch** (`main`) into a pinned snapshot — not your feature-branch working tree. So this channel only picks up mind-vault’s Grok wiring **after** that work is merged to `main` (then `grok plugin update`). `grok plugin validate .` already accepts the existing `.claude-plugin/plugin.json` manifest on this tree.
+Marketplace installs clone the repo’s **default branch** (`main`) into a pinned snapshot — not your feature-branch working tree. So this channel only picks up new releases after they land on `main` (then `grok plugin update`).
+
+Grok accepts Claude’s plugin manifests: `.claude-plugin/plugin.json` validates as-is, and `.grok-plugin/marketplace.json` is a **git symlink** to `.claude-plugin/marketplace.json` so `marketplace add` + `install mv` resolves the catalog short name without a second copy.
 
 **Symlink channel is legacy / optional** and may stay for authoring or hosts that already use `scripts/setup-*-symlinks.sh`:
 
@@ -116,7 +120,7 @@ On first open of a directory, Grok may prompt to trust the folder (same class of
 
 - [ ] `curl -fsSL https://x.ai/cli/install.sh | bash`
 - [ ] Interactive: SuperGrok or X Premium+ login; trust the folder
-- [ ] Prefer: `grok plugin marketplace add infohata/mind-vault` then `grok plugin install mv --trust` (after merge to `main`)
+- [ ] Prefer: `grok plugin marketplace add infohata/mind-vault` then `grok plugin install mv --trust` (tracks `main`; after each release run `grok plugin update`)
 - [ ] Legacy/optional: `./scripts/setup-grok-symlinks.sh`
 - [ ] CI: add `XAI_API_KEY` repo secret; merge `grok-code-review.yml` to default branch
 - [ ] Verify: `grok inspect`; on a PR, wait for sticky or run `./tools/grok_retrigger.sh <PR>`

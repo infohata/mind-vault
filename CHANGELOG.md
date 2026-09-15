@@ -10,6 +10,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.13 — Grok marketplace short-name install
+
+Makes `grok plugin marketplace add infohata/mind-vault` + `grok plugin install mv --trust` resolve the catalog short name. Dogfood on 5.8.12 showed direct `install infohata/mind-vault` worked, but `install mv` failed until Grok could read a `.grok-plugin/` marketplace index.
+
+### Added
+
+- **`.grok-plugin/marketplace.json`** — git symlink (`120000`) to `.claude-plugin/marketplace.json`. Grok accepts Claude-compatible marketplace manifests; one source of truth, no duplicated JSON.
+
+### Changed
+
+- **`docs/guides/GROK_BUILD.md`** — preferred install is `marketplace add` then `install mv --trust`; documents the symlink and the `infohata/mind-vault` install fallback.
+
 ## v5.8.12 — Grok Build as a parallel review-loop engine
 
 Adds Grok Build (xAI) as a fourth `/review-loop` engine alongside Bugbot, Copilot, and Claude — same adapter contract, push-triggered sticky review, optional CI via `XAI_API_KEY`. Parallel/fallback to Claude; does not replace Bugbot or Claude. Dogfooded on this PR ([#252](https://github.com/infohata/mind-vault/pull/252)).
