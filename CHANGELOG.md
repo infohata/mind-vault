@@ -10,6 +10,22 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.12 — Grok Build as a parallel review-loop engine
+
+Adds Grok Build (xAI) as a fourth `/review-loop` engine alongside Bugbot, Copilot, and Claude — same adapter contract, push-triggered sticky review, optional CI via `XAI_API_KEY`. Parallel/fallback to Claude; does not replace Bugbot or Claude. Dogfooded on this PR ([#252](https://github.com/infohata/mind-vault/pull/252)).
+
+### Added
+
+- **`.grok/` project surface** — `config.toml` (interactive allow list; CI hardens separately), native `.grok/agents` + `.grok/skills` git symlinks (`120000`), and `scripts/setup-grok-symlinks.sh` for `~/.grok/` wiring.
+- **`docs/guides/GROK_BUILD.md`** — install, CI secret, sticky-marker contract, interactive vs CI permissions.
+- **Grok review-loop adapter** — `tools/find_grok_comments.sh`, `tools/grok_retrigger.sh`, `skills/review-loop/references/engine-grok.md`, and `grok` in the default ENGINES set (self-excludes when `grok-code-review.yml` is absent).
+- **`.github/workflows/grok-code-review.yml`** — parallel to Claude Code Review; sticky `<!-- grok-code-review -->`; retrigger via `grok review` once the workflow is on the default branch.
+
+### Changed
+
+- **`skills/review-loop/` + `commands/review-loop.md`** — multi-engine sync / command docs list `grok` with Claude as the comment-anchored pair.
+- **README / ONBOARDING / SPRINT_WORKFLOW** — engine pickers and examples include Grok where Bugbot/Copilot/Claude were enumerated.
+
 ## v5.8.11 — state that outlives its subject
 
 A cleanup pass found 108 loop-scratch files on one machine, the oldest four months old, and two

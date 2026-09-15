@@ -25,7 +25,7 @@ A **cross-host configuration library** for AI coding agents. Skills, subagent pe
 - **Agents** (`agents/`) — subagent personas (`AGENT_architect`, `AGENT_backend`, `AGENT_curator`, …) with prime directives, multi-pass workflows, structured verdict formats.
 - **Commands** (`commands/`) — slash commands invoked as `/<name>` from any host that supports them.
 - **Rules** (`rules/`) — always-on guardrails auto-loaded every session (e.g. `RULE_git-safety` blocks pushes to `main`).
-- **Sprint workflow** — a compounding 5-stage loop (`/ideate → /idea → /plan → /work → /wrap → /review-loop → /land → /compound`, where `/review-loop` is a single pass over the wrapped PR carrying the configured engine(s) — `bugbot`, `copilot`, `claude`, or any subset per project config) that makes the *next* sprint start with a higher floor via the final `/compound` stage. See [SPRINT_WORKFLOW.md](SPRINT_WORKFLOW.md).
+- **Sprint workflow** — a compounding 5-stage loop (`/ideate → /idea → /plan → /work → /wrap → /review-loop → /land → /compound`, where `/review-loop` is a single pass over the wrapped PR carrying the configured engine(s) — `bugbot`, `copilot`, `claude`, `grok`, or any subset per project config) that makes the *next* sprint start with a higher floor via the final `/compound` stage. See [SPRINT_WORKFLOW.md](SPRINT_WORKFLOW.md).
 
 **The workflow principle** — every sprint should make the next sprint cheaper. `/compound` is the lever: any recurring fix-up becomes a new skill / rule / agent improvement.
 
@@ -162,17 +162,18 @@ Stage 4 (review) supports several modes — pick whichever your repo has enabled
 | **Cursor Bugbot**                       | `/review-loop <PR> bugbot`                             | Cursor Bugbot enabled on the GitHub org/repo                                                                                   | Strongest catches in our experience; paid via Cursor subscription                                                                                                        |
 | **GitHub Copilot**                      | `/review-loop <PR> copilot`                            | Copilot enabled on the org; `gh` CLI ≥ 2.88                                                                                    | Native to GitHub; consumes Actions minutes from June 1, 2026                                                                                                             |
 | **Claude Code Review**                  | `/review-loop <PR> claude`                             | `claude-code-action@v1` installed via `/install-github-app` (drops `claude-code-review.yml` + wires `CLAUDE_CODE_OAUTH_TOKEN`) | Dogfoods our own stack, `CLAUDE.md`-convention-aware, OAuth/subscription-billed (no per-review SKU). Push-triggered + comment-anchored — NOT the managed Code Review App |
-| **Multiple engines**                    | `/review-loop <PR> bugbot,copilot,claude` (any subset) | Each engine's prerequisites above                                                                                              | High-stakes PRs; the engines have complementary blind spots. The loop syncs them per cycle                                                                               |
+| **Grok Build**                          | `/review-loop <PR> grok`                               | `grok-code-review.yml` on the repo + Actions secret `XAI_API_KEY`; optional `scripts/setup-grok-symlinks.sh` + [GROK_BUILD.md](GROK_BUILD.md) | Parallel/fallback to Claude; SuperGrok interactive + metered API for CI. Sticky `<!-- grok-code-review -->`; retrigger posts `grok review` once the workflow is on the default branch |
+| **Multiple engines**                    | `/review-loop <PR> bugbot,copilot,claude,grok` (any subset) | Each engine's prerequisites above                                                                                          | High-stakes PRs; the engines have complementary blind spots. The loop syncs them per cycle                                                                               |
 | **Internal curator (default fallback)** | Invoke `AGENT_curator` directly before push            | Nothing — local Claude review only                                                                                             | No external bot; cheapest; **weaker than the above — known to miss edge cases**                                                                                          |
 
 For `/sprint-auto` (unattended overnight runs), the review engine is declared per-project. Add this to your project's `CLAUDE.md` or a `.mind-vault.yml` at the repo root:
 
 ```yaml
 # Optional — sprint-auto review engine selector. Default: none (curator only).
-review_engine: bugbot     # or "copilot", "claude", a subset like "bugbot,copilot,claude", or omit/none for curator-only
+review_engine: bugbot     # or "copilot", "claude", "grok", a subset like "bugbot,copilot,claude,grok", or omit/none for curator-only
 ```
 
-When `review_engine` is unset or `none`, `/sprint-auto` skips the external-review loop entirely and relies on `AGENT_curator`'s pre-commit pass. This is the lowest-friction default but the weakest gate — opt into bugbot, copilot, claude (or a combination) for real PR work.
+When `review_engine` is unset or `none`, `/sprint-auto` skips the external-review loop entirely and relies on `AGENT_curator`'s pre-commit pass. This is the lowest-friction default but the weakest gate — opt into bugbot, copilot, claude, grok (or a combination) for real PR work.
 
 ## 5. Useful Claude Code commands
 
@@ -254,14 +255,14 @@ Thin orchestrator: enforces `RULE_git-safety` + parallel-worktree-docker discipl
 Pick the command matching the review engine your repo has enabled (see § "Pick a code-review engine" above):
 
 ```text
-/review-loop <PR> bugbot,copilot,claude   # multi-engine canonical entry, cycle-level sync
+/review-loop <PR> bugbot,copilot,claude,grok   # multi-engine canonical entry, cycle-level sync
 /review-loop <PR> bugbot                   # Cursor Bugbot only
 /review-loop <PR> copilot                  # GitHub Copilot only
 /review-loop <PR> claude                   # Claude Code Review only (push-triggered)
 # or no external bot: invoke AGENT_curator directly before opening the PR
 ```
 
-`/review-loop` is a semi-autonomous review loop with bounded-autonomy policy: post a PR if needed, apply findings under the autonomy ladder (auto-fix / approve-then-fix / escalate), retrigger the engine(s), halt at the HITL merge gate. **One pass over the wrapped PR** reviews code + finalized docs together — the loop iterates to clean, so the old deliverables-then-docs two-pass was retired in IDEA-015. The phase structure, dual-signal enumeration, staleness rules, and hard bounds are identical across engines — only the bot identity, trigger mechanism (claude is push-triggered, not retriggered), review-state source (claude reads a GitHub Actions job, the others a named check-run), and clean signal differ per engine.
+`/review-loop` is a semi-autonomous review loop with bounded-autonomy policy: post a PR if needed, apply findings under the autonomy ladder (auto-fix / approve-then-fix / escalate), retrigger the engine(s), halt at the HITL merge gate. **One pass over the wrapped PR** reviews code + finalized docs together — the loop iterates to clean, so the old deliverables-then-docs two-pass was retired in IDEA-015. The phase structure, dual-signal enumeration, staleness rules, and hard bounds are identical across engines — only the bot identity, trigger mechanism (claude/grok are push-triggered + comment-retriggers; bugbot/copilot are request-driven), review-state source (claude/grok read Actions jobs; bugbot/copilot read named check-runs), and clean signal differ per engine.
 
 If your repo has no external review bot, run `AGENT_curator` against the local diff before opening the PR. It's a Claude-driven reviewer with the same workflow the `/review-loop` engines run, but it's known to miss edge cases the external bots catch — treat it as the cheapest gate, not the best one.
 
