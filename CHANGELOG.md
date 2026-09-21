@@ -10,6 +10,26 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.13 — Grok marketplace short-name install + read-only CI review
+
+Makes `grok plugin marketplace add infohata/mind-vault` + `grok plugin install mv --trust` resolve the catalog short name. Dogfood on 5.8.12 showed direct `install infohata/mind-vault` worked, but `install mv` failed until Grok could read a `.grok-plugin/` marketplace index. Also hardens the Grok CI review, which 5.8.12 shipped with `--yolo`, before it gets enabled ([#253](https://github.com/infohata/mind-vault/pull/253)).
+
+### Added
+
+- **`.grok-plugin/marketplace.json`** — git symlink (`120000`) to `.claude-plugin/marketplace.json`. Grok accepts Claude-compatible marketplace manifests; one source of truth, no duplicated JSON.
+
+### Changed
+
+- **`docs/guides/GROK_BUILD.md`** — preferred install is `marketplace add` then `install mv --trust`; documents the symlink and the `infohata/mind-vault` install fallback. Documents the CI review's read-only flag set and the reason for each flag.
+
+### Security
+
+- **`.github/workflows/grok-code-review.yml`: allowlist instead of `--yolo`.** 5.8.12 auto-approved every tool and denied only Write/Edit/`git push`, so a prompt injected through the PR body or diff could run Bash with `XAI_API_KEY` in the environment. Now `--permission-mode dontAsk` allows only `Read`/`Grep`, denies Bash/Edit/Write/WebFetch and `/proc` reads, disables subagents and web search, and runs `--sandbox strict` (no child-process network). Deliberately no `--trust`: on a PR-head checkout, a trusted project config could add MCP servers.
+- **No GitHub token on disk.** Checkout uses `persist-credentials: false`, so the token's `extraheader` no longer sits in `.git/config` while Grok runs.
+- **Output scanned for the key.** A review containing `XAI_API_KEY` verbatim is replaced with a "withheld" notice, then a final step fails the run. An encoded key would slip past; the `/proc` denies are the main guard.
+- **Sticky lookup matches the author too.** It now requires `github-actions[bot]` as well as the marker, the same rule as `tools/find_grok_comments.sh`, so a human comment quoting the marker is never overwritten.
+- **PR number via `env:`, validated numeric.** `${{ inputs.pr_number }}` was substituted into the script text (the logs show `PR="253"` as code). The input is now `type: number`, and every PR-number use reads it from an environment variable.
+
 ## v5.8.12 — Grok Build as a parallel review-loop engine
 
 Adds Grok Build (xAI) as a fourth `/review-loop` engine alongside Bugbot, Copilot, and Claude — same adapter contract, push-triggered sticky review, optional CI via `XAI_API_KEY`. Parallel/fallback to Claude; does not replace Bugbot or Claude. Dogfooded on this PR ([#252](https://github.com/infohata/mind-vault/pull/252)).

@@ -8,8 +8,8 @@
 [permission]
 # Compact allow/deny string arrays (deny > ask > allow).
 # Interactive SuperGrok: do NOT deny git push here — agents need to push feature
-# branches. CI review hardens separately via workflow --deny Write/Edit/git push
-# (see .github/workflows/grok-code-review.yml).
+# branches. CI review never loads this file (no --trust on a PR-head checkout);
+# its read-only policy is set by flags in .github/workflows/grok-code-review.yml.
 allow = [
   "Read(**)",
   "Grep(**)",
