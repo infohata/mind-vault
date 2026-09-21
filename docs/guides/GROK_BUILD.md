@@ -10,17 +10,16 @@ How this repository uses [Grok Build](https://docs.x.ai/build) (xAI `grok` CLI) 
 
 ## Auth
 
-| Surface | Credential | Notes |
-|---|---|---|
-| Interactive TUI / login | **SuperGrok** or **X Premium+** | Browser/session login. Folder trust prompts apply when opening a new workspace. |
-| CI / headless | Repo secret **`XAI_API_KEY`** | Metered xAI API. Set under Settings → Secrets and variables → Actions. Never commit the key. |
+| Surface                 | Credential                      | Notes                                                                                        |
+| ----------------------- | ------------------------------- | -------------------------------------------------------------------------------------------- |
+| Interactive TUI / login | **SuperGrok** or **X Premium+** | Browser/session login. Folder trust prompts apply when opening a new workspace.              |
+| CI / headless           | Repo secret **`XAI_API_KEY`**   | Metered xAI API. Set under Settings → Secrets and variables → Actions. Never commit the key. |
 
 Install the CLI:
 
 ```bash
 curl -fsSL https://x.ai/cli/install.sh | bash
 ```
-
 
 ## Install channels (plugin preferred)
 
@@ -63,7 +62,29 @@ Permission rules use the compact form (see [permissions reference](https://docs.
 allow = ["Read(**)", "Grep(**)", "Bash(git *)", "Bash(gh *)"]
 ```
 
-Do **not** put `Bash(git push*)` in the project `deny` list — interactive Grok needs to push feature branches. CI review invokes `grok -p "…" --output-format plain --yolo` (or `--always-approve`) and adds `--deny` for Write/Edit/`Bash(git push*)` only in the workflow. The sticky `<!-- grok-code-review -->` output shape is required by `tools/find_grok_comments.sh` (not optional fluff).
+Do **not** put `Bash(git push*)` in the project `deny` list — interactive Grok needs to push feature branches. This project config is for interactive sessions only; CI never applies it.
+
+**CI review is read-only and set entirely by command-line flags.** The PR body and diff are attacker-controllable prompt input, and `XAI_API_KEY` has to sit in grok's environment, so `grok-code-review.yml` runs:
+
+```bash
+grok -p "$PROMPT" --output-format plain \
+  --permission-mode dontAsk \
+  --allow 'Read' --allow 'Grep' \
+  --deny 'Bash' --deny 'Edit' --deny 'Write' --deny 'WebFetch' \
+  --deny 'Read(/proc/**)' --deny 'Grep(/proc/**)' \
+  --disallowed-tools Agent --disable-web-search \
+  --sandbox strict --max-turns 15
+```
+
+- `dontAsk` runs only allowlisted tools, and deny beats allow. There's no Bash, so there's no `curl`. The `/proc` denies block the obvious way to read the key (`/proc/self/environ`).
+- `--sandbox strict` blocks network access for child processes and limits reads to the working directory plus system paths. The review context therefore lives in `.grok-review/` inside the workspace, not in `/tmp`. If a built-in profile fails to apply, Grok only warns and keeps running, so the workflow surfaces any sandbox warning in the run log.
+- **No `--trust`.** The checkout is the PR head, so a trusted project config could add `[mcp_servers]`, which means running arbitrary code next to the key.
+- Checkout uses `persist-credentials: false`, so no GitHub token stays in `.git/config`.
+- Before posting, the output is scanned for the key written out verbatim; an encoded key would slip past, which is why the `/proc` denies matter. A match replaces the sticky with a "withheld" notice, then fails the run (rotate the key).
+- The sticky lookup matches `github-actions[bot]` *and* the marker, the same rule `tools/find_grok_comments.sh` uses, so a human comment quoting the marker is never overwritten.
+- The PR number reaches shell via `env:`, validated as numeric. `${{ }}` is text substitution into the script, not an argument.
+
+The sticky `<!-- grok-code-review -->` output shape is required by `tools/find_grok_comments.sh` (not optional fluff).
 
 ## User-level symlinks (legacy)
 
@@ -93,22 +114,22 @@ Retrigger without Actions:write on a PAT:
 
 ## Coexistence with Claude
 
-| | Claude Code Review | Grok Code Review |
-|---|---|---|
-| Workflow | `claude-code-review.yml` (+ interactive `claude.yml`) | `grok-code-review.yml` |
-| Secret | `CLAUDE_CODE_OAUTH_TOKEN` | `XAI_API_KEY` |
-| review-loop | `claude` (primary comment-anchored engine today) | `grok` (parallel / fallback) |
+|                   | Claude Code Review                                    | Grok Code Review                                           |
+| ----------------- | ----------------------------------------------------- | ---------------------------------------------------------- |
+| Workflow          | `claude-code-review.yml` (+ interactive `claude.yml`) | `grok-code-review.yml`                                     |
+| Secret            | `CLAUDE_CODE_OAUTH_TOKEN`                             | `XAI_API_KEY`                                              |
+| review-loop       | `claude` (primary comment-anchored engine today)      | `grok` (parallel / fallback)                               |
 | Sticky / identity | `claude[bot]` summary + `github-actions[bot]` inlines | `github-actions[bot]` sticky + `<!-- grok-code-review -->` |
 
 Both may run on the same PR. `/review-loop` defaults include both when each workflow is installed; either self-excludes via `*_NOT_INSTALLED` when missing.
 
 ## Bugbot vs Grok Build
 
-| | **Cursor Bugbot** | **Grok Build** |
-|---|---|---|
-| What it is | Cursor **paid** automated PR reviewer | Subscription **interactive** agent (SuperGrok / X Premium+) + **metered API** for CI |
-| In review-loop | `bugbot` — check-run / request-driven | `grok` — auto-trigger / comment-anchored |
-| mind-vault posture | Optional third engine | Parallel/fallback to Claude; does not replace Bugbot or Claude |
+|                    | **Cursor Bugbot**                     | **Grok Build**                                                                       |
+| ------------------ | ------------------------------------- | ------------------------------------------------------------------------------------ |
+| What it is         | Cursor **paid** automated PR reviewer | Subscription **interactive** agent (SuperGrok / X Premium+) + **metered API** for CI |
+| In review-loop     | `bugbot` — check-run / request-driven | `grok` — auto-trigger / comment-anchored                                             |
+| mind-vault posture | Optional third engine                 | Parallel/fallback to Claude; does not replace Bugbot or Claude                       |
 
 **Summary:** Bugbot = Cursor's paid reviewer product. Grok Build = xAI's agent CLI (interactive login via SuperGrok/X Premium+; CI via `XAI_API_KEY`). This repo already uses Claude as a review-loop engine; Grok is additive.
 
