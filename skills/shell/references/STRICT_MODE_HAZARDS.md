@@ -271,6 +271,12 @@ Put the guard in a subshell: it refuses visibly and the session survives.
 )
 ```
 
+**This narrows nothing about scripts.** A `.sh` file still opens `set -euo pipefail` per the stance
+below — there, an `exit 1` ends *the script*, which is the point, and the caller keeps its shell and
+its scroll-back. The hazard is exactly the case where the shell being killed is the operator's own,
+so the refusal it was supposed to print dies with it. Same three letters, opposite effect, because
+the thing that exits is not the same thing.
+
 Authoring rules for such blocks — the positive-evidence line and one-box-per-block — are in
 [`INTERACTIVE_SUDO_LOGIN_SHELL.md`](INTERACTIVE_SUDO_LOGIN_SHELL.md).
 
