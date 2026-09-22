@@ -58,6 +58,21 @@ eyeball intermediate output between steps.
 fails with "This account is currently not available"; use `su -s /bin/bash -l <user>` instead (see
 [`PRIVILEGE_DROP_PORTABILITY.md`](PRIVILEGE_DROP_PORTABILITY.md)).
 
+## Authoring the block: make success provable, name the box
+
+Two rules that come from the same incident as
+[`STRICT_MODE_HAZARDS.md`](STRICT_MODE_HAZARDS.md) § 15 (a guard that killed the session, so the
+operator saw only a fast prompt and read it as success):
+
+- **End a state-changing block by printing what is now live** — image tag, revision, version string.
+  Without it, a run that did nothing and a run that deployed look identical from the scroll-back, and
+  "that was quick" is read as success. The last line is the acceptance criterion:
+  `docker ps --format '{{.Names}}  {{.Image}}' | grep "$SERVICE"`.
+- **One block, one box.** A block that opens with workstation commands and continues with remote ones
+  gets run wherever the operator's shell happens to be. Name the box in the heading, keep each block
+  to that box, and end the block at a host boundary. A one-line guard makes the mistake announce
+  itself: `test -r /path/that/exists/only/there || { echo "STOP: wrong box"; exit 1; }`.
+
 ## Rule of thumb
 
 Never `&&`/`;`-chain after an interactive `sudo -i` / `su -`. Either put the become-user command on

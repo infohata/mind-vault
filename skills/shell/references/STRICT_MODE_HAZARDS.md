@@ -244,6 +244,36 @@ out=$(fold "" "$payload")
 trusting a green harness, feed each assertion a value you *know* should fail it. An assertion never
 observed failing has not been tested — it has been written.
 
+### 15. Bare `set -e` in a shell a HUMAN is sitting in — the guard logs them out
+
+A block pasted into an interactive `sudo -i` / `su -` / `ssh` session is not a script: the shell
+belongs to the operator. There, `set -e` at top level turns a **deliberate** refusal into a session
+kill, and takes the evidence with it.
+
+```bash
+sudo -iu svc
+set -e                                              # ← top level of an interactive shell
+test "$(git rev-parse origin/staging)" = "$WANT" || { echo "STOP: wrong ref"; exit 1; }
+./deploy.sh 2>&1 | tee /tmp/deploy.log
+```
+
+Observed: the guard failed, `exit 1` closed the login shell, so `STOP` was never seen and `tee` never
+ran — no message, no log. The prompt returned fast, fast read as success, and two dependent deploys
+were stacked on a release that had never been deployed. It surfaced an hour later when a container
+listing still showed the **previous** release's image tag.
+
+Put the guard in a subshell: it refuses visibly and the session survives.
+
+```bash
+( set -e
+  test "$(git rev-parse origin/staging)" = "$WANT" || { echo "STOP: wrong ref"; exit 1; }
+  ./deploy.sh 2>&1 | tee /tmp/deploy.log
+)
+```
+
+Authoring rules for such blocks — the positive-evidence line and one-box-per-block — are in
+[`INTERACTIVE_SUDO_LOGIN_SHELL.md`](INTERACTIVE_SUDO_LOGIN_SHELL.md).
+
 ## Stance — a judgment call, encoded honestly
 
 The canon itself is split on `set -e` (BashFAQ/105's own contributors disagree:

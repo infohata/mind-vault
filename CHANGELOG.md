@@ -10,6 +10,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.14 — a guard that logs the operator out
+
+A release block pasted into an interactive login shell carried `set -e` at top level. The guard failed, `exit 1` closed the session, and `tee` never ran — no refusal message, no log. The prompt came back fast, fast read as success, and two dependent deploys were stacked on a release that had never been deployed; it surfaced an hour later when a container listing still showed the previous release's image tag.
+
+### Added
+
+- **`skills/shell/references/STRICT_MODE_HAZARDS.md` § 15** — bare `set -e` in a shell a human is sitting in (interactive `sudo -i` / `su -` / `ssh`) turns a deliberate refusal into a session kill and destroys the evidence with it. The fix is the guard in a `( set -e … )` subshell, which refuses visibly and keeps the session.
+- **`skills/shell/references/INTERACTIVE_SUDO_LOGIN_SHELL.md` § Authoring the block** — two rules for blocks a human pastes: end a state-changing block by printing what is now live (image tag / revision), because otherwise a run that did nothing and a run that deployed look identical; and keep one block to one box, since a block that mixes workstation and remote commands runs wherever the operator's shell is.
+
 ## v5.8.13 — Grok marketplace short-name install + read-only CI review
 
 Makes `grok plugin marketplace add infohata/mind-vault` + `grok plugin install mv --trust` resolve the catalog short name. Dogfood on 5.8.12 showed direct `install infohata/mind-vault` worked, but `install mv` failed until Grok could read a `.grok-plugin/` marketplace index. Also hardens the Grok CI review, which 5.8.12 shipped with `--yolo`, before it gets enabled ([#253](https://github.com/infohata/mind-vault/pull/253)).
