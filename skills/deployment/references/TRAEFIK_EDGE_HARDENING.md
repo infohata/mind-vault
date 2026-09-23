@@ -156,4 +156,5 @@ Pairs with [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md) (the daemon this edge usuall
 without silent staleness — the other half of §6's pipeline) and
 [NGINX_TLS_REDIRECT_AND_CERTS.md](NGINX_TLS_REDIRECT_AND_CERTS.md) (the same
 ACME-challenge-must-stay-reachable precondition, nginx flavor). Verify-script discipline:
-[../../shell/references/MAINTENANCE_SCRIPT_CONTRACT.md](../../shell/references/MAINTENANCE_SCRIPT_CONTRACT.md).
+[../../shell/references/MAINTENANCE_SCRIPT_CONTRACT.md](../../shell/references/MAINTENANCE_SCRIPT_CONTRACT.md)
+and [../../shell/references/VERIFY_DISCIPLINE.md](../../shell/references/VERIFY_DISCIPLINE.md).
