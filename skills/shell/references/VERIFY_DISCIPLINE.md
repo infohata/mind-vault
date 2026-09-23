@@ -36,7 +36,8 @@ limit** (each request pays RTT + a fresh TLS handshake), so it never drains the 
 
 ```bash
 codes="$(seq 1 500 | xargs -P50 -n1 sh -c 'curl -s -o /dev/null -w "%{http_code}\n" --max-time 8 "<url>" 2>/dev/null || true' _)"
-n429="$(printf '%s\n' "$codes" | grep -c '^429$' || true)"   # expect > 0
+n429="$(printf '%s\n' "$codes" | grep -c '^429$' || true)"   # grep -c exits 1 on a zero count
+[ "$n429" -gt 0 ] || { echo "FAIL: 0 of 500 requests got 429 — limiter not engaged, or probe too slow" >&2; exit 1; }
 ```
 
 The trailing `_` occupies `sh -c`'s `$0` slot, so the xargs-fed token lands in `$1` — deliberately
@@ -135,11 +136,12 @@ before treating it as a regression you introduced.
 files, run against something known to be present. Ship the control in the same output.
 
 ```bash
-# the question
-grep -c '/api/target_endpoint' "$LOG"        # -> 0
+# the question — grep -c exits 1 on a zero count; under set -e that would end the
+# script before the control below ever runs
+hits=$(grep -c '/api/target_endpoint' "$LOG" || true); echo "target hits: $hits"   # -> 0
 
-# the control, SAME method: what IS being hit?
-awk -F'"' '{split($2,a," "); print a[2]}' "$LOG" | cut -d'?' -f1   | sort | uniq -c | sort -rn | head -15
+# the control, SAME method: what IS being hit? (awk, not head: no SIGPIPE under pipefail)
+awk -F'"' '{split($2,a," "); print a[2]}' "$LOG" | cut -d'?' -f1 | sort | uniq -c | sort -rn | awk 'NR <= 15'
 ```
 
 If the control lists busy endpoints and the target is absent, the zero is real. **If the control is

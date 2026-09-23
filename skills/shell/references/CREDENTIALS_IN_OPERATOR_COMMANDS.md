@@ -19,9 +19,16 @@ the output, the more certainly it fails. Put the protection in the command.
 selects, whatever that secret's key is called:
 
 ```bash
-# anchored on the exact keys the question is about — not a word that may appear anywhere
-grep -E '^[[:space:]]*(hosts?|ssl|enabled|protocol):' /etc/service/config.yml
+# anchored on the exact keys the question is about — not a word that may appear anywhere;
+# the sed strips user:password@ from any URL, since a hosts: value can carry credentials
+grep -E '^[[:space:]]*(hosts?|ssl|enabled|protocol):' /etc/service/config.yml \
+  | sed -E 's#(://)[^/@[:space:]]+@#\1<redacted>@#g'
 ```
+
+`grep` prints the whole matching line, so an allowed key is only as safe as its value: a URL with
+embedded credentials, or an inline mapping (`hosts: {url: …, token: …}`), comes along with it. Scrub
+URL credentials as above; if the file uses inline mappings, extract the single field with a
+format-aware tool (`yq '.output.hosts'`) instead of `grep`.
 
 **When the output must be broader, redact on the way out — by key name AND by value shape.** A
 keyword list alone misses a token stored under a key named after the service (`shipper: …`), so
