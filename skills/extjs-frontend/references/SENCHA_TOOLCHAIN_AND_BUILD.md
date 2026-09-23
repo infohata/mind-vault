@@ -97,16 +97,15 @@ RUN --mount=type=secret,id=sencha_npm \
     export NPM_CONFIG_USERCONFIG=/tmp/sencha.npmrc \
  && printf '@sencha:registry=https://npm.sencha.com/\n//npm.sencha.com/:_authToken=%s\n' \
       "$(cat /run/secrets/sencha_npm)" > "$NPM_CONFIG_USERCONFIG" \
- && npm ci; rc=$?; rm -f /tmp/sencha.npmrc; [ "$rc" -eq 0 ] || exit "$rc"; \
+ && npm ci; rc=$?; rm -f /tmp/sencha.npmrc || exit 1; [ "$rc" -eq 0 ] || exit "$rc"; \
     grep -q '^\$ext-trial: false' node_modules/@sencha/ext-modern-theme-base/sass/etc/all.scss \
  || { echo "FATAL: Sencha installed as TRIAL"; exit 1; }   # the modern toolkit's theme-base; check the one you use
 RUN <overlay @sencha/cmd dist from the platform tarball, assert fashion + exec bit>   # § 3.3
 COPY . .
+# grep exit 1 = "no watermark" is the ONLY pass: 0 = trial CSS, 2 = no CSS (unmatched glob) or unreadable
 RUN npm run build:desktop && test -f build/production/<App>/index.html \
- && ls build/production/<App>/*/resources/*-all*.css >/dev/null \
- && ! grep -l ext-watermark build/production/<App>/*/resources/*-all*.css || { echo "no bundle, or a TRIAL one"; exit 1; }
-# ^ the `ls` makes the gate fail CLOSED: with no match, `! grep` on a literal glob (grep exit 2)
-#   would invert to success — a licence gate that read no file must never report clean.
+ && { grep -l ext-watermark build/production/<App>/*/resources/*-all*.css; [ $? -eq 1 ]; } \
+ || { echo "no bundle, or a TRIAL one"; exit 1; }
 FROM nginx:alpine
 COPY --from=build /app/build/production/<App>/ /usr/share/nginx/html/
 COPY --from=build /app/autobahn.js /usr/share/nginx/html/           # manifest-listed, not in the bundle
@@ -254,9 +253,12 @@ the token changes nothing.
 
 **Gates** (both in § 4): after `npm ci`, the theme says `$ext-trial: false`; after the build,
 no compiled CSS contains `ext-watermark`. **Probe a served bundle:**
-`curl -s https://<host>/<path>/desktop/resources/<App>-all_1.css | grep -c ext-watermark` must
-be `0`, and check the response is a real stylesheet (non-empty, HTTP 200): an HTML 404 page also
-counts `0`. A shape-only artefact validator (index, manifests, main bundle) passes a trial build.
+`css=$(curl -fsS https://<host>/<path>/desktop/resources/<App>-all_1.css) && printf '%s' "$css" | grep -c ext-watermark`
+must print `0`. No output means the fetch failed: a bare `curl -s … | grep -c` prints `0` for a 404
+or an unreachable host too, which reads as a clean bundle. `-f` does not catch a single-page-app
+fallback that answers a missing file with `200` and `index.html`, which also counts `0`, so
+confirm the response is CSS (`curl -fsSI … | grep -i '^content-type: text/css'`) before trusting
+the zero. A shape-only artefact validator (index, manifests, main bundle) passes a trial build.
 Add the licence check to any script that extracts or ships the bundle.
 
 **A committed SDK is immune.** An older app that vendors the framework under `ext/` (no npm

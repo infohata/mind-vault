@@ -12,7 +12,7 @@ _(none)_
 
 ## v5.8.16 — the vendor licence that is applied after install, and fails silently
 
-A consuming SPA project shipped its UI framework's trial watermark to every production customer for weeks. The account was licensed. The vendor's packages install as trial builds and switch themselves to licensed through an install script, but that script's nested `npm install` only reads the user-level npm config. The container build put the registry token in the project's config. Activation failed, printed a banner, and exited 0: the install "succeeded", the lockfile check passed, and so did the bundle check. Laptops built clean because the developer's `~/.npmrc` had the token. mind-vault's own Sencha reference prescribed the broken pattern, so this fixes it at the source.
+A consuming SPA project shipped its UI framework's trial watermark to every production customer for weeks. The account was licensed. The vendor's packages install as trial builds and switch themselves to licensed through an install script, but that script's nested `npm install` only reads the user-level npm config. The container build put the registry token in the project's config. Activation failed, printed a banner, and exited 0: the install "succeeded", the lockfile check passed, and so did the bundle check. Laptops built clean because the developer's `~/.npmrc` had the token. mind-vault's own Sencha reference prescribed the broken pattern, so this fixes it at the source. ([#258](https://github.com/infohata/mind-vault/pull/258))
 
 ### Fixed
 
