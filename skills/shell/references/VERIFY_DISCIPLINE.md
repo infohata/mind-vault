@@ -87,18 +87,26 @@ Whatever discipline the success path uses — atomic rename, lint-before-swap, p
 — **the restore-on-failure path must use it too.** It is the path that runs while the system is
 already in a bad state, and it is the one nobody exercises.
 
-The recurring shape: an installer stages to `target.new.$$`, lints it, then `mv`s it (a single
+The recurring shape: an installer stages to a `mktemp` sibling of the target, lints it, then `mv`s it (a single
 `rename(2)`, so no reader ever sees a partial file) — and then its own failure branch restores with a
 plain `cp` **directly over the live file**, reintroducing exactly the torn-read hazard the design
 existed to prevent.
 
 ```bash
 restore_atomic() {            # $1 = backup, $2 = live target
-    local tmp="$2.restore.$$"
-    cp -p "$1" "$tmp" || return 1
-    mv -f "$tmp" "$2"         # same rename(2) guarantee as install
+    local tmp
+    # mktemp in the target's own directory: same filesystem, so the mv stays one rename(2);
+    # an unpredictable name, so nobody can pre-plant a symlink there (never "$2.restore.$$")
+    tmp=$(mktemp "$2.restore.XXXXXX") || return 1
+    if cp -p -- "$1" "$tmp" && mv -f -- "$tmp" "$2"; then
+        return 0
+    fi
+    rm -f -- "$tmp"; return 1
 }
 ```
+
+Register `$tmp` with the script's composed cleanup trap as well if a signal could land between the
+`mktemp` and the `mv` — see [`CLEANUP_TRAPS_AND_LOCKING.md`](CLEANUP_TRAPS_AND_LOCKING.md).
 
 Three more properties for a `--rollback` mode:
 
