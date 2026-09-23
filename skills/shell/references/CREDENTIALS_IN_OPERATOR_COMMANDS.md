@@ -29,8 +29,10 @@ grep -E '^[[:space:]]*(hosts?|ssl|enabled|protocol):' /etc/service/config.yml \
 embedded credentials, or an inline mapping (`hosts: {url: …, token: …}`), comes along with it. Scrub
 URL credentials as above; if the file uses inline mappings, extract the single field with a
 format-aware tool, selecting the **leaf** you need and scrubbing it too —
-`yq '.output.hosts.url' /etc/service/config.yml | sed -E 's#(://)[^/@[:space:]]+@#\1<redacted>@#g'`
-— never the parent key (`.output.hosts` prints the whole mapping, token included).
+`yq -r '.output.hosts.url' /etc/service/config.yml | sed -E 's#(://)[^/@[:space:]]+@#\1<redacted>@#g'`
+— never the parent key (`.output.hosts` prints the whole mapping, token included). `-r` prints the
+bare value under both the Go `yq` (v4) and the Python jq-wrapper `yq` (Debian's package), which
+otherwise JSON-quotes it.
 
 **When the output must be broader, redact on the way out — by key name AND by value shape.** A
 keyword list alone misses a token stored under a key named after the service (`shipper: …`), so
