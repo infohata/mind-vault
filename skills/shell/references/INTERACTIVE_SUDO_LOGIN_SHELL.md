@@ -73,10 +73,10 @@ operator saw one `STOP` line above a fast prompt and read it as success):
 - **One block, one box.** A block that opens with workstation commands and continues with remote ones
   gets run wherever the operator's shell happens to be. Name the box in the heading, keep each block
   to that box, and end the block at a host boundary. A one-line guard makes the mistake announce
-  itself — in a subshell, so the `exit` ends the subshell and not the operator's session:
-  `( test -r /path/that/exists/only/there || { echo "STOP: wrong box"; exit 1; } )`. That guard
-  only announces: the pasted lines after it still run. When they must not, put the guard and the
-  block in one subshell, as [`STRICT_MODE_HAZARDS.md`](STRICT_MODE_HAZARDS.md) § 15 does.
+  itself: `test -r /path/that/exists/only/there || echo "STOP: wrong box"`. Leave `exit` out —
+  at the top level of the operator's shell it closes their session. That guard only announces:
+  the pasted lines after it still run. When they must not, put the guard and the block in one
+  subshell, as [`STRICT_MODE_HAZARDS.md`](STRICT_MODE_HAZARDS.md) § 15 does.
 
 ## Rule of thumb
 

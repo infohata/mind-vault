@@ -273,15 +273,19 @@ Put the block in a subshell: `exit` and errexit then end the subshell only, so t
 and the session survives.
 
 ```bash
+set +e                      # the session may still have -e on from an earlier paste
 ( set -eo pipefail          # pipefail: without it, tee's 0 hides a failed deploy.sh
   test "$(git rev-parse origin/staging)" = "$WANT" || { echo "STOP: wrong ref"; exit 1; }
   ./deploy.sh 2>&1 | tee /tmp/deploy.log
-) || echo "BLOCK REFUSED (rc=$?)"
+); rc=$?
+[ "$rc" -eq 0 ] || echo "BLOCK FAILED (rc=$rc)"
 ```
 
-The trailing `||` matters when the session already has `-e` on from an earlier paste: a failing
-subshell is then an ordinary failing command, and the operator's shell exits on it. In a `||`
-list the status is consumed instead, and the refusal gets a second, louder line.
+Two details are load-bearing. The `set +e` first: with `-e` still on in the session, a failing
+subshell is an ordinary failing command and the operator's shell exits on it. And the status is
+captured with `; rc=$?`, **not** `( … ) || echo …`: a subshell on the left of `||` is a condition
+context, so bash ignores `set -e` for everything inside it (hazard 5) and the block no longer
+stops at the first failure.
 
 **This narrows nothing about scripts.** A `.sh` file still opens `set -euo pipefail` per the stance
 below — there, an `exit 1` ends *the script*, which is the point, and the caller keeps its shell and
