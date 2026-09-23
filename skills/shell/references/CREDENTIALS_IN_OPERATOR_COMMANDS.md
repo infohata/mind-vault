@@ -37,11 +37,16 @@ on the box for as long as the request ran.
 curl -sS --config "$AUTH" -X PUT "$URL/_security/user/shipper" \
   -H 'Content-Type: application/json' -d "{\"password\":\"$PW\",\"roles\":[\"writer\"]}"
 
-# ✅ DO — the body arrives on stdin; argv carries nothing secret
-jq -n --arg pw "$PW" '{password: $pw, roles: ["writer"]}' \
+# ✅ DO — the secret travels on stdin at every hop; no argv carries it
+printf '%s' "$PW" | jq -Rs '{password: ., roles: ["writer"]}' \
   | curl -sS --config "$AUTH" -X PUT "$URL/_security/user/shipper" \
       -H 'Content-Type: application/json' --data-binary @-
 ```
+
+Every hop counts, not just the last one: building the body with `jq -n --arg pw "$PW"` puts
+the password in **jq's** argv instead of curl's, which is the same leak one process earlier.
+`printf` is a shell builtin, so it never gets a process or an argv of its own; `jq -Rs` reads the
+raw secret from stdin and emits the JSON body on stdout.
 
 The test that caught it logged every argument vector the script produced and asserted the
 secret never appeared in one. Once bodies moved to stdin, the test's stub could no longer tell

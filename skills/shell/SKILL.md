@@ -25,7 +25,7 @@ rather than restating them. New shell-general patterns land here, not under
 
 **TRIGGER when:** writing or reviewing any bash/sh script — ops/maintenance/rollout tooling, cron jobs, CI steps, entrypoints; user asks to "make this script safe to re-run"; adding or auditing DRY-RUN / `--apply` / `--verify` mode surfaces; sweeping a host fleet over SSH; editing system config files (PAM stack, `nsswitch.conf`, login-path or firewall config) from a script; designing precondition checklists for operator tooling; deleting data someone else owns on the strength of their message approval; handing an operator a command that reads a config file, or sending a secret to an API from a script.
 
-**SKIP when:** the script is a Docker-Compose deploy / backup / rollback (→ [`deployment`](../deployment/SKILL.md) owns that lifecycle) or a machine-provisioning installer (→ deployment's [`SHELL_INSTALLERS.md`](../deployment/references/SHELL_INSTALLERS.md) leads and reaches down into this layer); one-shot commands a human types interactively.
+**SKIP when:** the script is a Docker-Compose deploy / backup / rollback (→ [`deployment`](../deployment/SKILL.md) owns that lifecycle) or a machine-provisioning installer (→ deployment's [`SHELL_INSTALLERS.md`](../deployment/references/SHELL_INSTALLERS.md) leads and reaches down into this layer); one-shot commands a human types interactively — **except** a command you hand an operator that reads a config file or sends a secret: that one follows [`CREDENTIALS_IN_OPERATOR_COMMANDS.md`](references/CREDENTIALS_IN_OPERATOR_COMMANDS.md).
 
 ## Language mechanics
 
