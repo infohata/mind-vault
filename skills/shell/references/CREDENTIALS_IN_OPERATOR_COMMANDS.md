@@ -15,21 +15,31 @@ The operator promised to read output more carefully before pasting. That is the 
 **asking a human to scan output for secrets is a control that fails by design**, and the longer
 the output, the more certainly it fails. Put the protection in the command.
 
+**Every value you let through goes through one scrub.** An allowed key's value can still carry a
+secret in a URL (`user:password@`, the path, `?token=…`, the fragment) or in a trailing comment.
+The operator asked *which endpoint*, so a URL is cut down to `scheme://host:port`, and inline
+comments are dropped:
+
+```bash
+scrub() {   # URLs → scheme://host:port only; trailing " # …" comments removed
+  sed -E -e 's#([A-Za-z][A-Za-z0-9+.-]*://)([^/@[:space:]"'"'"']*@)?([^]}/?#[:space:]"'"'"',]+)[^]}[:space:]"'"'"',]*#\1\3#g' \
+         -e 's/[[:space:]]+#.*$//'
+}
+```
+
 **First choice — print only the fields you need.** An allow-list cannot leak a secret it never
 selects, whatever that secret's key is called:
 
 ```bash
-# anchored on the exact keys the question is about — not a word that may appear anywhere;
-# the sed strips user:password@ from any URL, since a hosts: value can carry credentials
-grep -E '^[[:space:]]*(hosts?|ssl|enabled|protocol):' /etc/service/config.yml \
-  | sed -E 's#(://)[^/@[:space:]]+@#\1<redacted>@#g'
+# anchored on the exact keys the question is about — not a word that may appear anywhere
+grep -E '^[[:space:]]*(hosts?|ssl|enabled|protocol):' /etc/service/config.yml | scrub
 ```
 
 `grep` prints the whole matching line, so an allowed key is only as safe as its value: a URL with
-embedded credentials, or an inline mapping (`hosts: {url: …, token: …}`), comes along with it. Scrub
-URL credentials as above; if the file uses inline mappings, extract the single field with a
+embedded credentials, or an inline mapping (`hosts: {url: …, token: …}`), comes along with it.
+`scrub` handles the URL; if the file uses inline mappings, extract the single field with a
 format-aware tool, selecting the **leaf** you need and scrubbing it too —
-`yq -r '.output.hosts.url' /etc/service/config.yml | sed -E 's#(://)[^/@[:space:]]+@#\1<redacted>@#g'`
+`yq -r '.output.hosts.url' /etc/service/config.yml | scrub`
 — never the parent key (`.output.hosts` prints the whole mapping, token included). `-r` prints the
 bare value under both the Go `yq` (v4) and the Python jq-wrapper `yq` (Debian's package), which
 otherwise JSON-quotes it.
@@ -52,16 +62,15 @@ awk -v safe='^(hosts?|port|ssl|enabled|protocol|scheme)$' '
   /^[[:space:]]*#/ { print "# <comment hidden>"; next }   # a commented-out token is still a token
   /^[[:space:]]*$/ { print; next }
   { print "<hidden line>" }                 # list items, continuations: values, so hidden
-' /etc/service/config.yml \
-  | sed -E 's#(://)[^/@[:space:]]+@#\1<redacted>@#g'   # a safe key's URL can still carry user:password@
+' /etc/service/config.yml | scrub     # a safe key's value can still carry a token in a URL
 ```
 
 The failure mode is now a hidden value you needed, which costs a follow-up question, instead of a
 leaked secret, which costs a credential rotation. Grow the `safe` list only with keys whose values
 can never be a credential. Even a safe key prints only a plain scalar: `hosts: {url: …, token: …}`
 or `hosts: [ … ]` is hidden, because a structured value can nest anything — select the leaf with
-`yq -r` as shown above instead. `hosts` stays safe for scalars only because the `sed` strips URL
-credentials. Comments are hidden too: a commented-out `# token: …` is a live credential.
+`yq -r` as shown above instead. `hosts` stays safe for scalars only because `scrub` reduces its URL to
+scheme, host and port. Comments are hidden too: a commented-out `# token: …` is a live credential.
 
 ## Keeping secrets out of `-u` is not enough — request bodies go over stdin
 
