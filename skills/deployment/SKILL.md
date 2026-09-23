@@ -302,7 +302,7 @@ Note what these four commands have in common: every one of them runs on the depl
 
 Some defects are live and manifest *right now* and every honest check still comes back green — because each check is run from the side where the fault cannot appear by construction. No better assertion fixes that; only a different **vantage** does. Name the party who would experience the failure and reproduce the observation from *their* position; where that is impossible, downgrade your result to evidence about the producer only.
 
-Discriminator: **if you moved the same check, unmodified, to the other side of the boundary, would it fail?** If yes, the check's subject was right and only its position was wrong — this section. If it would still pass wherever you ran it, the defect is elsewhere: either the check interrogates a stand-in for the thing the system consumes, or the environment it ran in could not express the fault (see [shell / EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md](../shell/references/EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md)).
+Discriminator: **if you moved the same check, unmodified, to the other side of the boundary, would it fail?** If yes, the check's subject was right and only its position was wrong — this section. If it would still pass wherever you ran it, the defect is elsewhere: either the check interrogates a stand-in for the thing the system consumes, or the environment it ran in could not express the fault (see [shell / GREEN_RUN_UNIVERSE_TOO_SMALL.md](../shell/references/GREEN_RUN_UNIVERSE_TOO_SMALL.md)).
 
 Three unoccupied vantages recur in deploy work.
 

@@ -244,6 +244,61 @@ out=$(fold "" "$payload")
 trusting a green harness, feed each assertion a value you *know* should fail it. An assertion never
 observed failing has not been tested — it has been written.
 
+### 15. Script-mode exits in a shell a HUMAN is sitting in — the guard logs them out
+
+A block pasted into an interactive `sudo -i` / `su -` / `ssh` session is not a script: the shell
+belongs to the operator. Two script idioms end that shell instead of a script — an `exit` in a
+guard, and top-level `set -e`, which does the same on any failing command. Either one turns a
+**deliberate** refusal into a session kill, and takes most of the evidence with it.
+
+```bash
+sudo -iu svc
+set -e                                              # ← top level of an interactive shell
+test "$(git rev-parse origin/staging)" = "$WANT" || { echo "STOP: wrong ref"; exit 1; }
+./deploy.sh 2>&1 | tee /tmp/deploy.log
+```
+
+Observed: the guard failed. It printed one `STOP` line, then `exit 1` closed the login shell, so
+`tee` never ran and no log was written — the only trace was a single line above a fresh prompt,
+which is easy to scroll past. The prompt returned fast, fast read as success, and two dependent deploys
+were stacked on a release that had never been deployed. It surfaced an hour later when a container
+listing still showed the **previous** release's image tag.
+
+Note what killed the session: `exit 1`, not `set -e`. The `||` makes the `test` a condition, which
+errexit ignores, so deleting `set -e` from this block changes nothing — the guard still closes the
+shell. `set -e` is the other half of the same hazard: left at top level, the next failing command
+closes the session too, with no guard involved.
+
+Put the block in a subshell: `exit` and errexit then end the subshell only, so the refusal prints
+and the session survives.
+
+```bash
+set +e                      # the session may still have -e on from an earlier paste
+( set -eo pipefail          # pipefail: without it, tee's 0 hides a failed deploy.sh
+  # an empty $WANT would equal a failed (empty) rev-parse, so require it first;
+  # ${WANT:-} so a set -u left on by an earlier paste can't abort before the STOP
+  [ -n "${WANT:-}" ] && test "$(git rev-parse --verify origin/staging)" = "${WANT:-}" \
+    || { echo "STOP: wrong ref (or WANT unset)"; exit 1; }
+  ./deploy.sh 2>&1 | tee /tmp/deploy.log
+); rc=$?
+[ "$rc" -eq 0 ] || { echo "BLOCK FAILED (rc=$rc)"; false; }   # $? stays non-zero; -e is off
+```
+
+Two details are load-bearing. The `set +e` first: with `-e` still on in the session, a failing
+subshell is an ordinary failing command and the operator's shell exits on it. And the status is
+captured with `; rc=$?`, **not** `( … ) || echo …`: a subshell on the left of `||` is a condition
+context, so bash ignores `set -e` for everything inside it (hazard 5) and the block no longer
+stops at the first failure.
+
+**This narrows nothing about scripts.** A `.sh` file still opens `set -euo pipefail` per the stance
+below — there, an `exit 1` ends *the script*, which is the point, and the caller keeps its shell and
+its scroll-back. The hazard is exactly the case where the shell being killed is the operator's own,
+so the session, the log and every later step die with it and the refusal shrinks to one line. Same idiom, opposite effect, because the
+thing that exits is not the same thing.
+
+Authoring rules for such blocks — the positive-evidence line and one-box-per-block — are in
+[`INTERACTIVE_SUDO_LOGIN_SHELL.md`](INTERACTIVE_SUDO_LOGIN_SHELL.md).
+
 ## Stance — a judgment call, encoded honestly
 
 The canon itself is split on `set -e` (BashFAQ/105's own contributors disagree:

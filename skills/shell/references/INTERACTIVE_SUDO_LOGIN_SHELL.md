@@ -58,6 +58,30 @@ eyeball intermediate output between steps.
 fails with "This account is currently not available"; use `su -s /bin/bash -l <user>` instead (see
 [`PRIVILEGE_DROP_PORTABILITY.md`](PRIVILEGE_DROP_PORTABILITY.md)).
 
+## Authoring the block: make success provable, name the box
+
+Two rules that come from the same incident as
+[`STRICT_MODE_HAZARDS.md`](STRICT_MODE_HAZARDS.md) § 15 (a guard that killed the session, so the
+operator saw one `STOP` line above a fast prompt and read it as success):
+
+- **End a state-changing block by printing what is now live** — image tag, revision, version string.
+  Without it, a run that did nothing and a run that deployed look identical from the scroll-back, and
+  "that was quick" is read as success. The last line is the acceptance criterion:
+  `set +e; if ps=$(docker ps --format '{{.Names}}  {{.Image}}'); then printf '%s\n' "$ps" | awk -v s="$SERVICE" '$1==s {print; f=1} END {if (!f) {print "STOP: " s " is not running"; exit 1}}'; else echo "STOP: docker ps failed — live state UNKNOWN"; false; fi`
+  — an exact name match, a missing service prints `STOP` instead of nothing, a failed probe
+  says so rather than passing as "not running", and both `STOP` paths exit non-zero so nothing
+  chained after the line can treat them as success. The leading `set +e` is what keeps that
+  non-zero status from closing a session that still has `-e` on (see
+  [`STRICT_MODE_HAZARDS.md`](STRICT_MODE_HAZARDS.md) § 15). POSIX syntax (bash, zsh, dash); a fish login shell
+  needs it wrapped in `bash -c '…'`.
+- **One block, one box.** A block that opens with workstation commands and continues with remote ones
+  gets run wherever the operator's shell happens to be. Name the box in the heading, keep each block
+  to that box, and end the block at a host boundary. A one-line guard makes the mistake announce
+  itself: `test -r /path/that/exists/only/there || echo "STOP: wrong box"`. Leave `exit` out —
+  at the top level of the operator's shell it closes their session. That guard only announces:
+  the pasted lines after it still run. When they must not, put the guard and the block in one
+  subshell, as [`STRICT_MODE_HAZARDS.md`](STRICT_MODE_HAZARDS.md) § 15 does.
+
 ## Rule of thumb
 
 Never `&&`/`;`-chain after an interactive `sudo -i` / `su -`. Either put the become-user command on
