@@ -52,23 +52,37 @@ check() {   # check <path|bytes|mtime> -> 0 only on an exact match
   [ "$actual" = "$bytes|$mtime" ] || { echo "CHANGED since survey: $path ($actual)" >&2; return 1; }
 }
 
+case "$#:${1:-}" in                   # exactly zero args, or exactly --apply
+  0:)       MODE=dry-run ;;
+  1:--apply) MODE=apply ;;
+  *)        echo "usage: $0 [--apply]" >&2; exit 2 ;;
+esac
+
+# Phase 0 — the lists themselves: no duplicates, no path both a target and a keeper
+dups=$(printf '%s\n' "${TARGETS[@]%%|*}" "${KEEPERS[@]%%|*}" | sort | uniq -d)
+[ -z "$dups" ] || { echo "ABORT: path listed twice (target/keeper overlap?):" >&2; echo "$dups" >&2; exit 1; }
+
 # Phase 1 — verify everything; any failure aborts with nothing removed
 bad=0
 for e in "${TARGETS[@]}" "${KEEPERS[@]}"; do check "$e" || bad=1; done
 [ "$bad" -eq 0 ] || { echo "ABORT: survey no longer matches; nothing removed" >&2; exit 1; }
+[ "$MODE" = apply ] || { echo "DRY-RUN: ${#TARGETS[@]} target(s) verified"; exit 0; }
 
-case "${1:-}" in
-  "")      echo "DRY-RUN: ${#TARGETS[@]} target(s) verified"; exit 0 ;;
-  --apply) ;;
-  *)       echo "unknown argument: $1" >&2; exit 2 ;;
-esac
+# Phase 2 — remove exactly the pinned paths; stop at the first failure and say where
+removed=0
+for e in "${TARGETS[@]}"; do
+  if ! rm -- "${e%%|*}"; then
+    echo "PARTIAL: removed $removed of ${#TARGETS[@]}; stopped at ${e%%|*}" >&2
+    break
+  fi
+  removed=$((removed + 1))
+done
 
-# Phase 2 — remove exactly the pinned paths
-for e in "${TARGETS[@]}"; do rm -- "${e%%|*}"; done
-
-# Survivors still hold
-for e in "${KEEPERS[@]}"; do check "$e"; done
-echo "removed ${#TARGETS[@]}, keepers intact: ${#KEEPERS[@]}"
+# Survivors still hold — checked on the partial path too
+kept=0
+for e in "${KEEPERS[@]}"; do check "$e" && kept=$((kept + 1)); done
+echo "removed $removed/${#TARGETS[@]}, keepers intact: $kept/${#KEEPERS[@]}"
+[ "$removed" -eq "${#TARGETS[@]}" ] && [ "$kept" -eq "${#KEEPERS[@]}" ]
 ```
 
 The check and the `rm` are separate steps, so a writer that replaces a verified path in between
@@ -78,8 +92,9 @@ job holds, across both phases — rather than trusting the gap to be short.
 The dry-run default and `--apply` flag follow
 [`MAINTENANCE_SCRIPT_CONTRACT.md`](MAINTENANCE_SCRIPT_CONTRACT.md) § Mode surface. The
 refusal tests are cheap to write against a temp directory: copy the lists, `touch` one target
-to change its mtime, delete one keeper, pre-delete one target — every case must exit non-zero
-with the directory unchanged.
+to change its mtime, delete one keeper, pre-delete one target, list one path as both target and
+keeper, pass a stray extra argument — every case must exit non-zero with the directory unchanged.
+A run that fails partway exits non-zero and says how many targets it removed and where it stopped.
 
 ## Why pinning beats "the owner said the old ones"
 

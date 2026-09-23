@@ -275,8 +275,9 @@ and the session survives.
 ```bash
 set +e                      # the session may still have -e on from an earlier paste
 ( set -eo pipefail          # pipefail: without it, tee's 0 hides a failed deploy.sh
-  # an empty $WANT would equal a failed (empty) rev-parse, so require it first
-  [ -n "$WANT" ] && test "$(git rev-parse --verify origin/staging)" = "$WANT" \
+  # an empty $WANT would equal a failed (empty) rev-parse, so require it first;
+  # ${WANT:-} so a set -u left on by an earlier paste can't abort before the STOP
+  [ -n "${WANT:-}" ] && test "$(git rev-parse --verify origin/staging)" = "${WANT:-}" \
     || { echo "STOP: wrong ref (or WANT unset)"; exit 1; }
   ./deploy.sh 2>&1 | tee /tmp/deploy.log
 ); rc=$?
