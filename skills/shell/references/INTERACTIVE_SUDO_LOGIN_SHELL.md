@@ -62,16 +62,20 @@ fails with "This account is currently not available"; use `su -s /bin/bash -l <u
 
 Two rules that come from the same incident as
 [`STRICT_MODE_HAZARDS.md`](STRICT_MODE_HAZARDS.md) § 15 (a guard that killed the session, so the
-operator saw only a fast prompt and read it as success):
+operator saw one `STOP` line above a fast prompt and read it as success):
 
 - **End a state-changing block by printing what is now live** — image tag, revision, version string.
   Without it, a run that did nothing and a run that deployed look identical from the scroll-back, and
   "that was quick" is read as success. The last line is the acceptance criterion:
-  `docker ps --format '{{.Names}}  {{.Image}}' | grep "$SERVICE"`.
+  `docker ps --format '{{.Names}}  {{.Image}}' | awk -v s="$SERVICE" '$1==s {print; f=1} END {if (!f) print "STOP: " s " is not running"}'`
+  — an exact name match, and a missing service prints `STOP` instead of nothing.
 - **One block, one box.** A block that opens with workstation commands and continues with remote ones
   gets run wherever the operator's shell happens to be. Name the box in the heading, keep each block
   to that box, and end the block at a host boundary. A one-line guard makes the mistake announce
-  itself: `test -r /path/that/exists/only/there || { echo "STOP: wrong box"; exit 1; }`.
+  itself — in a subshell, so the `exit` ends the subshell and not the operator's session:
+  `( test -r /path/that/exists/only/there || { echo "STOP: wrong box"; exit 1; } )`. That guard
+  only announces: the pasted lines after it still run. When they must not, put the guard and the
+  block in one subshell, as [`STRICT_MODE_HAZARDS.md`](STRICT_MODE_HAZARDS.md) § 15 does.
 
 ## Rule of thumb
 

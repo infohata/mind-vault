@@ -35,13 +35,13 @@ set -euo pipefail
 
 # path|bytes|mtime-epoch — copied verbatim from the survey the owner approved
 TARGETS=(
-  "/srv/backups/app1/2026-08-01.tar.zst|7340032000|1754006400"
-  "/srv/backups/app2/2026-08-01.tar.zst|6291456000|1754006700"
+  "/srv/backups/app1/2026-08-01.tar.zst|7340032000|1785542400"
+  "/srv/backups/app2/2026-08-01.tar.zst|6291456000|1785542700"
 )
 # must still exist, unchanged, when we finish
 KEEPERS=(
-  "/srv/backups/app1/2026-09-01.tar.zst|7516192768|1756684800"
-  "/srv/backups/app2/2026-09-01.tar.zst|6442450944|1756685100"
+  "/srv/backups/app1/2026-09-01.tar.zst|7516192768|1788220800"
+  "/srv/backups/app2/2026-09-01.tar.zst|6442450944|1788221100"
 )
 
 check() {   # check <path|bytes|mtime> -> 0 only on an exact match
@@ -66,6 +66,10 @@ for e in "${TARGETS[@]}"; do rm -- "${e%%|*}"; done
 for e in "${KEEPERS[@]}"; do check "$e"; done
 echo "removed ${#TARGETS[@]}, keepers intact: ${#KEEPERS[@]}"
 ```
+
+The check and the `rm` are separate steps, so a writer that replaces a verified path in between
+gets its new file deleted. Run this while the owner's backup job is idle — or take the lock that
+job holds, across both phases — rather than trusting the gap to be short.
 
 The dry-run default and `--apply` flag follow
 [`MAINTENANCE_SCRIPT_CONTRACT.md`](MAINTENANCE_SCRIPT_CONTRACT.md) § Mode surface. The

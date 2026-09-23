@@ -244,11 +244,12 @@ out=$(fold "" "$payload")
 trusting a green harness, feed each assertion a value you *know* should fail it. An assertion never
 observed failing has not been tested — it has been written.
 
-### 15. Bare `set -e` in a shell a HUMAN is sitting in — the guard logs them out
+### 15. Script-mode exits in a shell a HUMAN is sitting in — the guard logs them out
 
 A block pasted into an interactive `sudo -i` / `su -` / `ssh` session is not a script: the shell
-belongs to the operator. There, `set -e` at top level turns a **deliberate** refusal into a session
-kill, and takes the evidence with it.
+belongs to the operator. Two script idioms end that shell instead of a script — an `exit` in a
+guard, and top-level `set -e`, which does the same on any failing command. Either one turns a
+**deliberate** refusal into a session kill, and takes most of the evidence with it.
 
 ```bash
 sudo -iu svc
@@ -257,12 +258,19 @@ test "$(git rev-parse origin/staging)" = "$WANT" || { echo "STOP: wrong ref"; ex
 ./deploy.sh 2>&1 | tee /tmp/deploy.log
 ```
 
-Observed: the guard failed, `exit 1` closed the login shell, so `STOP` was never seen and `tee` never
-ran — no message, no log. The prompt returned fast, fast read as success, and two dependent deploys
+Observed: the guard failed. It printed one `STOP` line, then `exit 1` closed the login shell, so
+`tee` never ran and no log was written — the only trace was a single line above a fresh prompt,
+which is easy to scroll past. The prompt returned fast, fast read as success, and two dependent deploys
 were stacked on a release that had never been deployed. It surfaced an hour later when a container
 listing still showed the **previous** release's image tag.
 
-Put the guard in a subshell: it refuses visibly and the session survives.
+Note what killed the session: `exit 1`, not `set -e`. The `||` makes the `test` a condition, which
+errexit ignores, so deleting `set -e` from this block changes nothing — the guard still closes the
+shell. `set -e` is the other half of the same hazard: left at top level, the next failing command
+closes the session too, with no guard involved.
+
+Put the block in a subshell: `exit` and errexit then end the subshell only, so the refusal prints
+and the session survives.
 
 ```bash
 ( set -e
@@ -274,8 +282,8 @@ Put the guard in a subshell: it refuses visibly and the session survives.
 **This narrows nothing about scripts.** A `.sh` file still opens `set -euo pipefail` per the stance
 below — there, an `exit 1` ends *the script*, which is the point, and the caller keeps its shell and
 its scroll-back. The hazard is exactly the case where the shell being killed is the operator's own,
-so the refusal it was supposed to print dies with it. Same three letters, opposite effect, because
-the thing that exits is not the same thing.
+so the session, the log and every later step die with it and the refusal shrinks to one line. Same idiom, opposite effect, because the
+thing that exits is not the same thing.
 
 Authoring rules for such blocks — the positive-evidence line and one-box-per-block — are in
 [`INTERACTIVE_SUDO_LOGIN_SHELL.md`](INTERACTIVE_SUDO_LOGIN_SHELL.md).

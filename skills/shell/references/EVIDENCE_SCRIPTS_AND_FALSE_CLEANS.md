@@ -205,13 +205,18 @@ unconditionally, then cap only the routine trace (same instinct as filtering *na
 noise in [`MAINTENANCE_SCRIPT_CONTRACT.md`](MAINTENANCE_SCRIPT_CONTRACT.md) § Evidence logs).
 
 ```sh
-# ✅ DO — the rejection reason always reaches the operator
+# ✅ DO — on failure the operator gets ALL of it; only a success's routine trace is capped
 rc=0; out=$(validate_tool -d "$CONF" 2>&1) || rc=$?   # errexit-safe capture
 if [ "$rc" -ne 0 ]; then
-  printf '%s\n' "$out" | grep -iE 'error|invalid|fail' || printf '%s\n' "$out" | tail -20
+  printf '%s\n' "$out" >&2                            # uncapped: the reason is in here somewhere
   say "FAIL rejected (rc=$rc)"
+else
+  printf '%s\n' "$out" | head -40; say "OK"
 fi
 ```
+
+Don't try to pick the error line out by keyword (`grep -i error`) as a substitute: a
+diagnostic worded any other way is dropped, which is the same defect again.
 
 **A filter matching more lines than its target — which only breaks on success.**
 
