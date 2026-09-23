@@ -67,8 +67,9 @@ operator saw one `STOP` line above a fast prompt and read it as success):
 - **End a state-changing block by printing what is now live** — image tag, revision, version string.
   Without it, a run that did nothing and a run that deployed look identical from the scroll-back, and
   "that was quick" is read as success. The last line is the acceptance criterion:
-  `docker ps --format '{{.Names}}  {{.Image}}' | awk -v s="$SERVICE" '$1==s {print; f=1} END {if (!f) print "STOP: " s " is not running"}'`
-  — an exact name match, and a missing service prints `STOP` instead of nothing.
+  `docker ps --format '{{.Names}}  {{.Image}}' | awk -v s="$SERVICE" '$1==s {print; f=1} END {if (!f) print "STOP: " s " is not running"}'; [ "${PIPESTATUS[0]}" -eq 0 ] || echo "STOP: docker ps failed — live state UNKNOWN"`
+  — an exact name match, a missing service prints `STOP` instead of nothing, and a failed probe
+  says so rather than passing as "not running".
 - **One block, one box.** A block that opens with workstation commands and continues with remote ones
   gets run wherever the operator's shell happens to be. Name the box in the heading, keep each block
   to that box, and end the block at a host boundary. A one-line guard makes the mistake announce

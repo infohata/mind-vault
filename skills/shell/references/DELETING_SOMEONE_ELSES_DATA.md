@@ -33,22 +33,22 @@ approval. **A deletion script's job is to refuse. Removing files is the easy par
 #!/bin/bash
 set -euo pipefail
 
-# path|bytes|mtime-epoch — copied verbatim from the survey the owner approved
+# path|bytes|mtime (stat %.9Y, nanoseconds) — copied verbatim from the survey the owner approved
 TARGETS=(
-  "/srv/backups/app1/2026-08-01.tar.zst|7340032000|1785542400"
-  "/srv/backups/app2/2026-08-01.tar.zst|6291456000|1785542700"
+  "/srv/backups/app1/2026-08-01.tar.zst|7340032000|1785542400.118207431"
+  "/srv/backups/app2/2026-08-01.tar.zst|6291456000|1785542700.502961744"
 )
 # must still exist, unchanged, when we finish
 KEEPERS=(
-  "/srv/backups/app1/2026-09-01.tar.zst|7516192768|1788220800"
-  "/srv/backups/app2/2026-09-01.tar.zst|6442450944|1788221100"
+  "/srv/backups/app1/2026-09-01.tar.zst|7516192768|1788220800.330584019"
+  "/srv/backups/app2/2026-09-01.tar.zst|6442450944|1788221100.874120563"
 )
 
 check() {   # check <path|bytes|mtime> -> 0 only on an exact match
   local path bytes mtime actual
   IFS='|' read -r path bytes mtime <<<"$1"
   [ -f "$path" ] || { echo "MISSING: $path" >&2; return 1; }
-  actual=$(stat -c '%s|%Y' -- "$path")
+  actual=$(stat -c '%s|%.9Y' -- "$path")   # whole seconds would miss a same-second rewrite
   [ "$actual" = "$bytes|$mtime" ] || { echo "CHANGED since survey: $path ($actual)" >&2; return 1; }
 }
 
@@ -57,7 +57,11 @@ bad=0
 for e in "${TARGETS[@]}" "${KEEPERS[@]}"; do check "$e" || bad=1; done
 [ "$bad" -eq 0 ] || { echo "ABORT: survey no longer matches; nothing removed" >&2; exit 1; }
 
-[ "${1:-}" = "--apply" ] || { echo "DRY-RUN: ${#TARGETS[@]} target(s) verified"; exit 0; }
+case "${1:-}" in
+  "")      echo "DRY-RUN: ${#TARGETS[@]} target(s) verified"; exit 0 ;;
+  --apply) ;;
+  *)       echo "unknown argument: $1" >&2; exit 2 ;;
+esac
 
 # Phase 2 — remove exactly the pinned paths
 for e in "${TARGETS[@]}"; do rm -- "${e%%|*}"; done

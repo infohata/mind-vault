@@ -211,7 +211,7 @@ if [ "$rc" -ne 0 ]; then
   printf '%s\n' "$out" >&2                            # uncapped: the reason is in here somewhere
   say "FAIL rejected (rc=$rc)"
 else
-  printf '%s\n' "$out" | head -40; say "OK"
+  printf '%s\n' "$out" | awk 'NR <= 40'; say "OK"   # awk reads it all: no SIGPIPE under pipefail
 fi
 ```
 

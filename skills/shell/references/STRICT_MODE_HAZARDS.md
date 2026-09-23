@@ -273,7 +273,7 @@ Put the block in a subshell: `exit` and errexit then end the subshell only, so t
 and the session survives.
 
 ```bash
-( set -e
+( set -eo pipefail          # pipefail: without it, tee's 0 hides a failed deploy.sh
   test "$(git rev-parse origin/staging)" = "$WANT" || { echo "STOP: wrong ref"; exit 1; }
   ./deploy.sh 2>&1 | tee /tmp/deploy.log
 )
