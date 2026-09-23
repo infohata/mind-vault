@@ -41,11 +41,13 @@ a second rule blanks any long token-like value whatever its key:
 ```bash
 grep -iE 'servicename|host|ssl' /etc/service/config.yml \
   | sed -E -e 's/((password|passwd|token|secret|key|apikey|authorization|bearer|credential)[^:=]*[:=][[:space:]]*).*/\1<redacted>/I' \
-           -e 's/([:=][[:space:]]*)["'"'"']?[A-Za-z0-9+/_=-]{20,}["'"'"']?[[:space:]]*$/\1<redacted:token-like>/'
+           -e 's/([:=][[:space:]]*)["'"'"']?[A-Za-z0-9+/_=-]{20,}["'"'"']?[[:space:]]*$/\1<redacted:token-like>/' \
+           -e 's#(://)[^/@[:space:]]+@#\1<redacted>@#g'
 ```
 
-Both rules over-redact on purpose (any key containing `key`; any 20+ character run without `.`
-or `:`); an over-redacted line costs a follow-up question, a leaked one costs a credential
+The third rule is the URL-credential scrub from the allow-list path: a `host:` key is innocent,
+but its value can still be `https://user:password@…`. All three rules over-redact on purpose (any key containing `key`; any 20+ character run without `.`
+or `:`; any URL's `user:password@`); an over-redacted line costs a follow-up question, a leaked one costs a credential
 rotation. Neither is a guarantee — a short or punctuated secret under an innocent key still
 passes — which is why the allow-list comes first. Adjust the separator class to the file
 format: `:` for YAML, `=` for env/INI.
