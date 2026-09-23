@@ -27,7 +27,8 @@ original defect's observable behavior, exit status and output included.
 Two neighbours are *not* this failure and take a different fix. An assertion that ran and
 returned a true answer about the wrong object is a proxy problem — the check interrogates
 a stand-in for the thing the system consumes; re-point the check. A run whose universe could
-not express the defect is a coverage problem (last section below); widen the population.
+not express the defect is a coverage problem
+([`GREEN_RUN_UNIVERSE_TOO_SMALL.md`](GREEN_RUN_UNIVERSE_TOO_SMALL.md)); widen the population.
 Here an in-scope assertion did not run, or ran and answered benignly — re-pointing and
 widening both change nothing.
 
@@ -168,6 +169,69 @@ When parsing a config for paths, three edge cases repay the effort:
   same-named file in the CWD. Accept absolute paths only; skip the keywords.
 - **Variables in the path** — a `$var`-bearing value cannot be resolved from the config
   text; skip it explicitly rather than letting it fail an existence test by accident.
+
+## The data was right; the extraction was wrong
+
+Three defects from one session, each invisible until one specific condition arrived. In
+every case the bytes being checked were correct and the command reading them was not.
+
+**A flag that made the comparison compare nothing.**
+
+```sh
+grep -H '^KEY=' ./*/config | sort -t= -k2 | uniq -c -f1
+#   -> "170 <first line>"   read as "all 170 identical"
+```
+
+`uniq -f1` skips the first whitespace-delimited field. Those lines have exactly one field,
+so `uniq` compared empty strings and collapsed every row whatever its value. The real
+distribution was 161 / 6 / 3, and the 6 were malformed entries that the "all identical"
+reading hid completely. A one-row summary of a many-row population is a claim; check it
+against a count of distinct values computed another way (`cut -d= -f2- | sort | uniq -c`).
+
+**A validator that threw away the diagnostic it exists to produce.**
+
+```sh
+# ❌ DON'T — the tool prints exactly why it rejects; this keeps one word
+if validate_tool -d "$CONF" >/dev/null 2>&1; then say "OK"; else say "FAIL rejected"; fi
+```
+
+Debugging then started from zero, and the cause was eventually found by A/B-ing inputs
+instead of reading the error that had been produced and discarded the whole time. The
+replacement script, written specifically to stop swallowing diagnostics, then piped the
+tool's output through `head -40`. On the real system those 40 lines filled with routine
+per-item chatter and the error was below the cut. **Capping diagnostic output is only safe
+if the diagnostic survives the cap**: collect the error lines first and print them
+unconditionally, then cap only the routine trace (same instinct as filtering *named* benign
+noise in [`MAINTENANCE_SCRIPT_CONTRACT.md`](MAINTENANCE_SCRIPT_CONTRACT.md) § Evidence logs).
+
+```sh
+# ✅ DO — the rejection reason always reaches the operator
+rc=0; out=$(validate_tool -d "$CONF" 2>&1) || rc=$?   # errexit-safe capture
+if [ "$rc" -ne 0 ]; then
+  printf '%s\n' "$out" | grep -iE 'error|invalid|fail' || printf '%s\n' "$out" | tail -20
+  say "FAIL rejected (rc=$rc)"
+fi
+```
+
+**A filter matching more lines than its target — which only breaks on success.**
+
+```sh
+# ❌ DON'T — substring match
+tool describe "$OBJ" | awk -F: '/Storage class/{gsub(/ /,"",$2); print $2}'
+# ✅ DO — anchor on the field itself
+tool describe "$OBJ" | awk -F: '/^[[:space:]]*Storage class:/{gsub(/ /,"",$2); print $2}'
+```
+
+The tool emits two lines containing that phrase: the field, and a `… update time:` field.
+Split on `:`, the timestamp line contributed a fragment of the date, so the value became two
+lines and every comparison against it failed. The second line **exists only after the
+transition being waited for**, so the parser was correct for as long as the answer was "not
+yet" and broke at the exact moment the awaited event happened. A check that can only fail on
+success looks perfectly reliable for as long as it has nothing to report.
+
+The general move: anchor on the field, never on a substring of it. When a check watches for
+an event, capture the output as it looks **after** the event, not only before it, and test
+the parser against both.
 
 ## Calibrate a threshold with the verdict's own expression
 
@@ -370,91 +434,7 @@ section resting on ground truth won.
 caught by; it can only be believed. Cross-check a derived claim against an independent
 signal that would move for the same reason, and put both in the output.
 
-## The adjacent failure: the check ran honestly, but its universe was too small
-
-Everything above is a check that never looked. This is its neighbour: the check looked,
-the run was real, the output is green — and **the environment it ran in could not have
-expressed the defect.** No better assertion fixes it. Only a different *state* does.
-Tell them apart by asking whether re-pointing or re-wording the check would have caught
-it. If yes, it is a false clean; if the check would still pass however carefully it is
-written, the run's universe is the problem.
-
-**Every substitute for reality is more forgiving than reality**, and each one converts a
-whole class of production defects into a guaranteed pass:
-
-| Substitute | What it guarantees passes |
-| --- | --- |
-| an un-taken failure branch | everything in it |
-| an empty starting state (fresh dir, empty store, single-row table) | any clobber, any collision |
-| a weaker data store (in-memory SQLite ignores ENUM/constraints) | every constraint violation |
-| a different launch context (host vs in-container, by hand vs scheduler) | anything context-dependent |
-| a double built from assumption rather than captured output | wherever the code is wrong |
-| a fixture whose blast radius is still empty at the moment of the write | a missing `WHERE` |
-| a safety stub that refuses to resolve real context | the real resolution path |
-| a target earlier work already made hospitable | every prerequisite it silently supplied |
-
-Two properties make a substitute forgiving — **absent prior state** and an **un-induced
-failure** — *not* the disposability of the host. A throwaway box is the right rehearsal
-target precisely because you may break it, provided you seed it with a copy of real prior
-state and induce the failure. Rehearse re-invocation after a mid-run abort and a reboot.
-
-The degenerate fixture is the invisible one: with an empty store, "render nothing" and
-"render everything" emit identical bytes, and a sibling row created *after* the write
-leaves nothing to clobber — so an isolation assertion survives a full behavior inversion.
-Create every sibling row **before** the operation and comment that **order is load-bearing**.
-Make each test assert its own input is non-degenerate.
-
-**To enter an error path, break the TARGET the operation writes to, not the input** — break
-the input and the pre-flight guard refuses, so the path is never entered and the vacuous
-run looks like a success. Assert an observable side-effect proving the path ran. The error
-and rollback paths of your own tooling are the half nobody rehearses at all.
-
-**A script is a different program in each environment it inherits.** PATH, sourced profile
-(a non-login shell never reads `profile.d`), stdin wiring, tty and login-shell status all
-differ between your terminal and a scheduler unit or a non-login remote command — so "I ran
-it by hand" tested a different program, and it bites in **both** directions (the timer path
-and the manual path each break while the other works). Two edges recur:
-
-- **A capability probe cannot distinguish "absent" from "did not resolve".** `command -v X`
-  failing for PATH reasons is textually identical to the tool being missing, so the tolerant
-  `absent → skip` branch quietly omits a step you believed ran — a false clean arriving
-  through the environment. Say *"could not RESOLVE"*, never *"is absent"*; log why the branch
-  was taken and surface skips in the run summary. Better still, **read the state directly**
-  (a `/proc` entry, the config file) — a file read cannot report command-not-found. Do not
-  over-correct: a `command not found` is *not* automatically a PATH artifact. The binary may
-  be genuinely absent on a minimal image, the identifier may be a service-*unit* name rather
-  than a binary name, or the message may be masking a real defect — one parity probe's
-  command-not-found was dismissed as PATH noise for months while it masked an unset kernel
-  parameter.
-- **Capturing output while suppressing the prompt deletes the only signal that a run is
-  waiting for input.** It then looks frozen, and the natural response — wait, then kill —
-  destroys it mid-flight. Under a forced-tty remote call the command *substitution* is the
-  primary swallower, not the stderr redirect. Separate **transport from parse**: run live,
-  `tee` per target, parse those files after the loop (this also keeps secrets out of the
-  capture). Redirect stdin from `/dev/null` for non-interactive remote calls and bound them
-  with a killing timeout.
-
-Pin the environment inside the script rather than inheriting it: export a full PATH
-including the `sbin` directories as the **first line** of any remote or non-login sequence,
-emitted from one shared helper so every script inherits the fix, or call `sbin` binaries by
-absolute path.
-
-**A green verdict also has a shelf life.** It certifies the code that existed when it ran,
-so a step added later — especially behind a flag the rehearsal never set — is unproven while
-the write-up still reads *proven*. Record the commit the verdict covers.
-
-**Write the bound beside the verdict**: (a) the defect classes this run structurally could
-not have detected — which branches never executed, which preconditions were absent, which
-constraints the substrate cannot enforce — and (b) the commit it covers. **If list (a) is
-empty, you have not looked.** Where the substrate is weaker than production, pin what it
-*can* check by asserting against the schema or source artifact. Build doubles from output
-captured on the real target and make them **strict** — reject unknown arguments, because
-real tools do. And prefer a discriminating test to an enumerated one: watch it fail against
-the old behavior before you keep it.
-
-Related: [`MAINTENANCE_SCRIPT_CONTRACT.md`](MAINTENANCE_SCRIPT_CONTRACT.md) ·
-[`SAFE_CONFIG_EDITS.md`](SAFE_CONFIG_EDITS.md) ·
-[`SSH_FLEET_PATTERNS.md`](SSH_FLEET_PATTERNS.md) for the sweep-side mechanics
-(cold-probe opts, outer `timeout`) the transport/parse split above rides on ·
-[`../../deployment/references/DARK_DEPLOY_KILL_SWITCH.md`](../../deployment/references/DARK_DEPLOY_KILL_SWITCH.md)
-for the rollout-side twin (shadow silence is ambiguous for the same reason).
+Related: [`GREEN_RUN_UNIVERSE_TOO_SMALL.md`](GREEN_RUN_UNIVERSE_TOO_SMALL.md) for the
+neighbour where the check ran honestly but could not have seen the defect ·
+[`MAINTENANCE_SCRIPT_CONTRACT.md`](MAINTENANCE_SCRIPT_CONTRACT.md) ·
+[`SAFE_CONFIG_EDITS.md`](SAFE_CONFIG_EDITS.md).

@@ -196,3 +196,4 @@ generalisation worth carrying into any monitoring change:
 
 - [`MONITORING.md`](MONITORING.md) — setting monitoring up in the first place
 - [`../../shell/references/EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md`](../../shell/references/EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md) — the same "green means nothing" class in verification scripts
+- [`../../shell/references/GREEN_RUN_UNIVERSE_TOO_SMALL.md`](../../shell/references/GREEN_RUN_UNIVERSE_TOO_SMALL.md) § A probe that skips part of the production path — a synthetic check that bypasses a path segment cannot alert on it; plus alerting on a downstream consequence, and deriving an alert threshold from the automated process it backs up

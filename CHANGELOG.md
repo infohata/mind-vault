@@ -10,7 +10,7 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
-## v5.8.14 — a guard that logs the operator out
+## v5.8.14 — a guard that logs the operator out, and checks that read the wrong thing
 
 A release block pasted into an interactive login shell carried `set -e` at top level. The guard failed, `exit 1` closed the session, and `tee` never ran — no refusal message, no log. The prompt came back fast, fast read as success, and two dependent deploys were stacked on a release that had never been deployed; it surfaced an hour later when a container listing still showed the previous release's image tag.
 
@@ -18,6 +18,13 @@ A release block pasted into an interactive login shell carried `set -e` at top l
 
 - **`skills/shell/references/STRICT_MODE_HAZARDS.md` § 15** — bare `set -e` in a shell a human is sitting in (interactive `sudo -i` / `su -` / `ssh`) turns a deliberate refusal into a session kill and destroys the evidence with it. The fix is the guard in a `( set -e … )` subshell, which refuses visibly and keeps the session.
 - **`skills/shell/references/INTERACTIVE_SUDO_LOGIN_SHELL.md` § Authoring the block** — two rules for blocks a human pastes: end a state-changing block by printing what is now live (image tag / revision), because otherwise a run that did nothing and a run that deployed look identical; and keep one block to one box, since a block that mixes workstation and remote commands runs wherever the operator's shell is.
+- **`skills/shell/references/EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md` § The data was right; the extraction was wrong** — three checks that read correct data wrongly: `uniq -f1` on single-field lines compared empty strings and reported 170 different config values as identical; a validator's rejection reason was sent to `/dev/null`, and then its replacement cut the error off with `head -40`; and a substring filter matched a second line that only appears after the awaited change, so the check broke at the exact moment the change happened. Fixes: anchor on the field, keep error lines before capping output, and test a watcher against the output from after the event. From issue [#254](https://github.com/infohata/mind-vault/issues/254).
+- **`skills/shell/references/GREEN_RUN_UNIVERSE_TOO_SMALL.md`** (new, split out of the evidence reference to keep it under 500 lines) — the existing "check ran honestly but could not see the defect" section, plus a new case: TLS probes pinned to internal addresses reported 37/37 green for six hours on an endpoint whose public DNS record was gone. List the path segments a probe bypasses and watch each one directly; be wary of alerts that fire on a downstream consequence; and set an alert threshold from the automated process it backs up (renewal at 30 days with an alert at 21 left a 9-day blind spot). From issue #254.
+- **`skills/shell/references/DELETING_SOMEONE_ELSES_DATA.md`** (new) — guardrails for deleting data you don't own when the go-ahead is a chat message: pin each target by path, size and mtime from the list that was approved; use a literal list, never a glob; verify everything before deleting anything; check that the files meant to be kept are still there afterwards; don't delete more than was approved; and test that the script refuses when something has changed. From issue #254.
+
+### Changed
+
+- **Links moved to the split file.** `skills/shell/SKILL.md` References, `skills/deployment/SKILL.md` (the "check ran in an environment that could not show the fault" pointer) and `skills/deployment/references/ALERT_SILENT_DECAY.md` § Related now point at `GREEN_RUN_UNIVERSE_TOO_SMALL.md`.
 
 ## v5.8.13 — Grok marketplace short-name install + read-only CI review
 
