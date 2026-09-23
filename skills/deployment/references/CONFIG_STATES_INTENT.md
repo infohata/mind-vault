@@ -62,9 +62,12 @@ was papering over.
 
 Completing the handshake requires receiving the SYN-ACK at the claimed address and answering with
 the right sequence number; an off-path spoofer never sees it. So an address seen in an
-**established** session is where the traffic really came from, and blocking it is worth doing.
-Spoofing stays trivial for UDP and for bare SYN floods — the distinction is the established
-session, not TCP as such.
+**established** session really completed the connection — it is not forged. That proves the
+**peer**, not the originator: NAT, a proxy, a VPN exit or a load balancer can be that peer on
+behalf of many clients. Before blocking, check whether the address is a known intermediary
+(your own edge, a CDN, a shared egress); if it is, block at the layer that sees the real client
+instead. Spoofing stays trivial for UDP and for bare SYN floods — the distinction is the
+established session, not TCP as such.
 
 Related: [`HARDENING.md`](HARDENING.md) (baseline firewall and SSH) ·
 [`MONITORING.md`](MONITORING.md) ·

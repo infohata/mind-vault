@@ -13,17 +13,31 @@ A live credential landed in a chat transcript.
 
 The operator promised to read output more carefully before pasting. That is the wrong fix:
 **asking a human to scan output for secrets is a control that fails by design**, and the longer
-the output, the more certainly it fails. Put the redaction in the command:
+the output, the more certainly it fails. Put the protection in the command.
+
+**First choice — print only the fields you need.** An allow-list cannot leak a secret it never
+selects, whatever that secret's key is called:
+
+```bash
+# anchored on the exact keys the question is about — not a word that may appear anywhere
+grep -E '^[[:space:]]*(hosts?|ssl|enabled|protocol):' /etc/service/config.yml
+```
+
+**When the output must be broader, redact on the way out — by key name AND by value shape.** A
+keyword list alone misses a token stored under a key named after the service (`shipper: …`), so
+a second rule blanks any long token-like value whatever its key:
 
 ```bash
 grep -iE 'servicename|host|ssl' /etc/service/config.yml \
-  | sed -E 's/((password|passwd|token|secret|key|apikey|authorization|bearer|credential)[^:=]*[:=][[:space:]]*).*/\1<redacted>/I'
+  | sed -E -e 's/((password|passwd|token|secret|key|apikey|authorization|bearer|credential)[^:=]*[:=][[:space:]]*).*/\1<redacted>/I' \
+           -e 's/([:=][[:space:]]*)["'"'"']?[A-Za-z0-9+/_=-]{20,}["'"'"']?[[:space:]]*$/\1<redacted:token-like>/'
 ```
 
-Every command handed to a human that reads a configuration file pipes through a redactor like
-this. It over-redacts on purpose (any key containing `key` loses its value); an over-redacted
-line costs a follow-up question, a leaked one costs a credential rotation. Adjust the separator
-class to the file format — `:` for YAML, `=` for env/INI.
+Both rules over-redact on purpose (any key containing `key`; any 20+ character run without `.`
+or `:`); an over-redacted line costs a follow-up question, a leaked one costs a credential
+rotation. Neither is a guarantee — a short or punctuated secret under an innocent key still
+passes — which is why the allow-list comes first. Adjust the separator class to the file
+format: `:` for YAML, `=` for env/INI.
 
 ## Keeping secrets out of `-u` is not enough — request bodies go over stdin
 
