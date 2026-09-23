@@ -29,7 +29,7 @@ scrub() {   # structured values hidden; a URL line keeps key + scheme://host[:po
   sed -E -e 's#^([[:space:]]*-?[[:space:]]*[A-Za-z0-9_.-]+[[:space:]]*[:=][[:space:]]*)[[{].*$#\1<structured value hidden>#' \
          -e 's#^(([[:space:]]*-?[[:space:]]*[A-Za-z0-9_.-]+[[:space:]]*[:=][[:space:]]*)?)(.*[^A-Za-z0-9+.-])?([A-Za-z][A-Za-z0-9+.-]*://)([^/@[:space:]]*@)?(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9._~-]+)(:[0-9]+)?.*$#\1\4\6\7 <rest hidden>#' \
          -e '\#://#{\# <rest hidden>$#!s#.*#<line with an unparsed URL hidden>#;}' \
-         -e 's/[[:space:]]+[#;].*$//'
+         -e 's/[[:space:]]*[#;].*$//'
 }
 ```
 
@@ -45,6 +45,7 @@ What it must turn into what — the cases that have leaked through earlier versi
 | `host = https://safe.example ; token=abc` | `host = https://safe.example <rest hidden>` |
 | `hosts: https://:secret@/weird` | `<line with an unparsed URL hidden>` |
 | `port = 9200 ; token=abc` | `port = 9200` |
+| `port=9200;token=secret` | `port=9200` |
 
 **First choice — print only the fields you need.** An allow-list cannot leak a secret it never
 selects, whatever that secret's key is called:
