@@ -276,8 +276,12 @@ and the session survives.
 ( set -eo pipefail          # pipefail: without it, tee's 0 hides a failed deploy.sh
   test "$(git rev-parse origin/staging)" = "$WANT" || { echo "STOP: wrong ref"; exit 1; }
   ./deploy.sh 2>&1 | tee /tmp/deploy.log
-)
+) || echo "BLOCK REFUSED (rc=$?)"
 ```
+
+The trailing `||` matters when the session already has `-e` on from an earlier paste: a failing
+subshell is then an ordinary failing command, and the operator's shell exits on it. In a `||`
+list the status is consumed instead, and the refusal gets a second, louder line.
 
 **This narrows nothing about scripts.** A `.sh` file still opens `set -euo pipefail` per the stance
 below — there, an `exit 1` ends *the script*, which is the point, and the caller keeps its shell and
