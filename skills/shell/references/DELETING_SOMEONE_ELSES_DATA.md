@@ -62,6 +62,14 @@ esac
 dups=$(printf '%s\n' "${TARGETS[@]%%|*}" "${KEEPERS[@]%%|*}" | sort | uniq -d)
 [ -z "$dups" ] || { echo "ABORT: path listed twice (target/keeper overlap?):" >&2; echo "$dups" >&2; exit 1; }
 
+# Before any mutation: the operator confirms the owner's writer is idle, on the TTY
+# (a verify-then-rm gap is only safe while nothing rewrites these paths)
+if [ "$MODE" = apply ]; then
+  printf 'Is the owner'"'"'s backup job stopped or idle for these paths? Type yes: ' >/dev/tty
+  read -r ans </dev/tty
+  [ "$ans" = yes ] || { echo "ABORT: not confirmed; nothing removed" >&2; exit 1; }
+fi
+
 # Phase 1 — verify everything; any failure aborts with nothing removed
 bad=0
 for e in "${TARGETS[@]}" "${KEEPERS[@]}"; do check "$e" || bad=1; done
@@ -86,14 +94,17 @@ echo "removed $removed/${#TARGETS[@]}, keepers intact: $kept/${#KEEPERS[@]}"
 ```
 
 The check and the `rm` are separate steps, so a writer that replaces a verified path in between
-gets its new file deleted. Run this while the owner's backup job is idle — or take the lock that
-job holds, across both phases — rather than trusting the gap to be short.
+gets its new file deleted. The script therefore asks the operator on the TTY to confirm the
+owner's backup job is idle before it verifies anything (the precondition gate from
+[`MAINTENANCE_SCRIPT_CONTRACT.md`](MAINTENANCE_SCRIPT_CONTRACT.md)). If that job holds a lock,
+take the same lock with `flock` across both phases instead — that removes the gap rather than
+relying on the answer.
 
 The dry-run default and `--apply` flag follow
 [`MAINTENANCE_SCRIPT_CONTRACT.md`](MAINTENANCE_SCRIPT_CONTRACT.md) § Mode surface. The
 refusal tests are cheap to write against a temp directory: copy the lists, `touch` one target
 to change its mtime, delete one keeper, pre-delete one target, list one path as both target and
-keeper, pass a stray extra argument — every case must exit non-zero with the directory unchanged.
+keeper, pass a stray extra argument, answer anything but `yes` (or run `--apply` with no TTY) — every case must exit non-zero with the directory unchanged.
 A run that fails partway exits non-zero and says how many targets it removed and where it stopped.
 
 ## Why pinning beats "the owner said the old ones"

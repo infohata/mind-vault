@@ -281,7 +281,7 @@ set +e                      # the session may still have -e on from an earlier p
     || { echo "STOP: wrong ref (or WANT unset)"; exit 1; }
   ./deploy.sh 2>&1 | tee /tmp/deploy.log
 ); rc=$?
-[ "$rc" -eq 0 ] || echo "BLOCK FAILED (rc=$rc)"
+[ "$rc" -eq 0 ] || { echo "BLOCK FAILED (rc=$rc)"; false; }   # $? stays non-zero; -e is off
 ```
 
 Two details are load-bearing. The `set +e` first: with `-e` still on in the session, a failing
