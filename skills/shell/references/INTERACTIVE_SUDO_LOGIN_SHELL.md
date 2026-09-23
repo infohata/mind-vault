@@ -67,10 +67,12 @@ operator saw one `STOP` line above a fast prompt and read it as success):
 - **End a state-changing block by printing what is now live** — image tag, revision, version string.
   Without it, a run that did nothing and a run that deployed look identical from the scroll-back, and
   "that was quick" is read as success. The last line is the acceptance criterion:
-  `if ps=$(docker ps --format '{{.Names}}  {{.Image}}'); then printf '%s\n' "$ps" | awk -v s="$SERVICE" '$1==s {print; f=1} END {if (!f) {print "STOP: " s " is not running"; exit 1}}'; else echo "STOP: docker ps failed — live state UNKNOWN"; false; fi`
+  `set +e; if ps=$(docker ps --format '{{.Names}}  {{.Image}}'); then printf '%s\n' "$ps" | awk -v s="$SERVICE" '$1==s {print; f=1} END {if (!f) {print "STOP: " s " is not running"; exit 1}}'; else echo "STOP: docker ps failed — live state UNKNOWN"; false; fi`
   — an exact name match, a missing service prints `STOP` instead of nothing, a failed probe
   says so rather than passing as "not running", and both `STOP` paths exit non-zero so nothing
-  chained after the line can treat them as success. POSIX syntax (bash, zsh, dash); a fish login shell
+  chained after the line can treat them as success. The leading `set +e` is what keeps that
+  non-zero status from closing a session that still has `-e` on (see
+  [`STRICT_MODE_HAZARDS.md`](STRICT_MODE_HAZARDS.md) § 15). POSIX syntax (bash, zsh, dash); a fish login shell
   needs it wrapped in `bash -c '…'`.
 - **One block, one box.** A block that opens with workstation commands and continues with remote ones
   gets run wherever the operator's shell happens to be. Name the box in the heading, keep each block
