@@ -103,7 +103,10 @@ RUN --mount=type=secret,id=sencha_npm \
 RUN <overlay @sencha/cmd dist from the platform tarball, assert fashion + exec bit>   # § 3.3
 COPY . .
 RUN npm run build:desktop && test -f build/production/<App>/index.html \
+ && ls build/production/<App>/*/resources/*-all*.css >/dev/null \
  && ! grep -l ext-watermark build/production/<App>/*/resources/*-all*.css || { echo "no bundle, or a TRIAL one"; exit 1; }
+# ^ the `ls` makes the gate fail CLOSED: with no match, `! grep` on a literal glob (grep exit 2)
+#   would invert to success — a licence gate that read no file must never report clean.
 FROM nginx:alpine
 COPY --from=build /app/build/production/<App>/ /usr/share/nginx/html/
 COPY --from=build /app/autobahn.js /usr/share/nginx/html/           # manifest-listed, not in the bundle
@@ -252,7 +255,8 @@ the token changes nothing.
 **Gates** (both in § 4): after `npm ci`, the theme says `$ext-trial: false`; after the build,
 no compiled CSS contains `ext-watermark`. **Probe a served bundle:**
 `curl -s https://<host>/<path>/desktop/resources/<App>-all_1.css | grep -c ext-watermark` must
-be `0`. A shape-only artefact validator (index, manifests, main bundle) passes a trial build.
+be `0`, and check the response is a real stylesheet (non-empty, HTTP 200): an HTML 404 page also
+counts `0`. A shape-only artefact validator (index, manifests, main bundle) passes a trial build.
 Add the licence check to any script that extracts or ships the bundle.
 
 **A committed SDK is immune.** An older app that vendors the framework under `ext/` (no npm
