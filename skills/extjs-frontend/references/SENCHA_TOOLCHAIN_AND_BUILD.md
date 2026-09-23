@@ -21,6 +21,15 @@ npm resolves auth by host, so an `http://npm.sencha.com/…` `resolved` URL send
 in cleartext. `npm ci` failing with `EINTEGRITY` after a token/tarball change is by design —
 regenerate the lock in that PR.
 
+⚠️ **The token must be reachable from the USER-level npmrc, or every build is a TRIAL** (§ 11).
+The committed `.npmrc` carries only the scope mapping, and any build (CI, container) must hand
+npm a *user* config holding both the mapping and the token. Appending the token to the project
+`.npmrc` authenticates `npm ci` and still ships Sencha's watermark.
+
+JDK 11 prints "Nashorn engine is planned to be removed" about 14 times per profile. It's harmless;
+silence it with `cmd.jvm.args=-Dnashorn.args=--no-deprecation-warning` in
+`node_modules/@sencha/cmd/dist/sencha.cfg`, which the `dist/sencha` launcher passes to `java`.
+
 ## 2. Dev-server state footguns (shared mutable workspace)
 
 `generatedFiles/`, `build/` and the Cmd watch lock are shared across profiles, environments and
@@ -82,12 +91,19 @@ fallback, with `^~` on the static prefixes so the `\.(js|css)$` regex locations 
 ```dockerfile
 # docker build --secret id=sencha_npm,src=<file-with-token> .
 COPY package.json package-lock.json .npmrc ./
+# USER-level config (mapping + token) OUTSIDE /app, deleted in the same RUN — NOT appended to the
+# project .npmrc: the packages' licence activation never reads that one (§ 11).
 RUN --mount=type=secret,id=sencha_npm \
-    echo "//npm.sencha.com/:_authToken=$(cat /run/secrets/sencha_npm)" >> .npmrc \
- && npm ci && sed -i '/_authToken/d' .npmrc                     # token never persists in a layer
+    export NPM_CONFIG_USERCONFIG=/tmp/sencha.npmrc \
+ && printf '@sencha:registry=https://npm.sencha.com/\n//npm.sencha.com/:_authToken=%s\n' \
+      "$(cat /run/secrets/sencha_npm)" > "$NPM_CONFIG_USERCONFIG" \
+ && npm ci; rc=$?; rm -f /tmp/sencha.npmrc; [ "$rc" -eq 0 ] || exit "$rc"; \
+    grep -q '^\$ext-trial: false' node_modules/@sencha/ext-modern-theme-base/sass/etc/all.scss \
+ || { echo "FATAL: Sencha installed as TRIAL"; exit 1; }   # the modern toolkit's theme-base; check the one you use
 RUN <overlay @sencha/cmd dist from the platform tarball, assert fashion + exec bit>   # § 3.3
 COPY . .
-RUN npm run build:desktop && test -f build/production/<App>/index.html || { echo "no bundle"; exit 1; }
+RUN npm run build:desktop && test -f build/production/<App>/index.html \
+ && ! grep -l ext-watermark build/production/<App>/*/resources/*-all*.css || { echo "no bundle, or a TRIAL one"; exit 1; }
 FROM nginx:alpine
 COPY --from=build /app/build/production/<App>/ /usr/share/nginx/html/
 COPY --from=build /app/autobahn.js /usr/share/nginx/html/           # manifest-listed, not in the bundle
@@ -208,3 +224,37 @@ Consequences for anyone verifying a deploy:
   (from a non-booting same-origin page, e.g. the login route) — on the app page the
   microloader has already consumed the cache by the time any injected script runs.
 
+
+## 11. The licence is applied AFTER install — and falls back to trial silently
+
+Incident shape (a consuming SPA project, 2026-09): after a production rollout the operator
+spotted a small "d" in the bottom-right corner of every screen, on every customer. It was
+Sencha's trial watermark (`#ext-viewport:after{font-family:ext-watermark;content:'d'}`), and
+every image-built bundle had carried it for weeks. The same trial build also prepends
+"Produced by Ext JS Trial - " to the title of every grid export (`Ext.overrides.exporter.Base`).
+Laptop builds of the same commit were clean. The account *was* licensed.
+
+**Mechanism.** Every `@sencha` framework/theme tarball ships as a trial: theme-base
+`sass/etc/all.scss` has `$ext-trial: true`. Each package's npm `install` script,
+`activate.js`, runs `npm install -s @sencha/ext[-enterprise]-activator@<ver>-<today>` with
+`cwd` set to the **package's own directory** (the tier in `package.json` `sencha.extTier`
+picks the activator). On success the activator flips the package to licensed. On failure it
+prints an "Evaluation/Trial License" banner and **exits 0**, then deletes itself, so an
+installed tree shows no trace. The nested npm's project root is the package itself, so it
+never reads the app's `.npmrc`, only the user config. A developer's `~/.npmrc` holds both the
+mapping and the token, which is why laptops pass and containers and CI don't.
+
+**Red herrings, ruled out by measurement:** lockfile integrity (identical tarballs for everyone;
+the licence is a post-install rewrite, so `EINTEGRITY` can never catch it); the Cmd jar
+(identical); and Cmd's own build-time `npm whoami` (`com.sencha.util.License`), where giving it
+the token changes nothing.
+
+**Gates** (both in § 4): after `npm ci`, the theme says `$ext-trial: false`; after the build,
+no compiled CSS contains `ext-watermark`. **Probe a served bundle:**
+`curl -s https://<host>/<path>/desktop/resources/<App>-all_1.css | grep -c ext-watermark` must
+be `0`. A shape-only artefact validator (index, manifests, main bundle) passes a trial build.
+Add the licence check to any script that extracts or ships the bundle.
+
+**A committed SDK is immune.** An older app that vendors the framework under `ext/` (no npm
+`@sencha/ext*`) has no activation step: whatever `license.txt` and `$ext-trial` are committed
+is what ships. Check once, then it holds until someone moves to the npm packages.

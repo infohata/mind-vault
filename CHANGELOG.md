@@ -10,6 +10,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.16 — the vendor licence that is applied after install, and fails silently
+
+A consuming SPA project shipped its UI framework's trial watermark to every production customer for weeks. The account was licensed. The vendor's packages install as trial builds and switch themselves to licensed through an install script, but that script's nested `npm install` only reads the user-level npm config. The container build put the registry token in the project's config. Activation failed, printed a banner, and exited 0: the install "succeeded", the lockfile check passed, and so did the bundle check. Laptops built clean because the developer's `~/.npmrc` had the token. mind-vault's own Sencha reference prescribed the broken pattern, so this fixes it at the source.
+
+### Fixed
+
+- **`skills/extjs-frontend/references/SENCHA_TOOLCHAIN_AND_BUILD.md` § 4** — the Dockerfile example appended the registry token to the project `.npmrc`, which builds a trial bundle every time. It now passes a temporary user-level npm config that holds both the scope mapping and the token, deleted in the same step, and adds two gates: the install must come out licensed, and the compiled CSS must not contain the watermark.
+
+### Added
+
+- **`skills/extjs-frontend/references/SENCHA_TOOLCHAIN_AND_BUILD.md` § 11** — how the licence activation works and why it fails silently, the three red herrings ruled out by measurement (lockfile integrity, the Cmd jar, Cmd's own `npm whoami`), a one-line probe for any served bundle, and why an app that commits the framework SDK is immune. § 1 now warns about token placement, and adds the one-line setting that silences JDK 11's repeated Nashorn deprecation warnings.
+- **`skills/plan/references/PRODUCTION_PATH_VERIFICATION.md` § Entitlement is an install-axis variant** — a developer machine carries identity that a fresh build doesn't have: user config, cached logins, licence files. Anything a dependency decides from that identity is its own axis, so check the built artefact for the vendor's trial fingerprint; a clean exit code proves nothing. The Install row of the axis table now says the same.
+
 ## v5.8.15 — config states intent; credentials in operator commands
 
 One host had five security controls that were configured and did nothing (a TLS flag overridden by an `http://` URL, auditing refused by the license tier, a snapshot repository it could never write to, an inactive firewall, a log shipper logged in as superuser). None was found by reading config; all were found by asking the running system. The remediation added three more lessons about credentials. From issue [#256](https://github.com/infohata/mind-vault/issues/256) ([#257](https://github.com/infohata/mind-vault/pull/257)).
