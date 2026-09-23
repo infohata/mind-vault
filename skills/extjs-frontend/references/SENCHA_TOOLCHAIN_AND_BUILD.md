@@ -253,9 +253,10 @@ the token changes nothing.
 
 **Gates** (both in § 4): after `npm ci`, the theme says `$ext-trial: false`; after the build,
 no compiled CSS contains `ext-watermark`. **Probe a served bundle:**
-`css=$(curl -fsS https://<host>/<path>/desktop/resources/<App>-all_1.css) && printf '%s' "$css" | grep -c ext-watermark`
-must print `0`. No output means the fetch failed: a bare `curl -s … | grep -c` prints `0` for a 404
-or an unreachable host too, which reads as a clean bundle. `-f` does not catch a single-page-app
+`css=$(curl -fsS https://<host>/<path>/desktop/resources/<App>-all_1.css) && { printf '%s' "$css" | grep -q ext-watermark; [ $? -eq 1 ]; } && echo clean`
+must print `clean` and exit 0 (so it also works under `set -e`). No output with a non-zero exit is
+a fetch failure or a trial bundle: a bare `curl -s … | grep -c` prints `0` for a 404 or an
+unreachable host too, which reads as a clean bundle — and `grep -c` exits 1 on a healthy zero. `-f` does not catch a single-page-app
 fallback that answers a missing file with `200` and `index.html`, which also counts `0`, so
 confirm the response is CSS (`curl -fsSI … | grep -i '^content-type: text/css'`) before trusting
 the zero. A shape-only artefact validator (index, manifests, main bundle) passes a trial build.
