@@ -25,12 +25,26 @@ ends it and the rest of the line is hidden. It also fails closed: a line that st
 after the rewrite (a URL shape the pattern didn't parse) is hidden entirely:
 
 ```bash
-scrub() {   # a line with a URL keeps scheme://host[:port] and hides the rest; comments dropped
-  sed -E -e 's#([A-Za-z][A-Za-z0-9+.-]*://)([^/@[:space:]]*@)?(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9._~-]+)(:[0-9]+)?.*$#\1\3\4 <rest hidden>#' \
+scrub() {   # structured values hidden; a URL line keeps key + scheme://host[:port] only
+  sed -E -e 's#^([[:space:]]*-?[[:space:]]*[A-Za-z0-9_.-]+[[:space:]]*[:=][[:space:]]*)[[{].*$#\1<structured value hidden>#' \
+         -e 's#^(([[:space:]]*-?[[:space:]]*[A-Za-z0-9_.-]+[[:space:]]*[:=][[:space:]]*)?)(.*[^A-Za-z0-9+.-])?([A-Za-z][A-Za-z0-9+.-]*://)([^/@[:space:]]*@)?(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9._~-]+)(:[0-9]+)?.*$#\1\4\6\7 <rest hidden>#' \
          -e '\#://#{\# <rest hidden>$#!s#.*#<line with an unparsed URL hidden>#;}' \
          -e 's/[[:space:]]+[#;].*$//'
 }
 ```
+
+What it must turn into what — the cases that have leaked through earlier versions of this helper:
+
+| Input line | Output |
+| --- | --- |
+| `hosts: https://user:pw@es.example.org:9200/_bulk?token=S#f` | `hosts: https://es.example.org:9200 <rest hidden>` |
+| `hosts: https://example.invalid;token=secret` | `hosts: https://example.invalid <rest hidden>` |
+| `hosts: https://[2001:db8::1]:9200/?token=secret` | `hosts: https://[2001:db8::1]:9200 <rest hidden>` |
+| `hosts: ["SECRET", "https://safe.example"]` | `hosts: <structured value hidden>` |
+| `hosts: SECRET https://safe.example` | `hosts: https://safe.example <rest hidden>` |
+| `host = https://safe.example ; token=abc` | `host = https://safe.example <rest hidden>` |
+| `hosts: https://:secret@/weird` | `<line with an unparsed URL hidden>` |
+| `port = 9200 ; token=abc` | `port = 9200` |
 
 **First choice — print only the fields you need.** An allow-list cannot leak a secret it never
 selects, whatever that secret's key is called:
