@@ -316,7 +316,9 @@ renewal_scheduled() {            # echo which mechanism; return 0 if any is acti
 
 Same shape for "which firewall is active" (ufw / firewalld / nftables / raw iptables),
 "which init owns this service", "apt vs dnf vs apk". The DRY-RUN should *report the
-detected variant* so the operator sees which mechanism the host actually uses.
+detected variant* so the operator sees which mechanism the host actually uses. For
+firewalls this is a security question too: an empty listing in one backend can hide a rule in
+another ([`../../deployment/references/CONFIG_STATES_INTENT.md`](../../deployment/references/CONFIG_STATES_INTENT.md)).
 
 ## A precondition must assert a PROPERTY — a forbidden NAME is the author's model
 

@@ -10,6 +10,20 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.15 — config states intent; credentials in operator commands
+
+One host had five security controls that were configured and did nothing (a TLS flag overridden by an `http://` URL, auditing refused by the license tier, a snapshot repository it could never write to, an inactive firewall, a log shipper logged in as superuser). None was found by reading config; all were found by asking the running system. The remediation added three more lessons about credentials. From issue [#256](https://github.com/infohata/mind-vault/issues/256).
+
+### Added
+
+- **`skills/deployment/references/CONFIG_STATES_INTENT.md`** (new) — verify a control by its effect, never by its setting: "documents rose by 15 in ten seconds" is a check, "the service started" is not, and a growing audit file is not audit events. Verify from outside the host and on both sides (blocked path blocked, allowed path still working). Replace a setting that does nothing with a comment saying why the control is absent, rather than deleting it quietly. When a firewall listing is empty, check the other backend: a forgotten one-address block there hid an exposure for years. Also: an address in an established TCP session can't be spoofed.
+- **`skills/shell/references/CREDENTIALS_IN_OPERATOR_COMMANDS.md`** (new) — a command handed to a human that reads a config file must pipe through a redactor: a grep for the service's name matched the line holding the service's token, and it went into a chat. Secrets in request bodies go over stdin, not the command line, where every user can read them in the process table. And least privilege can break your own verification: count documents through a metadata endpoint that a write-only account is allowed to call.
+- **`skills/shell/references/QUOTING_AND_INPUT_HYGIENE.md` § Generating shell from a Python triple-quoted string** — `"""echo "done"""` quietly produces `echo "done` with the closing quote gone; never end such a literal on its own quote character.
+
+### Changed
+
+- **`skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md` § Detect the mechanism** — the firewall-variant line now points at the empty-listing-in-one-backend trap.
+
 ## v5.8.14 — a guard that logs the operator out, and checks that read the wrong thing
 
 A release block pasted into an interactive login shell carried `set -e` at top level. The guard printed one `STOP` line, `exit 1` closed the session, and `tee` never ran — no log, and a one-line refusal above a fresh prompt. The prompt came back fast, fast read as success, and two dependent deploys were stacked on a release that had never been deployed; it surfaced an hour later when a container listing still showed the previous release's image tag. Also folds in issue #254's three lessons ([#255](https://github.com/infohata/mind-vault/pull/255)).

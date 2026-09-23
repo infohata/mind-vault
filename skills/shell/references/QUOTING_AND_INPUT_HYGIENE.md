@@ -106,6 +106,23 @@ write to a temp sibling then `mv` over, or `sed -i` where GNU sed is
 guaranteed. For system config files, the full backup + diff-shape-assertion
 discipline in [SAFE_CONFIG_EDITS.md](SAFE_CONFIG_EDITS.md) supersedes this.
 
+## Generating shell from a Python triple-quoted string
+
+A Python patch step that writes shell text broke the generated script twice in one session:
+
+```python
+new = """echo "done\""""   # intended; what was written:
+new = """echo "done""""   # SyntaxError — loud, fine
+new = """echo "done""""" # → 'echo "done'  — the closing quote is gone, silently
+new = """echo "done"""   # → 'echo "done'  — same
+```
+
+Python closes the literal at the **first** `"""`, and a content-final `"` is the first quote of that
+run. The shell string loses its closing quote and swallows whatever follows. `bash -n` on the
+*previous* version of the file passes, so it doesn't flag the breakage as new — run `bash -n` on
+the **generated** output. The rule: never end a triple-quoted literal on the delimiter's quote
+character — switch to `'''…'''`, or end the literal on a newline.
+
 ## Related
 
 - ShellCheck SC2086 (quoting), BashPitfalls #1–5/#8/#13/#14, BashFAQ/035 —
