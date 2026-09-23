@@ -35,20 +35,22 @@ limit** (each request pays RTT + a fresh TLS handshake), so it never drains the 
 429". Fire the requests **concurrently and in volume** (drain `burst` faster than `average` refills):
 
 ```bash
-codes="$(seq 1 500 | xargs -P50 -n1 sh -c 'curl -s -o /dev/null -w "%{http_code}\n" --max-time 8 "<url>" 2>/dev/null || true' _)"
+# opt-in: this floods the target, and a shared/global limiter throttles ALL clients meanwhile
+[ "${RATELIMIT_PROBE:-}" = 1 ] || { echo "SKIP: set RATELIMIT_PROBE=1 to run the flood probe" >&2; exit 0; }
+export PROBE_URL='<url>'      # passed as data, never pasted into the inner program text
+codes="$(seq 1 500 | xargs -P50 -n1 sh -c 'curl -s -o /dev/null -w "%{http_code}\n" --max-time 8 "$PROBE_URL" 2>/dev/null || true' _)"
 n429="$(printf '%s\n' "$codes" | grep -c '^429$' || true)"   # grep -c exits 1 on a zero count
 [ "$n429" -gt 0 ] || { echo "FAIL: 0 of 500 requests got 429 — limiter not engaged, or probe too slow" >&2; exit 1; }
 ```
 
-The trailing `_` occupies `sh -c`'s `$0` slot, so the xargs-fed token lands in `$1` — deliberately
-unused here (`seq` only drives the request *count*); the `_` keeps the token out of `$0` and leaves
-`$1` free for adaptations that do consume it (a per-URL probe list).
-Single-quote the `sh -c` script so the *outer* shell can't expand anything in it (a real URL's `$`
-or query string stays literal until the inner `sh` sees it). The inner `|| true` keeps one timed-out
-`curl` (rc ≠ 0 → `xargs` rc 123) from killing a strict-mode (`set -e`) caller mid-probe — failed
-requests still surface as `-w`'s `000` lines. Gate
-`RATELIMIT_PROBE=1` (it floods the target; on a shared/global limiter it briefly throttles *all*
-clients — run against a sandbox / off-hours).
+The URL reaches the inner `sh` as the environment variable `PROBE_URL`, expanded only inside
+double quotes, so a `$`, backtick or quote in a real query string stays data. Pasting the URL into
+the `sh -c` program text instead would let the *inner* shell expand or execute it — single-quoting
+only protects against the outer shell. The trailing `_` fills `sh -c`'s `$0` slot, so the
+xargs-fed token lands in `$1`, unused here (`seq` only drives the request *count*). The inner
+`|| true` keeps one timed-out `curl` (rc ≠ 0 → `xargs` rc 123) from killing a strict-mode caller
+mid-probe; failed requests still surface as `-w`'s `000` lines. The opt-in guard is part of the
+block, not advice beside it: run against a sandbox or off-hours.
 
 ### `openssl x509` has no `-notBefore` flag
 
