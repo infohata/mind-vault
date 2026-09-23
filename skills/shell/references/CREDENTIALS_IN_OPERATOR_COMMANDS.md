@@ -45,10 +45,12 @@ awk -v safe='^(hosts?|port|ssl|enabled|protocol|scheme)$' '
   match($0, /^[[:space:]]*-?[[:space:]]*[A-Za-z0-9_.-]+[[:space:]]*[:=]/) {
     k = substr($0, RSTART, RLENGTH); key = k
     gsub(/^[[:space:]]*-?[[:space:]]*|[[:space:]]*[:=]$/, "", key)
-    if (key ~ safe) print; else print k " <hidden>"
+    # a safe key prints only a plain scalar: a {…} or […] value can nest a token
+    if (key ~ safe && $0 !~ /[:=][[:space:]]*[[{]/) print; else print k " <hidden>"
     next
   }
-  /^[[:space:]]*(#|$)/ { print; next }      # comments and blank lines are structure
+  /^[[:space:]]*#/ { print "# <comment hidden>"; next }   # a commented-out token is still a token
+  /^[[:space:]]*$/ { print; next }
   { print "<hidden line>" }                 # list items, continuations: values, so hidden
 ' /etc/service/config.yml \
   | sed -E 's#(://)[^/@[:space:]]+@#\1<redacted>@#g'   # a safe key's URL can still carry user:password@
@@ -56,7 +58,10 @@ awk -v safe='^(hosts?|port|ssl|enabled|protocol|scheme)$' '
 
 The failure mode is now a hidden value you needed, which costs a follow-up question, instead of a
 leaked secret, which costs a credential rotation. Grow the `safe` list only with keys whose values
-can never be a credential; `hosts` stays safe only because the `sed` strips URL credentials.
+can never be a credential. Even a safe key prints only a plain scalar: `hosts: {url: …, token: …}`
+or `hosts: [ … ]` is hidden, because a structured value can nest anything — select the leaf with
+`yq -r` as shown above instead. `hosts` stays safe for scalars only because the `sed` strips URL
+credentials. Comments are hidden too: a commented-out `# token: …` is a live credential.
 
 ## Keeping secrets out of `-u` is not enough — request bodies go over stdin
 
