@@ -34,23 +34,29 @@ format-aware tool, selecting the **leaf** you need and scrubbing it too —
 bare value under both the Go `yq` (v4) and the Python jq-wrapper `yq` (Debian's package), which
 otherwise JSON-quotes it.
 
-**When the output must be broader, redact on the way out — by key name AND by value shape.** A
-keyword list alone misses a token stored under a key named after the service (`shipper: …`), so
-a second rule blanks any long token-like value whatever its key:
+**When the output must be broader, show every key but hide every value — except under keys you
+have named as safe.** Don't try to recognise secrets: a scanner for secret-sounding key names or
+token-shaped values always has a bypass (a JWT under `shipper:` has dots, so it looks like neither).
+Invert it, so an unrecognised value is hidden by default:
 
 ```bash
-grep -iE 'servicename|host|ssl' /etc/service/config.yml \
-  | sed -E -e 's/((password|passwd|token|secret|key|apikey|authorization|bearer|credential)[^:=]*[:=][[:space:]]*).*/\1<redacted>/I' \
-           -e 's/([:=][[:space:]]*)["'"'"']?[A-Za-z0-9+/_=-]{20,}["'"'"']?[[:space:]]*$/\1<redacted:token-like>/' \
-           -e 's#(://)[^/@[:space:]]+@#\1<redacted>@#g'
+# keys stay visible so the operator can see the file's shape; only allow-listed values print
+awk -v safe='^(hosts?|port|ssl|enabled|protocol|scheme)$' '
+  match($0, /^[[:space:]]*-?[[:space:]]*[A-Za-z0-9_.-]+[[:space:]]*[:=]/) {
+    k = substr($0, RSTART, RLENGTH); key = k
+    gsub(/^[[:space:]]*-?[[:space:]]*|[[:space:]]*[:=]$/, "", key)
+    if (key ~ safe) print; else print k " <hidden>"
+    next
+  }
+  /^[[:space:]]*(#|$)/ { print; next }      # comments and blank lines are structure
+  { print "<hidden line>" }                 # list items, continuations: values, so hidden
+' /etc/service/config.yml \
+  | sed -E 's#(://)[^/@[:space:]]+@#\1<redacted>@#g'   # a safe key's URL can still carry user:password@
 ```
 
-The third rule is the URL-credential scrub from the allow-list path: a `host:` key is innocent,
-but its value can still be `https://user:password@…`. All three rules over-redact on purpose (any key containing `key`; any 20+ character run without `.`
-or `:`; any URL's `user:password@`); an over-redacted line costs a follow-up question, a leaked one costs a credential
-rotation. Neither is a guarantee — a short or punctuated secret under an innocent key still
-passes — which is why the allow-list comes first. Adjust the separator class to the file
-format: `:` for YAML, `=` for env/INI.
+The failure mode is now a hidden value you needed, which costs a follow-up question, instead of a
+leaked secret, which costs a credential rotation. Grow the `safe` list only with keys whose values
+can never be a credential; `hosts` stays safe only because the `sed` strips URL credentials.
 
 ## Keeping secrets out of `-u` is not enough — request bodies go over stdin
 

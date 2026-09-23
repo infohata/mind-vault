@@ -194,7 +194,8 @@ sudo chown www-data:adm /var/log/<app>.log && sudo chmod 640 /var/log/<app>.log
 marker="deploy-smoke-$(hostname)-$$-$(date +%s)"          # unique to THIS invocation
 sudo -u www-data <runtime> -e "log(\"$marker\")"
 sleep 1                                                   # let an async logger flush
-sudo grep -F -- "$marker" /var/log/<app>.log || echo "FAIL: marker never landed"   # on EVERY host
+sudo grep -F -- "$marker" /var/log/<app>.log \
+  || { echo "FAIL: marker never landed" >&2; exit 1; }    # on EVERY host
 ```
 
 Also check **timezone** before correlating across hosts: two boxes with the same system zone can
