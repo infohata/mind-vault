@@ -17,7 +17,7 @@ the output, the more certainly it fails. Put the redaction in the command:
 
 ```bash
 grep -iE 'servicename|host|ssl' /etc/service/config.yml \
-  | sed -E 's/((password|passwd|token|secret|key|apikey)[^:=]*[:=][[:space:]]*).*/\1<redacted>/I'
+  | sed -E 's/((password|passwd|token|secret|key|apikey|authorization|bearer|credential)[^:=]*[:=][[:space:]]*).*/\1<redacted>/I'
 ```
 
 Every command handed to a human that reads a configuration file pipes through a redactor like
