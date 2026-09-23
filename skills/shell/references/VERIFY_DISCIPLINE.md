@@ -191,8 +191,9 @@ Two rules:
 # create only when absent — install over an existing log would truncate its history
 [ -e /var/log/<app>.log ] || sudo install -o www-data -g adm -m 640 /dev/null /var/log/<app>.log
 sudo chown www-data:adm /var/log/<app>.log && sudo chmod 640 /var/log/<app>.log
-marker="deploy-smoke-$(hostname)-$$-$(date +%s)"          # unique to THIS invocation
-sudo -u www-data <runtime> -e "log(\"$marker\")"
+marker="deploy-smoke-$(hostname | tr -cd 'A-Za-z0-9.-')-$$-$(date +%s)"   # unique, source-safe chars only
+# pass it as data (environment), never spliced into the -e source
+sudo -u www-data env SMOKE_MARKER="$marker" <runtime> -e 'log(getenv("SMOKE_MARKER"))'
 sleep 1                                                   # let an async logger flush
 sudo grep -F -- "$marker" /var/log/<app>.log \
   || { echo "FAIL: marker never landed" >&2; exit 1; }    # on EVERY host

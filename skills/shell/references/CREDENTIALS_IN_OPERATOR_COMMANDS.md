@@ -17,13 +17,14 @@ the output, the more certainly it fails. Put the protection in the command.
 
 **Every value you let through goes through one scrub.** An allowed key's value can still carry a
 secret in a URL (`user:password@`, the path, `?token=…`, the fragment) or in a trailing comment.
-The operator asked *which endpoint*, so a URL is cut down to `scheme://host:port`, and inline
-comments are dropped:
+The operator asked *which endpoint*, so once a line contains a URL, everything after
+`scheme://host[:port]` on that line is hidden — path, query, fragment, a second URL, a trailing
+comment — and inline `#` / `;` comments are dropped elsewhere:
 
 ```bash
-scrub() {   # URLs → scheme://host:port only; trailing " # …" comments removed
-  sed -E -e 's#([A-Za-z][A-Za-z0-9+.-]*://)([^/@[:space:]"'"'"']*@)?([^]}/?#[:space:]"'"'"',]+)[^]}[:space:]"'"'"',]*#\1\3#g' \
-         -e 's/[[:space:]]+#.*$//'
+scrub() {   # a line with a URL keeps scheme://host[:port] and hides the rest; comments dropped
+  sed -E -e 's#([A-Za-z][A-Za-z0-9+.-]*://)([^/@[:space:]]*@)?(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9.-]+)(:[0-9]+)?.*$#\1\3\4 <rest hidden>#' \
+         -e 's/[[:space:]]+[#;].*$//'
 }
 ```
 
@@ -64,6 +65,11 @@ awk -v safe='^(hosts?|port|ssl|enabled|protocol|scheme)$' '
   { print "<hidden line>" }                 # list items, continuations: values, so hidden
 ' /etc/service/config.yml | scrub     # a safe key's value can still carry a token in a URL
 ```
+
+None of this is a guarantee. A shell redactor narrows what can leak, it cannot prove nothing
+does: a value format nobody anticipated will eventually get through. The real control is still
+the first one, selecting the single field the question needs. Use the broad form only when the
+operator has to see the file's shape, and never paste its output anywhere public.
 
 The failure mode is now a hidden value you needed, which costs a follow-up question, instead of a
 leaked secret, which costs a credential rotation. Grow the `safe` list only with keys whose values
