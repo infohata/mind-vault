@@ -180,7 +180,9 @@ Two rules:
    user (`root:syslog` on Debian/Ubuntu), and the file must be pre-created:
 
 ```bash
-sudo install -o www-data -g adm -m 640 /dev/null /var/log/<app>.log
+# create only when absent — install over an existing log would truncate its history
+[ -e /var/log/<app>.log ] || sudo install -o www-data -g adm -m 640 /dev/null /var/log/<app>.log
+sudo chown www-data:adm /var/log/<app>.log && sudo chmod 640 /var/log/<app>.log
 sudo -u www-data <runtime> -e 'log("deploy smoke test")'
 sudo tail -1 /var/log/<app>.log        # must show the line, on EVERY host
 ```
