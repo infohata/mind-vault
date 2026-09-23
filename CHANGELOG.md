@@ -23,6 +23,7 @@ One host had five security controls that were configured and did nothing (a TLS 
 ### Changed
 
 - **`skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md` § Detect the mechanism** — the firewall-variant line now points at the empty-listing-in-one-backend trap.
+- **`skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md` split** (553 → 389 lines, back under the 500-line guideline) — its last eight sections, all about proving a change worked, moved unchanged into a new **`skills/shell/references/VERIFY_DISCIPLINE.md`**: assert the positive status code, break the target not the input, error paths, verify the exact file you edited, a zero only counts if the method can find a hit, prove a log line lands. The contract ends with a pointer to it; the shell SKILL.md References and the Traefik reference link both files.
 
 ## v5.8.14 — a guard that logs the operator out, and checks that read the wrong thing
 
