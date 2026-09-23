@@ -52,8 +52,9 @@ A host's default firewall listing was empty. The legacy filter table held a hand
 rule for one rented VPS address: someone had hit the same exposure before, blocked one address,
 documented nothing, and used a backend the default listing does not show. The exposure itself
 stayed open for years. Before concluding anything from an empty listing, list **every** backend
-the host could be using (`nft list ruleset`, `iptables-legacy -S`, `iptables-nft -S`, plus ufw /
-firewalld status) — the same any-variant probe as
+the host could be using (`nft list ruleset`, `iptables-legacy -S`, `iptables-nft -S`, and the IPv6
+twins `ip6tables-legacy -S` / `ip6tables-nft -S`, plus ufw / firewalld status) — an IPv4 rule proves
+nothing about the same service reached over IPv6 — the same any-variant probe as
 [`MAINTENANCE_SCRIPT_CONTRACT.md`](../../shell/references/MAINTENANCE_SCRIPT_CONTRACT.md)
 § Detect the mechanism. And treat a one-address block as a symptom report: find the exposure it
 was papering over.
