@@ -36,21 +36,27 @@ limit** (each request pays RTT + a fresh TLS handshake), so it never drains the 
 
 ```bash
 # opt-in: this floods the target, and a shared/global limiter throttles ALL clients meanwhile
-[ "${RATELIMIT_PROBE:-}" = 1 ] || { echo "SKIP: set RATELIMIT_PROBE=1 to run the flood probe" >&2; exit 0; }
-export PROBE_URL='<url>'      # passed as data, never pasted into the inner program text
+# not opted in = COULD-NOT-RUN, which a verify must never score as a pass
+[ "${RATELIMIT_PROBE:-}" = 1 ] || { echo "COULD-NOT-RUN: set RATELIMIT_PROBE=1 to run the flood probe" >&2; exit 2; }
+# the URL comes from the environment, never edited into shell source
+: "${PROBE_URL:?set PROBE_URL to the target URL}"; export PROBE_URL
 codes="$(seq 1 500 | xargs -P50 -n1 sh -c 'curl -s -o /dev/null -w "%{http_code}\n" --max-time 8 "$PROBE_URL" 2>/dev/null || true' _)"
 n429="$(printf '%s\n' "$codes" | grep -c '^429$' || true)"   # grep -c exits 1 on a zero count
 [ "$n429" -gt 0 ] || { echo "FAIL: 0 of 500 requests got 429 — limiter not engaged, or probe too slow" >&2; exit 1; }
 ```
 
-The URL reaches the inner `sh` as the environment variable `PROBE_URL`, expanded only inside
-double quotes, so a `$`, backtick or quote in a real query string stays data. Pasting the URL into
-the `sh -c` program text instead would let the *inner* shell expand or execute it — single-quoting
-only protects against the outer shell. The trailing `_` fills `sh -c`'s `$0` slot, so the
+The URL is supplied in the environment (`PROBE_URL='…' RATELIMIT_PROBE=1 ./probe.sh`, or read
+from a file) and reaches the inner `sh` only as a variable expanded inside double quotes, so a `$`,
+backtick or quote in a real query string stays data at both levels. Pasting it into the block
+instead is injectable twice: into the inner `sh -c` program text, and — through an apostrophe in
+the URL — into the outer shell's own quoted assignment. The trailing `_` fills `sh -c`'s `$0` slot, so the
 xargs-fed token lands in `$1`, unused here (`seq` only drives the request *count*). The inner
 `|| true` keeps one timed-out `curl` (rc ≠ 0 → `xargs` rc 123) from killing a strict-mode caller
 mid-probe; failed requests still surface as `-w`'s `000` lines. The opt-in guard is part of the
-block, not advice beside it: run against a sandbox or off-hours.
+block, not advice beside it, and a skipped probe exits non-zero as COULD-NOT-RUN — a verify that
+did not run must not report green
+([`EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md`](EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md) § An assertion that
+COULD NOT run). Run it against a sandbox or off-hours.
 
 ### `openssl x509` has no `-notBefore` flag
 
