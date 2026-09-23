@@ -19,11 +19,13 @@ the output, the more certainly it fails. Put the protection in the command.
 secret in a URL (`user:password@`, the path, `?token=…`, the fragment) or in a trailing comment.
 The operator asked *which endpoint*, so once a line contains a URL, everything after
 `scheme://host[:port]` on that line is hidden — path, query, fragment, a second URL, a trailing
-comment — and inline `#` / `;` comments are dropped elsewhere:
+comment — and inline `#` / `;` comments are dropped elsewhere. It fails closed: a line that still
+contains `://` after the rewrite (a URL shape the pattern didn't parse) is hidden entirely:
 
 ```bash
 scrub() {   # a line with a URL keeps scheme://host[:port] and hides the rest; comments dropped
-  sed -E -e 's#([A-Za-z][A-Za-z0-9+.-]*://)([^/@[:space:]]*@)?(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9.-]+)(:[0-9]+)?.*$#\1\3\4 <rest hidden>#' \
+  sed -E -e 's#([A-Za-z][A-Za-z0-9+.-]*://)([^/@[:space:]]*@)?(\[[0-9A-Fa-f:.]+\]|[^]/?#@:[:space:]"'"'"',[]+)(:[0-9]+)?.*$#\1\3\4 <rest hidden>#' \
+         -e '\#://#{\# <rest hidden>$#!s#.*#<line with an unparsed URL hidden>#;}' \
          -e 's/[[:space:]]+[#;].*$//'
 }
 ```
