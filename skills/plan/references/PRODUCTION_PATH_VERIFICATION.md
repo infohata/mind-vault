@@ -40,7 +40,7 @@ artifact differs from what the local gate exercises**:
 | Axis | Dev-mode gate sees | Production-side check to name |
 | --- | --- | --- |
 | Compiler / minifier / bundler mode | source, or a dev bundle | run the **release build** (`build:prod`, `collectstatic` with manifest storage, `DEBUG=False` boot, …) |
-| Install | the dev machine's `node_modules`/venv | build from a **fresh install** (the container build IS this) |
+| Install | the dev machine's `node_modules`/venv **and its user-level credentials/config** | build from a **fresh install with only the build's own credentials** (the container build IS this); assert vendor packages installed **licensed**, not trial |
 | Artifact set | files served from the source tree | serve the **built output only** and boot it; sweep the runtime manifest/loader for 404s |
 | Configuration | dev config, dev hosts | boot with **production config** (empty/relative hosts, `ALLOWED_HOSTS`, CSP, same-origin proxying) |
 | Data | fixtures / mocked API | one smoke pass **against a real backend** (dictionary/translation coverage, auth round-trip) |
@@ -107,6 +107,27 @@ verify script curl-probes each one). A single-variant probe proves the pipeline 
 proves nothing about the variants it never requests. The tell during planning: any config
 listing multiple builds/targets/locales whose deploy script or verify probe names only
 one of them.
+
+## Entitlement is an install-axis variant, and it degrades silently (2026-09-23)
+
+A consuming SPA project's vendor UI framework shipped with a trial watermark to every
+production customer for weeks, although the account was licensed. The vendor's packages are
+published as trial builds and **activate at install time**: an install script runs a nested
+package-manager call from inside its own package directory. That nested call reads only the
+**user-level** config, never the project's, so the container build (credentials in the
+project config) stayed trial while laptops (credentials in `~/.npmrc`) activated. On failure
+the script printed a banner and **exited 0**. The install "succeeded", the lockfile integrity
+check passed (the tarballs are identical; activation rewrites files *after* install), and a
+shape-only artefact check passed too.
+
+The sharpening for plan authors: **a dev machine carries ambient identity** (user config,
+cached logins, keychains, licence files in `$HOME`), and a fresh-install build does not.
+Anything a dependency decides from that identity (a licence tier, a feature unlock, an
+entitlement-gated download) is an axis. Its production-side check reads the **artefact**
+for the vendor's trial fingerprint (a watermark class, an "evaluation" string, a banner in
+the build log), because an exit code tells you nothing when the fallback is silent by design.
+The tell during planning: a private registry, an "activation" or "licence" step in a
+package's install scripts, or a vendor whose free tier is the same package with a flag.
 
 ## Related
 
