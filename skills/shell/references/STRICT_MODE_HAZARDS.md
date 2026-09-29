@@ -101,6 +101,9 @@ substitutions single-command.
 Optional args/env reads need explicit defaults: `"${2:-}"`, `"${DEBUG:-0}"`.
 Empty arrays expand fatally under `-u` on bash <4.4 — `"${arr[@]}"` on a
 possibly-empty array needs `${arr[@]+"${arr[@]}"}` there; current bash is fine.
+A script tested on bash 5 will pass and then die mid-apply on an old LTS box, and
+newer bash cannot reproduce it, so pin it with a **static** test: grep the script
+for an unguarded `"${NAME[@]}"` on any array that can be empty.
 
 ### 8. `cd` without a guard — the wrong-directory catastrophe (SC2164)
 

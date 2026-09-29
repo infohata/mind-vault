@@ -10,6 +10,28 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.17 — twelve lessons from hardening a server estate
+
+A consuming project spent two sessions hardening a fleet of servers and handed over twelve lessons in [#259](https://github.com/infohata/mind-vault/issues/259). Most are cases where a check reported "fine" when it could not see the problem: a login alert that dropped every login after an OpenSSH upgrade, a key inventory that read one of two key files, a network sweep that a rate limiter quietly blanked. Ten are placed below. The other two were already covered: the empty-array `set -u` crash on old bash (this adds a static-test note), and review bots skipping draft PRs (already in `review-loop`). This release also folds in the BuildKit-cache follow-up held back from #258.
+
+### Added
+
+- **`skills/deployment/references/ALERT_SILENT_DECAY.md`** — a mute window also swallows the "resolved" message, so check `ALERTS` rather than the chat; § 5, a log alert keyed on a process name goes blind when upstream renames the process (OpenSSH 9.8 `sshd-session`); § 6, run a widened rule over existing data before promoting it, because it re-reads your own probe traffic.
+- **`skills/deployment/references/MONITORING.md`** — the journald `comm` filter it recommends must match `sshd-session` and `sshd-auth` too, and a login alert must be tested with a real login.
+- **`skills/deployment/references/HARDENING.md`** — retiring a service: REJECT with a TCP reset instead of DROP while clients still call it. DROP made each caller wait ~30 s and held shared PHP workers.
+- **`skills/shell/references/EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md`** — a claim that something is absent needs a tool that can see everywhere it could be (`authorized_keys2`; old `ssh-keygen` printing an error that reads as "no keys").
+- **`skills/shell/references/VERIFY_DISCIPLINE.md`** — a network sweep needs a known-open port checked on every host; a host missing it is INCOMPLETE, not clean.
+- **`skills/shell/references/CREDENTIALS_IN_OPERATOR_COMMANDS.md`** — one piped `sudo -S` password covers exactly one `sudo`.
+- **`skills/shell/references/SAFE_CONFIG_EDITS.md`** — backups of secrets come out world-readable under the default umask; set `umask 077` and check the file mode.
+
+### Changed
+
+- **`skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md`** — the post-change lockout check must use `ssh -o ControlPath=none`, or it rides the held session and never logs in again.
+- **`skills/shell/references/GREEN_RUN_UNIVERSE_TOO_SMALL.md`** — fixtures must come from the producer's real output; mutation testing cannot catch a wrong fixture.
+- **`skills/shell/references/STRICT_MODE_HAZARDS.md`** § 7 — pin the old-bash empty-array crash with a static test, since newer bash cannot reproduce it.
+- **`skills/extjs-frontend/references/SENCHA_TOOLCHAIN_AND_BUILD.md`** § 4 — BuildKit leaves secret contents out of the cache key, so a cached licensed `npm ci` layer can hide a revoked token; bust the install layer on release builds. Also removes a double blank line.
+- `deployment` and `shell` SKILL.md reference pointers updated to name the new content.
+
 ## v5.8.16 — the vendor licence that is applied after install, and fails silently
 
 A consuming SPA project shipped its UI framework's trial watermark to every production customer for weeks. The account was licensed. The vendor's packages install as trial builds and switch themselves to licensed through an install script, but that script's nested `npm install` only reads the user-level npm config. The container build put the registry token in the project's config. Activation failed, printed a banner, and exited 0: the install "succeeded", the lockfile check passed, and so did the bundle check. Laptops built clean because the developer's `~/.npmrc` had the token. mind-vault's own Sencha reference prescribed the broken pattern, so this fixes it at the source. ([#258](https://github.com/infohata/mind-vault/pull/258))

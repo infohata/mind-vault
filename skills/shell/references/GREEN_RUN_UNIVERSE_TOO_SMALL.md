@@ -109,7 +109,10 @@ and (b) the commit it covers. **If list (a) is
 empty, you have not looked.** Where the substrate is weaker than production, pin what it
 *can* check by asserting against the schema or source artifact. Build doubles from output
 captured on the real target and make them **strict** — reject unknown arguments, because
-real tools do. And prefer a discriminating test to an enumerated one: watch it fail against
+real tools do. The same goes for fixtures: build them from the **producer's** real output (a
+real backup for a restore script), never from its assumed format. A restore script can pass
+40 checks against an imagined archive and restore nothing from a real one, and mutation
+testing cannot catch this, because the mutants are judged by the same wrong fixture. And prefer a discriminating test to an enumerated one: watch it fail against
 the old behavior before you keep it.
 
 Related: [`MAINTENANCE_SCRIPT_CONTRACT.md`](MAINTENANCE_SCRIPT_CONTRACT.md) ·

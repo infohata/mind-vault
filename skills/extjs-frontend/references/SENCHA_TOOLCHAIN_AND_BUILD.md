@@ -113,6 +113,12 @@ COPY --from=build /app/autobahn.js /usr/share/nginx/html/           # manifest-l
 
 Run the image locally and sweep the manifest for missing local paths before pushing.
 
+⚠️ **BuildKit keeps secret contents out of the cache key.** With a layer cache (§ 7 `cache-from/to`),
+a build can reuse an old, already-licensed `npm ci` layer and never re-run activation against the
+*current* token, so a revoked or wrong token still looks valid. On release builds, bust the install
+layer: `docker build --no-cache-filter build ...` (the stage name), or an `ARG` with a per-release
+value placed before the `RUN --mount=type=secret` line.
+
 ## 5. Swap under a live tab
 
 The shell is `no-store`, so a deploy is visible on the next load — but a tab left open across a
@@ -225,7 +231,6 @@ Consequences for anyone verifying a deploy:
   already current. Clearing the `_ext:*` keys must happen **before** the app page loads
   (from a non-booting same-origin page, e.g. the login route) — on the app page the
   microloader has already consumed the cache by the time any injected script runs.
-
 
 ## 11. The licence is applied AFTER install — and falls back to trial silently
 

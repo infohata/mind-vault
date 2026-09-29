@@ -619,6 +619,15 @@ marker has `comm=logger` and is **dropped by your own filter** — so a `logger`
 false-negatives on journald hosts while the agent is perfectly healthy. Verify those hosts by
 asserting the agent is active **and** its stream has a recent line instead.
 
+⚠️ **`comm` is not stable across OpenSSH versions.** From 9.8 the login lines (`Accepted …`) come
+from a per-connection `sshd-session` process, and from 10.0 some auth messages come from
+`sshd-auth`. A keep on `comm == "sshd"` drops every login on those hosts. The line counts still
+look healthy because the listener keeps logging, and a text match on `sshd` finds nothing either,
+because on journald the name lives only in the label. Match the whole family
+(`__journal__comm =~ "sshd(-session|-auth)?"`), and prove a login alert with a **real login** on
+each OpenSSH version in the estate, never with per-host line counts. See
+[`ALERT_SILENT_DECAY.md`](ALERT_SILENT_DECAY.md) § 5.
+
 #### Application Logging Standards
 **Structured logging patterns:**
 ```python
