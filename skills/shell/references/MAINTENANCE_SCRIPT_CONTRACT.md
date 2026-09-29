@@ -240,6 +240,9 @@ config, firewall rules touching :22):
 2. After the change, test a **fresh** connection (new TCP, no ControlMaster
    socket — see [SSH_FLEET_PATTERNS.md](SSH_FLEET_PATTERNS.md)). The held
    session reuses pre-change state and proves nothing about new logins.
+   Neither does a "new" `ssh` from the same machine when `~/.ssh/config`
+   multiplexes: it rides the held session's socket and never authenticates.
+   Force it: `ssh -o ControlPath=none -o BatchMode=yes <host> true`.
 3. Only after the fresh-connection check passes, close the held session.
 
 ## Grep portability hazard

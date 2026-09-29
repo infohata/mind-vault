@@ -111,6 +111,22 @@ The third branch is the one that gets forgotten: a counter incremented *before* 
 filter means the map can end up empty while candidates genuinely existed. Reporting that as
 "none found" is the false clean wearing the exact words of a real finding.
 
+### A claim of absence needs a tool that can see the thing
+
+"No key", "not installed", "not listening" are claims about everywhere the thing could be, so the
+tool must be able to see all of those places. Two failures from one key inventory:
+
+- **It read one of two files.** sshd's `AuthorizedKeysFile` defaults to
+  `.ssh/authorized_keys .ssh/authorized_keys2`, and an inventory that reads only the first cannot
+  say "no key". Read the effective setting from the consumer (`sshd -T | grep -iE
+  '^authorizedkeys(file|command)'`), then read every path it names.
+- **The tool's error looked like an empty result.** `ssh-keygen -lf -` reads stdin only from
+  OpenSSH 7.2. Older versions print `No such file`, which a parser counts as "no keys" when it is
+  really "could not look". Match the tool's error text and report it as COULD-NOT-CHECK.
+
+Before writing "none", ask where else the thing could be, and whether this tool, at this version,
+can see there.
+
 ## Announce partial coverage; a missing section reads as a complete report
 
 When a script iterates targets, a target that drops out silently is invisible — **two

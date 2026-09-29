@@ -186,6 +186,11 @@ Backups hold whatever the config holds. When that includes credentials, an unbou
 rather than deleting silently (they are the manual rollback path). Where that pile may
 live is not free either — see the next section.
 
+Those backups also get the **default umask**, typically `022`, so a copy of a `0600` secret
+comes out `0644` and world-readable. `cp` without `-p`, `tar -x`, and a `>` redirect all create
+files this way. Put `umask 077` at the top of the backup step (or copy with `install -m 600`),
+and assert the result: `[ "$(stat -c %a "$bak")" = 600 ]`.
+
 ## The deciding property lives outside the line you wrote
 
 Everything above assumes the hazard is *your* edit being wrong. The other half of the

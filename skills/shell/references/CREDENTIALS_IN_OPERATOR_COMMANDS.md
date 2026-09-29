@@ -127,6 +127,22 @@ stub had to start reading stdin to route requests, and the suite now asserts tha
 stub that still distinguishes requests by argv means a secret-bearing body has crept back onto
 the command line.
 
+## One piped sudo password covers one `sudo`
+
+```bash
+# ❌ DON'T — the first sudo reads the only line; the second finds stdin empty
+printf '%s\n' "$PW" | ssh -T "$host" 'sudo -S a && sudo -S b'
+#   -> step a runs, then: "sudo: no password was provided"
+
+# ✅ DO — one sudo per ssh call, or one sudo that runs both steps
+printf '%s\n' "$PW" | ssh -T "$host" 'sudo -S sh -c "a && b"'
+```
+
+`sudo -S` consumes one line of stdin. With `ssh -T` there is no tty, so do not count on the
+credential cache to cover the second call. The result looks like a script bug, because step `a`
+really ran and the failure message is about the password. Anything else piped after the
+password (a heredoc, a payload) is also read by whichever command comes first.
+
 ## Least privilege will break your own verification — verify with metadata, not reads
 
 A log shipper's superuser credential was replaced with a purpose-made **write-only** account.

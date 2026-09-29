@@ -5,13 +5,13 @@ keeps evaluating, keeps reporting nothing, and its silence is indistinguishable 
 is the failure class this reference is about, and every pattern here was found the same way: not by
 the alert firing, but by someone checking whether it still could.
 
-The four failures below are independent, and a monitoring stack can carry all of them at once.
+The failures below are independent, and a monitoring stack can carry all of them at once.
 
 ## When to use
 
 Read before changing an alert rule that consumes a metric someone else emits, before retargeting a
 rule to a differently-named series, before widening a suppression window, and any time an alert is
-described as "noisy". Three of the four cases below present as noise or as quiet, and the correct
+described as "noisy". Most of the cases below present as noise or as quiet, and the correct
 response is the opposite of the obvious one in each.
 
 ---
@@ -181,9 +181,46 @@ window for the count, and use the range only to locate *when*.
 ⚠️ **`send_resolved` doubles the count.** One incident that fires and clears is two notifications.
 Two messages does not mean two problems.
 
+⚠️ **A mute window swallows the resolve too.** Alertmanager's `active_time_intervals` (and
+`mute_time_intervals`) mute *every* notification on the route, resolved ones included, and
+`send_resolved: true` does not override that. An alert that fires at 18:00 and clears during quiet
+hours never gets its "resolved" message, so the chat shows it as open for good. The chat is the
+delivery log, not the state: to ask "is it still firing?", read `ALERTS` or the Alertmanager API
+(`/api/v2/alerts`).
+
 ---
 
-## The thread running through all four
+## 5. The emitter renames itself, and the filter keeps matching nothing
+
+A log-based alert that selects its source by **process name** depends on a name the upstream
+project is free to change. OpenSSH 9.8 split the server, so login lines now come from a
+per-connection `sshd-session` process (and from 10.0, partly from `sshd-auth`). A filter on
+`sshd` keeps running and keeps shipping the listener's lines, so the host's line count looks
+healthy while it drops every `Accepted` line. In the worked case two hosts showed zero logins
+for 29 days before anyone checked with a real login. Mechanics and the fix:
+[`MONITORING.md`](MONITORING.md) § Loki + promtail.
+
+The check that catches this class is **end to end**: make the event happen (log in), then see it
+arrive at the alert. Throughput metrics cannot tell "no logins" from "no logins *captured*".
+
+---
+
+## 6. A rule change re-reads the past — backtest it before promoting
+
+Widening what a rule looks at (a longer lookback, a looser filter, a new source) makes it evaluate
+lines it used to ignore, and those lines include your own traffic. In the worked case a rule
+watching for access from outside the network was widened, and its first evaluation found
+"foreign peer" lines seeded weeks earlier by an internal probe. The rule was correct and the
+data was real; the page was still false.
+
+**Run the new expression over the existing data before promoting it**, and read every hit. A hit
+that is your own tooling means either excluding that source explicitly or starting the rule's
+window after the change. This is § 3's "replay before and after" applied to the rule instead of
+the suppression window.
+
+---
+
+## The thread running through all of them
 
 Each of these is an instrument that kept reporting after it stopped being able to measure. The
 generalisation worth carrying into any monitoring change:

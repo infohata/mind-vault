@@ -338,6 +338,29 @@ The checklist for any fail2ban behind a proxy/CDN:
 5. Thresholds sized so that **one page load cannot trip them** — a single app boot can
    legitimately fire a dozen requests in 40 ms.
 
+## Retiring a service — REJECT, don't DROP, while clients still call it
+
+Closing a port looks like one decision, but DROP and REJECT fail very differently for a client that
+still names the service. **DROP sends nothing back**, so the caller waits out its full connect
+timeout (about 30 s for a typical TCP client). **REJECT with a TCP reset** fails in milliseconds. In
+the worked case a retired service's port was DROPped while some clients still pointed at it.
+Each request hung its PHP worker for ~30 s, and those workers were a pool that live tenants shared,
+so a dead service became an outage for services that never used it.
+
+```bash
+# iptables
+iptables -A INPUT -p tcp --dport <port> -j REJECT --reject-with tcp-reset
+# nftables
+nft add rule inet filter input tcp dport <port> reject with tcp reset
+```
+
+- **REJECT** a service you retired that callers may still name: fast failure, clear error, no
+  pile-up of held workers.
+- **DROP** what nobody legitimate should ever reach (scan noise on ports never offered), where a
+  reply would only confirm the host exists.
+- After the change, time a connect from a client host (`time nc -zv <host> <port>`): milliseconds
+  means reject, ~30 s means you are still dropping.
+
 ## Related Files
 
 - **Script**: `scripts/harden_server.sh` (in this skill)

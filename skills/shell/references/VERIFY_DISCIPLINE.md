@@ -168,6 +168,11 @@ hit.
 Related failure this prevents: a filter that hides what it looks for — counting `POST`s for an API
 that creates over `GET` returns a confident, wrong zero.
 
+**A network sweep needs the control on every host, not once per sweep.** Target-side rate
+limiters and the scanner's own throttling can blank a single host while the rest of the sweep
+looks normal. Include a port you know is open on each host (its SSH port, say). If that port is
+missing from a host's result, mark the host **INCOMPLETE**, not clean, and re-scan it slower.
+
 ## Prove a log line LANDS before letting the log inform a decision
 
 Before any decision rests on "the log is empty", write a line and see it arrive — **as the user the
