@@ -123,9 +123,14 @@ shipped.
 - **Which pin sets what.** The token is subscription-billed, so every review spends
   plan quota. **`ANTHROPIC_DEFAULT_OPUS_MODEL` is the pin that decides bug-finding
   quality and most of the cost**, because the bug finders run on the opus alias. Point
-  it at a Sonnet ID to cut quota, at the price of shallower bug hunting. `--model` only
-  sets the orchestrator and the posted summary, so Sonnet is enough there, and
-  switching it to Opus buys little depth.
+  it at a Sonnet ID to cut quota, at the price of shallower bug hunting. In
+  `claude-code-review.yml`, `--model` only sets the orchestrator and the posted
+  summary, so Sonnet is enough there and Opus buys little depth.
+- **`claude.yml` is different: its `--model` IS the reviewer.** No plugin runs there.
+  The session answers the loop's `@claude review once` retrigger itself, so that
+  review's depth is whatever `--model` names, Sonnet 5.5 in the templates. If the
+  retrigger replies feel shallower than the auto-run's, raise `--model` in
+  `claude.yml` only.
 - **Bump the action pin with the models.** A newer action ships a newer CLI that
   knows the newer models. After a pin bump, the first review must still **post**:
   the silent-success failure (anthropics/claude-code-action#1087) is version-sensitive, so check the run left a
