@@ -41,6 +41,11 @@ if [ -z "$PR" ] || [ -z "$ENGINES" ] || [ -z "$ARM_SHA" ] || [ "$#" -gt 4 ]; the
   echo "engine-error: usage: review_loop_monitor.sh <PR> <ENGINES> <ARM_SHA> [POLL_INTERVAL]"
   exit 0
 fi
+# A non-numeric PR makes every adapter fail, and `2>/dev/null || true` below would
+# hide that as "not done yet" until the Monitor's timeout.
+case "$PR" in *[!0-9]*)
+  echo "engine-error: PR must be a number, got '$PR'"; exit 0 ;;
+esac
 # ≥30s — remote API, rate-limit-friendly. A non-integer or smaller value would
 # otherwise spin a tight API loop (no errexit: a failed `sleep` just loops again).
 case "$POLL_INTERVAL" in ''|*[!0-9]*) POLL_INTERVAL=30 ;; esac

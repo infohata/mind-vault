@@ -141,7 +141,7 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
       | while read -r ref; do git ls-tree -r --name-only "$ref" -- docs/ideas docs/archive; done
     gh pr list --state open --limit 1000 --json number --jq '.[].number' \
       | while read -r n; do gh pr diff "$n" --name-only | grep -E '^docs/(ideas|archive)/'; done
-  } | grep -oE 'IDEA-[0-9]{3,}' | sort -uV | tail -1
+  } | grep -oE 'IDEA-[0-9]{3,}' | sed 's/^IDEA-//' | sort -n | tail -1   # POSIX sort; GNU-only -V avoided
   ```
 
   Match **file paths only**. A branch name like `compound/…-idea-166-…` usually carries another project's number (next bullet). If `gh` is unavailable, say so in the hand-back. `gh pr diff` also fails on very large PRs (over 300 files) and the pipeline swallows the error, so a huge open PR is skipped silently; check such PRs by hand. The branch scan still covers every PR whose head is fetched.

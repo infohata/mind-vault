@@ -586,7 +586,12 @@ if [ -n "${CLAUDE_VERDICTS_LINE:-}" ] && [ "${CLAUDE_HEAD_VERDICTS_N:-0}" -ge 1 
 fi
 
 if [ -n "$CLAUDE_INLINE_JSON" ]; then
-    HEAD_INLINE_COUNT=$(echo "$CLAUDE_INLINE_JSON" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+    # The `if` keeps the flag write in THIS shell (not a $(...) subshell): a failed
+    # head-filtered parse leaves the count unknown, so CLAUDE_HEAD_INLINE is withheld.
+    if ! HEAD_INLINE_COUNT=$(echo "$CLAUDE_INLINE_JSON" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null); then
+        HEAD_INLINE_COUNT=0
+        INLINE_FETCH_COMPLETE=false
+    fi
 else
     HEAD_INLINE_COUNT=0
 fi
