@@ -31,7 +31,13 @@ jobs:
   claude-review:
     # Fork-PR guard: secrets are unavailable to forks, so the job would fail/no-op
     # and consume runner minutes. Only run for same-repo PR branches.
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Dependabot guard: Dependabot PRs are same-repo, but runs they trigger get
+    # only Dependabot secrets (no CLAUDE_CODE_OAUTH_TOKEN), so every dependency
+    # bump would show a red review check. Keyed on the PR author, not
+    # github.actor, so a human re-running the job doesn't flip it.
+    if: |
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: read

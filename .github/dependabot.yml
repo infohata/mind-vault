@@ -1,0 +1,23 @@
+# mind-vault's only dependencies are the GitHub Actions its workflows pin.
+# Package manifests under tests/fixtures/ are test inputs, not dependencies,
+# and stay out of scope because only `directory: /` is configured.
+#
+# Dependabot does NOT see skills/review-loop/assets/*.yml (the templates
+# adopters copy). When merging a bump to claude-code-review.yml / claude.yml,
+# apply the same version to the asset copy in that PR.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /          # scans .github/workflows/
+    schedule:
+      interval: weekly
+    # claude-code-action ships several releases a day; wait a week before
+    # proposing a release, so a bad or compromised one has time to be pulled.
+    cooldown:
+      default-days: 7
+    # One PR per week for all actions, not one per action.
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore(deps)"

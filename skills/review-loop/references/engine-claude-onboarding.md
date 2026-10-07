@@ -140,6 +140,35 @@ shipped.
   `Workflow validation failed` on its own Claude review. Merge it, then confirm the
   new IDs on the next PR's run: `gh run view <id> --log | grep '"model"'`.
 
+## Dependabot and the review workflows
+
+Dependabot PRs come from a branch in the same repo, so the fork guard doesn't skip
+them. A run Dependabot triggers gets only Dependabot secrets, never
+`CLAUDE_CODE_OAUTH_TOKEN`, so the auto-review would fail with a red check on every
+dependency bump. `claude-code-review.yml` therefore also skips PRs authored by
+`dependabot[bot]`. The guard is keyed on `github.event.pull_request.user.login`, not
+`github.actor`, so a maintainer re-running the job doesn't change the outcome. Apply the
+same guard to any other auto-review workflow, such as grok. `claude.yml` needs nothing:
+its author-association gate already excludes bots.
+
+To have Dependabot keep the action pin current, add a `github-actions` entry with a
+cooldown. claude-code-action ships several releases a day, and a week's delay gives a
+bad release time to be pulled:
+
+```yaml
+# .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups: { github-actions: { patterns: ["*"] } }
+```
+
+A Dependabot bump to these workflows hits the same catch-22 as any other edit: the
+review on that PR fails validation, and the new version takes effect only after merge.
+
 ## Hardening the @claude assistant (claude.yml)
 
 The default `@claude` trigger fires on ANY comment containing the literal string
