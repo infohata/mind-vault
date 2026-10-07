@@ -132,10 +132,23 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
 ### 4. Auto-incrementing IDEA-NNN
 
 - Scan **both IDEA-file locations** together: `<project>/docs/ideas/IDEA-*.md` and `<project>/docs/archive/*/IDEA-*.md`. Zero-padded three-digit numbers preferred (`IDEA-042` not `IDEA-42`). Scanning only `docs/ideas/` would miss IDEAs in any non-backlog state (`in-progress`, `complete`, `superseded`, `rejected`) — all live in the archive tree per [`RULE_ideas-location-status`](references/IDEAS_LOCATION_STATUS.md) — and produce a collision on the next increment.
-- **Each project's numbering is independent.** Scan ONLY the target project's `docs/ideas/` + `docs/archive/`. Never carry a number from another project's stream (e.g. agent working a `project-x` compound branch checked into mind-vault must NOT pick "next after IDEA-166" — IDEA-166 lives in `project-x`, mind-vault has its own sequence starting at IDEA-001). The branch name (`compound/2026-05-DD-idea-NNN-...`) often references the originating project's IDEA — that is NOT the target project's next number. The scan-from-disk rule is what defines the next number; conversation context referencing other projects' IDEAs is irrelevant.
+- **Scan every outstanding branch, not just the working tree — open PRs above all.** An IDEA filed on an unmerged branch is invisible on disk until it merges. Two sessions that each scan only their own checkout will hand out the same number, and the collision surfaces at merge time, after both numbers have spread into plans, archive dirs and commit messages. Take the max over the working tree **plus** every local and remote-tracking branch **plus** every open PR's changed files. The PR scan also catches fork PRs whose heads are never fetched:
+
+  ```bash
+  git fetch --prune origin
+  { ls docs/ideas docs/archive/*/ 2>/dev/null
+    git for-each-ref --format='%(refname)' refs/heads refs/remotes \
+      | while read -r ref; do git ls-tree -r --name-only "$ref" -- docs/ideas docs/archive; done
+    gh pr list --state open --limit 1000 --json number --jq '.[].number' \
+      | while read -r n; do gh pr diff "$n" --name-only | grep -E '^docs/(ideas|archive)/'; done
+  } | grep -oE 'IDEA-[0-9]{3,}' | sed 's/^IDEA-//' | sort -n | tail -1   # POSIX sort; GNU-only -V avoided
+  ```
+
+  Match **file paths only**. A branch name like `compound/…-idea-166-…` usually carries another project's number (next bullet). If `gh` is unavailable, say so in the hand-back. `gh pr diff` also fails on very large PRs (over 300 files) and the pipeline swallows the error, so a huge open PR is skipped silently; check such PRs by hand. The branch scan still covers every PR whose head is fetched.
+- **Each project's numbering is independent.** Scan ONLY the target project's `docs/ideas/` + `docs/archive/`. Never carry a number from another project's stream (e.g. agent working a `project-x` compound branch checked into mind-vault must NOT pick "next after IDEA-166" — IDEA-166 lives in `project-x`, mind-vault has its own sequence starting at IDEA-001). The branch name (`compound/2026-05-DD-idea-NNN-...`) often references the originating project's IDEA — that is NOT the target project's next number. The scan-from-the-project's-refs rule (above) is what defines the next number; conversation context referencing other projects' IDEAs is irrelevant.
 - **Citing is the mirror problem of numbering**: never cite a foreign project's idea bare — write `IDEA-NNN:project` (bare = the current repo's stream). Grammar, project-token rule, and the mind-vault scrub interaction: [`references/CROSS_PROJECT_IDEA_REFS.md`](references/CROSS_PROJECT_IDEA_REFS.md).
-- Take max + 1. If no files exist, start at `IDEA-001`.
-- User override: `/idea 200 "Title here"` forces the number. Warn and ask if the number already exists **in either location**.
+- Take max + 1 over that whole scan. If no files exist anywhere, start at `IDEA-001`.
+- User override: `/idea 200 "Title here"` forces the number. Warn and ask if the number already exists **in either location, on any branch, or in an open PR**.
 - Do **not** attempt to find "gaps" in the numbering. Numbers are append-only; holes from deleted ideas stay as holes.
 
 ✅ DO: `IDEA-001`, `IDEA-042`, `IDEA-112` (zero-padded to 3 digits).
