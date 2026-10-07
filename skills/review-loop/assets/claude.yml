@@ -55,10 +55,9 @@ jobs:
         # reviews too and needs the same model pins.
         uses: anthropics/claude-code-action@v1.0.244
         # Model pins — see engine-claude-onboarding.md § Choosing the review model.
-        # The action's bundled Claude Code otherwise picks its own (stale) default,
-        # and the code-review plugin launches its reviewer agents BY ALIAS
-        # ("Sonnet agents", "Haiku agents"), which resolve through these vars —
-        # `--model` alone upgrades the session, not the agents that write findings.
+        # The action's bundled Claude Code otherwise picks its own (stale) default.
+        # No code-review plugin here — the session answers the @claude mention
+        # itself; the env pins cover any subagent it launches by alias.
         env:
           ANTHROPIC_DEFAULT_OPUS_MODEL: claude-opus-5-5
           ANTHROPIC_DEFAULT_SONNET_MODEL: claude-sonnet-5-5

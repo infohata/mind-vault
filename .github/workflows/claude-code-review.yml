@@ -50,9 +50,10 @@ jobs:
         uses: anthropics/claude-code-action@v1.0.244
         # Model pins — see engine-claude-onboarding.md § Choosing the review model.
         # The action's bundled Claude Code otherwise picks its own (stale) default,
-        # and the code-review plugin launches its reviewer agents BY ALIAS
-        # ("Sonnet agents", "Haiku agents"), which resolve through these vars —
-        # `--model` alone upgrades the session, not the agents that write findings.
+        # and the code-review plugin launches its agents BY ALIAS — Opus bug finders
+        # and validators, Sonnet compliance/summary, Haiku triage — which resolve
+        # through these vars. `--model` alone upgrades the session, not the agents
+        # that find the bugs; the OPUS pin is the one that decides review depth.
         env:
           ANTHROPIC_DEFAULT_OPUS_MODEL: claude-opus-5-5
           ANTHROPIC_DEFAULT_SONNET_MODEL: claude-sonnet-5-5

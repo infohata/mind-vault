@@ -104,21 +104,28 @@ real upgrade needs both:
   that session orchestrates the `code-review` plugin. In `claude.yml` it writes the
   `@claude review once` reply itself.
 - **`ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` in the step's `env:`** decide what
-  the plugin's helper agents run on. The plugin launches them by alias: five "Sonnet
-  agents" write the findings, and "Haiku agents" check eligibility and score
-  confidence. The aliases resolve through these variables, which the action forwards
-  (`action.yml`, the `ANTHROPIC_DEFAULT_*` passthrough). **`--model` alone upgrades
-  the orchestrator, but the agents that find the bugs stay on the old model.**
+  the plugin's helper agents run on. The plugin launches them by alias (upstream
+  `plugins/code-review/commands/code-review.md`, restructured 2026-01, unchanged since
+  2026-03). Haiku agents check eligibility and list CLAUDE.md files. One Sonnet agent
+  summarizes the PR and two Sonnet agents check CLAUDE.md compliance. **Two Opus agents
+  hunt bugs**, and a validator subagent re-checks each bug candidate. The aliases resolve
+  through these variables, which the action forwards (`action.yml`, the
+  `ANTHROPIC_DEFAULT_*` passthrough). **`--model` alone upgrades the orchestrator, but
+  the agents that find the bugs stay on the old model.** The templates install the plugin
+  from the marketplace tip with no ref, so re-read that file when the review's behavior
+  shifts. A cached local copy can be months stale.
 
 Current pins: session and sonnet alias `claude-sonnet-5-5`, opus alias `claude-opus-5-5`,
 haiku alias `claude-haiku-4-5-20251001`. Use full model IDs, not aliases like
 `opus`. An old bundled CLI maps an alias to whatever model was current when that CLI
 shipped.
 
-- **Why Sonnet, not Opus, for the session.** The token is subscription-billed, so
-  every review spends plan quota, and the session mostly orchestrates while the five
-  Sonnet agents do the finding. `--model claude-opus-5-5` is the one-line upgrade if
-  a project's reviews need more depth than the quota is worth.
+- **Which pin sets what.** The token is subscription-billed, so every review spends
+  plan quota. **`ANTHROPIC_DEFAULT_OPUS_MODEL` is the pin that decides bug-finding
+  quality and most of the cost**, because the bug finders run on the opus alias. Point
+  it at a Sonnet ID to cut quota, at the price of shallower bug hunting. `--model` only
+  sets the orchestrator and the posted summary, so Sonnet is enough there, and
+  switching it to Opus buys little depth.
 - **Bump the action pin with the models.** A newer action ships a newer CLI that
   knows the newer models. After a pin bump, the first review must still **post**:
   the silent-success failure (anthropics/claude-code-action#1087) is version-sensitive, so check the run left a
