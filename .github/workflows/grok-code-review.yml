@@ -81,7 +81,7 @@ jobs:
 
       - name: Checkout
         if: steps.pr.outputs.skip != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ steps.pr.outputs.head_sha }}

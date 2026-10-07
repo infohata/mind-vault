@@ -46,7 +46,7 @@ jobs:
       id-token: write        # mandatory for the OIDC → App-token exchange
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
