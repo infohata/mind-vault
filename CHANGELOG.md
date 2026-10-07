@@ -10,6 +10,20 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.18 — review-loop Monitor ships as a tool; IDEA numbers scan branches and open PRs
+
+Two fixes in one release. [#261](https://github.com/infohata/mind-vault/issues/261): in a downstream repo, the review-loop Monitor template called `./tools/find_*_comments.sh`, a path that exists only in mind-vault. Its output was always empty, so the Monitor ran to timeout and sessions wrote their own watchers. One of those watchers picked the newest claude comment with `| last`, missed an earlier findings-bearing verdict on the same SHA, and reported the PR CLEAN twice. Separately, `/idea` picked the next number from the working tree only, so two sessions could hand out the same IDEA number before either PR merged.
+
+### Added
+
+- **`tools/review_loop_monitor.sh <PR> <ENGINES> <ARM_SHA>`** — the Phase 4 accelerator as a shipped tool. It finds each engine's adapter itself (`$MV_TOOLS`, then the project's own `tools/`, then the directory it ships in). A missing adapter is an immediate `engine-error`, never a silent timeout. It emits one run-state event (`all-done` / `sha-changed` / `engine-error` / `claude-noop`) and never verdict text.
+
+### Changed
+
+- **`skills/review-loop/SKILL.md`** — Phase 4: arm the Monitor with the tool. New hard rule: a watcher never reads a verdict (no `jq … | last`, no `select(.id > <retrigger id>)`); on wake the verdict comes only from `find_<engine>_comments.sh`, judging every `<ENGINE>_VERDICT_IDS` id oldest-first. Phase 1: where `./tools/` lives downstream. Hand-back: when the head SHA has more than one verdict, list each verdict id judged.
+- **`skills/review-loop/references/MONITOR_ACCELERATION.md`** — the inline poll-script template is replaced by the tool, plus § The watcher never reads a verdict. **`engine-claude.md`** § dual substantive verdicts points watchers at that section.
+- **`skills/idea/SKILL.md`** § 4 — the next number is the max over the working tree, every local and remote-tracking branch, and every open PR's changed files (scan snippet included). It matches file paths only, never branch names. **`skills/ideate/SKILL.md`** now defers to that rule.
+
 ## v5.8.17 — twelve lessons from hardening a server estate
 
 A consuming project spent two sessions hardening a fleet of servers and handed over twelve lessons in [#259](https://github.com/infohata/mind-vault/issues/259). Most are cases where a check reported "fine" when it could not see the problem: a login alert that dropped every login after an OpenSSH upgrade, a key inventory that read one of two key files, a network sweep that a rate limiter quietly blanked. Ten are placed below. The other two were already covered: the empty-array `set -u` crash on old bash (this adds a static-test note), and review bots skipping draft PRs (already in `review-loop`). This release also folds in the BuildKit-cache follow-up held back from #258.

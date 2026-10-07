@@ -21,72 +21,28 @@ The script emits on the first of these to become true, then exits:
 - **`sha-changed`** — live `git rev-parse HEAD` has diverged from the **frozen arm-time SHA** (an out-of-band push by the user or another process). Compared against the SHA frozen into the script at arm time, NOT two live reads (which move together and never diverge) — this mirrors `SKILL.md` Phase 4 step 3's frozen-baseline new-push detection (`scratch last_push_sha` vs live HEAD) so the two cannot drift.
 - **`engine-error`** — an engine reached a genuine **run-level failure** conclusion (`failure` / `cancelled` / `timed_out`) that the escape-hatch table in [`multi-engine-sync.md`](multi-engine-sync.md) acts on. This is a strict subset of, and must stay consistent with, that table. It is explicitly **NOT** triggered by `success`, `neutral`, or `action_required` — those are normal completions (an engine concludes `success`/`neutral` even when it posted inline findings, and `action_required` is "changes requested"; `SKILL.md` § "clean is structural": `CONCLUSION` is a run outcome, never a verdict). Any completion-with-findings is caught by the `all-done` path, so firing `engine-error` on it would only wake the agent into a no-op and risk the auto-stop caveat. (Observed in the IDEA-021 dogfood: bugbot completes findings-bearing reviews as `CONCLUSION=neutral`, not an error.)
 
-## Poll-script template
+## The poll script — `tools/review_loop_monitor.sh`
 
-Armed with the frozen scratch values substituted in. Follows the Monitor idioms: ≥30s cadence for a remote API, `|| true` on transient failure, `cd` pinned inside the loop ([`../../work/references/WATCHER_HYGIENE.md`](../../work/references/WATCHER_HYGIENE.md) Hard Rule 4 — the `find_*` scripts auto-detect the repo from cwd).
+The accelerator ships as a tool, not a template to paste, so arming is one line and there is no shorter hand-rolled variant to reach for:
 
 ```bash
-#!/usr/bin/env bash
-# review-loop Phase 4 accelerator — READ-ONLY. Emits ONE event, then exits.
-# Substituted at arm time from the scratch file; all values FROZEN for this entry.
-# NOTE: pipefail only — do NOT add `set -u`. The Monitor's background shell sources
-# the host shell-snapshot, which references optional vars (e.g. ZSH_VERSION) with no
-# default; under `set -u` (nounset) that becomes a fatal "unbound variable" that floods
-# stderr and disrupts the poll loop, so the script never reaches the all-done emit and
-# silently times out. (IDEA-021 dogfood, F-dogfood-4.)
-set -o pipefail
-
-REPO_ROOT="__REPO_ROOT__"      # repo toplevel, frozen at arm time
-PR="__PR_NUMBER__"
-ARM_SHA="__ARM_SHA__"          # scratch `last_push_sha` at arm time — the frozen baseline
-ENGINES="__ENGINES__"          # comma-separated, from scratch `engines`
-POLL_INTERVAL=30               # ≥30s — remote API, rate-limit-friendly
-
-while true; do
-  cd "$REPO_ROOT" || { sleep "$POLL_INTERVAL"; continue; }   # Rule 4: cd INSIDE the loop
-
-  # (sha-changed) live HEAD diverged from the frozen arm-time baseline
-  live_sha=$(git rev-parse HEAD 2>/dev/null || echo "$ARM_SHA")
-  if [ "$live_sha" != "$ARM_SHA" ]; then
-    echo "sha-changed: HEAD now $live_sha (armed at $ARM_SHA)"; exit 0
-  fi
-
-  all_done=1
-  IFS=',' read -ra ENG <<< "$ENGINES"
-  for e in "${ENG[@]}"; do
-    out=$(./tools/find_${e}_comments.sh "$PR" 2>/dev/null || true)   # read-only; tolerate transient failure
-    # Match the marker case-INSENSITIVELY and with NO dynamic uppercasing. An earlier
-    # template uppercased the engine name via `$(printf %s "$e" | tr a-z A-Z)` inside the
-    # pattern; that nested subshell parsed to a lowercase/mismatched anchor in the Monitor's
-    # background shell, so `^BUGBOT_CHECKRUN=` never matched → all_done stayed 0 forever → the
-    # Monitor timed out silently instead of emitting. `grep -iE "^${e}_CHECKRUN="` has no
-    # subshell and no locale-sensitive `tr`, so it is robust across shells. (IDEA-021 dogfood.)
-    line=$(printf '%s\n' "$out" | grep -iE "^${e}_CHECKRUN=" | head -1)
-    status=$(printf '%s' "$line" | sed -n 's/.* STATUS=\([^ ]*\).*/\1/p')
-    concl=$(printf '%s'  "$line" | sed -n 's/.* CONCLUSION=\([^ ]*\).*/\1/p')
-
-    # (engine-error) ONLY genuine run-level failures the escape-hatch table acts on.
-    # NOT `success`, and NOT `neutral`/`action_required` — those are normal completions
-    # (incl. "changes requested"/findings), already caught by the all-done path below.
-    # Keep this set aligned with multi-engine-sync.md's escape-hatch table.
-    case "$concl" in
-      failure|cancelled|timed_out)
-        echo "engine-error: $e CONCLUSION=$concl"; exit 0 ;;
-    esac
-
-    [ "$status" = "completed" ] || all_done=0
-  done
-
-  # (all-done) every engine completed for the tracked head SHA — the sync gate, met
-  if [ "$all_done" -eq 1 ]; then
-    echo "all-done: every engine completed for $ARM_SHA"; exit 0
-  fi
-
-  sleep "$POLL_INTERVAL"
-done
+# CWD = the project under review (the adapters resolve the repo from it).
+# Values come from the scratch file and are FROZEN for this Phase 4 entry.
+<mv-tools>/review_loop_monitor.sh <PR_NUMBER> <ENGINES> <ARM_SHA>
 ```
 
-Arm it via `Monitor` with a bounded `timeout_ms` matched to the backstop (e.g. `1200000`), NOT `persistent: true` — see § Lifecycle. `description` should name the PR (`"PR #<N> review engines"`), per the Monitor "specific description" guidance.
+- `<ENGINES>` is the scratch `engines` field (comma-separated); `<ARM_SHA>` is the scratch `last_push_sha` at arm time.
+- `<mv-tools>` is the mind-vault `tools/` dir by **absolute path**: the repo's own `tools/` inside mind-vault, else the install (plugin channel: `~/.claude/plugins/marketplaces/mind-vault/tools`; symlink channel: the mind-vault clone's `tools/`). `${CLAUDE_PLUGIN_ROOT}` is not exposed in the agent's shell, so do not rely on it.
+- The script resolves each `find_<engine>_comments.sh` per engine: `$MV_TOOLS` → the project's own `tools/` port → its own directory. A finder it cannot find is an immediate `engine-error`. Before the tool shipped, the inline template called `./tools/find_*` with `2>/dev/null || true`. Downstream there is no `./tools/`, so the output was always empty, the all-done condition never matched, and the Monitor ran silently to its timeout. Every session then hand-wrote its own watcher (issue #261).
+- It follows the Monitor idioms: ≥30s cadence, `|| true` on transient failure, `cd` pinned inside the loop ([`../../work/references/WATCHER_HYGIENE.md`](../../work/references/WATCHER_HYGIENE.md) Hard Rule 4), `pipefail` without `set -u` (the Monitor's shell sources a host snapshot with unset optional vars, IDEA-021 F-dogfood-4), and a case-insensitive `^<engine>_CHECKRUN=` anchor with no `tr` subshell.
+
+### The watcher never reads a verdict
+
+The script, and any ad-hoc watcher armed in its place, answers only *"are the head-SHA runs finished / did HEAD move?"*. It must not select, filter or summarise review comments. No `jq … | last`, no `select(.id > <retrigger id>)`, no verdict text in the emitted line. On wake, the verdict is read **only** from `find_<engine>_comments.sh`, judging every id in `<ENGINE>_VERDICT_IDS` oldest-first.
+
+Why this matters: a hand-rolled watcher read `claude[bot]` comments newer than the retrigger with `| last`. Two verdicts landed on one head SHA 45 s apart. The `@claude review once` reply carried two "worth fixing" findings; the auto-run's reply said "No issues found". The watcher woke on the later one, and the PR was reported CLEAN twice with the findings unaddressed. That is the latest-only read [`engine-claude.md`](engine-claude.md) § dual substantive verdicts forbids. A watcher that "also reads the answer" looks harmless, which is why the rule has to be stated.
+
+Arm it via `Monitor` (the command above) with a bounded `timeout_ms` matched to the backstop (e.g. `1200000`), NOT `persistent: true` — see § Lifecycle. `description` should name the PR (`"PR #<N> review engines"`), per the Monitor "specific description" guidance.
 
 ## A fourth event class: actionable-non-progress (`claude-noop`) — mind-vault PR #248, 2026-09-04
 
@@ -98,21 +54,7 @@ is not one of them: **an engine finished and produced nothing usable.** On insta
 explicit retrigger. Without an event for it the loop sits out the full 1200s backstop to learn
 something the poller knew in 30 seconds.
 
-Two guards make this safe, and it is actively harmful without the second:
-
-```bash
-# (claude-noop) completed run, no usable verdict, and no claude workflow of ANY name in flight
-if [ "$status" = "completed" ]; then
-  hv=$(printf '%s\n' "$out" | grep -iE "^CLAUDE_HEAD_VERDICTS=" | sed -n 's/^[^=]*=\([0-9]*\).*/\1/p')
-  inflight=$(gh run list --limit 12 --json workflowName,status \
-               --jq '[.[] | select(.workflowName|startswith("Claude Code")) | select(.status!="completed")] | length' \
-             2>/dev/null || echo 1)          # unreadable ⇒ assume in flight, never "clear"
-  [ -z "$inflight" ] && inflight=1
-  if [ "$inflight" -eq 0 ] && { [ -z "$hv" ] || [ "$hv" -eq 0 ]; }; then
-    echo "claude-noop: completed with 0 head-SHA verdicts, nothing in flight — retrigger needed"; exit 0
-  fi
-fi
-```
+Two guards make this safe, and it is actively harmful without the second. `review_loop_monitor.sh` emits `claude-noop` only when claude's run is `completed`, `CLAUDE_HEAD_VERDICTS` is 0 (or absent), **and** `gh run list` shows no workflow whose name starts `Claude Code` still in flight. An unreadable run list counts as "in flight", never "clear".
 
 **The in-flight guard is the load-bearing half.** The adapter's `CLAUDE_CHECKRUN` samples only
 `claude-code-review.yml`, so a retrigger running as `claude.yml` is invisible to it
