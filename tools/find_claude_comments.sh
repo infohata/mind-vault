@@ -233,7 +233,23 @@ fi
 # Fetch comment + run endpoints up-front (each defaults to []/empty-shape on
 # failure so the python passes never receive empty stdin). per_page=100 avoids
 # the default-30 cap dropping the most recent comment on a long-iteration PR.
-INLINE_COMMENTS=$(gh_payload inline_comments.json '[]' api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/comments?per_page=100")
+# The inline fetch also records whether it is COMPLETE (call succeeded, page not
+# full), because CLAUDE_HEAD_INLINE=0 below claims "no head-SHA inline findings"
+# and gh_payload's `[]` fallback cannot tell "none" from "fetch failed".
+INLINE_FETCH_COMPLETE=false
+if [ -n "${CLAUDE_FIXTURE_DIR:-}" ]; then
+    INLINE_COMMENTS=$(gh_payload inline_comments.json '[]' api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/comments?per_page=100")
+    INLINE_FETCH_COMPLETE=true
+elif INLINE_COMMENTS=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/comments?per_page=100" 2>/dev/null); then
+    INLINE_FETCH_COMPLETE=true
+else
+    INLINE_COMMENTS='[]'
+fi
+if [ "$INLINE_FETCH_COMPLETE" = true ]; then
+    n_inline=$(printf '%s' "$INLINE_COMMENTS" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo bad)
+    # Unparseable, or a full page (more may exist past it) ⇒ not provably complete.
+    case "$n_inline" in ''|*[!0-9]*) INLINE_FETCH_COMPLETE=false ;; *) [ "$n_inline" -ge 100 ] && INLINE_FETCH_COMPLETE=false ;; esac
+fi
 ISSUE_COMMENTS=$(gh_payload issue_comments.json '[]' api "repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments?per_page=100")
 
 # Actions runs for the claude-code-review workflow (A7/R2). If `actions: read`
@@ -570,7 +586,12 @@ if [ -n "${CLAUDE_VERDICTS_LINE:-}" ] && [ "${CLAUDE_HEAD_VERDICTS_N:-0}" -ge 1 
 fi
 
 if [ -n "$CLAUDE_INLINE_JSON" ]; then
-    HEAD_INLINE_COUNT=$(echo "$CLAUDE_INLINE_JSON" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+    # The `if` keeps the flag write in THIS shell (not a $(...) subshell): a failed
+    # head-filtered parse leaves the count unknown, so CLAUDE_HEAD_INLINE is withheld.
+    if ! HEAD_INLINE_COUNT=$(echo "$CLAUDE_INLINE_JSON" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null); then
+        HEAD_INLINE_COUNT=0
+        INLINE_FETCH_COMPLETE=false
+    fi
 else
     HEAD_INLINE_COUNT=0
 fi
@@ -727,6 +748,15 @@ if [ -n "$LATEST_ANCHOR_ID" ]; then
     # just the anchor). The verdict BODIES are surfaced verbatim as material below.
     if [ -n "${CLAUDE_VERDICTS_LINE:-}" ]; then
         echo "$CLAUDE_VERDICTS_LINE"
+    fi
+    # Head-SHA inline finding count. Inline-only findings complete the run with
+    # CLAUDE_HEAD_VERDICTS=0, so a "no material" reader (review_loop_monitor.sh's
+    # claude-noop) needs both counts to tell "nothing posted" from "findings posted".
+    # Emitted ONLY when the inline fetch is provably complete (INLINE_FETCH_COMPLETE:
+    # call succeeded, parsed, page not full); otherwise the count is unknown, and
+    # an absent marker keeps claude-noop from firing.
+    if [ "$INLINE_FETCH_COMPLETE" = true ]; then
+        echo "CLAUDE_HEAD_INLINE=${HEAD_INLINE_COUNT:-0}"
     fi
     echo ""
 fi

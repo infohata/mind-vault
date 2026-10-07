@@ -33,6 +33,7 @@ comments off a PR) and a **retrigger** (ask the engine to re-review the new HEAD
 | `claude_retrigger.sh` | Re-request a Claude review on the current HEAD |
 | `copilot_retrigger.sh` | Re-request a Copilot review on the current HEAD |
 | `grok_retrigger.sh` | Re-request a Grok review (`grok review` comment) |
+| `review_loop_monitor.sh` | Phase 4 Monitor accelerator: read-only, emits one run-state event (`all-done` / `sha-changed` / `engine-error` / `claude-noop`), never a verdict. Resolves the finders itself, so it works from a downstream project with no `tools/` |
 
 The finder/retrigger **contract** (output schema, exit codes, the per-engine
 quirks each adapter normalizes) is documented in depth under

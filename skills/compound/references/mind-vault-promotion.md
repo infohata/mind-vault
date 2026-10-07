@@ -139,8 +139,13 @@ So when a compound lands a change under `tools/`:
    use for other vendored sets is the pattern; the open questions are the credential for a private
    source repo, whether to pin a SHA or a plugin version, and fail-vs-warn.
 
-*Invalidating condition:* if `tools/` ever ships through the plugin channel (versioned, loaded
-rather than copied), this section is obsolete — delete it rather than maintaining a warning about a
+The plugin install does carry a `tools/` copy on disk, because the plugin's source is the whole
+repo. A tool written to run from the install, like `review_loop_monitor.sh`, needs no re-vendor.
+The adapters downstream projects call from their own `tools/` are still copies, and this section is
+about those.
+
+*Invalidating condition:* if projects stop vendoring `tools/` and call the install copy instead,
+this section is obsolete — delete it rather than maintaining a warning about a
 propagation problem that no longer exists.
 
 Wired: compound SKILL.md step 3 (destination write-up) · this file § Self-mode CHANGELOG bump (the

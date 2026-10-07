@@ -88,7 +88,7 @@ Ask the user which subset to capture as real IDEA files. Accept "all of the high
 
 For each selected candidate, invoke the same emit pattern as `/idea`:
 
-1. Derive the next IDEA-NNN (auto-increment from existing `<project>/docs/ideas/IDEA-*.md`).
+1. Derive the next IDEA-NNN per `/idea` § 4 Auto-incrementing IDEA-NNN — the max across `docs/ideas/` + `docs/archive/` on the working tree, every local/remote branch, and every open PR (an IDEA on an unmerged branch is invisible on disk).
 2. Slug-derive from the title (kebab-case, stopwords stripped, truncated to ~40 chars).
 3. Emit `<project>/docs/ideas/IDEA-NNN-<slug>.md` using [`skills/idea/assets/idea-template.md`](../idea/assets/idea-template.md) — one template across the sprint workflow.
 4. Fill the frontmatter from the survivor's fields (priority, depends_on, related).
