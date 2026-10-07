@@ -166,8 +166,10 @@ updates:
     groups: { github-actions: { patterns: ["*"] } }
 ```
 
-A Dependabot bump to these workflows hits the same catch-22 as any other edit: the
-review on that PR fails validation, and the new version takes effect only after merge.
+On a Dependabot bump to these workflows, the review job shows as **skipped** (the
+author guard above), not as the red validation failure an ordinary workflow edit gets.
+Either way the new pin takes effect only after merge, so read the first review on the
+next PR to confirm it still posts.
 
 ## Hardening the @claude assistant (claude.yml)
 
