@@ -70,7 +70,7 @@ jobs:
           # bypassing the post-session result capture that drops output (#1087).
           # gh pr comment posts via GITHUB_TOKEN → needs pull-requests: write (above).
           claude_args: |
-            --model claude-opus-5-5
+            --model claude-sonnet-5-5
             --allowedTools "Bash(gh:*),mcp__github_inline_comment__create_inline_comment"
           prompt: |
             /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}

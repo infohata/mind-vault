@@ -80,7 +80,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
-            --model claude-opus-5-5
+            --model claude-sonnet-5-5
           # Allow our own write App to drive the review-loop retrigger. The
           # `@claude review once` bootstrap is posted by `teisutis-agent[bot]` in
           # agent-driven sessions; without this, claude-code-action's

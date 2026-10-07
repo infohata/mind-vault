@@ -16,7 +16,7 @@ The Claude review engine ran on whatever default came bundled with the pinned `c
 
 ### Changed
 
-- **`skills/review-loop/assets/claude-code-review.yml`** + **`claude.yml`** (and mind-vault's own `.github/workflows/` copies) — action pinned to `v1.0.244`. `claude.yml` was on floating `@v1` and is now pinned too. The session runs `--model claude-opus-5-5`, and step `env:` sets `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` to `claude-opus-5-5` / `claude-sonnet-5-5` / `claude-haiku-4-5-20251001`, so the plugin's five reviewer agents upgrade along with the session.
+- **`skills/review-loop/assets/claude-code-review.yml`** + **`claude.yml`** (and mind-vault's own `.github/workflows/` copies) — action pinned to `v1.0.244`. `claude.yml` was on floating `@v1` and is now pinned too. The session runs `--model claude-sonnet-5-5` (Opus is the documented one-line upgrade), and step `env:` sets `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` to `claude-opus-5-5` / `claude-sonnet-5-5` / `claude-haiku-4-5-20251001`, so the plugin's five reviewer agents upgrade along with the session.
 - **`skills/review-loop/references/engine-claude-onboarding.md`** — new § Choosing the review model. Why `--model` alone leaves the reviewer agents on the old model, why full IDs beat aliases on an old bundled CLI, the cost trade-off, checking that a review is still posted after a pin bump, and that the change takes effect only after merge to the default branch. **Adopters:** re-copy both templates (keep project-local deltas such as `allowed_bots`) and merge to the default branch.
 
 ## v5.8.17 — twelve lessons from hardening a server estate

@@ -110,14 +110,15 @@ real upgrade needs both:
   (`action.yml`, the `ANTHROPIC_DEFAULT_*` passthrough). **`--model` alone upgrades
   the orchestrator, but the agents that find the bugs stay on the old model.**
 
-Current pins: session and opus alias `claude-opus-5-5`, sonnet alias `claude-sonnet-5-5`,
+Current pins: session and sonnet alias `claude-sonnet-5-5`, opus alias `claude-opus-5-5`,
 haiku alias `claude-haiku-4-5-20251001`. Use full model IDs, not aliases like
 `opus`. An old bundled CLI maps an alias to whatever model was current when that CLI
 shipped.
 
-- **Cost.** The token is subscription-billed, so a bigger model uses more of the
-  plan per review. The cheaper middle ground is `--model claude-sonnet-5-5` with the
-  same `env:` block.
+- **Why Sonnet, not Opus, for the session.** The token is subscription-billed, so
+  every review spends plan quota, and the session mostly orchestrates while the five
+  Sonnet agents do the finding. `--model claude-opus-5-5` is the one-line upgrade if
+  a project's reviews need more depth than the quota is worth.
 - **Bump the action pin with the models.** A newer action ships a newer CLI that
   knows the newer models. After a pin bump, the first review must still **post**:
   the silent-success failure (anthropics/claude-code-action#1087) is version-sensitive, so check the run left a
