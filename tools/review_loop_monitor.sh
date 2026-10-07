@@ -79,13 +79,16 @@ done
 # Count non-completed runs of every workflow named "Claude Code*" (both the
 # auto-review and the @-mention workflow). Queried per status rather than as one
 # truncated repo-wide page, so unrelated newer runs can't hide an in-flight one.
-# Any read failure ⇒ 1 (assume in flight, never "clear").
+# Any read failure, or a full page (more runs may exist past it), ⇒ 1: assume
+# in flight, never "clear". The cost of that is a slower wake, never a retrigger.
 claude_inflight() {
-  local n=0 st c
+  local n=0 st page c
   for st in queued in_progress waiting requested pending; do
-    c=$(gh run list --status "$st" --limit 100 --json workflowName \
-          --jq '[.[] | select(.workflowName|startswith("Claude Code"))] | length' 2>/dev/null) || { echo 1; return; }
-    case "$c" in ''|*[!0-9]*) echo 1; return ;; esac
+    page=$(gh run list --status "$st" --limit 100 --json workflowName \
+             --jq '"\(length) \([.[] | select(.workflowName|startswith("Claude Code"))] | length)"' 2>/dev/null) || { echo 1; return; }
+    case "$page" in *[!0-9\ ]*|'') echo 1; return ;; esac
+    [ "${page%% *}" -ge 100 ] && { echo 1; return; }
+    c=${page##* }
     n=$((n + c))
   done
   echo "$n"
