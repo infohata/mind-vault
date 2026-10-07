@@ -16,6 +16,7 @@ below, which is the single most surprising part.
    secret, but its templates ship `pull-requests: read` and an ungated `@claude`
    trigger — **immediately replace both with the asset templates** (or run the
    install then overwrite). Do NOT ship the read-only default (next section).
+   Both templates pin the review models (§ Choosing the review model).
 2. **Tools** — port `tools/find_claude_comments.sh` + `tools/claude_retrigger.sh`
    from mind-vault `tools/` into the project's `tools/`, **verbatim** (byte-identical,
    same as the bugbot/copilot scripts — keeps future mind-vault fixes a trivial re-copy).
@@ -91,6 +92,84 @@ dance — or batch it with the next forward-sync wave.
 the **workflow-level** `permissions:` block overrides it downward, which is why the
 read-only template is the real bottleneck. `can_approve_pull_request_reviews: false`
 is irrelevant (that gates PR *approval*, not posting review comments).
+
+## Choosing the review model
+
+Both templates pin models. Without a pin, the run uses whatever default ships in the
+Claude Code bundled with the pinned action version, which lags: mind-vault's own runs
+on `v1.0.133` logged `claude-sonnet-4-6` in October 2026. There are two settings, and a
+real upgrade needs both:
+
+- **`--model <id>` in `claude_args`** sets the top-level session. In `claude-code-review.yml`
+  that session orchestrates the `code-review` plugin. In `claude.yml` it writes the
+  `@claude review once` reply itself.
+- **`ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` in the step's `env:`** decide what
+  the plugin's helper agents run on. The plugin launches them by alias (upstream
+  `plugins/code-review/commands/code-review.md`, restructured 2026-01, unchanged since
+  2026-03). Haiku agents check eligibility and list CLAUDE.md files. One Sonnet agent
+  summarizes the PR and two Sonnet agents check CLAUDE.md compliance. **Two Opus agents
+  hunt bugs**, and a validator subagent re-checks each bug candidate. The aliases resolve
+  through these variables, which the action forwards (`action.yml`, the
+  `ANTHROPIC_DEFAULT_*` passthrough). **`--model` alone upgrades the orchestrator, but
+  the agents that find the bugs stay on the old model.** The templates install the plugin
+  from the marketplace tip with no ref, so re-read that file when the review's behavior
+  shifts. A cached local copy can be months stale.
+
+Current pins: session and sonnet alias `claude-sonnet-5-5`, opus alias `claude-opus-5-5`,
+haiku alias `claude-haiku-4-5-20251001`. Use full model IDs, not aliases like
+`opus`. An old bundled CLI maps an alias to whatever model was current when that CLI
+shipped.
+
+- **Which pin sets what.** The token is subscription-billed, so every review spends
+  plan quota. **`ANTHROPIC_DEFAULT_OPUS_MODEL` is the pin that decides bug-finding
+  quality and most of the cost**, because the bug finders run on the opus alias. Point
+  it at a Sonnet ID to cut quota, at the price of shallower bug hunting. In
+  `claude-code-review.yml`, `--model` only sets the orchestrator and the posted
+  summary, so Sonnet is enough there and Opus buys little depth.
+- **`claude.yml` is different: its `--model` IS the reviewer.** No plugin runs there.
+  The session answers the loop's `@claude review once` retrigger itself, so that
+  review's depth is whatever `--model` names, Sonnet 5.5 in the templates. If the
+  retrigger replies feel shallower than the auto-run's, raise `--model` in
+  `claude.yml` only.
+- **Bump the action pin with the models.** A newer action ships a newer CLI that
+  knows the newer models. After a pin bump, the first review must still **post**:
+  the silent-success failure (anthropics/claude-code-action#1087) is version-sensitive, so check the run left a
+  comment, not just a green check.
+- **It takes effect after merge.** Both files are validated against the default
+  branch (§ The anti-tampering bootstrap catch-22). The PR that changes them gets
+  `Workflow validation failed` on its own Claude review. Merge it, then confirm the
+  new IDs on the next PR's run: `gh run view <id> --log | grep '"model"'`.
+
+## Dependabot and the review workflows
+
+Dependabot PRs come from a branch in the same repo, so the fork guard doesn't skip
+them. A run Dependabot triggers gets only Dependabot secrets, never
+`CLAUDE_CODE_OAUTH_TOKEN`, so the auto-review would fail with a red check on every
+dependency bump. `claude-code-review.yml` therefore also skips PRs authored by
+`dependabot[bot]`. The guard is keyed on `github.event.pull_request.user.login`, not
+`github.actor`, so a maintainer re-running the job doesn't change the outcome. Apply the
+same guard to any other auto-review workflow, such as grok. `claude.yml` needs nothing:
+its author-association gate already excludes bots.
+
+To have Dependabot keep the action pin current, add a `github-actions` entry with a
+cooldown. claude-code-action ships several releases a day, and a week's delay gives a
+bad release time to be pulled:
+
+```yaml
+# .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups: { github-actions: { patterns: ["*"] } }
+```
+
+On a Dependabot bump to these workflows, the review job shows as **skipped** (the
+author guard above), not as the red validation failure an ordinary workflow edit gets.
+Either way the new pin takes effect only after merge, so read the first review on the
+next PR to confirm it still posts.
 
 ## Hardening the @claude assistant (claude.yml)
 

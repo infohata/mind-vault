@@ -10,6 +10,17 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.9.0 — Claude review models pinned; Dependabot for Actions
+
+The Claude review engine ran on whatever default came bundled with the pinned `claude-code-action` (`v1.0.133` → `claude-sonnet-4-6`), and the `code-review` plugin's agents resolved their "Opus"/"Sonnet"/"Haiku" aliases to whatever that bundled CLI knew. Both workflows now pin current models explicitly, and Dependabot keeps mind-vault's own action pins current ([#263](https://github.com/infohata/mind-vault/pull/263), 2026-10-07).
+
+### Changed
+
+- **`skills/review-loop/assets/claude-code-review.yml`** + **`claude.yml`** (and mind-vault's own `.github/workflows/` copies) — action pinned to `v1.0.244`. `claude.yml` was on floating `@v1` and is now pinned too. Both sessions run `--model claude-sonnet-5-5`. In `claude-code-review.yml` that session only orchestrates, and the opus-alias pin decides bug-finding depth. In `claude.yml` the session writes the `@claude review once` reply itself, so `--model` is that review's model. Step `env:` sets `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` to `claude-opus-5-5` / `claude-sonnet-5-5` / `claude-haiku-4-5-20251001`, so the plugin's Opus bug finders and validators, its Sonnet compliance and summary agents, and its Haiku triage agents upgrade along with the session.
+- **`claude-code-review.yml`** (template + repo copy) and mind-vault's **`grok-code-review.yml`** skip PRs opened by `dependabot[bot]`. Those runs get no review secrets, so every dependency bump would otherwise show a red review check.
+- **`.github/dependabot.yml`** (new): weekly `github-actions` updates for mind-vault's own workflows, grouped into one PR, with a 7-day cooldown. Dependabot doesn't see the `skills/review-loop/assets/` templates, so apply each claude-action bump to them by hand in the same PR.
+- **`skills/review-loop/references/engine-claude-onboarding.md`** — new § Choosing the review model. Also new: § Dependabot and the review workflows. Why `--model` alone leaves the reviewer agents on the old model, why full IDs beat aliases on an old bundled CLI, the cost trade-off, checking that a review is still posted after a pin bump, and that the change takes effect only after merge to the default branch. **Adopters:** re-copy both templates (keep project-local deltas such as `allowed_bots`) and merge to the default branch.
+
 ## v5.8.18 — review-loop Monitor ships as a tool; IDEA numbers scan branches and open PRs
 
 Two fixes in one release ([#262](https://github.com/infohata/mind-vault/pull/262), 2026-10-07). [#261](https://github.com/infohata/mind-vault/issues/261): in a downstream repo, the review-loop Monitor template called `./tools/find_*_comments.sh`, a path that exists only in mind-vault. Its output was always empty, so the Monitor ran to timeout and sessions wrote their own watchers. One of those watchers picked the newest claude comment with `| last`, missed an earlier findings-bearing verdict on the same SHA, and reported the PR CLEAN twice. Separately, `/idea` picked the next number from the working tree only, so two sessions could hand out the same IDEA number before either PR merged.

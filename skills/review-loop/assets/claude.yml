@@ -50,9 +50,22 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@v1
+        # Pinned like claude-code-review.yml (floating @v1 drifts, #1266). This
+        # workflow answers the loop's `@claude review once` retrigger, so it runs
+        # reviews too and needs the same model pins.
+        uses: anthropics/claude-code-action@v1.0.244
+        # Model pins — see engine-claude-onboarding.md § Choosing the review model.
+        # The action's bundled Claude Code otherwise picks its own (stale) default.
+        # No code-review plugin here — the session answers the @claude mention
+        # itself; the env pins cover any subagent it launches by alias.
+        env:
+          ANTHROPIC_DEFAULT_OPUS_MODEL: claude-opus-5-5
+          ANTHROPIC_DEFAULT_SONNET_MODEL: claude-sonnet-5-5
+          ANTHROPIC_DEFAULT_HAIKU_MODEL: claude-haiku-4-5-20251001
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --model claude-sonnet-5-5
           # Optional: lets Claude read CI results on PRs
           additional_permissions: |
             actions: read
