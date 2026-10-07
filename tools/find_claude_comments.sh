@@ -728,6 +728,14 @@ if [ -n "$LATEST_ANCHOR_ID" ]; then
     if [ -n "${CLAUDE_VERDICTS_LINE:-}" ]; then
         echo "$CLAUDE_VERDICTS_LINE"
     fi
+    # Head-SHA inline finding count. Inline-only findings complete the run with
+    # CLAUDE_HEAD_VERDICTS=0, so a "no material" reader (review_loop_monitor.sh's
+    # claude-noop) needs both counts to tell "nothing posted" from "findings posted".
+    # Emitted ONLY when the inline fetch parsed: an empty CLAUDE_INLINE_JSON means
+    # "none on head" OR "fetch failed", and a failed fetch must read as unknown.
+    if printf '%s' "${INLINE_COMMENTS:-}" | python3 -c "import json,sys; json.load(sys.stdin)" 2>/dev/null; then
+        echo "CLAUDE_HEAD_INLINE=${HEAD_INLINE_COUNT:-0}"
+    fi
     echo ""
 fi
 

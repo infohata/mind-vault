@@ -139,8 +139,8 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
   { ls docs/ideas docs/archive/*/ 2>/dev/null
     git for-each-ref --format='%(refname)' refs/heads refs/remotes \
       | while read -r ref; do git ls-tree -r --name-only "$ref" -- docs/ideas docs/archive; done
-    gh pr list --state open --json number --jq '.[].number' \
-      | while read -r n; do gh pr diff "$n" --name-only; done
+    gh pr list --state open --limit 1000 --json number --jq '.[].number' \
+      | while read -r n; do gh pr diff "$n" --name-only | grep -E '^docs/(ideas|archive)/'; done
   } | grep -oE 'IDEA-[0-9]{3,}' | sort -uV | tail -1
   ```
 
