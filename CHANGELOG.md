@@ -10,9 +10,9 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
-## v5.8.19 — Claude review engine pins its models
+## v5.9.0 — Claude review models pinned; Dependabot for Actions
 
-The Claude review engine ran on whatever default came bundled with the pinned `claude-code-action` (`v1.0.133` → `claude-sonnet-4-6`), and the `code-review` plugin's agents resolved their "Opus"/"Sonnet"/"Haiku" aliases to whatever that bundled CLI knew. Both workflows now pin current models explicitly ([#263](https://github.com/infohata/mind-vault/pull/263), 2026-10-07; v5.8.18 is held by the review-loop Monitor PR, [#262](https://github.com/infohata/mind-vault/pull/262)).
+The Claude review engine ran on whatever default came bundled with the pinned `claude-code-action` (`v1.0.133` → `claude-sonnet-4-6`), and the `code-review` plugin's agents resolved their "Opus"/"Sonnet"/"Haiku" aliases to whatever that bundled CLI knew. Both workflows now pin current models explicitly, and Dependabot keeps mind-vault's own action pins current ([#263](https://github.com/infohata/mind-vault/pull/263), 2026-10-07).
 
 ### Changed
 
