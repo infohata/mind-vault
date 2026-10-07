@@ -10,6 +10,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.8.19 — Claude review engine pins its models
+
+The Claude review engine ran on whatever default came bundled with the pinned `claude-code-action` (`v1.0.133` → `claude-sonnet-4-6`), and the `code-review` plugin's reviewer agents resolved "Sonnet"/"Haiku" to equally stale models. Both workflows now pin current models explicitly. (v5.8.18 is held by the review-loop Monitor PR, #262.)
+
+### Changed
+
+- **`skills/review-loop/assets/claude-code-review.yml`** + **`claude.yml`** (and mind-vault's own `.github/workflows/` copies) — action pinned to `v1.0.244`. `claude.yml` was on floating `@v1` and is now pinned too. The session runs `--model claude-opus-5-5`, and step `env:` sets `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` to `claude-opus-5-5` / `claude-sonnet-5-5` / `claude-haiku-4-5-20251001`, so the plugin's five reviewer agents upgrade along with the session.
+- **`skills/review-loop/references/engine-claude-onboarding.md`** — new § Choosing the review model. Why `--model` alone leaves the reviewer agents on the old model, why full IDs beat aliases on an old bundled CLI, the cost trade-off, checking that a review is still posted after a pin bump, and that the change takes effect only after merge to the default branch. **Adopters:** re-copy both templates (keep project-local deltas such as `allowed_bots`) and merge to the default branch.
+
 ## v5.8.17 — twelve lessons from hardening a server estate
 
 A consuming project spent two sessions hardening a fleet of servers and handed over twelve lessons in [#259](https://github.com/infohata/mind-vault/issues/259). Most are cases where a check reported "fine" when it could not see the problem: a login alert that dropped every login after an OpenSSH upgrade, a key inventory that read one of two key files, a network sweep that a rate limiter quietly blanked. Ten are placed below. The other two were already covered: the empty-array `set -u` crash on old bash (this adds a static-test note), and review bots skipping draft PRs (already in `review-loop`). This release also folds in the BuildKit-cache follow-up held back from #258.

@@ -16,6 +16,7 @@ below, which is the single most surprising part.
    secret, but its templates ship `pull-requests: read` and an ungated `@claude`
    trigger — **immediately replace both with the asset templates** (or run the
    install then overwrite). Do NOT ship the read-only default (next section).
+   Both templates pin the review models (§ Choosing the review model).
 2. **Tools** — port `tools/find_claude_comments.sh` + `tools/claude_retrigger.sh`
    from mind-vault `tools/` into the project's `tools/`, **verbatim** (byte-identical,
    same as the bugbot/copilot scripts — keeps future mind-vault fixes a trivial re-copy).
@@ -91,6 +92,40 @@ dance — or batch it with the next forward-sync wave.
 the **workflow-level** `permissions:` block overrides it downward, which is why the
 read-only template is the real bottleneck. `can_approve_pull_request_reviews: false`
 is irrelevant (that gates PR *approval*, not posting review comments).
+
+## Choosing the review model
+
+Both templates pin models. Without a pin, the run uses whatever default ships in the
+Claude Code bundled with the pinned action version, which lags: mind-vault's own runs
+on `v1.0.133` logged `claude-sonnet-4-6` in October 2026. There are two settings, and a
+real upgrade needs both:
+
+- **`--model <id>` in `claude_args`** sets the top-level session. In `claude-code-review.yml`
+  that session orchestrates the `code-review` plugin. In `claude.yml` it writes the
+  `@claude review once` reply itself.
+- **`ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` in the step's `env:`** decide what
+  the plugin's helper agents run on. The plugin launches them by alias: five "Sonnet
+  agents" write the findings, and "Haiku agents" check eligibility and score
+  confidence. The aliases resolve through these variables, which the action forwards
+  (`action.yml`, the `ANTHROPIC_DEFAULT_*` passthrough). **`--model` alone upgrades
+  the orchestrator, but the agents that find the bugs stay on the old model.**
+
+Current pins: session and opus alias `claude-opus-5-5`, sonnet alias `claude-sonnet-5-5`,
+haiku alias `claude-haiku-4-5-20251001`. Use full model IDs, not aliases like
+`opus`. An old bundled CLI maps an alias to whatever model was current when that CLI
+shipped.
+
+- **Cost.** The token is subscription-billed, so a bigger model uses more of the
+  plan per review. The cheaper middle ground is `--model claude-sonnet-5-5` with the
+  same `env:` block.
+- **Bump the action pin with the models.** A newer action ships a newer CLI that
+  knows the newer models. After a pin bump, the first review must still **post**:
+  the silent-success failure (anthropics/claude-code-action#1087) is version-sensitive, so check the run left a
+  comment, not just a green check.
+- **It takes effect after merge.** Both files are validated against the default
+  branch (§ The anti-tampering bootstrap catch-22). The PR that changes them gets
+  `Workflow validation failed` on its own Claude review. Merge it, then confirm the
+  new IDs on the next PR's run: `gh run view <id> --log | grep '"model"'`.
 
 ## Hardening the @claude assistant (claude.yml)
 

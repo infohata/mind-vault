@@ -64,9 +64,23 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@v1
+        # Pinned like claude-code-review.yml (floating @v1 drifts, #1266). This
+        # workflow answers the loop's `@claude review once` retrigger, so it runs
+        # reviews too and needs the same model pins.
+        uses: anthropics/claude-code-action@v1.0.244
+        # Model pins — see engine-claude-onboarding.md § Choosing the review model.
+        # The action's bundled Claude Code otherwise picks its own (stale) default,
+        # and the code-review plugin launches its reviewer agents BY ALIAS
+        # ("Sonnet agents", "Haiku agents"), which resolve through these vars —
+        # `--model` alone upgrades the session, not the agents that write findings.
+        env:
+          ANTHROPIC_DEFAULT_OPUS_MODEL: claude-opus-5-5
+          ANTHROPIC_DEFAULT_SONNET_MODEL: claude-sonnet-5-5
+          ANTHROPIC_DEFAULT_HAIKU_MODEL: claude-haiku-4-5-20251001
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --model claude-opus-5-5
           # Allow our own write App to drive the review-loop retrigger. The
           # `@claude review once` bootstrap is posted by `teisutis-agent[bot]` in
           # agent-driven sessions; without this, claude-code-action's
