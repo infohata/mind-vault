@@ -53,7 +53,7 @@ jobs:
       - name: Run Claude Code Review
         id: claude-review
         # Pinned (was floating @v1) to avoid tag-drift pass→fail regressions (#1266).
-        uses: anthropics/claude-code-action@v1.0.250
+        uses: anthropics/claude-code-action@v1.0.257
         # Model pins — see engine-claude-onboarding.md § Choosing the review model.
         # The action's bundled Claude Code otherwise picks its own (stale) default,
         # and the code-review plugin launches its agents BY ALIAS — Opus bug finders
