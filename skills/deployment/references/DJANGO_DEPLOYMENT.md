@@ -689,13 +689,14 @@ log "Restarting Celery services..."
 docker compose restart celery-worker celery-beat
 
 # Wait for Celery to be ready
-log "Waiting for Celery workers..."
+log "Waiting up to 60 s for Celery workers..."   # what + how long: shell § A wait announces itself
 timeout=60
 while [ $timeout -gt 0 ]; do
     if docker compose exec -T celery-worker celery -A myproject inspect ping >/dev/null 2>&1; then
         log "Celery workers are ready!"
         break
     fi
+    (( timeout % 10 == 0 )) && log "  still waiting for Celery (${timeout}s left)"
     sleep 2
     timeout=$((timeout - 2))
 done

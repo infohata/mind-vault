@@ -34,11 +34,14 @@ effect is observed or a bounded timeout elapses:
 
 ```bash
 MAX_TRIES="${MAX_TRIES:-15}"; POLL_S="${POLL_S:-2}"
+echo "polling for the new state (up to $((MAX_TRIES*POLL_S))s) …"   # a wait announces itself
 for attempt in $(seq 1 "$MAX_TRIES"); do
     if probe_shows_new_state; then ok=1; break; fi    # measure the SERVED state
+    echo "  $(((attempt-1)*POLL_S))s: not live yet"
     sleep "$POLL_S"
 done
 [ "${ok:-0}" = 1 ] || { echo "effect not live after $((MAX_TRIES*POLL_S))s" >&2; exit 1; }
+echo "new state live"
 ```
 
 The drain window scales with how much the daemon reloads — a proxy with hundreds of
@@ -150,6 +153,48 @@ exec > >(tee -a "$LOG" | grep --line-buffered -vE "$NOISE") 2>&1
 The log keeps everything; the terminal shows only what the operator must act on.
 Filter by an explicit allow-known-benign list (real errors still surface) — never a
 blanket `2>/dev/null`.
+
+## A wait announces itself
+
+**When this fires**: any wait in something a human runs and watches — a runlist
+block, an `--apply`/`--verify` script, a deploy step — whether it is a bare `sleep`,
+a polling loop, or a wait buried inside a script (for processes to end, a reload to
+take, a launcher to appear). The operator sees only the output, and a silent pause
+looks exactly like a hung ssh, `sudo` or `docker` call. They start doubting a step
+that worked, and may interrupt it halfway through.
+
+Every wait prints three things: **what** it waits for, **how long** it may take, and
+**that it finished**.
+
+```bash
+# short (≤ 30 s): announce + done
+echo "waiting 20 s for the workers to drain …"; sleep 20; echo "done waiting"
+
+# longer: a countdown
+for i in $(seq 90 -10 10); do printf '\rwaiting %3ss for the reload to settle … ' "$i"; sleep 10; done
+echo; echo "done waiting"
+
+# polling: target + timeout up front, progress at a steady interval, not only the result
+echo "waiting up to 120 s for the old workers to exit …"
+for t in $(seq 0 10 120); do
+    n=$(pgrep -cx old-worker || true)
+    [ "$n" -eq 0 ] && { echo "all exited after ${t}s"; break; }
+    echo "  ${t}s: $n still running"; sleep 10
+done
+[ "$n" -eq 0 ] || { echo "$n still running after 120 s" >&2; exit 1; }
+```
+
+```text
+✅ DO:   ./stack.sh --apply reload
+         echo "waiting 90 s for the reload to take effect …"; sleep 90; echo "done waiting"
+         curl -s …/query | python3 -c …
+❌ DON'T: ./stack.sh --apply reload; sleep 90; curl -s …/query | python3 -c …
+         — the last visible line is the reload's, then 90 silent seconds. Observed
+         2026-10-26: "the reload is still running (hanged?)", then "oh, finished".
+```
+
+The countdown's `\r` redraws one line on a terminal; under the evidence-log `tee`
+it lands in the log as one `\r`-joined line, which is harmless.
 
 ## A recovery recipe must be RUNNABLE in the session that prints it
 

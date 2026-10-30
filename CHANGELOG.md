@@ -10,6 +10,16 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.9.1 — a wait in an operator-run script announces itself
+
+From compound hand-over [#267](https://github.com/infohata/mind-vault/issues/267) (2026-10-26): a pasted runlist block reloaded a monitoring stack, then ran `sleep 90; curl …`. Nothing printed for 90 s, and the operator reported the reload as hung before it finished. Nothing had failed, but a silent pause looks the same as a hung ssh, sudo or docker call (2026-10-30).
+
+### Changed
+
+- **`skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md`** — new § A wait announces itself. Every wait in something a human runs and watches (runlist block, `--apply`/`--verify` script, deploy step, waits buried inside a script) prints what it waits for, how long it may take, and that it finished. Covers three shapes: a short sleep, a countdown, and polling with steady progress plus a timeout failure. The § Mode surface poll loop, which was itself silent, now follows the rule.
+- **`skills/shell/SKILL.md`** — TRIGGER gains "putting a `sleep` or polling wait into a runlist block or operator-run script". Pattern 4 and the references index mention the rule.
+- **`skills/deployment/references/DJANGO_DEPLOYMENT.md`** — the Celery readiness wait states its 60 s timeout and prints progress every 10 s.
+
 ## v5.9.0 — Claude review models pinned; Dependabot for Actions
 
 The Claude review engine ran on whatever default came bundled with the pinned `claude-code-action` (`v1.0.133` → `claude-sonnet-4-6`), and the `code-review` plugin's agents resolved their "Opus"/"Sonnet"/"Haiku" aliases to whatever that bundled CLI knew. Both workflows now pin current models explicitly, and Dependabot keeps mind-vault's own action pins current ([#263](https://github.com/infohata/mind-vault/pull/263), 2026-10-07).
