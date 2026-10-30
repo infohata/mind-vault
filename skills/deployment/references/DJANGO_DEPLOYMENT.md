@@ -693,7 +693,10 @@ docker compose restart celery-worker celery-beat
 log "Waiting up to 60 s for Celery workers..."   # what + how long: shell § A wait announces itself
 deadline=$((SECONDS + 60)); next_report=$((SECONDS + 10)); ready=0
 while (( SECONDS < deadline )); do
-    if timeout "$((deadline - SECONDS))" \
+    left=$((deadline - SECONDS))
+    # cap each probe at the next report (≤ 10 s) and the deadline; floor 1 — `timeout 0` means NO limit
+    probe_s=$(( left > 10 ? 10 : (left < 1 ? 1 : left) ))
+    if timeout "$probe_s" \
         docker compose exec -T celery-worker celery -A myproject inspect ping >/dev/null 2>&1; then
         ready=1; log "Celery workers are ready!"
         break
