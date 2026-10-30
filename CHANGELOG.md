@@ -16,7 +16,7 @@ From compound hand-over [#267](https://github.com/infohata/mind-vault/issues/267
 
 ### Changed
 
-- **`skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md`** — new § A wait announces itself. Every wait in something a human runs and watches (runlist block, `--apply`/`--verify` script, deploy step, waits buried inside a script) prints what it waits for, how long it may take, and that it finished. Covers three shapes: a short sleep, a countdown, and polling with steady progress plus a timeout failure. The § Mode surface poll loop, which was itself silent, now follows the rule.
+- **`skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md`** — new § A wait announces itself. Every wait in something a human runs and watches (runlist block, `--apply`/`--verify` script, deploy step, waits buried inside a script) prints what it waits for, how long it may take, and that it finished. Covers three shapes: a short sleep, a countdown, and polling with steady progress plus a timeout failure. The countdown redraws with `\r` only on a terminal and prints one line per tick when piped, because a `grep --line-buffered` evidence-log filter holds back `\r`-only output until the end. A wait also ends at its stated limit, with no sleep after the last check. The § Mode surface poll loop, which was itself silent, now follows the rule.
 - **`skills/shell/SKILL.md`** — TRIGGER gains "putting a `sleep` or polling wait into a runlist block or operator-run script". Pattern 4 and the references index mention the rule.
 - **`skills/deployment/references/DJANGO_DEPLOYMENT.md`** — the Celery readiness wait states its 60 s timeout and prints progress every 10 s.
 

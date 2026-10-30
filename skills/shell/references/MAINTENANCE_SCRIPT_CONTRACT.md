@@ -34,13 +34,13 @@ effect is observed or a bounded timeout elapses:
 
 ```bash
 MAX_TRIES="${MAX_TRIES:-15}"; POLL_S="${POLL_S:-2}"
-echo "polling for the new state (up to $((MAX_TRIES*POLL_S))s) …"   # a wait announces itself
+echo "polling for the new state (up to $(((MAX_TRIES-1)*POLL_S))s) …"   # a wait announces itself
 for attempt in $(seq 1 "$MAX_TRIES"); do
     if probe_shows_new_state; then ok=1; break; fi    # measure the SERVED state
     echo "  $(((attempt-1)*POLL_S))s: not live yet"
-    sleep "$POLL_S"
+    if [ "$attempt" -lt "$MAX_TRIES" ]; then sleep "$POLL_S"; fi
 done
-[ "${ok:-0}" = 1 ] || { echo "effect not live after $((MAX_TRIES*POLL_S))s" >&2; exit 1; }
+[ "${ok:-0}" = 1 ] || { echo "effect not live after $(((MAX_TRIES-1)*POLL_S))s" >&2; exit 1; }
 echo "new state live"
 ```
 
@@ -170,16 +170,21 @@ Every wait prints three things: **what** it waits for, **how long** it may take,
 # short (≤ 30 s): announce + done
 echo "waiting 20 s for the workers to drain …"; sleep 20; echo "done waiting"
 
-# longer: a countdown
-for i in $(seq 90 -10 10); do printf '\rwaiting %3ss for the reload to settle … ' "$i"; sleep 10; done
-echo; echo "done waiting"
+# longer: a countdown — redraw one line on a terminal, one line per tick when piped
+for i in $(seq 90 -10 10); do
+    if [ -t 1 ]; then printf '\rwaiting %3ss for the reload to settle … ' "$i"
+    else echo "waiting ${i}s more for the reload to settle …"; fi
+    sleep 10
+done
+[ -t 1 ] && echo; echo "done waiting"
 
 # polling: target + timeout up front, progress at a steady interval, not only the result
 echo "waiting up to 120 s for the old workers to exit …"
 for t in $(seq 0 10 120); do
     n=$(pgrep -cx old-worker || true)
     [ "$n" -eq 0 ] && { echo "all exited after ${t}s"; break; }
-    echo "  ${t}s: $n still running"; sleep 10
+    echo "  ${t}s: $n still running"
+    if [ "$t" -lt 120 ]; then sleep 10; fi    # no sleep past the deadline
 done
 [ "$n" -eq 0 ] || { echo "$n still running after 120 s" >&2; exit 1; }
 ```
@@ -193,8 +198,13 @@ done
          2026-10-26: "the reload is still running (hanged?)", then "oh, finished".
 ```
 
-The countdown's `\r` redraws one line on a terminal; under the evidence-log `tee`
-it lands in the log as one `\r`-joined line, which is harmless.
+**A `\r`-only redraw is silent through a line filter.** Under the
+[evidence-log wrapper](#evidence-logs) stdout is a pipe, and the filtered form's
+`grep --line-buffered` releases nothing until a newline arrives, so the whole
+countdown would surface in one burst at the end. That is why the countdown
+redraws only when `[ -t 1 ]` and otherwise prints a newline-terminated line per
+tick. A wait also ends at its stated limit: skip the sleep after the last check,
+or a "120 s" wait takes 130 s and reports a stale count.
 
 ## A recovery recipe must be RUNNABLE in the session that prints it
 
