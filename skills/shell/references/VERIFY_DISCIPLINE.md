@@ -43,6 +43,8 @@ and then time out mid-body), reject the app's known placeholder markers, and whe
 counterpart exists, compare sizes against it:
 
 ```bash
+body="$(mktemp)"; trap 'rm -f "$body"' EXIT   # exists even when curl never connects (set -e safe)
+live_size=$( (curl -s --max-time 10 "$live_url" || true) | wc -c)   # live counterpart; 0 if down
 rc=0; code="$(curl -s -o "$body" -w '%{http_code}' --max-time 10 "$new_url")" || rc=$?
 size=$(wc -c <"$body")
 if [ "$rc" -ne 0 ]; then                       # 200 headers + a timed-out body = a truncated page
@@ -51,7 +53,7 @@ elif [ "$code" != 200 ]; then
     no "$site: want 200, got $code"
 elif grep -qiE 'not installed|default page|it works' "$body"; then   # this app's placeholder markers
     no "$site: placeholder body ($size B)"
-elif [ "$size" -lt $((live_size / 2)) ]; then                        # live_size: same fetch, live path
+elif [ "$size" -lt $((live_size / 2)) ]; then
     no "$site: $size B vs live $live_size B"
 else
     ok "$site: 200, $size B (live $live_size B)"
