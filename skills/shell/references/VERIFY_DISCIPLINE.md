@@ -40,19 +40,24 @@ placeholder on 15 live sites. The operator caught it by asking for a curl list c
 
 The positive code is necessary, not sufficient. Require a complete transfer (curl can print `200`
 and then time out mid-body), reject the app's known placeholder markers, and when a live
-counterpart exists, compare sizes against it:
+counterpart exists, compare sizes against it. The baseline gets the same checks: a live fetch that
+failed would make the size comparison pass anything, so a missing baseline is COULD-NOT-RUN:
 
 ```bash
-body="$(mktemp)"; trap 'rm -f "$body"' EXIT   # exists even when curl never connects (set -e safe)
-live_size=$( (curl -s --max-time 10 "$live_url" || true) | wc -c)   # live counterpart; 0 if down
-rc=0; code="$(curl -s -o "$body" -w '%{http_code}' --max-time 10 "$new_url")" || rc=$?
-size=$(wc -c <"$body")
-if [ "$rc" -ne 0 ]; then                       # 200 headers + a timed-out body = a truncated page
+# fetch URL FILE -> "rc http_code"; FILE exists even when curl never connects (set -e safe)
+fetch() { local rc=0 code; : >"$2"; code="$(curl -s -o "$2" -w '%{http_code}' --max-time 10 "$1")" || rc=$?; echo "$rc $code"; }
+body="$(mktemp)"; live="$(mktemp)"
+trap 'rm -f "$body" "$live"' EXIT   # replaces any EXIT trap already set: fold into the script's cleanup
+read -r lrc lcode <<<"$(fetch "$live_url" "$live")"; live_size=$(wc -c <"$live")
+read -r rc code <<<"$(fetch "$new_url" "$body")"; size=$(wc -c <"$body")
+if [ "$lrc" -ne 0 ] || [ "$lcode" != 200 ] || [ "$live_size" -eq 0 ]; then
+    could_not_run "$site: no live baseline (curl rc=$lrc, HTTP $lcode, $live_size B)"
+elif [ "$rc" -ne 0 ]; then                     # 200 headers + a timed-out body = a truncated page
     no "$site: transfer failed (curl rc=$rc, HTTP $code, $size B)"
 elif [ "$code" != 200 ]; then
     no "$site: want 200, got $code"
-elif grep -qiE 'not installed|default page|it works' "$body"; then   # this app's placeholder markers
-    no "$site: placeholder body ($size B)"
+elif [ "$size" -eq 0 ] || grep -qiE 'not installed|default page|it works' "$body"; then  # this app's placeholders
+    no "$site: empty or placeholder body ($size B)"
 elif [ "$size" -lt $((live_size / 2)) ]; then
     no "$site: $size B vs live $live_size B"
 else
