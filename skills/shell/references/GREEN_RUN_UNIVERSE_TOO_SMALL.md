@@ -82,6 +82,29 @@ hours and read a valid certificate each time, because it never used public resol
 resolution check against a public resolver, asserting the answer matches the expected
 address. A bypass you add for a good reason still needs its own coverage.
 
+**A probe that bypasses the proxy must send what the proxy sends.** A cutover check probed
+each backend directly, without the `X-Forwarded-Host` header the real proxy sets. The app
+built its redirect from the backend's own name (`https://<backend-name>/…`), which looked
+like a broken site; through the real proxy the redirect was correct. The same check also
+demanded 200 on `/`, where two sites correctly answer 302 to their own landing page. Copy the
+header set from the proxy's config, not from memory, and accept a redirect whose target is
+the same host:
+
+```bash
+read -r code loc < <(curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' --max-time 10 \
+    -H "Host: $site" -H "X-Forwarded-Host: $site" -H 'X-Forwarded-Proto: https' \
+    "http://$backend/")
+case "$code" in
+    200) ok "$site" ;;
+    301|302|303|307|308)
+        case "$loc" in
+            "https://$site/"*) ok "$site: $code to own page" ;;   # same host: healthy
+            *) no "$site: $code to '$loc'" ;;                  # other host / backend name: broken
+        esac ;;
+    *) no "$site: got $code" ;;
+esac
+```
+
 Two further lessons from the same incident, both about alerting:
 
 - **An alert about a downstream consequence hides the upstream failure.** The gap surfaced

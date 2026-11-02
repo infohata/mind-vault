@@ -4,8 +4,10 @@
 any check whose job is to prove a change took effect. The mode surface and the rule that
 `--verify` proves the **effect**, never "it ran", live in
 [`MAINTENANCE_SCRIPT_CONTRACT.md`](MAINTENANCE_SCRIPT_CONTRACT.md); this file is the craft of
-making that proof honest: assert the positive, break the target rather than the input, check the
-exact file you changed, and prove the instrument can see a hit before trusting a zero.
+making that proof honest: assert the positive (status AND body), break the target rather than the
+input, check the exact file you changed, prove the instrument can see a hit before trusting a zero,
+probe a target that answers, keep off-target failures as notes, and end a clean run without the
+word FAIL.
 
 ## Remote black-box `--verify`: assert the POSITIVE code, so an unreachable target fails CLOSED
 
@@ -27,6 +29,34 @@ A whole edge can be offline and this check reports green. **Assert the positive 
 Same discipline as `--verify` re-measuring the symptom: a black-box probe must **prove the good state**
 (`= 200`), never merely **fail to observe the bad one** (`!= 404`). `= 404` assertions are inherently
 safe (`000 ≠ 404` correctly fires the failure); it's the negated ones that false-pass.
+
+### A 200 is not "ready" — read the body too
+
+A multi-tenant app answered a tenant it had never been given with **HTTP 200** and a 23-byte
+"not installed" body. A cutover script's warm-up and `--verify` checked only the status code, so a
+dry run called 15 sites ready although their data copy had not run. `--apply` would have put that
+placeholder on 15 live sites. The operator caught it by asking for a curl list comparing body
+**sizes** between the test path and the live path.
+
+The positive code is necessary, not sufficient. Reject the app's known placeholder markers, and
+when a live counterpart exists, compare sizes against it:
+
+```bash
+code="$(curl -s -o "$body" -w '%{http_code}' --max-time 10 "$new_url" || true)"
+size=$(wc -c <"$body")
+if [ "$code" != 200 ]; then
+    no "$site: want 200, got $code"
+elif grep -qiE 'not installed|default page|it works' "$body"; then   # this app's placeholder markers
+    no "$site: placeholder body ($size B)"
+elif [ "$size" -lt $((live_size / 2)) ]; then                        # live_size: same fetch, live path
+    no "$site: $size B vs live $live_size B"
+else
+    ok "$site: 200, $size B (live $live_size B)"
+fi
+```
+
+Treat the human's "show me the curl list" step as a real gate, not a formality: it compares two
+things, which the script above did not until it was asked to.
 
 ### Load-testing a rate-limit needs CONCURRENCY (a serial loop won't trip it)
 
@@ -172,6 +202,76 @@ that creates over `GET` returns a confident, wrong zero.
 limiters and the scanner's own throttling can blank a single host while the rest of the sweep
 looks normal. Include a port you know is open on each host (its SSH port, say). If that port is
 missing from a host's result, mark the host **INCOMPLETE**, not clean, and re-scan it slower.
+
+## Probe a target that answers — never just "the first in the list"
+
+A container verify sent its marked request to the first vhost in file order. Alphabetically that
+was a long-dead tenant whose page hangs, so the verify reported a healthy container as failed. The
+list's order says nothing about which entries are alive. Pick the first entry that answers at all,
+and report the ones you skipped:
+
+```bash
+probe=""; skipped=()
+for h in "${vhosts[@]}"; do
+    # no -f: any HTTP status counts as "answers"; only a timeout or refused connect skips
+    if curl -s -o /dev/null --max-time 5 -H "Host: $h" "http://127.0.0.1/"; then probe=$h; break; fi
+    skipped+=("$h")
+done
+[ -n "$probe" ] || { echo "COULD-NOT-RUN: no vhost answered" >&2; exit 2; }
+[ "${#skipped[@]}" -eq 0 ] || echo "note: skipped, no answer: ${skipped[*]}"
+```
+
+## A failure outside the change under test is a NOTE, not a FAIL
+
+A cutover verify fetched each site through the origin with strict TLS. One site sits behind a CDN
+that accepts a self-signed origin certificate, so curl exited 60 and the verify reported a failed
+site while visitors were getting 200. The certificate was correct for its setup, and the change
+under test had not touched certificates.
+
+When the change does not touch certificates, retry a curl exit 60 without verification. Report the
+retry's result as the verdict and the untrusted certificate as a **note**:
+
+```bash
+rc=0; code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$url")" || rc=$?
+if [ "$rc" -eq 60 ]; then
+    note "$site: origin cert not trusted by curl (exit 60); retried without verification"
+    rc=0; code="$(curl -sk -o /dev/null -w '%{http_code}' --max-time 10 "$url")" || rc=$?
+fi
+[ "$code" = 200 ] && ok "$site" || no "$site: want 200, got $code (curl rc=$rc)"
+```
+
+When the change **does** touch certificates (a renewal, a new chain, a TLS config edit), exit 60
+is exactly the failure being tested, and it stays a FAIL.
+
+## A clean summary must not contain the word FAIL
+
+A rollout ended a fully successful run with `FAILED (0): none` as its last line. The operator read
+"FAILED" first and was alarmed. An earlier verify did the same with a `0 FAIL` line. A human scans
+for the word, not the number beside it.
+
+- A clean run ends `ALL PASS (n)` or `ALL OK (n)`. Keep the count: it shows how much was checked.
+- The FAIL line appears only when something failed, and it names what failed.
+- An item that could not run is neither: report it as `COULD-NOT-RUN <item>`, and do not print
+  `ALL PASS` while any exist
+  ([`EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md`](EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md) § An assertion that
+  COULD NOT run).
+- Prefer one plain line per checked item, `PASS <item> — <what was proven>`, over a packed
+  one-liner.
+
+```bash
+for i in "${passed[@]}"; do echo "PASS $i"; done
+for i in "${skipped[@]}"; do echo "COULD-NOT-RUN $i"; done
+for i in "${failed[@]}"; do echo "FAIL $i"; done
+if [ "${#failed[@]}" -gt 0 ]; then
+    echo "FAILED ${#failed[@]} of $total: ${failed[*]}"; exit 1
+elif [ "${#skipped[@]}" -gt 0 ]; then
+    echo "INCOMPLETE: ${#passed[@]} passed, ${#skipped[@]} could not run"; exit 2
+else
+    echo "ALL PASS (${#passed[@]})"
+fi
+```
+
+This applies to every summary a human reads (verify, rollout, multi-host run), not only `--verify`.
 
 ## Prove a log line LANDS before letting the log inform a decision
 

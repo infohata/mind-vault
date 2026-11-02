@@ -79,6 +79,7 @@ When engaged, you must execute these 5 sequential passes:
 - Check request handlers for proper authorization per the active backend skill's **Permissions/authorization** rule (authenticated + the granular permission probe).
 - Ensure external webhook receivers rigorously parse and verify signatures (e.g. HMAC).
 - Enforce the active backend skill's **Data isolation / scoping boundary**: NO cross-tenant / cross-owner data leaks — every query strictly scoped to the caller's data.
+- **Every temporary restriction expires.** A captcha-required flag, rate-limit counter, or soft ban stored without a TTL becomes a permanent lockout whenever its clearing path can't succeed. One login page set "require captcha for this user + IP" with no expiry, cleared only by a passing captcha; users whose captcha could not pass were locked out for good ("I type the PIN and nothing happens"), and nothing was logged. Give each such flag an explicit expiry, and log the request the restriction blocks.
 
 ## How to Deliver Your Verdict
 

@@ -253,6 +253,21 @@ and name that destination in the runbook. Run the consumer's own validator after
 edit, before reload. When you find an instance that happens to be inert, remove it anyway;
 it is the same act in front of a different filter.
 
+**The package manager leaves the same duplicate behind.** After a distro release upgrade, a
+package renamed its logrotate snippet and left the old file in place, which dpkg calls an
+"obsolete" conffile. Both files listed the same log, so logrotate exited 1 every night with
+"duplicate log entry". Nobody edited anything; the stale copy came from the upgrade. After a
+release upgrade, list the leftovers:
+
+```bash
+dpkg-query -W -f='${Conffiles}\n' | grep ' obsolete$'
+```
+
+Check the ones that sit in a directory the consumer globs (`logrotate.d`, `cron.d`, `conf.d`,
+…). Move one aside, outside every include path, only when it is obsolete **and** its content
+duplicates the renamed file. If it differs, a local edit lives in it, so merge that edit into the
+new file first.
+
 ### Assert the SPAN you consumed, not the count
 
 An edit or extraction delimited "from this marker to the next one" takes everything between
