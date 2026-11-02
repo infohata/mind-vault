@@ -96,7 +96,7 @@ redirect would look like a backend-name redirect.
 rc=0
 out="$(curl -s -o /dev/null -w '%{http_code} %header{location}' --max-time 10 \
     -H "Host: $site" -H "X-Forwarded-Host: $site" -H 'X-Forwarded-Proto: https' \
-    "http://$backend/")" || rc=$?                  # %header{} needs curl >= 7.83
+    "http://$backend/")" || rc=$?                  # %header{} needs curl >= 7.83; older: -D- and parse
 code=${out%% *}; loc=${out#* }
 if [ "$rc" -ne 0 ]; then
     no "$site: transfer failed (curl rc=$rc)"       # never judge a status from a failed transfer
@@ -105,7 +105,7 @@ else
         200) ok "$site" ;;
         301|302|303|307|308)
             case "$loc" in
-                "https://$site/"*|/[!/]*) ok "$site: $code to own page ($loc)" ;;  # same host or relative
+                "https://$site"|"https://$site/"*|/[!/]*) ok "$site: $code to own page ($loc)" ;;  # same host or relative
                 *) no "$site: $code to '$loc'" ;;  # other host / backend name: broken
             esac ;;
         *) no "$site: got $code" ;;

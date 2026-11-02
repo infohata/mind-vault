@@ -231,12 +231,17 @@ that accepts a self-signed origin certificate, so curl exited 60 and the verify 
 site while visitors were getting 200. The certificate was correct for its setup, and the change
 under test had not touched certificates.
 
-When the change does not touch certificates, retry a curl exit 60 without verification. Report the
-retry's result as the verdict and the untrusted certificate as a **note**:
+"Not editing certificate files" alone does not make exit 60 unrelated: a cutover can point a
+site at a different origin whose certificate is expired or for the wrong host. So the exception is
+an explicit list of sites known to sit behind a CDN that accepts a self-signed origin certificate.
+For a listed site, retry exit 60 without verification and report the untrusted certificate as a
+**note**. Any other site's exit 60 stays a FAIL:
 
 ```bash
+# sites whose CDN accepts a self-signed origin certificate, recorded when that was set up
+CDN_SELF_SIGNED_ORIGINS=" shop.example.org blog.example.org "
 rc=0; code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$url")" || rc=$?
-if [ "$rc" -eq 60 ]; then
+if [ "$rc" -eq 60 ] && [[ $CDN_SELF_SIGNED_ORIGINS == *" $site "* ]]; then
     note "$site: origin cert not trusted by curl (exit 60); retried without verification"
     rc=0; code="$(curl -sk -o /dev/null -w '%{http_code}' --max-time 10 "$url")" || rc=$?
 fi
@@ -244,8 +249,10 @@ if [ "$rc" -eq 0 ] && [ "$code" = 200 ]; then ok "$site"
 else no "$site: want 200 and a complete transfer, got $code (curl rc=$rc)"; fi
 ```
 
-When the change **does** touch certificates (a renewal, a new chain, a TLS config edit), exit 60
-is exactly the failure being tested, and it stays a FAIL.
+Stricter still: pin each listed origin's key (`curl -sk --pinnedpubkey 'sha256//<hash>'`, which
+keeps checking the pin even with `-k`), so the retry still notices a swapped origin. When the
+change **does** touch certificates (a renewal, a new chain, a TLS config edit), exit 60 is exactly
+the failure being tested, and it stays a FAIL even for a listed site.
 
 ## A clean summary must not contain the word FAIL
 

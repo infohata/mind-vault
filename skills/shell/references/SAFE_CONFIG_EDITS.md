@@ -271,9 +271,12 @@ done
 ```
 
 Check the ones that sit in a directory the consumer globs (`logrotate.d`, `cron.d`, `conf.d`,
-…). An **unmodified** obsolete file is the package's own leftover: move it aside, outside every
-include path. A **locally edited** one carries a customization: carry over only the parts the new
-file still needs, then move it aside.
+…). Move one aside, outside every include path, only when **both** hold: it is obsolete, **and**
+a current file from the same package covers the same thing (the renamed snippet lists the same
+log, the same job, the same directive). The checksum answers a different question, whether
+someone customized it. An **unmodified** duplicate can go as it is. For a **locally edited**
+duplicate, first carry over the customizations the new file still needs. An obsolete file with no
+replacement may be the only thing doing that job: leave it in place.
 
 ### Assert the SPAN you consumed, not the count
 
