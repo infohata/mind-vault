@@ -82,6 +82,37 @@ hours and read a valid certificate each time, because it never used public resol
 resolution check against a public resolver, asserting the answer matches the expected
 address. A bypass you add for a good reason still needs its own coverage.
 
+**A probe that bypasses the proxy must send what the proxy sends.** A cutover check probed
+each backend directly, without the `X-Forwarded-Host` header the real proxy sets. The app
+built its redirect from the backend's own name (`https://<backend-name>/…`), which looked
+like a broken site; through the real proxy the redirect was correct. The same check also
+demanded 200 on `/`, where two sites correctly answer 302 to their own landing page. Copy the
+header set from the proxy's config, not from memory, and accept a redirect whose target is
+the same host. Read the raw `Location` header, not `%{redirect_url}`: curl resolves a relative
+`Location: /login` against the URL it requested (`http://<backend>/…`), so a healthy relative
+redirect would look like a backend-name redirect.
+
+```bash
+rc=0
+out="$(curl -s -o /dev/null -w '%{http_code} %header{location}' --max-time 10 \
+    -H "Host: $site" -H "X-Forwarded-Host: $site" -H 'X-Forwarded-Proto: https' \
+    "http://$backend/")" || rc=$?                  # %header{} needs curl >= 7.83; older: -D- and parse
+code=${out%% *}; loc=${out#* }
+if [ "$rc" -ne 0 ]; then
+    no "$site: transfer failed (curl rc=$rc)"       # never judge a status from a failed transfer
+else
+    case "$code" in
+        200) ok "$site" ;;
+        301|302|303|307|308)
+            case "$loc" in
+                "https://$site"|"https://$site/"*|/[!/]*) ok "$site: $code to own page ($loc)" ;;  # same host or relative
+                *) no "$site: $code to '$loc'" ;;  # other host / backend name: broken
+            esac ;;
+        *) no "$site: got $code" ;;
+    esac
+fi
+```
+
 Two further lessons from the same incident, both about alerting:
 
 - **An alert about a downstream consequence hides the upstream failure.** The gap surfaced

@@ -10,6 +10,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.9.2 — nine ops lessons: hidden prompts, stdin-run installers, honest summaries, readiness checks
+
+From compound hand-over [#270](https://github.com/infohata/mind-vault/issues/270) (2026-11-02): one operations day of runlists, verify scripts and a staged web cutover. A password prompt vanished into a `grep`. A self-installing script ran from stdin and half-applied. A clean rollout ended on the word "FAILED". A dry run called 15 placeholder sites ready because it checked only the status code. Several verify checks reported healthy things as failed. Each lesson is added to the reference that already covers its family.
+
+### Changed
+
+- **`skills/shell/references/MAINTENANCE_SCRIPT_CONTRACT.md`** — § Evidence logs: a prompt must never pass through an output filter. `cmd 2>&1 | grep …` swallowed a `read -rsp` password prompt (stderr), and the file's own `tee | grep --line-buffered` wrapper holds a newline-less prompt until Enter. Filter stdout only in runlists; scripts prompt via `/dev/tty`. § `$HERE`-relative defaults: under `bash -s` there is no file behind `$0`, so a script that copies itself or reads siblings checks `[ -f "${BASH_SOURCE[0]:-}" ]` before its first write, and runlists use copy-then-run.
+- **`skills/shell/references/VERIFY_DISCIPLINE.md`** — four additions. A 200 is not "ready": reject placeholder bodies and compare size against the live counterpart. Probe the first target that answers, not the first in the list, and name the skipped ones. A failure outside the change under test is a note: curl exit 60 is retried unverified only for sites on an explicit list of CDN-fronted origins with self-signed certificates (pinned keys preferred), and never when certificates are what changed. A clean summary ends `ALL PASS (n)` with no FAIL line, never prints ALL PASS while any check could not run, and lists one `PASS <item>` line per check.
+- **`skills/shell/references/GREEN_RUN_UNIVERSE_TOO_SMALL.md`** — a probe that bypasses the proxy sends the proxy's headers (`X-Forwarded-Host`/`-Proto`), and a redirect back to the same host counts as healthy.
+- **`skills/shell/references/SAFE_CONFIG_EDITS.md`** — dpkg "obsolete" conffiles left by a release upgrade are the package-manager form of the backup-in-a-globbed-directory bug (logrotate failed nightly on a duplicate entry). List them with dpkg's recorded checksum (unmodified vs locally edited), and move one aside only when it is obsolete and a current file from the same package covers the same thing.
+- **`agents/AGENT_backend.md`** — PASS 5: every temporary restriction (captcha-required flag, rate-limit counter, soft ban) gets an explicit TTL, and the blocked path logs. A flag with no expiry locked users out for good, and nothing was logged.
+- **`skills/shell/SKILL.md`** — references index updated for the above.
+
 ## v5.9.1 — a wait in an operator-run script announces itself
 
 From compound hand-over [#267](https://github.com/infohata/mind-vault/issues/267) (2026-10-26): a pasted runlist block reloaded a monitoring stack, then ran `sleep 90; curl …`. Nothing printed for 90 s, and the operator reported the reload as hung before it finished. Nothing had failed, but a silent pause looks the same as a hung ssh, sudo or docker call (2026-10-30).

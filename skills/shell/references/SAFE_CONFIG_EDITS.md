@@ -253,6 +253,31 @@ and name that destination in the runbook. Run the consumer's own validator after
 edit, before reload. When you find an instance that happens to be inert, remove it anyway;
 it is the same act in front of a different filter.
 
+**The package manager leaves the same duplicate behind.** After a distro release upgrade, a
+package renamed its logrotate snippet and left the old file in place, which dpkg calls an
+"obsolete" conffile. Both files listed the same log, so logrotate exited 1 every night with
+"duplicate log entry". Nobody edited anything; the stale copy came from the upgrade. After a
+release upgrade, list the leftovers and whether each one was edited locally. dpkg records the
+checksum each conffile was shipped with, so compare against that, not against the renamed file
+(the new package may ship different defaults, which is not a local edit):
+
+```bash
+dpkg-query -W -f='${Conffiles}\n' | awk '$NF == "obsolete" { print $1, $2 }' |
+while read -r f sum; do
+    [ -e "$f" ] || continue
+    if [ "$(md5sum <"$f" | cut -d' ' -f1)" = "$sum" ]; then echo "unmodified  $f"
+    else echo "LOCAL EDIT  $f"; fi
+done
+```
+
+Check the ones that sit in a directory the consumer globs (`logrotate.d`, `cron.d`, `conf.d`,
+…). Move one aside, outside every include path, only when **both** hold: it is obsolete, **and**
+a current file from the same package covers the same thing (the renamed snippet lists the same
+log, the same job, the same directive). The checksum answers a different question, whether
+someone customized it. An **unmodified** duplicate can go as it is. For a **locally edited**
+duplicate, first carry over the customizations the new file still needs. An obsolete file with no
+replacement may be the only thing doing that job: leave it in place.
+
 ### Assert the SPAN you consumed, not the count
 
 An edit or extraction delimited "from this marker to the next one" takes everything between

@@ -123,6 +123,25 @@ survives being invoked from anywhere. Corollary: the defaults **re-anchor when
 the script is relocated**, so a post-move smoke test must execute past the
 preflight (a `--help` run proves nothing about sibling resolution).
 
+**A script fed on stdin has no file behind `$0`.** A host script installed
+itself with `install -m 0755 "$0" /usr/local/sbin/<name>`. An ad-hoc runlist
+ran it as `… | ssh host 'sudo bash -s -- --apply'`, where `$0` is `bash` and
+`BASH_SOURCE[0]` is empty. `--apply` died at "cannot install", but only *after*
+it had rewritten the managed file. That was harmless only because the content
+happened to be identical. The project's own rollout driver copied the file to
+the box first; the runlist skipped that step. `$HERE` breaks the same way:
+`dirname ""` is `.`, so the siblings silently resolve against the caller's cwd.
+
+A script that copies itself or reads siblings refuses stdin execution
+**before its first write**:
+
+```bash
+[ -f "${BASH_SOURCE[0]:-}" ] || { echo "run me from a file: copy me to the box first (bash -s is unsupported)" >&2; exit 2; }
+```
+
+Runlists for such scripts use the copy-then-run path (`scp` then `ssh … sudo
+/path/to/script --apply`), never `bash -s`.
+
 ## Evidence logs
 
 ```bash
@@ -153,6 +172,22 @@ exec > >(tee -a "$LOG" | grep --line-buffered -vE "$NOISE") 2>&1
 The log keeps everything; the terminal shows only what the operator must act on.
 Filter by an explicit allow-known-benign list (real errors still surface) — never a
 blanket `2>/dev/null`.
+
+**A prompt must never pass through the filter.** A runlist ran a driver script that
+asks for a sudo password with `read -rsp`, and shortened the paste with
+`./driver.sh --apply 2>&1 | grep -E 'OK|FAIL|changed'`. `read -p` writes its prompt
+to **stderr**, so `2>&1` sent it into `grep`, which dropped it. The operator saw
+nothing and asked whether the run was stuck; typing the password blind worked. The
+wrapper above has a quieter form of the same bug: a prompt has no trailing newline,
+and `grep --line-buffered` emits only complete lines, so the prompt sits in grep's
+buffer until the operator presses Enter.
+
+- **In a runlist, filter stdout only**: `./driver.sh --apply | grep -E '…'` leaves
+  stderr, and with it every prompt, on the terminal. Never put `2>&1 |` in front of
+  a step that can prompt.
+- **In a script, talk to the terminal directly**, as the precondition gate does:
+  `read -rsp 'sudo password: ' pw </dev/tty 2>/dev/tty; echo >/dev/tty`. The prompt
+  then bypasses the `exec` plumbing and every caller-side pipe.
 
 ## A wait announces itself
 
