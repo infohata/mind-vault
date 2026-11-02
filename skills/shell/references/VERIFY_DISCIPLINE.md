@@ -41,7 +41,9 @@ placeholder on 15 live sites. The operator caught it by asking for a curl list c
 The positive code is necessary, not sufficient. Require a complete transfer (curl can print `200`
 and then time out mid-body), reject the app's known placeholder markers, and when a live
 counterpart exists, compare sizes against it. The baseline gets the same checks: a live fetch that
-failed would make the size comparison pass anything, so a missing baseline is COULD-NOT-RUN:
+failed would make the size comparison pass anything, so a missing baseline is COULD-NOT-RUN. (A
+brand-new site with no live counterpart drops the baseline fetch and the size branch; the other
+checks still apply.)
 
 ```bash
 # fetch URL FILE -> "rc http_code"; FILE exists even when curl never connects (set -e safe)
