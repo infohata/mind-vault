@@ -257,16 +257,23 @@ it is the same act in front of a different filter.
 package renamed its logrotate snippet and left the old file in place, which dpkg calls an
 "obsolete" conffile. Both files listed the same log, so logrotate exited 1 every night with
 "duplicate log entry". Nobody edited anything; the stale copy came from the upgrade. After a
-release upgrade, list the leftovers:
+release upgrade, list the leftovers and whether each one was edited locally. dpkg records the
+checksum each conffile was shipped with, so compare against that, not against the renamed file
+(the new package may ship different defaults, which is not a local edit):
 
 ```bash
-dpkg-query -W -f='${Conffiles}\n' | grep ' obsolete$'
+dpkg-query -W -f='${Conffiles}\n' | awk '$NF == "obsolete" { print $1, $2 }' |
+while read -r f sum; do
+    [ -e "$f" ] || continue
+    if [ "$(md5sum <"$f" | cut -d' ' -f1)" = "$sum" ]; then echo "unmodified  $f"
+    else echo "LOCAL EDIT  $f"; fi
+done
 ```
 
 Check the ones that sit in a directory the consumer globs (`logrotate.d`, `cron.d`, `conf.d`,
-…). Move one aside, outside every include path, only when it is obsolete **and** its content
-duplicates the renamed file. If it differs, a local edit lives in it, so merge that edit into the
-new file first.
+…). An **unmodified** obsolete file is the package's own leftover: move it aside, outside every
+include path. A **locally edited** one carries a customization: carry over only the parts the new
+file still needs, then move it aside.
 
 ### Assert the SPAN you consumed, not the count
 

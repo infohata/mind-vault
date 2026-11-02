@@ -38,13 +38,16 @@ dry run called 15 sites ready although their data copy had not run. `--apply` wo
 placeholder on 15 live sites. The operator caught it by asking for a curl list comparing body
 **sizes** between the test path and the live path.
 
-The positive code is necessary, not sufficient. Reject the app's known placeholder markers, and
-when a live counterpart exists, compare sizes against it:
+The positive code is necessary, not sufficient. Require a complete transfer (curl can print `200`
+and then time out mid-body), reject the app's known placeholder markers, and when a live
+counterpart exists, compare sizes against it:
 
 ```bash
-code="$(curl -s -o "$body" -w '%{http_code}' --max-time 10 "$new_url" || true)"
+rc=0; code="$(curl -s -o "$body" -w '%{http_code}' --max-time 10 "$new_url")" || rc=$?
 size=$(wc -c <"$body")
-if [ "$code" != 200 ]; then
+if [ "$rc" -ne 0 ]; then                       # 200 headers + a timed-out body = a truncated page
+    no "$site: transfer failed (curl rc=$rc, HTTP $code, $size B)"
+elif [ "$code" != 200 ]; then
     no "$site: want 200, got $code"
 elif grep -qiE 'not installed|default page|it works' "$body"; then   # this app's placeholder markers
     no "$site: placeholder body ($size B)"
@@ -237,7 +240,8 @@ if [ "$rc" -eq 60 ]; then
     note "$site: origin cert not trusted by curl (exit 60); retried without verification"
     rc=0; code="$(curl -sk -o /dev/null -w '%{http_code}' --max-time 10 "$url")" || rc=$?
 fi
-[ "$code" = 200 ] && ok "$site" || no "$site: want 200, got $code (curl rc=$rc)"
+if [ "$rc" -eq 0 ] && [ "$code" = 200 ]; then ok "$site"
+else no "$site: want 200 and a complete transfer, got $code (curl rc=$rc)"; fi
 ```
 
 When the change **does** touch certificates (a renewal, a new chain, a TLS config edit), exit 60
