@@ -168,12 +168,20 @@ hand-audit which case a line is: rewrite.)
 | `if ! cmd; then …; fi` | `cmd \|\| { …; }` |
 | `[ "$a" != "$b" ] && a` | `[ "$a" = "$b" ] \|\| { a; }` (strings); `-ne` (integers) |
 
-**Group the whole guarded body** in the shell rows: `a || b && c` parses as
-`(a || b) && c`, so `test -f x || create && reload` runs `reload` even when the
-file exists. The rewrite also returns 0 where the original returned 1 when the
-guard is false. Where that status is used (last command of a function, a
-continuing `&&` chain), restructure into an `if … then … else … fi` and state
-the status explicitly.
+**Group everything the guard controls** in the shell rows. `a || b && c` parses
+as `(a || b) && c`, so `test -f x || create && reload` runs `reload` even when
+the file exists. The braces must hold the **entire rest of the chain**: in
+`{ test -f x || { a && b; }; } && c`, `c` still runs when the file exists.
+
+The grouped form also returns 0 where the original returned 1 when the guard
+is false. That matters only where the status is read, typically a function's
+return value. There, return the status explicitly. This is exact, and
+`set -e`-safe because `return` isn't subject to errexit:
+
+```bash
+[ ! -f "$1" ] && a && b                       # original: rc 1 when the file exists
+if [ -f "$1" ]; then return 1; fi; a && b     # same rc in both cases, no `!`
+```
 
 Negate by **comparing the positive test with zero**, not with `next`: `next`
 skips every later rule and statement for that record, so `/re/ {next} {…}`
