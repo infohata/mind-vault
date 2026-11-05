@@ -164,9 +164,16 @@ hand-audit which case a line is: rewrite.)
 | awk `if (p !~ /re/) …` | `if ((p ~ /re/) == 0) …` |
 | awk `!seen[$0]++` | `seen[$0]++ == 0` |
 | awk `$1 != "x" {…}` | `($1 == "x") == 0 {…}` |
-| `[ ! -f x ] && …` | `test -f x \|\| …` |
+| `[ ! -f x ] && a && b` | `test -f x \|\| { a && b; }` |
 | `if ! cmd; then …; fi` | `cmd \|\| { …; }` |
-| `[ "$a" != "$b" ]` | `[ "$a" = "$b" ] \|\| …` (strings); `-ne` (integers) |
+| `[ "$a" != "$b" ] && a` | `[ "$a" = "$b" ] \|\| { a; }` (strings); `-ne` (integers) |
+
+**Group the whole guarded body** in the shell rows: `a || b && c` parses as
+`(a || b) && c`, so `test -f x || create && reload` runs `reload` even when the
+file exists. The rewrite also returns 0 where the original returned 1 when the
+guard is false. Where that status is used (last command of a function, a
+continuing `&&` chain), restructure into an `if … then … else … fi` and state
+the status explicitly.
 
 Negate by **comparing the positive test with zero**, not with `next`: `next`
 skips every later rule and statement for that record, so `/re/ {next} {…}`
