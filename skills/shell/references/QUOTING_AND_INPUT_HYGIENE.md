@@ -123,6 +123,67 @@ run. The shell string loses its closing quote and swallows whatever follows. `ba
 the **generated** output. The rule: never end a triple-quoted literal on the delimiter's quote
 character — switch to `'''…'''`, or end the literal on a newline.
 
+## A block pasted into an interactive bash contains no `!`
+
+**When this fires**: any command block handed to a human to paste into a terminal —
+a runlist block, a one-liner in a chat reply, a fix recipe. An interactive bash
+has history expansion on (`histexpand`, the default). It rewrites `!…` **before
+the line is parsed**, so the line runs altered or not at all:
+
+```text
+bash: !/: event not found
+bash: !~: event not found
+```
+
+It fails safe, but each slip costs a round trip, and during an incident that is
+the expensive part. The recurring shape is a `!` that belongs to **another
+language nested inside a double-quoted remote command**:
+
+```bash
+ssh host "sudo awk '!/^#/ && NF' /etc/foo.conf"     # ❌ event not found
+ssh host "sudo awk '{ if (p !~ /re/) next }' f"      # ❌ event not found
+```
+
+The single quotes protect awk on the remote side, but locally they are literal
+characters **inside** the outer double quotes, and that is where the interactive
+bash looks for `!`. Agents reason about quoting one layer at a time and miss that
+the outermost layer is an interactive shell. The `!` is in awk syntax, where it
+doesn't look like shell. A narrower rule ("no `!` inside double quotes") was in
+place and still slipped twice in one evening (2026-11-04).
+
+**The rule: no `!` anywhere in a paste block.** It is cheaper to check than the
+exact expansion grammar, and it covers every nesting. (Measured on bash 5.2:
+`!` inside plain single quotes, inside `$(…)`, or in a heredoc body ran fine,
+and so did `!=` and `! -f`, because a `!` followed by a space, `=` or `(` is not
+expanded. Single quotes nested inside double quotes did **not** protect. Don't
+hand-audit which case a line is: rewrite.)
+
+| Instead of | Write |
+| --- | --- |
+| awk `!/re/ {…}` | `/re/ {next} {…}` |
+| awk `if (p !~ /re/) …` | `if (p ~ /re/) next; …` |
+| awk `!seen[$0]++` | `seen[$0]++ == 0` |
+| awk `$1 != "x"` | `$1 == "x" {next}`, then the action |
+| `[ ! -f x ] && …` | `test -f x \|\| …` |
+| `if ! cmd; then …; fi` | `cmd \|\| { …; }` |
+| `[ "$a" != "$b" ]` | `[ "$a" = "$b" ] \|\| …` (strings); `-ne` (integers) |
+
+(Each awk rewrite above was run against its original on the same input:
+identical output.)
+
+**Last step before handing a block over:** check it mechanically. A hit means
+rewrite, not "this one is probably fine".
+
+```bash
+grep -n '!' block.sh        # or scan the block text by eye for the one character
+```
+
+**Fallback, not a replacement:** a block may start with `set +H` **on its own
+line**. Bash expands history on the whole input line before any of it runs, so
+`set +H; awk '!…'` on one line still fails. Only a separate earlier line turns it
+off. The next block without that line breaks again, which is why the rule is no
+`!`, not "remember `set +H`".
+
 ## Related
 
 - ShellCheck SC2086 (quoting), BashPitfalls #1–5/#8/#13/#14, BashFAQ/035 —
