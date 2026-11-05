@@ -10,6 +10,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.9.3 — no `!` in a block pasted into an interactive bash
+
+From compound hand-over [#273](https://github.com/infohata/mind-vault/issues/273) (2026-11-04): runlist blocks kept carrying a `!`. Twice in one evening it was awk inside a double-quoted remote command (`ssh host "sudo awk '!/^#/ …'"`). The operator's interactive bash ran history expansion on it (`bash: !/: event not found`), and an existing "no `!` in double quotes" note didn't prevent it (2026-11-05).
+
+### Changed
+
+- **`skills/shell/references/QUOTING_AND_INPUT_HYGIENE.md`** — new § A block pasted into an interactive bash contains no `!`. The rule is no `!` anywhere, not the exact expansion grammar. The section explains why single quotes nested inside double quotes don't protect, gives a rewrite table that negates by comparing with zero, never with `next` (awk `!/re/`, `!~`, `!seen[]++`, `!=`; shell `[ ! … ]`, `if !`, `!=`), adds a grep-before-handover step, and covers the `set +H` fallback. `set +H` works only on its own earlier line: on the same line as the `!`, the line is expanded before `set` runs. The awk rewrites and the expansion cases were measured in an interactive bash 5.2.
+- **`skills/shell/SKILL.md`** — pattern 2, TRIGGER and the references index carry the rule.
+
 ## v5.9.2 — nine ops lessons: hidden prompts, stdin-run installers, honest summaries, readiness checks
 
 From compound hand-over [#270](https://github.com/infohata/mind-vault/issues/270) (2026-11-02): one operations day of runlists, verify scripts and a staged web cutover. A password prompt vanished into a `grep`. A self-installing script ran from stdin and half-applied. A clean rollout ended on the word "FAILED". A dry run called 15 placeholder sites ready because it checked only the status code. Several verify checks reported healthy things as failed. Each lesson is added to the reference that already covers its family.
