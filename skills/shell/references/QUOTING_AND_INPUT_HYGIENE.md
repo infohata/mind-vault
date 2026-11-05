@@ -182,7 +182,10 @@ record. (Each awk rewrite above was run against its original, with a later
 counting rule, on the same input: identical output, mawk.)
 
 **Last step before handing a block over:** check it mechanically. A hit means
-rewrite, not "this one is probably fine".
+rewrite, not "this one is probably fine". The check also flags the forms bash
+leaves alone (`! -f`, `!=`, `!` in plain single quotes). That is deliberate,
+not a false positive: the rule is no `!`, so the check has no exceptions to
+judge, and the table above has a rewrite for each.
 
 ```bash
 grep -n '!' block.sh        # or scan the block text by eye for the one character
