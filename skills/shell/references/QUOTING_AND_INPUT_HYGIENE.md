@@ -160,16 +160,19 @@ hand-audit which case a line is: rewrite.)
 
 | Instead of | Write |
 | --- | --- |
-| awk `!/re/ {…}` | `/re/ {next} {…}` |
-| awk `if (p !~ /re/) …` | `if (p ~ /re/) next; …` |
+| awk `!/re/ {…}` | `/re/ == 0 {…}` |
+| awk `if (p !~ /re/) …` | `if ((p ~ /re/) == 0) …` |
 | awk `!seen[$0]++` | `seen[$0]++ == 0` |
-| awk `$1 != "x"` | `$1 == "x" {next}`, then the action |
+| awk `$1 != "x" {…}` | `($1 == "x") == 0 {…}` |
 | `[ ! -f x ] && …` | `test -f x \|\| …` |
 | `if ! cmd; then …; fi` | `cmd \|\| { …; }` |
 | `[ "$a" != "$b" ]` | `[ "$a" = "$b" ] \|\| …` (strings); `-ne` (integers) |
 
-(Each awk rewrite above was run against its original on the same input:
-identical output.)
+Negate by **comparing the positive test with zero**, not with `next`: `next`
+skips every later rule and statement for that record, so `/re/ {next} {…}`
+silently changes a script like `!/re/ {print} {count++}`, which counts every
+record. (Each awk rewrite above was run against its original, with a later
+counting rule, on the same input: identical output, mawk.)
 
 **Last step before handing a block over:** check it mechanically. A hit means
 rewrite, not "this one is probably fine".

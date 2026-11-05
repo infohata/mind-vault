@@ -16,7 +16,7 @@ From compound hand-over [#273](https://github.com/infohata/mind-vault/issues/273
 
 ### Changed
 
-- **`skills/shell/references/QUOTING_AND_INPUT_HYGIENE.md`** — new § A block pasted into an interactive bash contains no `!`. The rule is no `!` anywhere, not the exact expansion grammar. The section explains why single quotes nested inside double quotes don't protect, gives a rewrite table (awk `!/re/`, `!~`, `!seen[]++`, `!=`; shell `[ ! … ]`, `if !`, `!=`), adds a grep-before-handover step, and covers the `set +H` fallback. `set +H` works only on its own earlier line: on the same line as the `!`, the line is expanded before `set` runs. The awk rewrites and the expansion cases were measured in an interactive bash 5.2.
+- **`skills/shell/references/QUOTING_AND_INPUT_HYGIENE.md`** — new § A block pasted into an interactive bash contains no `!`. The rule is no `!` anywhere, not the exact expansion grammar. The section explains why single quotes nested inside double quotes don't protect, gives a rewrite table that negates by comparing with zero, never with `next` (awk `!/re/`, `!~`, `!seen[]++`, `!=`; shell `[ ! … ]`, `if !`, `!=`), adds a grep-before-handover step, and covers the `set +H` fallback. `set +H` works only on its own earlier line: on the same line as the `!`, the line is expanded before `set` runs. The awk rewrites and the expansion cases were measured in an interactive bash 5.2.
 - **`skills/shell/SKILL.md`** — pattern 2, TRIGGER and the references index carry the rule.
 
 ## v5.9.2 — nine ops lessons: hidden prompts, stdin-run installers, honest summaries, readiness checks
