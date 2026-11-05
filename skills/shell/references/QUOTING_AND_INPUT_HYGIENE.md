@@ -183,9 +183,10 @@ grep -n '!' block.sh        # or scan the block text by eye for the one characte
 
 **Fallback, not a replacement:** a block may start with `set +H` **on its own
 line**. Bash expands history on the whole input line before any of it runs, so
-`set +H; awk '!…'` on one line still fails. Only a separate earlier line turns it
-off. The next block without that line breaks again, which is why the rule is no
-`!`, not "remember `set +H`".
+`set +H; ssh host "awk '!/^#/'"` on one line still fails. Only a separate
+earlier line turns it off. It then stays off for the rest of that shell, but a
+new terminal, a fresh ssh session or another operator starts with it on again,
+which is why the rule is no `!`, not "remember `set +H`".
 
 ## Related
 
