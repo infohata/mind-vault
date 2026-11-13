@@ -307,9 +307,10 @@ Authoring rules for such blocks — the positive-evidence line and one-box-per-b
 A background wait script ended with `[ -z "$r" ] && echo "no result file after 40 min"`. The
 file had arrived, so the test was false, `&&` skipped the echo, and the script exited with the
 list's status — 1. The harness reported the job "failed with exit code 1" while the work it
-waited for had ended `ALL PASS`. Errexit does not fire inside an `&&` list (hazard 5), but the
-list's status is still the script's exit status when it is the last command — and a function's
-return status when it is the function's last line, where a caller under `set -e` then aborts.
+waited for had ended `ALL PASS`. Errexit ignores a failing non-final command of an `&&` list —
+the condition (hazard 5) — so nothing aborts there; but the list's status is still the script's
+exit status when it is the last command, and a function's return status when it is the
+function's last line, where a caller under `set -e` then aborts.
 
 ```bash
 bash -c 'r=x; [ -z "$r" ] && echo empty'; echo rc=$?                 # rc=1
@@ -323,8 +324,10 @@ script with an explicit `exit 0` / `exit 1` after a final status decision.
 This is the mirror of the `--apply && --verify` trap in
 [`EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md`](EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md) § An assertion
 that COULD NOT run, where a non-final `&&` hides a real failure (false clean). Here the final
-`&&` invents one. Cron mail, systemd `Result=exit-code`, CI and agent harnesses all read the
-exit code, and false failures train people to ignore the real one.
+`&&` invents one. systemd `Result=exit-code`, CI, a `set -e` caller, rc-checking monitors and
+agent harnesses all read the exit code, and false failures train people to ignore the real one.
+(Plain cron is the exception: it mails on output, not on rc — a wrapper such as `chronic` is
+what makes cron rc-driven.)
 
 ## Stance — a judgment call, encoded honestly
 
