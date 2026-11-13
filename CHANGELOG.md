@@ -16,7 +16,7 @@ From a compound hand-over (2026-11-13): a background wait script ended with `[ -
 
 ### Changed
 
-- **`skills/shell/references/STRICT_MODE_HAZARDS.md`** — new hazard 16. When a script or function ends on `cond && action` and the condition is false, the script exits 1 (or the function returns 1, and a caller under `set -e` stops). The entry gives a one-line repro and the fix: write it as an `if`, or end the script with an explicit `exit` after the final decision. It is linked as the mirror of the existing `--apply && --verify` entry, which hides a real failure instead of inventing one.
+- **`skills/shell/references/STRICT_MODE_HAZARDS.md`** — new hazard 16. When a script or function ends on `cond && action` and the condition is false, the script exits 1 (or the function returns 1, and a caller under `set -e` stops). The entry gives a one-line repro and the fix: write it as an `if`, or end the script with an explicit `exit` after the final decision. An `if` does not carry an earlier status (it exits 0 when its condition is false), so to exit on an earlier command's status the entry captures it: `rc=0; cmd || rc=$?; …; exit "$rc"`. It is linked as the mirror of the existing `--apply && --verify` entry, which hides a real failure instead of inventing one.
 - **`skills/shell/references/EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md`** — the `&&` list entry points to the new hazard.
 - **`skills/shell/SKILL.md`** — pattern 1 and the references index name the hazard.
 
