@@ -38,7 +38,9 @@ tripwire: pipeline-in-assignment aborts before your friendly
 error, `head -N` SIGPIPE races, informative non-zero rcs (`diff`, `grep`),
 `local var=$(cmd)` masking failure (SC2155), condition contexts disabling
 errexit transitively (`if f; then` turns `-e` off inside all of `f`), unguarded
-`cd` (SC2164), `(( i++ ))` at zero. Explicit rc handling at every destructive
+`cd` (SC2164), `(( i++ ))` at zero, a trailing `cond && action` as the last
+command (false `cond` ⇒ the script/function exits 1 on a clean run — use
+`if`). Explicit rc handling at every destructive
 step, as if `-e` were absent; never retrofit `-e` onto a working script.
 Full catalog + the honest judgment-call stance:
 [`references/STRICT_MODE_HAZARDS.md`](references/STRICT_MODE_HAZARDS.md).
@@ -156,7 +158,7 @@ when two gate definitions exist — candidate-set MISMATCH is fail-closed, never
 
 ## References
 
-- [references/STRICT_MODE_HAZARDS.md](references/STRICT_MODE_HAZARDS.md) — `set -euo pipefail` hazard catalog (pipeline-in-assignment, SIGPIPE race, SC2155, condition-context transitivity, SC2164 cd guards, arithmetic-at-zero, negated-rc capture after `if !`, PIPESTATUS reset-on-read) + the never-retrofit / explicit-rc-at-destructive-steps stance.
+- [references/STRICT_MODE_HAZARDS.md](references/STRICT_MODE_HAZARDS.md) — `set -euo pipefail` hazard catalog (pipeline-in-assignment, SIGPIPE race, SC2155, condition-context transitivity, SC2164 cd guards, arithmetic-at-zero, negated-rc capture after `if !`, PIPESTATUS reset-on-read, trailing `cond && action` as a false failure) + the never-retrofit / explicit-rc-at-destructive-steps stance.
 - [references/QUOTING_AND_INPUT_HYGIENE.md](references/QUOTING_AND_INPUT_HYGIENE.md) — quoting/arrays/`"$@"`, `printf` over `echo`, `IFS= read -r` + subshell trap, `case`-not-`grep` validation, arg parsing (`$2` guard, getopts vs manual, no `getopt(1)`), heredoc quoting, anchored status greps, generating shell from a Python triple-quoted string (a content-final quote is swallowed by the delimiter), and no `!` in a block pasted into an interactive bash (history expansion; awk/shell rewrite table, grep-before-handover, `set +H` only on its own line).
 - [references/CLEANUP_TRAPS_AND_LOCKING.md](references/CLEANUP_TRAPS_AND_LOCKING.md) — mktemp + EXIT-trap pair, composed single cleanup function, `flock` single-instance locking, background-child reaping.
 - [references/MAINTENANCE_SCRIPT_CONTRACT.md](references/MAINTENANCE_SCRIPT_CONTRACT.md) — mode surface (DRY-RUN / `--apply` / `--verify` / `--revert` / `--check`), the interactive precondition-acknowledgement gate, one-target-at-a-time, idempotency, evidence logs (a prompt never passes through the noise filter: filter stdout only, prompts talk to `/dev/tty`), a self-copying script refuses `bash -s` before its first write, lockout discipline, grep portability, a wait announces itself (what, how long, done — short sleep / countdown / polling-with-progress), the runnable-recovery-recipe contract (classify-then-advise or refuse; parse porcelain by columns, not whitespace), the emitted-artifact traps (staleness stamp, foreign-owned `/tmp` path), and preconditions that assert a PROPERTY probed from the consuming context — never a forbidden NAME encoding one topology (answer bad / good / can't-tell; can't-tell warns, it doesn't block).

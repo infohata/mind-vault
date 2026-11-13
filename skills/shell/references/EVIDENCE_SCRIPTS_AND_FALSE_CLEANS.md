@@ -326,7 +326,9 @@ gated_step() {
 Reproduce it in one line before arguing about it —
 `bash -c 'set -e; echo A; false && echo verify; echo REACHED'` prints `REACHED` and exits 0.
 Note the discrimination: `step.sh --apply --verify` as ONE invocation is safe under errexit.
-**The hazard is the `&&` list position, not the pairing.**
+**The hazard is the `&&` list position, not the pairing.** Its mirror is the FINAL position:
+a script or function that ends on `cond && action` exits 1 whenever `cond` is false, so a clean
+run reports failure — [`STRICT_MODE_HAZARDS.md`](STRICT_MODE_HAZARDS.md) hazard 16.
 
 It survives review because the skip message is entirely plausible ("tool not active — no rule
 added", "linter not installed — skipped"), because the guard was written for portability,

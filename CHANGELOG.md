@@ -10,6 +10,16 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.9.4 — a script that ends on `cond && action` fails on a clean run
+
+From a compound hand-over (2026-11-13): a background wait script ended with `[ -z "$r" ] && echo "…"`. The file it waited for had arrived, so the test was false and the script exited 1. The job was reported as failed although the verify it waited for had passed every check.
+
+### Changed
+
+- **`skills/shell/references/STRICT_MODE_HAZARDS.md`** — new hazard 16. When a script or function ends on `cond && action` and the condition is false, the script exits 1 (or the function returns 1, and a caller under `set -e` stops). The entry gives a one-line repro and the fix: write it as an `if`, or end the script with an explicit `exit` after the final decision. It is linked as the mirror of the existing `--apply && --verify` entry, which hides a real failure instead of inventing one.
+- **`skills/shell/references/EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md`** — the `&&` list entry points to the new hazard.
+- **`skills/shell/SKILL.md`** — pattern 1 and the references index name the hazard.
+
 ## v5.9.3 — no `!` in a block pasted into an interactive bash
 
 From compound hand-over [#273](https://github.com/infohata/mind-vault/issues/273) (2026-11-04): runlist blocks kept carrying a `!`. Twice in one evening it was awk inside a double-quoted remote command (`ssh host "sudo awk '!/^#/ …'"`). The operator's interactive bash ran history expansion on it (`bash: !/: event not found`), and an existing "no `!` in double quotes" note didn't prevent it (2026-11-05).

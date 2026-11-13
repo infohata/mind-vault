@@ -302,6 +302,30 @@ thing that exits is not the same thing.
 Authoring rules for such blocks — the positive-evidence line and one-box-per-block — are in
 [`INTERACTIVE_SUDO_LOGIN_SHELL.md`](INTERACTIVE_SUDO_LOGIN_SHELL.md).
 
+### 16. A trailing `cond && action` turns a clean run into a FALSE FAILURE
+
+A background wait script ended with `[ -z "$r" ] && echo "no result file after 40 min"`. The
+file had arrived, so the test was false, `&&` skipped the echo, and the script exited with the
+list's status — 1. The harness reported the job "failed with exit code 1" while the work it
+waited for had ended `ALL PASS`. Errexit does not fire inside an `&&` list (hazard 5), but the
+list's status is still the script's exit status when it is the last command — and a function's
+return status when it is the function's last line, where a caller under `set -e` then aborts.
+
+```bash
+bash -c 'r=x; [ -z "$r" ] && echo empty'; echo rc=$?                 # rc=1
+bash -c 'f(){ [ -z x ] && echo empty; }; set -e; f; echo REACHED'    # REACHED never prints
+```
+
+✅ DO: `if [ -z "$r" ]; then echo empty; fi` (rc 0 when the condition is false), or end the
+script with an explicit `exit 0` / `exit 1` after a final status decision.
+❌ DON'T: end a script or function on a `cond && action` whose false branch is the normal case.
+
+This is the mirror of the `--apply && --verify` trap in
+[`EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md`](EVIDENCE_SCRIPTS_AND_FALSE_CLEANS.md) § An assertion
+that COULD NOT run, where a non-final `&&` hides a real failure (false clean). Here the final
+`&&` invents one. Cron mail, systemd `Result=exit-code`, CI and agent harnesses all read the
+exit code, and false failures train people to ignore the real one.
+
 ## Stance — a judgment call, encoded honestly
 
 The canon itself is split on `set -e` (BashFAQ/105's own contributors disagree:
