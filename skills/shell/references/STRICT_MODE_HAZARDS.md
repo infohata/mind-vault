@@ -320,8 +320,10 @@ bash -c 'f(){ [ -z x ] && echo empty; }; set -e; f; echo REACHED'    # REACHED n
 ✅ DO: `if [ -z "$r" ]; then echo empty; fi` (rc 0 when the condition is false), or end the
 script with an explicit `exit 0` / `exit 1` — but only after the script has actually decided
 its status (e.g. `if [ "$fails" -eq 0 ]; then exit 0; fi; exit 1`). A bare trailing `exit 0`
-turns every failure into a pass; when the status you want is the last real command's, the `if`
-form alone is the fix.
+turns every failure into a pass. The `if` form is not a status carrier either — it exits 0 when
+the condition is false, whatever ran before it (`false; if [ -z x ]; then :; fi` is rc 0). To
+exit with an earlier command's status, capture it and finish on it:
+`rc=0; cmd || rc=$?; …; exit "$rc"`.
 ❌ DON'T: end a script or function on a `cond && action` whose false branch is the normal case.
 
 This is the mirror of the `--apply && --verify` trap in
