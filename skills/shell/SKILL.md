@@ -40,8 +40,8 @@ error, `head -N` SIGPIPE races, informative non-zero rcs (`diff`, `grep`),
 errexit transitively (`if f; then` turns `-e` off inside all of `f`), unguarded
 `cd` (SC2164), `(( i++ ))` at zero, a trailing `cond && action` as the last
 command (false `cond` ⇒ the script/function exits 1 on a clean run — use
-`if`). Explicit rc handling at every destructive
-step, as if `-e` were absent; never retrofit `-e` onto a working script.
+`if`). Explicit rc handling at every destructive step, as if `-e` were absent;
+never retrofit `-e` onto a working script.
 Full catalog + the honest judgment-call stance:
 [`references/STRICT_MODE_HAZARDS.md`](references/STRICT_MODE_HAZARDS.md).
 
