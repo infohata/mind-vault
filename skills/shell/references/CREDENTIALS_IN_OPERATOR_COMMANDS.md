@@ -1,8 +1,8 @@
 # Credentials in operator commands
 
 **Fires when** handing a human a command to run whose output they will paste back, when a
-script sends a secret to an API, or when verifying a change that just narrowed an account's
-privileges.
+script sends a secret to an API, when a secret has to reach another person, or when verifying a
+change that just narrowed an account's privileges.
 
 ## A command you hand a human must redact on the way out
 
@@ -142,6 +142,76 @@ printf '%s\n' "$PW" | ssh -T "$host" 'sudo -S sh -c "a && b"'
 credential cache to cover the second call. The result looks like a script bug, because step `a`
 really ran and the failure message is about the password. Anything else piped after the
 password (a heredoc, a payload) is also read by whichever command comes first.
+
+## Handing a secret to another person: an age file to their pinned ssh key
+
+A 32-hex API token had to reach a teammate after a deploy. The runlist step said "read it with
+`less`, then give it to them by phone or a messenger". That step puts the secret on a screen, in a
+human's short-term memory and on a channel nobody audits. It was replaced by a rule that makes the
+channel irrelevant: **encrypt the secret with [age](https://age-encryption.org) to the recipient's
+ssh public key, pin that key by fingerprint, and let only the `.age` file travel.** The file can
+then go over chat, an issue, e-mail, or a channel an AI agent reads, because only the recipient's
+private key opens it. The plain text never travels: not by phone, not over an "encrypted"
+messenger, not "pasted just once".
+
+What the agent does:
+
+- **Never ask a human to read a secret aloud, paste it or retype it, and never route one through
+  yourself.** A secret that reaches a transcript counts as leaked and gets rotated.
+- **Hand the sender a block** that fetches the recipient's published keys, keeps only the pinned
+  one, encrypts, and prints the output file's size and mode, never its content.
+- **Hand the recipient a ready message**: the key fingerprint it was encrypted to, the decrypt
+  command, how to install age, and where to confirm. The sender deletes the plain copies after the
+  confirmation.
+
+```bash
+login='<recipient-login>'
+pin='SHA256:<fingerprint from the reviewed team-key table, or from the person>'
+src="$HOME/handover/token.secret"; out="$HOME/handover/token.age"
+umask 077
+keys=$(curl -fsS "https://github.com/$login.keys")
+match=$(printf '%s\n' "$keys" | while IFS= read -r k; do
+  fp=$(printf '%s\n' "$k" | ssh-keygen -lf - 2>/dev/null | awk '{print $2}')
+  if [ "$fp" = "$pin" ]; then printf '%s\n' "$k"; fi
+done)
+if [ -n "$match" ] && [ "$(printf '%s\n' "$match" | wc -l)" -eq 1 ]; then
+  rcpt=$(mktemp) && printf '%s\n' "$match" > "$rcpt" &&
+    age -R "$rcpt" -o "$out" "$src" && stat -c '%n %s bytes mode %a' "$out"
+  rm -f -- "$rcpt"
+else
+  echo "REFUSE: $login does not serve exactly one key with fingerprint $pin"
+fi
+```
+
+```text
+token.age is encrypted to your GitHub ssh key SHA256:<fingerprint>.
+Decrypt:  age -d -i ~/.ssh/id_ed25519 -o token.secret token.age
+No age?   apt install age   (or: brew install age)
+Confirm on <the issue> once it opens; I delete my plain copy then.
+```
+
+The block has no `!` and no `exit`, so it is safe to paste into an interactive bash (see
+[`QUOTING_AND_INPUT_HYGIENE.md`](QUOTING_AND_INPUT_HYGIENE.md)). It was run against a stubbed keys
+endpoint serving two keys: the file opened with the pinned key, the other served key got `no
+identity matched any of the recipients`, and an unserved pin or an empty answer printed `REFUSE`
+and wrote nothing.
+
+Traps found on the way:
+
+- **Pin the fingerprint; don't trust the keys endpoint alone.** `github.com/<login>.keys` can
+  serve several keys, so encrypting to all of them hands the secret to every holder. It can also
+  serve a swapped key after an account compromise. The pin comes from a reviewed table or from the
+  person directly, never from the same endpoint.
+- **age cannot use a key that lives only in ssh-agent or on a hardware token.** It needs the
+  private key file. The recipient then runs `age-keygen -o <keyfile>` and sends the public `age1…`
+  line, which is not secret. The sender confirms that string with the person and encrypts with
+  `age -r age1…` instead.
+- **A repo's `.gitignore` may ignore every `secrets/` directory.** A helper put in
+  `scripts/secrets/` was never committed, and `git add -A` said nothing. Name the folder something
+  else and keep the ignore rule; `git check-ignore -v <path>` shows which rule swallowed a file.
+- **Deleting the plain copy is best effort.** `shred -u` does not guarantee erasure on journaling
+  or copy-on-write filesystems or on SSDs, so keep the plain file in one place, mode 600, for as
+  short a time as possible.
 
 ## Least privilege will break your own verification — verify with metadata, not reads
 

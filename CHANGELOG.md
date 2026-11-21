@@ -10,6 +10,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.9.5 — hand a secret to a person as an age file
+
+From compound hand-over [#277](https://github.com/infohata/mind-vault/issues/277) (2026-11-16): a runlist told the operator to read an API token off the screen and give it to a teammate by phone. The step was replaced with a rule that makes the channel irrelevant: encrypt the secret to the teammate's published ssh key, pinned by fingerprint, and send only the encrypted file (2026-11-21).
+
+### Changed
+
+- **`skills/shell/references/CREDENTIALS_IN_OPERATOR_COMMANDS.md`** — new section on handing a secret to another person. The agent never asks anyone to read a secret aloud or paste it, and never carries one itself. It gives the sender a block that fetches the recipient's ssh keys from GitHub, keeps only the key whose fingerprint was pinned beforehand, encrypts the file with age, and prints only the size and mode of the result. It gives the recipient a ready message with the decrypt command. The encrypted file may then go over any channel, including ones an AI agent reads. The block was run against a stubbed keys endpoint: the pinned key opened the file, a second served key could not, and a missing pin wrote nothing. The section also covers three traps: an endpoint that serves several keys or a swapped one (hence the pin), a key that lives only in ssh-agent or on a hardware token (the recipient makes a separate age key instead), and a `.gitignore` rule that silently kept a helper in a `secrets/` folder out of the repo.
+- **`skills/shell/SKILL.md`** — the TRIGGER line, the SKIP exception and the references index name the new section.
+
 ## v5.9.4 — a script that ends on `cond && action` fails on a clean run
 
 From a compound hand-over (2026-11-13): a background wait script ended with `[ -z "$r" ] && echo "…"`. The file it waited for had arrived, so the test was false and the script exited 1. The job was reported as failed although the verify it waited for had passed every check.
