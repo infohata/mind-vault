@@ -59,6 +59,11 @@ nothing about the same service reached over IPv6 — the same any-variant probe 
 § Detect the mechanism. And treat a one-address block as a symptom report: find the exposure it
 was papering over.
 
+The same check runs **before you hand anyone a ban or allow rule**. On another box ufw was
+installed but `ENABLED=no` by design, and the enforced firewall was a hand-written iptables chain,
+so a `ufw deny` would have printed success and changed nothing. Write the rule for the backend
+that is actually enforcing, and verify it from outside afterwards.
+
 ## Triage aside: an established TCP connection cannot have a spoofed source
 
 Completing the handshake requires receiving the SYN-ACK at the claimed address and answering with

@@ -15,6 +15,48 @@ reproducible error. Security is identical to standard rootless: the daemon runs 
 non-root service account, a container escape lands as an unprivileged uid, and there is no
 `sudo docker` root hatch.
 
+## Don't rule Docker out on OpenVZ — probe the box, then build elsewhere and run there
+
+A migration plan took "OpenVZ can't run Docker" as given, so every app on an OpenVZ box was to
+move to a new KVM box, together with a provider-assisted public IP move. One of the same fleet's
+OpenVZ boxes had been running rootless Docker in production the whole time, on this recipe. A
+read-only probe on the target box settled it: user, mount, network and PID namespaces worked,
+`/dev/net/tun` was present, cgroups were v1 (so no `--memory`/`--cpus` limits), overlay inside a
+user namespace was refused and FUSE was absent, which leaves `vfs`. The stated constraint was
+false, and it nearly cost a new box and an IP move. **Verify a disqualifying constraint on the
+live box before it changes a plan.**
+
+```bash
+# read-only, no root: can this box run rootless Docker, and with which storage driver?
+chk() { if eval "$2" >/dev/null 2>&1; then echo "yes  $1"; else echo "NO   $1"; fi; }
+chk 'user+mount+net namespaces' 'unshare -Urmn true'
+chk 'pid namespace'             'unshare -Urp --fork true'
+chk '/dev/net/tun present'      'test -c /dev/net/tun'
+chk 'cgroup v2 (limits work)'   'test "$(stat -fc %T /sys/fs/cgroup)" = cgroup2fs'
+chk 'fuse in the kernel'        'grep -qw fuse /proc/filesystems'
+o=$(mktemp -d)
+chk 'overlay inside a userns'   "unshare -Urm sh -c 'cd $o && mkdir l u w m && mount -t overlay x -o lowerdir=l,upperdir=u,workdir=w m'"
+rm -rf -- "$o"
+```
+
+Namespaces + tun are the go/no-go. Overlay-in-userns or FUSE decides the storage driver (`vfs`
+when both are NO). cgroup v1 means no resource caps. On an Ubuntu ≥ 23.10 host the namespace lines
+print NO because `kernel.apparmor_restrict_unprivileged_userns=1` blocks a bare `unshare`, while
+rootlesskit runs under its own AppArmor profile; read that sysctl before trusting a NO there.
+
+**Build on a KVM host, run here.** Under `vfs` every layer is a full copy, so builds are painfully
+slow; running is near normal speed, and only image load and container create cost disk and
+minutes. Ship images box to box over the internal network, never through an operator's laptop:
+`docker save <image> | gzip -1 | ssh <box> 'docker load'` (on a rootless target, that non-login
+shell needs the rootless `DOCKER_HOST`; see [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md)).
+
+**Size the disk for `vfs`**: roughly one full copy of the image per layer, plus one per container.
+Observed: a 1.2 GB, 14-layer image took about 7.7 GB once loaded, plus about 2.4 GB per container.
+
+**Name the trade-offs before choosing it**: the provider owns the kernel; unprivileged user
+namespaces are attack surface; cgroup v1 gives no per-container CPU or memory caps, so one
+runaway container starves the box. Light boxes are a good fit; busy ones belong on KVM.
+
 ## Detect first — don't apply the heavy path everywhere
 
 Only stripped nodes need this. The discriminator: can a per-user systemd manager start?
@@ -123,7 +165,7 @@ enough for a web tier; you don't need it at 0.
   See [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md).
 - **After restarting the daemon here** (system-unit mode: `systemctl restart <your-unit>`, not
   `systemctl --user restart docker`), re-check `docker ps -a` — containers exiting non-zero on SIGTERM
-  stay down despite `restart: unless-stopped`. Generic Docker behavior, documented in
+  stay down despite `restart: unless-stopped`; give every container on these boxes `restart: always`. Generic Docker behavior, documented in
   [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md); it bites harder here because the system-unit path makes
   daemon restarts a routine part of the recipe.
 - Kernel version alone is NOT the discriminator — a 4.19 OpenVZ box and a 6.x one can *both*
@@ -143,6 +185,8 @@ enough for a web tier; you don't need it at 0.
       socket AND its parent-dir ACL re-applied by `ExecStartPost` — each *waiting for the socket* and
       setting `m::` explicitly (a 0700 dir's ACL mask is clobbered by the daemon's chmod otherwise).
 - [ ] Port strategy decided (`ip_unprivileged_port_start` lowered, or rootful/edge proxy for 80/443).
+- [ ] Images built on a KVM host and shipped box to box (`docker save | ssh … docker load`); disk sized
+      for `vfs` (one copy per layer plus one per container); `restart: always` on every container.
 
 Related: [ROOTLESS_DOCKER.md](ROOTLESS_DOCKER.md) (the deploy-shell socket-resolution trap that
 bites *after* the daemon is up), [HARDENING.md](HARDENING.md) (the non-root daemon / docker-group
