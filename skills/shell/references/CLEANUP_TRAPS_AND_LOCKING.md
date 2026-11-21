@@ -23,6 +23,28 @@ trap 'rm -rf -- "$tmpdir"' EXIT HUP INT TERM
   covers terminal hangup and Ctrl-C (bash runs the EXIT trap on signal death
   too, but the explicit list is cheap and POSIX-sh-safe).
 
+## A file root will run never sits at a predictable `/tmp` name
+
+A handed runlist block copied a check script to `/tmp/<fixed-name>.sh` as the operator, then ran it
+with `sudo bash /tmp/<fixed-name>.sh`. `/tmp` is world-writable, so any local account could create
+that name first, as a file it owns or as a symlink. The copy then writes into the other account's
+file (which it can rewrite before root runs it) or through the link, and root runs whatever is
+there. A per-user name (`/tmp/<proj>-$(id -un).sh`) is just as guessable.
+
+Stage anything root will execute in a directory only the operator can write: the operator's home,
+or a fresh `mktemp -d` (mode 0700, unguessable name). Over ssh:
+
+```bash
+d=$(ssh "$host" 'mktemp -d') &&
+  scp check.sh "$host:$d/check.sh" &&
+  printf '%s\n' "$PW" | ssh -T "$host" "sudo -S -p '' bash $d/check.sh; rm -rf -- $d"
+```
+
+When a script running as root takes a path someone else staged, check it before running it: it
+must be a regular file (not a symlink) owned by the invoking user.
+`[ "$(stat -c '%U %F' -- "$f")" = "$SUDO_USER regular file" ]` does both in one test, and it
+refuses a missing file as well.
+
 ## One trap per signal — compose, don't stack
 
 A second `trap '…' EXIT` **replaces** the first silently. Scripts with multiple

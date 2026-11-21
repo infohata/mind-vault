@@ -306,10 +306,14 @@ modes, both of which look like success:
   emit, and refusing to run is worse than saying so.
 - **Foreign ownership.** A fixed per-project path (`/tmp/<proj>-setup.sh`) is a *shared* name. Another
   account — an audit/read-only user, a colleague, a prior session — may already own it, and the write
-  then dies with a bare `Permission denied` from the redirect, with nothing pointing at why. Default to
-  a **per-user** path (`/tmp/<proj>-setup-$(id -un).sh`), and pre-flight the target so the failure
-  explains itself: name the owner, and distinguish *"someone else owns it"* (remove as them or root)
-  from *"you own it but the mode denies write"* (`chmod u+w`).
+  then dies with a bare `Permission denied` from the redirect, with nothing pointing at why. Worse,
+  the artifact is run **as root**, and an account that pre-creates that name (or a symlink at it) in
+  world-writable `/tmp` chooses what root runs; a per-user name (`/tmp/<proj>-setup-$(id -un).sh`) is
+  just as guessable. Default to a path under the operator's **own home** (or a fresh `mktemp -d`),
+  per [CLEANUP_TRAPS_AND_LOCKING.md](CLEANUP_TRAPS_AND_LOCKING.md) § A file root will run never sits
+  at a predictable `/tmp` name, and pre-flight the target so a failure explains itself: name the
+  owner, and distinguish *"someone else owns it"* (remove as them or root) from *"you own it but the
+  mode denies write"* (`chmod u+w`).
 
 Ordering trap when the artifact is generated from the checkout it configures: emitting it **before**
 the deploy that updates that checkout bakes in the *old* logic. Deploy first, then re-emit, then run.

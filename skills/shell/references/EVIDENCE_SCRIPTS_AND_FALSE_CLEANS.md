@@ -93,6 +93,52 @@ note=""
 printf '%-40s lines=%-8s parsed=%-8s hits=%-6s%s\n' "$(basename "$f")" "$lines" "$parsed" "$hits" "$note"
 ```
 
+## A positive count can measure the wrong thing: a redirect is not a user
+
+An IP allow-list for an admin panel was being built from 53 days of its access log, and the census
+counted every non-4xx response as real use. The top client had 1,318 "successful" requests, every
+day. Grouping by method, path and user agent showed every one was `GET /` answered `302`, the
+redirect to the login page, from a commercial internet scanner that named itself in its user
+agent. On the default vhost the same scanner had 1,215 × `444`. No real user appeared in the top
+rows. The census nearly put a scanner on the allow-list, and then nearly triggered a needless
+firewall change to ban it.
+
+**Before allow-listing or banning from logs, classify every candidate by method, path shape, user
+agent and status, and print the class beside the count.** A `GET` answered `3xx` is an
+unauthenticated visitor being sent to the login page. Count a client as a user only on
+authenticated paths, or on POSTs that lead to them.
+
+```bash
+# nginx "combined" log; auth = the paths only a logged-in user reaches
+awk -F'"' -v auth='^/admin/' '
+  { split($1, a, " "); ip = a[1]
+    split($2, r, " "); m = r[1]; p = r[2]; sub(/[?].*/, "", p); gsub(/[0-9]+/, "N", p)
+    split($3, s, " "); st = s[1]
+    if (st ~ /^3/ && m ~ /^(GET|HEAD)$/) c = "redirect (unauthenticated)"
+    else if (st ~ /^[45]/)            c = "refused/error"
+    else if (m == "POST" || p ~ auth) c = "USER?"
+    else                              c = "anonymous read"
+    n[ip "\t" c "\t" m " " p "\t" st "\t" $6]++ }
+  END { for (k in n) print n[k] "\t" k }' access.log | sort -t"$(printf '\t')" -k1,1nr
+```
+
+```text
+3   198.51.100.7  redirect (unauthenticated)  GET /                302  … ExampleScanner/1.0 …
+2   203.0.113.9   USER?                       GET /admin/orders/N  200  … Firefox/140.0
+1   203.0.113.9   USER?                       POST /login          302  … Firefox/140.0
+```
+
+Digits are folded to `N` so one client's requests group by route, not by record. A `POST /login`
+answered `302` is usually a successful login, but a failed one can look the same, so it only
+counts when authenticated requests from that client follow. Two more checks before you hand a ban:
+
+- **Find the firewall the box actually enforces.** Here ufw was installed with `ENABLED=no` by
+  design, and the box's real firewall was a hand-written iptables chain, so a `ufw deny` would have
+  done nothing. See [`CONFIG_STATES_INTENT.md`](../../deployment/references/CONFIG_STATES_INTENT.md)
+  § When a firewall listing looks empty, check the other backend.
+- **A reverse-DNS label is not evidence.** A PTR name containing "static" says nothing about
+  whether the address stays with the same customer.
+
 ## Distinguish the reasons for an empty result
 
 "Nothing found" collapses several very different states. Name them separately — the

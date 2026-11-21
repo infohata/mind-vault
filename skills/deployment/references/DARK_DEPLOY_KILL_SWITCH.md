@@ -147,5 +147,6 @@ measure executions independently (request counts for the endpoints that reach th
 "ran N times, disagreed M" rather than "no problems found".
 
 Related: [`MONITORING.md`](MONITORING.md) ·
+[`SHADOW_TRAFFIC_MIRROR.md`](SHADOW_TRAFFIC_MIRROR.md) (shadow at the proxy, by mirroring live requests: safe only per route) ·
 [`../../shell/references/MAINTENANCE_SCRIPT_CONTRACT.md`](../../shell/references/MAINTENANCE_SCRIPT_CONTRACT.md)
 for the deploy/rollback script contract itself.

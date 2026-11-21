@@ -59,12 +59,16 @@ cleanup_mux() {
 trap cleanup_mux EXIT
 
 ssh "${MUX_OPTS[@]}" "$host" 'run-precondition-probe'   # login #1 — pays the cost, opens the master
-scp "${MUX_OPTS[@]}" "$PAYLOAD" "$host:/tmp/payload.sh" # rides the socket — free
-ssh "${MUX_OPTS[@]}" "$host" 'bash /tmp/payload.sh'     # free
+rdir=$(ssh "${MUX_OPTS[@]}" "$host" 'mktemp -d')         # rides the socket — free; 0700, unguessable
+scp "${MUX_OPTS[@]}" "$PAYLOAD" "$host:$rdir/payload.sh" # free
+ssh "${MUX_OPTS[@]}" "$host" "bash $rdir/payload.sh; rm -rf -- $rdir"   # free
 ```
 
 Notes:
 
+- The payload goes into a fresh `mktemp -d`, never a fixed `/tmp/payload.sh`: another account can
+  pre-create a fixed name in `/tmp` and choose what runs (see
+  [CLEANUP_TRAPS_AND_LOCKING.md](CLEANUP_TRAPS_AND_LOCKING.md)).
 - `ControlPersist=120` keeps the master alive between commands but
   self-expires if the teardown trap never fires (kill -9, power loss).
 - Don't mix the mux opts into *probe* invocations — cold probes and the apply
