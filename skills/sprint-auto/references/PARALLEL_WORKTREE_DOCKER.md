@@ -20,6 +20,8 @@ Any time two (or more) work streams must proceed concurrently without blocking e
 - A long-running experiment (benchmark, parallel-test harness, migration replay) needs isolated state so it can't corrupt the primary dev loop.
 - Two agents need to collaborate on the same sprint without stepping on each other's docker state.
 
+Before adding a stream, check the host can carry it: disk IOPS, not CPU or RAM, is often the first ceiling on a VPS, and a tmpfs scratch dir eats RAM. See [`../../work/references/AGENT_HOST_CAPACITY.md`](../../work/references/AGENT_HOST_CAPACITY.md).
+
 ### Worktree Bootstrap Recipe
 
 From the primary checkout:
