@@ -219,7 +219,11 @@ DATABASES = {
         'HOST': os.environ.get('DB_HOST', 'db'),
         'PORT': os.environ.get('DB_PORT', '5432'),
         'OPTIONS': {
-            'sslmode': 'require',
+            # verify-full, never 'require' (encrypts, checks no certificate) or unset
+            # (libpq 'prefer' falls back to plaintext). See
+            # ../../django/references/DB_TRANSPORT_TLS_NO_FALLBACK.md
+            'sslmode': 'verify-full',
+            'sslrootcert': os.environ['DB_SSLROOTCERT'],
         },
         'CONN_MAX_AGE': 600,  # Persistent connections
         'ATOMIC_REQUESTS': False,  # Better performance
@@ -230,7 +234,7 @@ DATABASES = {
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': os.environ.get('REDIS_URL', 'redis://redis:6379/1'),
+        'LOCATION': os.environ['REDIS_URL'],  # rediss://…; no plaintext default
     }
 }
 
@@ -575,6 +579,8 @@ def check_tenant_schemas():
 
 #### Celery Service Configuration
 **Production Celery setup with Docker Compose:**
+The Redis URLs below are plaintext to keep the example short. Outside dev/test use `rediss://…?ssl_cert_reqs=required` and the checks in [`DB_TRANSPORT_TLS_NO_FALLBACK.md`](../../django/references/DB_TRANSPORT_TLS_NO_FALLBACK.md).
+
 ```yaml
 # docker-compose.yml - Celery services
 version: '3.8'

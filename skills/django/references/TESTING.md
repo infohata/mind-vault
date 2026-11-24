@@ -633,6 +633,58 @@ isolate-to-classify pass is what tells you which layer that fix belongs in.
 
 Pooling is **opt-in behind an env var** — always leave the default path (non-pooled) working so individual test iteration isn't tied to the pool's success.
 
+## Test layout: unit tests in the app, integration tests at the top
+
+Worked example: a new multi-tenant Django core landed with 18 flat `tests/test_*.py` files at the repo root. Nobody could tell which package a file covered, a package moved without its tests, and CI could not run "only the changed apps". The files were split and moved into the layout below.
+
+```text
+pyproject.toml
+core/
+  tenancy/
+    models.py
+    tests/
+      __init__.py
+      test_registry.py         # unit: this package only, Django test DB
+  billing/
+    tests/
+      __init__.py
+      test_invoices.py
+tests/                         # INTEGRATION only
+  __init__.py
+  settings.py                  # test settings
+  support/                     # shared fixtures and helpers
+  testapps/                    # test-only Django apps, listed in tests/settings.py
+  test_provision_then_task.py  # real DB roles + broker + worker, several packages end to end
+```
+
+- **Unit test** → `<app>/tests/test_*.py`. It exercises one app or package. The Django test database and its transaction are all it needs.
+- **Integration test** → top-level `tests/test_*.py`. It needs real infrastructure (provisioned databases, real roles, a broker, worker processes), or it crosses several packages end to end. The top-level `tests/` also holds the support code, test-only apps and test settings those tests share.
+- **A file that mixes the two gets split.** Its unit tests go to the app's `tests/`, its integration tests to the top level.
+- **`__init__.py` in every `tests/` directory.** In pytest's default import mode, two `tests/test_models.py` files in different apps without packages collide: "import file mismatch".
+
+```toml
+# pyproject.toml
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+python_files = ["test_*.py", "tests.py"]   # tests.py: Django's single-module default
+testpaths = ["core", "tests"]               # the code package AND the integration dir
+```
+
+The ini-file spelling is `python_files = test_*.py tests.py`. If `testpaths` leaves out the code package, a bare `pytest` silently skips every unit test.
+
+With this layout, a CI job can test only the changed apps and still run the integration suite every time:
+
+```bash
+changed=$(git diff --name-only origin/main...HEAD -- core/ | cut -d/ -f1-2 | sort -u | while read -r d; do [ -d "$d/tests" ] && echo "$d"; done)
+pytest $changed tests/
+```
+
+A change under a package that other packages import needs the full suite; this filter does not know the import graph.
+
+✅ DO: `core/billing/tests/test_invoices.py` for a test of `core/billing` alone.
+❌ DON'T: `tests/test_billing_invoices.py` beside `tests/test_tenancy_registry.py`. That flat pile hides who owns each file, the tests stay behind when the package moves, and `pytest core/billing` finds nothing.
+❌ DON'T: put a test that needs a running broker or worker under `<app>/tests/`. `pytest core/billing` then needs the whole stack, and the unit-test loop stops being fast.
+
 ## Test Organization Patterns
 
 ### Base Test Classes
