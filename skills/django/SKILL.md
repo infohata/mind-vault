@@ -616,10 +616,12 @@ When NOT to use: free-form generation tasks (chat replies, brainstorming) where 
 - [Celery Background Tasks](references/CELERY.md) — async job processing
 - [Logging Patterns](references/LOGGING.md) — structured logging and audit trails
 - [Internationalization](references/I18N.md) — translation workflow, fuzzy-wipe, locale testing
-- [Testing Patterns](references/TESTING.md) — query-count asserts, locale enforcement, isolation
+- [Testing Patterns](references/TESTING.md) — query-count asserts, locale enforcement, isolation; test layout (unit tests in `<app>/tests/`, integration tests only in the top-level `tests/`, pytest `python_files` + `testpaths`)
 - [Development Workflow](references/DEVELOPMENT_WORKFLOW.md) — env config, Docker dev-loop
 - [Multi-Tenant + Async](references/MULTI_TENANT_ASYNC.md)
-- [Multi-Tenant + Celery](references/MULTI_TENANT_CELERY.md)
+- [Multi-Tenant + Celery](references/MULTI_TENANT_CELERY.md) — incl. a worker refusing a just-provisioned tenant: the task header carries the publisher's registry version, which forces a refresh; unclaimed misses stay rate-limited
+- [DB and Redis TLS that never falls back](references/DB_TRANSPORT_TLS_NO_FALLBACK.md) — `sslmode=verify-full` and `rediss://` only outside dev/test, unset refused; five enforcement layers (entrypoint, settings import incl. runtime aliases, system check, `pg_stat_ssl` guard, `hostnossl reject`); check every Redis URL setting
+- [Default-deny DB grants](references/DEFAULT_DENY_DB_GRANTS.md) — REVOKE-from-PUBLIC baseline, per-app `grants.py` declaration converged to live ACLs (tested code), CI equality + refusal tests, append-only outbox, `makemigrations --check` router gotcha
 - [django-frontend](../django-frontend/SKILL.md) — HTMX / Alpine / Bulma frontend pairing
 - [deployment](../deployment/SKILL.md) — production deployment patterns
 - [surgical-tdd](../surgical-tdd/SKILL.md) — focused test execution

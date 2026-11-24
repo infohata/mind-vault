@@ -10,6 +10,23 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.9.6 — Django: test layout, DB and Redis TLS without fallback, default-deny grants, tenant registry refresh
+
+Four lessons from a consuming project's multi-tenant Django core, captured with `/compound` (2026-11-24). The code in the two new references was run before it was written down: against PostgreSQL 17 with and without TLS, psycopg 3.3, Django 6.1, redis-py 8.2 and 5.2.1, and Celery 5.7.
+
+### Added
+
+- **`skills/django/references/DB_TRANSPORT_TLS_NO_FALLBACK.md`** (new) — outside dev/test, PostgreSQL connects only with `sslmode=verify-full` and Redis only over `rediss://` with certificate and hostname checks. An unset value or an unset environment name is refused instead of defaulted. The reason is measured: libpq's default quietly connects in plaintext to a server without TLS, `sslmode=require` connected to a server whose certificate named a different host, and redis-py lets a URL option such as `ssl_cert_reqs=none` override what the code asked for. The reference gives the five places that enforce the rule, each with tested code: the pooler entrypoint exits, settings import raises (including database aliases added at runtime), a Django system check and the healthcheck, a check on first connect that asks the server whether the session is encrypted, and `pg_hba.conf` rejecting plaintext. It also says to check every Redis URL setting, because a review found one that skipped the check the broker URL had. It lists the tests that must exist and the cost (about 0.8 ms per connection for the guard, about 7 ms per TLS handshake).
+- **`skills/django/references/DEFAULT_DENY_DB_GRANTS.md`** (new) — runtime database roles get nothing by default. Each app declares per table, in a `grants.py` beside its models, which role may select, insert, update or delete, down to column lists. Provisioning and migrations bring the live privileges in line with the declaration and revoke anything extra. CI fails when a table has no declaration or the live privileges differ from it. The tested converge code covers a PostgreSQL trap: revoking a table-wide privilege also removes the column-level ones. The reference also lists the Django behaviours that decide what a role needs (inserts read back the id, `save()` writes every column unless given `update_fields`), the append-only outbox shape, a backup role generated from the declaration, the `makemigrations --check` crash under default-deny and its router fix, and a test that no human login can reach a tenant database, nested role membership included.
+
+### Changed
+
+- **`skills/django/references/TESTING.md`** — new section on test layout: unit tests live in a `tests/` package inside the app they test, and the top-level `tests/` holds only integration tests and their shared support. It comes from a new project whose 18 flat top-level test files hid which package each covered and made "test only the changed apps" impossible. The section includes the pytest settings and a changed-apps CI snippet.
+- **`skills/django/references/MULTI_TENANT_CELERY.md`** — new section on a Celery worker that refused a tenant provisioned seconds earlier. The worker re-read the tenant registry at most once per interval, so a task that arrived in that window failed, and only on the fast CI runner. With the fix, the publisher stamps each task with the registry version it saw, and that claim forces an immediate refresh. Misses without a claim stay rate-limited, and a tenant still unknown after the refresh is refused. A test with a very long refresh interval fails against the old code every time.
+- **`skills/deployment/references/DJANGO_DEPLOYMENT.md`** — the production settings example used `sslmode: 'require'` and a plaintext Redis default. It now uses `verify-full` with a CA file and a required Redis URL. The Compose example says its plaintext Redis URLs are for brevity only.
+- **`skills/django/references/CELERY.md`** — the settings example marks its `redis://` URLs as dev-only.
+- **`skills/django/SKILL.md`** — the References list points to the two new references and the two new sections.
+
 ## v5.9.5 — secrets to people as age files; Docker on OpenVZ; shadow traffic per route; log census and build-host traps
 
 Two compound hand-overs, landed together because they touch the same skill files (2026-11-21).

@@ -13,7 +13,8 @@ Tasks run in background workers **without request context**. You cannot access `
 celery>=5.3.0
 redis>=4.5.0
 
-# settings.py
+# settings.py — dev URLs; outside dev/test use rediss://…?ssl_cert_reqs=required
+# (see DB_TRANSPORT_TLS_NO_FALLBACK.md)
 CELERY_BROKER_URL = 'redis://redis:6379/0'  # Task queue
 CELERY_RESULT_BACKEND = 'redis://redis:6379/0'  # Result storage
 CELERY_ACCEPT_CONTENT = ['json']
