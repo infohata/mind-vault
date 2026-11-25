@@ -119,8 +119,8 @@ body {
 
 **The Solution**: Do not rely exclusively on the `POST` response's headers. Pass the necessary context forward via a URL token, then proactively inject the context into the HTML of the `GET` view and explicitly evaluate it in the browser.
 
-1. **Pass data in token**: Wrap the data (`user_context`) into a signed JWT or session-backed token and append it to the iframe's redirect `GET` URL (`?token=xyz`).
-2. **Hook the GET Request**: The backend view serving the GET request extracts this data and uses it to re-emit `Set-Cookie` headers directly onto the `TemplateResponse`.
+1. **Pass a one-time code, never a credential**: Store the data (`user_context`: theme, language, never auth state) server-side under a random code that expires in seconds, and append only that code to the iframe's redirect `GET` URL (`?handoff=<code>`). Never put a session id, JWT or other bearer token in a URL: reverse proxies, the ASGI server and browser history all keep URLs (see [django `LOGGING.md` § Keep query strings out of the ASGI server's logs](../../django/references/LOGGING.md#keep-query-strings-out-of-the-asgi-servers-logs)).
+2. **Hook the GET Request**: The backend view serving the GET request redeems the code once (delete it on read, so a logged copy is worthless) and uses the data to re-emit `Set-Cookie` headers directly onto the `TemplateResponse`.
 3. **Double Coverage Script (Crucial for Theme)**: Because HTMX or CSS loads *before* Alpine initialization, pass the expected state (e.g. `embed_theme`) in the Django template context.
 4. **Hard-Apply in `<head>`**: Create an inline JS snippet in `{% block extra_head %}` to forcibly write the preference to `localStorage`, `document.cookie` (for JS APIs), and manipulate the `document.documentElement` structure immediately. This bypasses HTTP cookie policies entirely since it executes natively within the iframe's permitted sandbox.
 

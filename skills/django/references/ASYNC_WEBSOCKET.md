@@ -68,6 +68,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         # Verify user authentication
         self.user = self.scope.get('user')
+        # A close() BEFORE accept() refuses the handshake: the browser sees HTTP 403 and never
+        # the 4001/4003 code. Fine for cookie-authenticated sockets; accept first when the
+        # client must act on the reason (see § Public API vs Authenticated Parity).
         if not self.user or not self.user.is_authenticated:
             await self.close(code=4001)  # 401 Unauthorized
             return
@@ -265,9 +268,10 @@ class TaskProgressConsumer(AsyncWebsocketConsumer):
         self.task_id = self.scope['url_route']['kwargs']['task_id']
         self.group_name = f'task_{self.task_id}'
 
-        # Verify user owns this task
-        if not await self.user_owns_task(self.user.id, self.task_id):
-            await self.close(code=403)
+        # Verify user owns this task (a close before accept() reaches the client as HTTP 403)
+        self.user = self.scope['user']
+        if not self.user.is_authenticated or not await self.user_owns_task(self.user.id, self.task_id):
+            await self.close(code=4403)  # app close codes are 4000-4999; 403 is not a valid one
             return
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
@@ -351,27 +355,6 @@ def get_user_async(self, user_id):
     return User.objects.get(id=user_id)
 ```
 
-## Public API vs Authenticated Parity (Session-Scoped Ownership)
-
-When building WebSocket features (like chat sessions) exposed to both logged-in users and anonymous public browsers, do not branch your API logic completely.
-Instead, use **Session-Scoped Ownership** (`ws_token`) for the anonymous users to manage state symmetrically:
-
-1. Allow the WebSocket to connect, but require the client to pass their Django `session_key` (e.g. as a query parameter `?ws_token=...`).
-2. Persist this `session_key` on any objects they create (if `request.user.is_anonymous`).
-3. For REST API actions or WebSocket commands, enforce object-level validation by comparing the passed `ws_token` against the record's stored `session_key`.
-
-```python
-# API example for anonymous session parity matching WS consumer
-def get_queryset(self):
-    ws_token = self.request.query_params.get("ws_token")
-    if self.request.user.is_authenticated:
-        return Model.objects.filter(author=self.request.user)
-    elif ws_token:
-        # Prevent crossover by tracking anonymous session ownership perfectly
-        return Model.objects.filter(author__isnull=True, session_key=ws_token)
-    return Model.objects.none()
-```
-
 ---
 
 **❌ Unauthenticated connections**:
@@ -412,6 +395,215 @@ async def receive(self, text_data):
     except Exception as exc:
         await self.send(json.dumps({'error': 'Processing failed'}))
 ```
+
+## Public API vs Authenticated Parity (token in the first message, never the URL)
+
+A production app let anonymous browsers own chat sessions by passing a session token as
+`wss://<host>/ws/chat/?ws_token=<token>`. Every connect wrote that token into the reverse proxy's
+access log and into the ASGI server's own log (uvicorn logs each accepted WebSocket with its
+query string, see [LOGGING.md § Keep query strings out of the ASGI server's logs](LOGGING.md#keep-query-strings-out-of-the-asgi-servers-logs)),
+and from there into log shipping and monitoring. A URL is logged by every hop that sees it; a
+credential in one is a leaked credential. This section used to teach that pattern.
+
+The intent stays: logged-in users and anonymous browsers go through **one** code path, each
+scoped to what it owns. Only the transport of the credential changes.
+
+**1. Mint a short-lived ticket over POST** (body in, body out — never a GET with the token in the URL):
+
+```python
+# views.py
+TICKET_SALT = "ws-ticket"
+
+@require_POST  # CSRF stays on
+def ws_ticket(request):
+    if request.user.is_authenticated:
+        owner = f"user:{request.user.pk}"
+    else:
+        # An opaque id kept in the session, never the session key itself: the session key IS the
+        # session cookie, and it also changes on login (cycle_key), orphaning what the user owned.
+        owner = "anon:" + request.session.setdefault("anon_owner", secrets.token_urlsafe(16))
+    ticket = signing.dumps({"owner": owner, "tenant": request.tenant_id}, salt=TICKET_SALT)
+    return JsonResponse({"ticket": ticket, "expires_in": settings.WS_TICKET_MAX_AGE_SECONDS})
+```
+
+**2. The client connects with no credentials in the URL and sends the ticket first:**
+
+```javascript
+const { ticket } = await (await fetch("/api/ws-ticket/", {
+  method: "POST", headers: { "X-CSRFToken": csrfToken },
+})).json();
+const ws = new WebSocket(`wss://${location.host}/ws/chat/`);   // no query string
+ws.onopen = () => ws.send(JSON.stringify({ type: "auth", ticket }));
+```
+
+**3. The consumer accepts, waits briefly for the auth message, and closes with a specific code:**
+
+```python
+# consumers.py — close codes are 4000 + the HTTP status they mirror
+CLOSE_UNAUTHENTICATED = 4401  # first message is not an auth message; ticket missing, forged or expired
+CLOSE_WRONG_TENANT = 4403
+CLOSE_AUTH_TIMEOUT = 4408
+CLOSE_QUERY_STRING = 4414     # this endpoint takes no query string
+
+class ChatConsumer(AsyncJsonWebsocketConsumer):
+    async def connect(self):
+        self.owner = None
+        self._deadline = None
+        await self.accept()  # accept first: a close BEFORE accept reaches the browser as a bare HTTP 403, no code
+        if self.scope.get("query_string"):  # emptiness only: never decode, parse or log it
+            await self.close(code=CLOSE_QUERY_STRING)
+            return
+        self._deadline = asyncio.create_task(self._expire_unauthenticated())
+
+    async def _expire_unauthenticated(self):
+        await asyncio.sleep(settings.WS_AUTH_TIMEOUT_SECONDS)  # a few seconds
+        if self.owner is None:
+            await self.close(code=CLOSE_AUTH_TIMEOUT)
+
+    async def disconnect(self, code):
+        if self._deadline:
+            self._deadline.cancel()
+
+    async def receive_json(self, content, **kwargs):
+        if self.owner is None:
+            if not isinstance(content, dict) or content.get("type") != "auth":
+                await self.close(code=CLOSE_UNAUTHENTICATED)
+                return
+            await self._authenticate(content.get("ticket"))
+            return
+        ...  # normal messages; every query is filtered by self.owner
+
+    async def _authenticate(self, ticket):
+        if not isinstance(ticket, str):
+            await self.close(code=CLOSE_UNAUTHENTICATED)
+            return
+        try:  # SignatureExpired is a subclass of BadSignature
+            claim = signing.loads(ticket, salt=TICKET_SALT, max_age=settings.WS_TICKET_MAX_AGE_SECONDS)
+        except signing.BadSignature:
+            await self.close(code=CLOSE_UNAUTHENTICATED)
+            return
+        if claim.get("tenant") != self.scope["tenant_id"]:  # set by your tenant middleware
+            await self.close(code=CLOSE_WRONG_TENANT)
+            return
+        if self._deadline:
+            self._deadline.cancel()
+        self.owner = claim["owner"]
+        await self.send_json({"type": "auth.ok"})
+```
+
+**4. The REST side uses the same owner, read from the session or an `Authorization` header — never
+`request.query_params`:**
+
+```python
+def get_queryset(self):
+    if self.request.user.is_authenticated:
+        return Model.objects.filter(author=self.request.user)
+    anon_owner = self.request.session.get("anon_owner")
+    if anon_owner:
+        return Model.objects.filter(author__isnull=True, anon_owner=anon_owner)
+    return Model.objects.none()
+```
+
+The rules, each tied to the example above:
+
+- **No credential in any URL** — WebSocket, REST or redirect. Proxies, the ASGI server, error
+  trackers and browser history all keep URLs. The ticket travels in a POST body and in the
+  socket's first message, which nothing logs by default.
+- **Accept, then close with a code.** A `close()` before `accept()` makes the server refuse the
+  handshake with HTTP 403 (ASGI spec), so the browser sees only a failed connect (often code 1006)
+  and cannot tell "log in again" from "wrong tenant". Accept first when the client must act on
+  the reason. 4000 + the HTTP status (4401, 4403, 4408, 4414) reads at a glance in client code
+  and logs.
+- **Refuse any query string on an endpoint that takes none.** Check only that
+  `scope["query_string"]` is empty. Decoding, parsing or logging it handles the token you are
+  trying to keep out.
+- **Short timeout, short ticket.** An unauthenticated socket gets a few seconds; the ticket a
+  minute or less, so a ticket that leaks anyway is soon useless. Make it single-use if replay
+  inside that minute matters (store a nonce, refuse it the second time).
+- **The ticket carries no secret worth stealing beyond its own minute.** `signing.dumps` output
+  is signed, not encrypted, so the payload holds only an opaque owner id and the tenant.
+- **Same-origin browsers may not need a ticket at all.** When the session cookie reaches the
+  socket, `AuthMiddlewareStack` already puts the user and `scope["session"]` on the scope. The
+  ticket is for clients whose cookie does not arrive: cross-origin embeds, native apps.
+- **Strip query strings from the server logs as well** (the filter in
+  [LOGGING.md § Keep query strings out of the ASGI server's logs](LOGGING.md#keep-query-strings-out-of-the-asgi-servers-logs)).
+  The refusal above stops the app from *using* a URL token. It does not stop the server from
+  *writing* one that an old or hostile client sends.
+
+### Moving an existing app off URL tokens
+
+Old clients keep sending `?ws_token=` until they update. Accept it behind a dated setting, in one
+place, and delete that place with the setting:
+
+```python
+# settings.py
+WS_URL_TOKEN_ACCEPTED_UNTIL = env.date("WS_URL_TOKEN_ACCEPTED_UNTIL", default=None)  # e.g. two weeks out
+
+# consumers.py, inside connect(), replacing the plain refusal
+if self.scope.get("query_string"):
+    until = settings.WS_URL_TOKEN_ACCEPTED_UNTIL
+    if until is not None and datetime.date.today() <= until:
+        values = parse_qs(self.scope["query_string"].decode("ascii", "replace")).get("ws_token", [])
+        await self._authenticate(values[0] if len(values) == 1 else None)  # the only reader; delete with the setting
+    else:
+        await self.close(code=CLOSE_QUERY_STRING)
+    return
+```
+
+During the window the ASGI server and the proxy still write every URL token to their logs. Ship
+the log filter and the proxy's path-only log format **before** opening the window, keep the window
+short, and treat the tokens already in old logs as leaked (expire them, rotate what they protect).
+
+### Tests that prove it
+
+Assert booleans only (`assertTrue(code == 4414)`, `assertFalse(marker in out)`): a failing
+`assertEqual` or `assertIn` prints both sides, and one side can be a token, straight into CI logs.
+
+```python
+def make_ticket(tenant="tenant-a.example", owner="anon:test"):
+    return signing.dumps({"owner": owner, "tenant": tenant}, salt=TICKET_SALT)
+
+
+async def closed_with(path, first_message=None, timeout=2):
+    """The close code the server sent, or None when the socket stayed open."""
+    comm = WebsocketCommunicator(application, path, headers=[(b"host", b"tenant-a.example")])
+    connected, _ = await comm.connect()
+    assert connected
+    if first_message is not None:
+        await comm.send_json_to(first_message)
+    try:
+        out = await comm.receive_output(timeout=timeout)
+    except asyncio.TimeoutError:
+        out = None
+    await comm.disconnect()
+    return out.get("code") if out and out["type"] == "websocket.close" else None
+
+class FirstMessageAuthTests(SimpleTestCase):
+    async def test_valid_token_in_url_without_first_message_is_refused(self):
+        self.assertTrue(await closed_with(f"/ws/chat/?ws_token={make_ticket()}") == 4414)
+
+    @override_settings(WS_AUTH_TIMEOUT_SECONDS=0.2)
+    async def test_no_first_message_times_out(self):
+        self.assertTrue(await closed_with("/ws/chat/") == 4408)
+
+    async def test_forged_ticket_is_refused(self):
+        forged = make_ticket()[:-2] + "xx"
+        self.assertTrue(await closed_with("/ws/chat/", {"type": "auth", "ticket": forged}) == 4401)
+
+    # plus: valid first message -> {"type": "auth.ok"}; expired ticket (patch
+    # django.core.signing.time.time while minting) -> 4401; other tenant -> 4403;
+    # non-auth first message -> 4401; GET on the ticket endpoint -> 405.
+```
+
+The test that matters most is the first one: a **valid** token in the URL, no first message. A
+refusal test with a junk query string (`?x=1`) also passes for a consumer that refuses junk but
+still honours a real token; only a valid token proves the URL is never read. The second proof, that the ASGI server's real output carries no token, needs the
+real server and lives in [LOGGING.md § Keep query strings out of the ASGI server's logs](LOGGING.md#keep-query-strings-out-of-the-asgi-servers-logs).
+
+**Mutation check before you trust the suite:** make `connect()` authenticate from
+`scope["query_string"]` and the URL-token test must fail; make it `logger.info()` the query
+string and the server-log test must fail. A suite that stays green under either change is
+not testing this.
 
 ## Per-Message Resource Caps
 

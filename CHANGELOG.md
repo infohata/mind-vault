@@ -10,6 +10,22 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v5.9.7 — Django: WebSocket credentials leave the URL, and the server logs stop recording query strings
+
+The Django WebSocket reference taught passing a session token in the socket URL (`?ws_token=…`). A production app built that way had the token in its proxy and server logs on every connect. This release replaces the pattern, adds the logging fix that goes with it, and corrects the other places in mind-vault that put credentials in URLs or logged query strings. Captured with `/compound` (2026-11-24). The code in both references was run before it was written down, on uvicorn 0.54.0, Django 6.1 and Channels 4.3, and each test was checked against a consumer deliberately broken to fail it.
+
+### Security
+
+- **`skills/django/references/ASYNC_WEBSOCKET.md`** — the section on giving logged-in and anonymous users the same WebSocket code path is rewritten. The client now gets a short-lived ticket from a POST endpoint and sends it as the first message on a socket whose URL carries nothing. The consumer accepts, waits a few seconds for that message and closes with a specific code when the ticket is missing, forged, expired or for another tenant. It also refuses any query string, checking only that it is empty and never reading it. Anonymous ownership uses an opaque id kept in the session instead of the session key, because the session key is the session cookie. The section explains why the consumer must accept before closing (otherwise the browser sees only a failed connect and no code), how to keep accepting old URL tokens for a short, dated transition, and which tests prove the change: a valid token in the URL must be refused, and assertions compare booleans only, so a failure cannot print a token into CI logs.
+- **`skills/django/references/LOGGING.md`** — new section on keeping query strings out of the ASGI server's logs. uvicorn writes every accepted or refused WebSocket, with its full query string, to the `uvicorn.error` logger, so `--no-access-log` does not stop it. This was checked in uvicorn's source and release notes: the query string has been in that line since 0.19.0 and still is in 0.54.0. The section gives a tested logging filter for both uvicorn loggers, installed from the ASGI module, a path-only nginx log format, and an integration test that runs the real server and checks its output, with a negative control showing the token does appear when the filter is missing.
+- **`skills/django/references/LOGGING.md`** — the two request-logging examples logged `request.GET.urlencode()`, query values included. They now log only the parameter names.
+- **`skills/django-frontend/references/ADVANCED_COMPONENTS.md`** — the cross-origin iframe pattern put a signed JWT or session-backed token in a redirect URL. It now passes a one-time code that expires in seconds and is deleted when redeemed, and says never to put a bearer token in a URL.
+
+### Changed
+
+- **`skills/django/references/ASYNC_WEBSOCKET.md`** — the core consumer example now notes that its close-before-accept means the browser sees HTTP 403 and not the 4001/4003 code. The Celery progress consumer used `close(code=403)`, which is not a valid WebSocket close code, and read `self.user` without setting it; both are fixed.
+- **`skills/django/SKILL.md`** — the References entries for Async WebSocket and Logging describe the new material.
+
 ## v5.9.6 — Django: test layout, DB and Redis TLS without fallback, default-deny grants, tenant registry refresh
 
 Four lessons from a consuming project's multi-tenant Django core, captured with `/compound` (2026-11-24). The code in the two new references was run before it was written down: against PostgreSQL 17 with and without TLS, psycopg 3.3, Django 6.1, redis-py 8.2 and 5.2.1, and Celery 5.7.
